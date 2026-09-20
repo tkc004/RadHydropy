@@ -59,7 +59,7 @@ def _write_provenance(header, provenance):
     if not hasattr(provenance, "get"):
         raise TypeError("HDF5 provenance must be supplied as a mapping")
     source_yaml = _provenance_yaml_text(
-        provenance.get("source_config_yaml", "")
+        provenance.get("source_config_yaml", ""),
     )
     effective_value = provenance.get("effective_config_yaml")
     if effective_value is None:
@@ -68,16 +68,20 @@ def _write_provenance(header, provenance):
     provenance_group = header.create_group("Provenance")
     string_dtype = h5py.string_dtype(encoding="utf-8")
     provenance_group.create_dataset(
-        "source_config_yaml", data=source_yaml, dtype=string_dtype
+        "source_config_yaml",
+        data=source_yaml,
+        dtype=string_dtype,
     )
     provenance_group.create_dataset(
-        "effective_config_yaml", data=effective_yaml, dtype=string_dtype
+        "effective_config_yaml",
+        data=effective_yaml,
+        dtype=string_dtype,
     )
     provenance_group.attrs["source_config_sha256"] = hashlib.sha256(
-        source_yaml.encode("utf-8")
+        source_yaml.encode("utf-8"),
     ).hexdigest()
     provenance_group.attrs["effective_config_sha256"] = hashlib.sha256(
-        effective_yaml.encode("utf-8")
+        effective_yaml.encode("utf-8"),
     ).hexdigest()
     for key in (
         "schema_version",
@@ -199,9 +203,19 @@ def write_used_parameters(path, par):
         runtime_parameters = {
             group: _yaml_config_value(nested_par_config.get(group, {}))
             for group in (
-                "simulation", "mesh", "hydrodynamics", "boundary", "timestep",
-                "output", "diagnostics", "units", "thermochemistry", "chemistry",
-                "gravity", "dark_matter", "radiation",
+                "simulation",
+                "mesh",
+                "hydrodynamics",
+                "boundary",
+                "timestep",
+                "output",
+                "diagnostics",
+                "units",
+                "thermochemistry",
+                "chemistry",
+                "gravity",
+                "dark_matter",
+                "radiation",
             )
         }
         runtime_parameters.update(
@@ -209,19 +223,18 @@ def write_used_parameters(path, par):
                 key: _yaml_config_value(value)
                 for key, value in nested_par_config.items()
                 if key not in runtime_parameters
-            }
+            },
         )
     else:
         runtime_parameters = {
             key: parameter_tree(value)
             for key, value in sorted(vars(par).items())
-            if not key.startswith("_")
-            and key not in {"par_config", "initial_condition"}
+            if not key.startswith("_") and key not in {"par_config", "initial_condition"}
         }
     payload = {
         "par": runtime_parameters,
         "initial_condition": parameter_tree(
-            getattr(par, "initial_condition", None)
+            getattr(par, "initial_condition", None),
         ),
         "example": {},
     }
@@ -244,8 +257,7 @@ def _header_attr_value(value):
             return yaml.safe_dump(tree.tolist(), sort_keys=True, default_flow_style=False)
         return tree
     if isinstance(tree, (list, tuple)) and all(
-        isinstance(item, (str, bytes, int, float, bool, np.generic))
-        for item in tree
+        isinstance(item, (str, bytes, int, float, bool, np.generic)) for item in tree
     ):
         array = np.asarray(tree)
         if array.dtype == object or array.dtype.kind == "U":

@@ -1,8 +1,8 @@
 """Sphinx configuration for RadHydropy."""
 
-from pathlib import Path
 import os
 import sys
+from pathlib import Path
 
 try:
     from importlib.metadata import version as metadata_version

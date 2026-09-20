@@ -1,21 +1,21 @@
 import unittest
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
 from unittest.mock import patch
 
 import numpy as np
 import unyt
 
-from radhydropy.fluid import Fluid as RealFluid
-from radhydropy.eos import EOS as RHEOS
-from radhydropy.arrays import as_named_array
-from radhydropy.rsim import Rsim
-from radhydropy.solver import Solver
 import radhydropy.thermo_chemistry as rtc
-from radhydropy.units import CodeUnits
-from radhydropy.thermo_networks.hydrogen import _fast_sync_state_to_fluid
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.arrays import as_named_array
+from radhydropy.eos import EOS as RHEOS
+from radhydropy.fluid import Fluid as RealFluid
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import PROPER_RUNTIME_FIELDS, MeshGeometryState
+from radhydropy.solver import Solver
 from radhydropy.solver.gravity_sources import _synchronize_gravity_energy_roundoff
+from radhydropy.thermo_networks.hydrogen import _fast_sync_state_to_fluid
+from radhydropy.units import CodeUnits
+from tests.parameter_fixtures import parameter_namespace
 
 
 class Par:
@@ -26,17 +26,20 @@ class Par:
         self.CFL = 0.1
         self.dtmin = 1.0e-8 * unyt.s
         self.dtmax = 1.0 * unyt.s
-        self.rho_inflow = 9.0 * unyt.g/unyt.cm**3
-        self.vel_inflow = 8.0 * unyt.cm/unyt.s
+        self.rho_inflow = 9.0 * unyt.g / unyt.cm**3
+        self.vel_inflow = 8.0 * unyt.cm / unyt.s
         self.temp_inflow = 0.0 * unyt.K
         self.mu_inflow = 1.0
-        self.rho_outflow = 7.0 * unyt.g/unyt.cm**3
-        self.vel_outflow = 6.0 * unyt.cm/unyt.s
+        self.rho_outflow = 7.0 * unyt.g / unyt.cm**3
+        self.vel_outflow = 6.0 * unyt.cm / unyt.s
         self.temp_outflow = 0.0 * unyt.K
         self.mu_outflow = 1.0
         self.mesh = SimpleNamespace(ghost_cells=2, grid_cells=4)
         self.hydrodynamics = SimpleNamespace(
-            CFL=0.1, gamma=5.0 / 3.0, riemann_solver='Rusanov', order=0,
+            CFL=0.1,
+            gamma=5.0 / 3.0,
+            riemann_solver="Rusanov",
+            order=0,
         )
         self.boundary = SimpleNamespace(
             condition=boundcond,
@@ -51,7 +54,7 @@ class Par:
         )
         self.radiation = SimpleNamespace(
             radiative_transfer=False,
-            method='long_characteristics',
+            method="long_characteristics",
             direction=1,
             boundary_flux=0.0,
             source_photon_rate=0.0,
@@ -61,8 +64,8 @@ class Par:
 
 
 class EOS:
-    gamma = 5.0/3.0
-    EOStype = 'polytropic'
+    gamma = 5.0 / 3.0
+    EOStype = "polytropic"
 
     def pressure(self, rho, temp, mu):
         return rho / (mu * unyt.mp) * unyt.kb * temp
@@ -84,7 +87,7 @@ class EOS:
         )
         nonzero = rho != 0.0 * rho.units
         pressure_over_rho[nonzero] = (pressure[nonzero] / rho[nonzero]).to(
-            unyt.cm**2 / unyt.s**2
+            unyt.cm**2 / unyt.s**2,
         )
         soundspeed = np.sqrt(self.gamma * pressure_over_rho).to(unyt.cm / unyt.s)
         soundspeed[np.isnan(soundspeed)] = 0.0 * unyt.cm / unyt.s
@@ -100,7 +103,7 @@ class EOS:
         Fmass = rho * vel
         qmass = rho
         Fmom = rho * vel * vel
-        Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0 * rho[0] * vel[0]**2
+        Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0 * rho[0] * vel[0] ** 2
         Fmom += pressure
         qmom = rho * vel
         FEn = vel * (self.gamma * pressure / (self.gamma - 1.0) + 0.5 * rho * vel**2)
@@ -110,9 +113,9 @@ class EOS:
 
 class Fluid:
     def __init__(self):
-        self.rho_code = np.arange(8, dtype=float) * unyt.g/unyt.cm**3
-        self.vel_code = np.arange(10, 18, dtype=float) * unyt.cm/unyt.s
-        self.pre_code = np.arange(20, 28, dtype=float) * unyt.dyn/unyt.cm**2
+        self.rho_code = np.arange(8, dtype=float) * unyt.g / unyt.cm**3
+        self.vel_code = np.arange(10, 18, dtype=float) * unyt.cm / unyt.s
+        self.pre_code = np.arange(20, 28, dtype=float) * unyt.dyn / unyt.cm**2
         self.rho_proper_code = self.rho_code
         self.vel_proper_code = self.vel_code
         self.pre_proper_code = self.pre_code
@@ -131,15 +134,15 @@ class Fluid:
 
 CODE_UNITS = CodeUnits.from_mapping(
     {
-        'name': 'test_units',
-        'InternalUnitSystem': {
-            'UnitMass_in_cgs': 1.0,
-            'UnitLength_in_cgs': 1.0,
-            'UnitVelocity_in_cgs': 1.0,
-            'UnitCurrent_in_cgs': 1.0,
-            'UnitTemp_in_cgs': 1.0,
+        "name": "test_units",
+        "InternalUnitSystem": {
+            "UnitMass_in_cgs": 1.0,
+            "UnitLength_in_cgs": 1.0,
+            "UnitVelocity_in_cgs": 1.0,
+            "UnitCurrent_in_cgs": 1.0,
+            "UnitTemp_in_cgs": 1.0,
         },
-    }
+    },
 )
 
 
@@ -149,7 +152,7 @@ def make_code_mesh(n=8):
     mesh.vol = np.ones(n, dtype=float)
     mesh.xdelta = np.ones(n, dtype=float)
     mesh.area = np.ones(n, dtype=float)
-    mesh.coordsys = 'cartesian'
+    mesh.coordsys = "cartesian"
     mesh.coordinate = np.arange(n, dtype=float) + 0.5
     mesh.geometry_state = MeshGeometryState(
         x_proper_code=mesh.coordinate.copy(),
@@ -163,7 +166,7 @@ def make_code_mesh(n=8):
 
 def make_code_fluid(n=8):
     fluid = RealFluid()
-    fluid.eos = RHEOS('polytropic', gamma=5.0 / 3.0, code_units=CODE_UNITS)
+    fluid.eos = RHEOS("polytropic", gamma=5.0 / 3.0, code_units=CODE_UNITS)
     fluid.rho_proper_code = np.ones(n, dtype=float)
     fluid.vel_proper_code = np.zeros(n, dtype=float)
     fluid.temp_proper_code = np.ones(n, dtype=float) * 1.0e4
@@ -174,7 +177,7 @@ def make_code_fluid(n=8):
     return fluid
 
 
-def make_code_par(boundcond='Periodic'):
+def make_code_par(boundcond="Periodic"):
     par = Par(boundcond)
     par.CodeUnits = CODE_UNITS
     par.dtmin = 1.0e-8
@@ -194,16 +197,16 @@ def make_code_par(boundcond='Periodic'):
     par.dual_energy_eta2 = 1.0e-1
     par.dual_energy_consistency_factor = 1.0e-1
     par.dual_energy_pressure_floor = 1.0e-20
-    par.dual_energy_pressure_selection = 'switch'
+    par.dual_energy_pressure_selection = "switch"
     par.radiative_transfer = False
-    par.radiative_transfer_method = 'long_characteristics'
+    par.radiative_transfer_method = "long_characteristics"
     par.radiative_transfer_boundary_flux = 0.0
     par.source_photon_rate = 0.0
     par.radiative_transfer_direction = 1
     par.mesh.grid_cells = par.nogrid
     par.mesh.ghost_cells = par.noghost
     par.hydrodynamics.CFL = par.CFL
-    par.hydrodynamics.gamma = par.gamma if hasattr(par, 'gamma') else 5.0 / 3.0
+    par.hydrodynamics.gamma = par.gamma if hasattr(par, "gamma") else 5.0 / 3.0
     par.boundary.condition = par.boundcond
     par.timestep.dtmin = par.dtmin
     par.timestep.dtmax = par.dtmax
@@ -216,17 +219,17 @@ class Mesh:
         if boundary is None:
             boundary = np.linspace(0.0, 8.0, 9)
         self.boundary = boundary * unyt.cm
-        self.vol = np.ones(len(boundary)-1) * unyt.cm**3
-        self.xdelta = np.ones(len(boundary)-1) * unyt.cm
-        self.area = np.arange(len(boundary)-1, dtype=float) * unyt.cm**2
-        self.coordsys = 'cartesian'
+        self.vol = np.ones(len(boundary) - 1) * unyt.cm**3
+        self.xdelta = np.ones(len(boundary) - 1) * unyt.cm
+        self.area = np.arange(len(boundary) - 1, dtype=float) * unyt.cm**2
+        self.coordsys = "cartesian"
         coordinate = 0.5 * (boundary[1:] + boundary[:-1])
         self.geometry_state = MeshGeometryState(
             x_proper_code=coordinate,
             boundary_proper_code=boundary,
-            width_proper_code=np.ones(len(boundary)-1, dtype=float),
-            area_proper_code=np.arange(len(boundary)-1, dtype=float),
-            volume_proper_code=np.ones(len(boundary)-1, dtype=float),
+            width_proper_code=np.ones(len(boundary) - 1, dtype=float),
+            area_proper_code=np.arange(len(boundary) - 1, dtype=float),
+            volume_proper_code=np.ones(len(boundary) - 1, dtype=float),
         )
 
 
@@ -253,7 +256,11 @@ class Testing(unittest.TestCase):
         )
 
         correction = _synchronize_gravity_energy_roundoff(
-            solver, mesh, fluid, par, fluid.Mom_code
+            solver,
+            mesh,
+            fluid,
+            par,
+            fluid.Mom_code,
         )
 
         self.assertAlmostEqual(correction, 5.0e-7)
@@ -264,66 +271,79 @@ class Testing(unittest.TestCase):
         velocity = np.array([0.75, -0.25])
         pressure = np.array([1.0, 0.5])
         flux, valid = Solver._hllc_flux(
-            rho, velocity, pressure, rho, velocity, pressure, gamma=1.4
+            rho,
+            velocity,
+            pressure,
+            rho,
+            velocity,
+            pressure,
+            gamma=1.4,
         )
-        expected = np.stack((
-            rho * velocity,
-            rho * velocity**2 + pressure,
-            velocity * (1.4 * pressure / 0.4 + 0.5 * rho * velocity**2),
-        ))
+        expected = np.stack(
+            (
+                rho * velocity,
+                rho * velocity**2 + pressure,
+                velocity * (1.4 * pressure / 0.4 + 0.5 * rho * velocity**2),
+            )
+        )
         np.testing.assert_array_equal(valid, [True, True])
         np.testing.assert_allclose(flux, expected, rtol=1.0e-13, atol=1.0e-13)
 
     def test_hllc_marks_vacuum_state_for_rusanov_fallback(self):
         _, valid = Solver._hllc_flux(
-            np.array([0.0]), np.array([0.0]), np.array([0.0]),
-            np.array([1.0]), np.array([1.0]), np.array([1.0]), gamma=1.4
+            np.array([0.0]),
+            np.array([0.0]),
+            np.array([0.0]),
+            np.array([1.0]),
+            np.array([1.0]),
+            np.array([1.0]),
+            gamma=1.4,
         )
         np.testing.assert_array_equal(valid, [False])
 
     def test_callreadhdf5_requires_code_units(self):
         sim = Rsim.__new__(Rsim)
-        sim.par = parameter_namespace(ICfilename='dummy.hdf5')
+        sim.par = parameter_namespace(ICfilename="dummy.hdf5")
         sim.mesh = SimpleNamespace()
         sim.fluid = SimpleNamespace()
 
         with self.assertRaisesRegex(ValueError, "configured code units"):
             sim.Callreadhdf5()
 
-    @patch('radhydropy.rsim.rio.readhdf5')
+    @patch("radhydropy.rsim.rio.readhdf5")
     def test_callreadhdf5_rebuilds_eos_from_restored_header(self, readhdf5):
         restored_units = CodeUnits.from_mapping(
             {
-                'name': 'restored_units',
-                'InternalUnitSystem': {
-                    'UnitMass_in_cgs': 2.0,
-                    'UnitLength_in_cgs': 3.0,
-                    'UnitVelocity_in_cgs': 4.0,
-                    'UnitCurrent_in_cgs': 1.0,
-                    'UnitTemp_in_cgs': 5.0,
+                "name": "restored_units",
+                "InternalUnitSystem": {
+                    "UnitMass_in_cgs": 2.0,
+                    "UnitLength_in_cgs": 3.0,
+                    "UnitVelocity_in_cgs": 4.0,
+                    "UnitCurrent_in_cgs": 1.0,
+                    "UnitTemp_in_cgs": 5.0,
                 },
-            }
+            },
         )
         sim = Rsim.__new__(Rsim)
         sim.par = parameter_namespace(
-            ICfilename='dummy.hdf5',
+            ICfilename="dummy.hdf5",
             CodeUnits=CODE_UNITS,
-            EOStype='polytropic',
+            EOStype="polytropic",
             gamma=1.4,
             time_proper_code=0.0,
         )
         sim.mesh = SimpleNamespace()
         sim.fluid = RealFluid()
-        original_eos = RHEOS('polytropic', gamma=1.4, code_units=CODE_UNITS)
+        original_eos = RHEOS("polytropic", gamma=1.4, code_units=CODE_UNITS)
         sim.fluid.eos = original_eos
         sim.checkparams = lambda: None
 
         def restore_header(par, mesh, fluid, filename):
-            par.EOStype = 'polytropic'
+            par.EOStype = "polytropic"
             par.gamma = 5.0 / 3.0
             par.CodeUnits = restored_units
             par.time_proper_code = 7.0
-            par.hydrodynamics.eos_type = 'polytropic'
+            par.hydrodynamics.eos_type = "polytropic"
             par.hydrodynamics.gamma = 5.0 / 3.0
             par.units.CodeUnits = restored_units
             par.simulation.time_proper_code = 7.0
@@ -333,14 +353,14 @@ class Testing(unittest.TestCase):
         sim.Callreadhdf5()
 
         self.assertIsNot(sim.fluid.eos, original_eos)
-        self.assertEqual(sim.fluid.eos.EOStype, 'polytropic')
+        self.assertEqual(sim.fluid.eos.EOStype, "polytropic")
         self.assertEqual(sim.fluid.eos.gamma, 5.0 / 3.0)
         self.assertIs(sim.fluid.eos.CodeUnits, restored_units)
         self.assertEqual(sim.fluid.time_proper_code, 7.0)
 
     def test_open_boundary_fills_all_ghost_cells(self):
         fluid = Fluid()
-        Solver().SetBoundary(None, fluid, Par('Open'))
+        Solver().SetBoundary(None, fluid, Par("Open"))
 
         np.testing.assert_array_equal(fluid.rho_proper_code[:2].value, [2.0, 2.0])
         np.testing.assert_array_equal(fluid.rho_proper_code[-2:].value, [5.0, 5.0])
@@ -348,16 +368,16 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(fluid.vel_proper_code[-2:].value, [15.0, 15.0])
 
     def test_optional_gas_angular_momentum_initializes_and_reconstructs(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         par.gas_specific_angular_momentum = 0.25
         mesh = make_code_mesh(n=12)
         mesh._par = par
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
-        self.assertTrue(hasattr(fluid, 'specific_angular_momentum_code'))
+        self.assertTrue(hasattr(fluid, "specific_angular_momentum_code"))
         np.testing.assert_allclose(
-            fluid.specific_angular_momentum_code[par.noghost:par.noghost + par.nogrid],
+            fluid.specific_angular_momentum_code[par.noghost : par.noghost + par.nogrid],
             0.25,
         )
 
@@ -366,12 +386,13 @@ class Testing(unittest.TestCase):
         solver.SetConserved(mesh, fluid)
         active = slice(par.noghost, par.noghost + par.nogrid)
         np.testing.assert_allclose(
-            fluid.AngularMomentum_code[active], 0.25 * fluid.Mass_code[active]
+            fluid.AngularMomentum_code[active],
+            0.25 * fluid.Mass_code[active],
         )
         fluid.specific_angular_momentum_code[:] = -1.0
         solver.SetPrimitive(mesh, fluid, par=par)
         np.testing.assert_allclose(
-            fluid.specific_angular_momentum_code[par.noghost:par.noghost + par.nogrid],
+            fluid.specific_angular_momentum_code[par.noghost : par.noghost + par.nogrid],
             0.25,
         )
 
@@ -379,25 +400,29 @@ class Testing(unittest.TestCase):
         fluid = Fluid()
         fluid.specific_angular_momentum_code = np.arange(8, dtype=float) + 1.0
         solver = Solver()
-        solver.SetBoundary(None, fluid, Par('Periodic'))
+        solver.SetBoundary(None, fluid, Par("Periodic"))
         np.testing.assert_array_equal(
-            fluid.specific_angular_momentum_code[:2], [5.0, 6.0]
+            fluid.specific_angular_momentum_code[:2],
+            [5.0, 6.0],
         )
         np.testing.assert_array_equal(
-            fluid.specific_angular_momentum_code[-2:], [3.0, 4.0]
+            fluid.specific_angular_momentum_code[-2:],
+            [3.0, 4.0],
         )
 
         fluid.specific_angular_momentum_code = np.arange(8, dtype=float) + 1.0
-        solver.SetBoundary(None, fluid, Par('Reflecting'))
+        solver.SetBoundary(None, fluid, Par("Reflecting"))
         np.testing.assert_array_equal(
-            fluid.specific_angular_momentum_code[:2], [4.0, 3.0]
+            fluid.specific_angular_momentum_code[:2],
+            [4.0, 3.0],
         )
         np.testing.assert_array_equal(
-            fluid.specific_angular_momentum_code[-2:], [6.0, 5.0]
+            fluid.specific_angular_momentum_code[-2:],
+            [6.0, 5.0],
         )
 
     def test_gas_angular_momentum_uses_mass_flux_and_conserves_periodically(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         mesh = make_code_mesh(n=12)
         mesh._par = par
@@ -421,7 +446,8 @@ class Testing(unittest.TestCase):
             np.asarray(fluid.specific_angular_momentum_code.R, dtype=float),
         ) * np.asarray(fluid.Mass_code.flux, dtype=float)
         np.testing.assert_allclose(
-            np.asarray(fluid.AngularMomentum_code.flux, dtype=float), expected_flux
+            np.asarray(fluid.AngularMomentum_code.flux, dtype=float),
+            expected_flux,
         )
         solver.AddFluxes(1.0e-3, mesh, fluid, par.boundcond)
         np.testing.assert_allclose(
@@ -432,7 +458,7 @@ class Testing(unittest.TestCase):
         )
 
     def test_gas_angular_momentum_order_one_uses_bounded_donor_flux(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         par.positivity_preserving = False
         mesh = make_code_mesh(n=12)
@@ -450,17 +476,19 @@ class Testing(unittest.TestCase):
 
         mass_flux = np.asarray(fluid.Mass_code.flux, dtype=float)
         expected = mass_flux * np.asarray(
-            fluid.angular_momentum_face, dtype=float
+            fluid.angular_momentum_face,
+            dtype=float,
         )
         np.testing.assert_allclose(
-            np.asarray(fluid.AngularMomentum_code.flux, dtype=float), expected
+            np.asarray(fluid.AngularMomentum_code.flux, dtype=float),
+            expected,
         )
         self.assertTrue(
-            np.any(np.asarray(fluid.angular_momentum_face, dtype=float) < 0.0)
+            np.any(np.asarray(fluid.angular_momentum_face, dtype=float) < 0.0),
         )
 
     def test_gas_angular_momentum_reconstruction_is_locally_bounded(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         par.positivity_preserving = False
         mesh = make_code_mesh(n=12)
@@ -468,8 +496,7 @@ class Testing(unittest.TestCase):
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
         fluid.specific_angular_momentum_code[:] = np.array(
-            [0.02, 0.20, 0.02, -0.10, 0.02, 0.15, 0.02, -0.05,
-             0.02, 0.18, 0.02, -0.08]
+            [0.02, 0.20, 0.02, -0.10, 0.02, 0.15, 0.02, -0.05, 0.02, 0.18, 0.02, -0.08],
         )
 
         solver = Solver()
@@ -487,23 +514,27 @@ class Testing(unittest.TestCase):
             fluid.specific_angular_momentum_code.R.first,
         ):
             np.testing.assert_array_less(
-                np.asarray(face_state, dtype=float), j_max + 1.0e-14
+                np.asarray(face_state, dtype=float),
+                j_max + 1.0e-14,
             )
             np.testing.assert_array_less(
-                j_min - 1.0e-14, np.asarray(face_state, dtype=float)
+                j_min - 1.0e-14,
+                np.asarray(face_state, dtype=float),
             )
 
     def test_spherical_origin_zeroes_optional_fluxes_after_construction(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         par.gas_rotational_energy = True
         mesh = make_code_mesh(n=12)
-        mesh.coordsys = 'spherical'
+        mesh.coordsys = "spherical"
         mesh._par = par
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
         fluid.specific_angular_momentum_code[:] = np.linspace(
-            0.1, 1.0, len(fluid.specific_angular_momentum_code)
+            0.1,
+            1.0,
+            len(fluid.specific_angular_momentum_code),
         )
 
         solver = Solver()
@@ -520,11 +551,11 @@ class Testing(unittest.TestCase):
         self.assertEqual(float(fluid.rotational_energy_flux[origin]), 0.0)
 
     def test_reflecting_positive_rmin_preserves_j_and_uses_wall_flux(self):
-        par = make_code_par('Reflecting')
+        par = make_code_par("Reflecting")
         par.gas_angular_momentum = True
         par.gas_rotational_energy = True
         mesh = make_code_mesh(n=12)
-        mesh.coordsys = 'spherical'
+        mesh.coordsys = "spherical"
         mesh.boundary = np.arange(1.0, 14.0)
         mesh.coordinate = 0.5 * (mesh.boundary[:-1] + mesh.boundary[1:])
         mesh._par = par
@@ -532,7 +563,9 @@ class Testing(unittest.TestCase):
         fluid.SetUpFluid(par, mesh=mesh)
         fluid.vel_proper_code[:] = 0.2
         fluid.specific_angular_momentum_code[:] = np.linspace(
-            0.2, 1.0, len(fluid.specific_angular_momentum_code)
+            0.2,
+            1.0,
+            len(fluid.specific_angular_momentum_code),
         )
         active = slice(par.noghost, par.noghost + par.nogrid)
         active_j = np.asarray(fluid.specific_angular_momentum_code[active]).copy()
@@ -540,7 +573,8 @@ class Testing(unittest.TestCase):
         solver = Solver()
         solver.SetBoundary(mesh, fluid, par)
         np.testing.assert_allclose(
-            fluid.specific_angular_momentum_code[:par.noghost], active_j[:par.noghost][::-1]
+            fluid.specific_angular_momentum_code[: par.noghost],
+            active_j[: par.noghost][::-1],
         )
         solver.SetConserved(mesh, fluid)
         solver.GetTimeStep(mesh, fluid, par)
@@ -555,7 +589,7 @@ class Testing(unittest.TestCase):
 
     def test_origin_adjacent_rotating_cells_are_regular_and_signed(self):
         # The first active cell is adjacent to the exact spherical origin.
-        par = make_code_par('Reflecting')
+        par = make_code_par("Reflecting")
         par.noghost = 1
         par.mesh.ghost_cells = 1
         par.nogrid = 4
@@ -564,7 +598,7 @@ class Testing(unittest.TestCase):
         par.gas_rotational_energy = True
         par.positivity_preserving = False
         mesh = SimpleNamespace(
-            coordsys='spherical',
+            coordsys="spherical",
             boundary=np.arange(-1.0, 6.0),
             coordinate=np.arange(-0.5, 5.5),
             vol=np.ones(6),
@@ -584,7 +618,7 @@ class Testing(unittest.TestCase):
         fluid.vel_proper_code = as_named_array(fluid.vel_proper_code)
         fluid.vel_proper_code[:] = 0.2
         fluid.specific_angular_momentum_code = as_named_array(
-            -0.4 * mesh.coordinate**1
+            -0.4 * mesh.coordinate**1,
         )
         fluid.SetPressure()
         fluid.pre_proper_code = as_named_array(fluid.pre_proper_code)
@@ -605,7 +639,9 @@ class Testing(unittest.TestCase):
 
         first_active = par.noghost
         rotational_energy = solver._rotational_energy_density(
-            mesh, fluid, par
+            mesh,
+            fluid,
+            par,
         )
         self.assertTrue(np.isfinite(rotational_energy[first_active]))
         self.assertGreater(rotational_energy[first_active], 0.0)
@@ -614,7 +650,8 @@ class Testing(unittest.TestCase):
         # receives no centrifugal acceleration, while the adjacent positive-r
         # cell does receive the regular source.
         source_mesh = SimpleNamespace(
-            coordsys='spherical', coordinate=np.array([0.0, 0.75]),
+            coordsys="spherical",
+            coordinate=np.array([0.0, 0.75]),
             vol=np.ones(2),
         )
         source_mesh.geometry_state = MeshGeometryState(
@@ -625,12 +662,18 @@ class Testing(unittest.TestCase):
             volume_proper_code=source_mesh.vol.copy(),
         )
         source_fluid = SimpleNamespace(
-            rho_code=np.ones(2), Mass_code=np.ones(2), Mom_code=np.zeros(2),
-            Energy_code=np.ones(2), AngularMomentum_code=np.array([1.0, 0.75]),
+            rho_code=np.ones(2),
+            Mass_code=np.ones(2),
+            Mom_code=np.zeros(2),
+            Energy_code=np.ones(2),
+            AngularMomentum_code=np.array([1.0, 0.75]),
         )
         source_par = SimpleNamespace(
-            noghost=0, nogrid=2, gas_angular_momentum=True,
-            gas_rotational_energy=True, energy_diagnostics=True,
+            noghost=0,
+            nogrid=2,
+            gas_angular_momentum=True,
+            gas_rotational_energy=True,
+            energy_diagnostics=True,
         )
         source_par.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
         solver.ApplyGravity(0.1, source_mesh, source_fluid, source_par)
@@ -638,18 +681,21 @@ class Testing(unittest.TestCase):
         self.assertGreater(float(source_fluid.Mom_code[1]), 0.0)
 
     def test_optional_gravity_potential_energy_is_source_balanced(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gravity_potential_energy = True
         par.externalgravity = True
         par.gravity = SimpleNamespace(
             potential_on=lambda coordinate: -np.asarray(coordinate, dtype=float),
-            acceleration_on_mesh=lambda mesh, rho=None, par=None:
-                np.ones_like(np.asarray(mesh.coordinate, dtype=float)),
+            acceleration_on_mesh=lambda mesh, rho=None, par=None: np.ones_like(
+                np.asarray(mesh.coordinate, dtype=float)
+            ),
         )
         mesh = make_code_mesh()
         mesh._par = par
         fluid = make_code_fluid()
-        fluid.pre_proper_code = fluid.eos.pressure(fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu)
+        fluid.pre_proper_code = fluid.eos.pressure(
+            fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu
+        )
         solver = Solver()
         solver.SetConserved(mesh, fluid)
 
@@ -657,9 +703,8 @@ class Testing(unittest.TestCase):
             np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float),
             np.asarray(fluid.Mass_code, dtype=float) * (-mesh.coordinate),
         )
-        initial_total = (
-            np.asarray(fluid.Energy_code, dtype=float)
-            + np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float)
+        initial_total = np.asarray(fluid.Energy_code, dtype=float) + np.asarray(
+            fluid.GravitationalPotentialEnergy_code, dtype=float
         )
         solver.ApplyGravity(1.0e-3, mesh, fluid, par)
         np.testing.assert_allclose(
@@ -671,23 +716,27 @@ class Testing(unittest.TestCase):
         )
 
     def test_optional_gravity_potential_energy_uses_face_mass_flux(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gravity_potential_energy = True
         par.positivity_preserving = False
         par.externalgravity = True
         par.gravity = SimpleNamespace(
             potential_on=lambda coordinate: -np.asarray(coordinate, dtype=float),
-            acceleration_on_mesh=lambda mesh, rho=None, par=None:
-                np.zeros_like(np.asarray(mesh.coordinate, dtype=float)),
+            acceleration_on_mesh=lambda mesh, rho=None, par=None: np.zeros_like(
+                np.asarray(mesh.coordinate, dtype=float)
+            ),
         )
         mesh = make_code_mesh()
         mesh._par = par
         fluid = make_code_fluid()
-        fluid.pre_proper_code = fluid.eos.pressure(fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu)
+        fluid.pre_proper_code = fluid.eos.pressure(
+            fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu
+        )
         solver = Solver()
         solver.SetConserved(mesh, fluid)
         old_potential_energy = np.asarray(
-            fluid.GravitationalPotentialEnergy_code, dtype=float
+            fluid.GravitationalPotentialEnergy_code,
+            dtype=float,
         ).copy()
         mass_flux = np.linspace(0.1, 0.8, len(fluid.Mass_code))
         fluid.Mass_code.flux = as_named_array(mass_flux)
@@ -697,15 +746,15 @@ class Testing(unittest.TestCase):
         solver.AddFluxes(dt, mesh, fluid, par)
         face_potential = -np.asarray(mesh.boundary[:-1], dtype=float)
         expected = old_potential_energy + dt * (
-            face_potential * mass_flux
-            - np.roll(face_potential * mass_flux, -1)
+            face_potential * mass_flux - np.roll(face_potential * mass_flux, -1)
         )
         np.testing.assert_allclose(
-            np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float), expected
+            np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float),
+            expected,
         )
 
     def test_thermochemistry_sync_preserves_rotational_energy(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         par.gas_rotational_energy = True
         fluid = SimpleNamespace(
@@ -727,21 +776,21 @@ class Testing(unittest.TestCase):
         kinetic = 0.5
         rotational = 0.75
         state = {
-            'interior': slice(0, 1),
-            'active': np.array([True]),
-            'rho_cgs_g_cm3': np.array([1.0]),
-            'xHI': np.array([1.0]),
-            'mu': np.array([1.0]),
-            'temperature_cgs_K': np.array([1.0]),
-            'source_temperature_factor': 1.0,
-            'thermal_coupling': True,
-            'hydrogen_update_mu': False,
-            'gamma': 5.0 / 3.0,
-            'specific_total_energy_cgs_erg_g': np.array([internal + kinetic]),
-            'specific_energy_cgs_erg_g': np.array([internal]),
-            'specific_kinetic_energy_cgs_erg_g': np.array([kinetic]),
-            'specific_kinetic_energy_supercomoving_cgs_erg_g': np.array([kinetic]),
-            'specific_rotational_energy_code': np.array([rotational]),
+            "interior": slice(0, 1),
+            "active": np.array([True]),
+            "rho_cgs_g_cm3": np.array([1.0]),
+            "xHI": np.array([1.0]),
+            "mu": np.array([1.0]),
+            "temperature_cgs_K": np.array([1.0]),
+            "source_temperature_factor": 1.0,
+            "thermal_coupling": True,
+            "hydrogen_update_mu": False,
+            "gamma": 5.0 / 3.0,
+            "specific_total_energy_cgs_erg_g": np.array([internal + kinetic]),
+            "specific_energy_cgs_erg_g": np.array([internal]),
+            "specific_kinetic_energy_cgs_erg_g": np.array([kinetic]),
+            "specific_kinetic_energy_supercomoving_cgs_erg_g": np.array([kinetic]),
+            "specific_rotational_energy_code": np.array([rotational]),
         }
 
         _fast_sync_state_to_fluid(state, fluid, par)
@@ -752,12 +801,12 @@ class Testing(unittest.TestCase):
         )
 
     def test_optional_rotational_energy_is_added_and_removed_for_pressure(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         par.gas_rotational_energy = True
         par.dual_energy = True
         mesh = make_code_mesh(n=12)
-        mesh.coordsys = 'spherical'
+        mesh.coordsys = "spherical"
         mesh._par = par
         mesh.coordinate = np.arange(12, dtype=float) + 0.5
         fluid = make_code_fluid(n=8)
@@ -773,8 +822,11 @@ class Testing(unittest.TestCase):
         volume = np.asarray(mesh.vol[active], dtype=float)
         hydro_energy = np.asarray(
             fluid.eos.total_energy_density(
-                fluid.rho_proper_code[active], fluid.vel_proper_code[active], fluid.pre_proper_code[active]
-            ) * volume,
+                fluid.rho_proper_code[active],
+                fluid.vel_proper_code[active],
+                fluid.pre_proper_code[active],
+            )
+            * volume,
             dtype=float,
         )
         expected_rotational = 0.5 * rho_code * 0.5**2 / radius**2 * volume
@@ -783,8 +835,7 @@ class Testing(unittest.TestCase):
             hydro_energy + expected_rotational,
         )
         expected_internal = np.asarray(
-            fluid.eos.thermal_energy_density(fluid.pre_proper_code[active])
-            * volume,
+            fluid.eos.thermal_energy_density(fluid.pre_proper_code[active]) * volume,
             dtype=float,
         )
         np.testing.assert_allclose(
@@ -794,7 +845,8 @@ class Testing(unittest.TestCase):
         pressure_before = np.asarray(fluid.pre_proper_code[active], dtype=float).copy()
         solver.SetPrimitive(mesh, fluid, par=par)
         np.testing.assert_allclose(
-            np.asarray(fluid.pre_proper_code[active], dtype=float), pressure_before
+            np.asarray(fluid.pre_proper_code[active], dtype=float),
+            pressure_before,
         )
         solver.GetTimeStep(mesh, fluid, par)
         solver.SetInterFaceFlux(mesh, fluid, par.boundcond, order=0)
@@ -802,8 +854,9 @@ class Testing(unittest.TestCase):
         expected_rotational_flux = np.zeros_like(radius_face)
         valid_face = radius_face > 0.0
         expected_rotational_flux[valid_face] = (
-            0.5 * np.asarray(fluid.specific_angular_momentum_code.L, dtype=float)[valid_face]**2
-            / radius_face[valid_face]**2
+            0.5
+            * np.asarray(fluid.specific_angular_momentum_code.L, dtype=float)[valid_face] ** 2
+            / radius_face[valid_face] ** 2
             * np.asarray(fluid.Mass_code.flux, dtype=float)[valid_face]
         )
         np.testing.assert_allclose(
@@ -815,41 +868,43 @@ class Testing(unittest.TestCase):
         old_mass = np.asarray(fluid.Mass_code, dtype=float).copy()
         old_angular = np.asarray(fluid.AngularMomentum_code, dtype=float).copy()
         old_kinetic = 0.5 * old_momentum**2 / old_mass
-        old_rotational = 0.5 * old_angular**2 / (
-            old_mass * np.asarray(mesh.coordinate, dtype=float)**2
+        old_rotational = (
+            0.5 * old_angular**2 / (old_mass * np.asarray(mesh.coordinate, dtype=float) ** 2)
         )
         solver.ApplyGravity(1.0e-3, mesh, fluid, par)
-        expected_acceleration = 0.5**2 / np.asarray(mesh.coordinate, dtype=float)**3
+        expected_acceleration = 0.5**2 / np.asarray(mesh.coordinate, dtype=float) ** 3
         np.testing.assert_allclose(
             np.asarray(fluid.Mom_code[active], dtype=float),
             old_momentum[active]
             + np.asarray(fluid.Mass_code[active], dtype=float)
-            * expected_acceleration[active] * 1.0e-3,
+            * expected_acceleration[active]
+            * 1.0e-3,
         )
-        centrifugal_work = 0.5 * (
-            old_momentum
-            + (
+        centrifugal_work = (
+            0.5
+            * (
                 old_momentum
-                + np.asarray(fluid.Mass_code, dtype=float)
-                * expected_acceleration * 1.0e-3
+                + (
+                    old_momentum
+                    + np.asarray(fluid.Mass_code, dtype=float) * expected_acceleration * 1.0e-3
+                )
             )
-        ) * expected_acceleration * 1.0e-3
+            * expected_acceleration
+            * 1.0e-3
+        )
         np.testing.assert_allclose(
             np.asarray(fluid.Energy_code, dtype=float),
             old_energy,
         )
         new_momentum = np.asarray(fluid.Mom_code, dtype=float)
         new_kinetic = 0.5 * new_momentum**2 / old_mass
-        new_rotational = 0.5 * old_angular**2 / (
-            old_mass * np.asarray(mesh.coordinate, dtype=float)**2
+        new_rotational = (
+            0.5 * old_angular**2 / (old_mass * np.asarray(mesh.coordinate, dtype=float) ** 2)
         )
         np.testing.assert_allclose(new_rotational, old_rotational)
         np.testing.assert_allclose(
             (old_energy - new_kinetic - new_rotational)[active],
-            (
-                old_energy - old_kinetic - old_rotational
-                - (new_kinetic - old_kinetic)
-            )[active],
+            (old_energy - old_kinetic - old_rotational - (new_kinetic - old_kinetic))[active],
             rtol=1.0e-12,
             atol=1.0e-12,
         )
@@ -859,19 +914,21 @@ class Testing(unittest.TestCase):
         )
 
     def test_manufactured_spherical_hydro_step_transports_j_conservatively(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         par.gas_rotational_energy = True
         par.positivity_preserving = False
         mesh = make_code_mesh(n=12)
-        mesh.coordsys = 'spherical'
+        mesh.coordsys = "spherical"
         mesh._par = par
         mesh.coordinate = np.arange(12, dtype=float) + 1.0
         fluid = make_code_fluid(n=8)
         fluid.vel_proper_code[:] = 0.1 + 0.01 * np.arange(8)
         fluid.SetUpFluid(par, mesh=mesh)
         fluid.specific_angular_momentum_code[:] = np.linspace(
-            0.2, 0.9, len(fluid.specific_angular_momentum_code)
+            0.2,
+            0.9,
+            len(fluid.specific_angular_momentum_code),
         )
         solver = Solver()
         solver.SetBoundary(mesh, fluid, par)
@@ -888,30 +945,22 @@ class Testing(unittest.TestCase):
         mass_flux_area = np.asarray(fluid.Mass_code.flux, dtype=float) * area
         momentum_flux_area = np.asarray(fluid.Mom_code.flux, dtype=float) * area
         energy_flux_area = np.asarray(fluid.Energy_code.flux, dtype=float) * area
-        angular_flux_area = (
-            np.asarray(fluid.AngularMomentum_code.flux, dtype=float) * area
-        )
-        expected_mass = old_mass + dt * (
-            mass_flux_area - np.roll(mass_flux_area, -1)
-        )
+        angular_flux_area = np.asarray(fluid.AngularMomentum_code.flux, dtype=float) * area
+        expected_mass = old_mass + dt * (mass_flux_area - np.roll(mass_flux_area, -1))
         expected_momentum = old_momentum + dt * (
-            momentum_flux_area - np.roll(momentum_flux_area, -1)
-            + np.asarray(fluid.pre_proper_code, dtype=float) * (
-                np.roll(area, -1) - area
-            )
+            momentum_flux_area
+            - np.roll(momentum_flux_area, -1)
+            + np.asarray(fluid.pre_proper_code, dtype=float) * (np.roll(area, -1) - area)
         )
-        expected_energy = old_energy + dt * (
-            energy_flux_area - np.roll(energy_flux_area, -1)
-        )
-        expected_angular = old_angular + dt * (
-            angular_flux_area - np.roll(angular_flux_area, -1)
-        )
+        expected_energy = old_energy + dt * (energy_flux_area - np.roll(energy_flux_area, -1))
+        expected_angular = old_angular + dt * (angular_flux_area - np.roll(angular_flux_area, -1))
         solver.AddFluxes(dt, mesh, fluid, par.boundcond)
         np.testing.assert_allclose(np.asarray(fluid.Mass_code, dtype=float), expected_mass)
         np.testing.assert_allclose(np.asarray(fluid.Mom_code, dtype=float), expected_momentum)
         np.testing.assert_allclose(np.asarray(fluid.Energy_code, dtype=float), expected_energy)
         np.testing.assert_allclose(
-            np.asarray(fluid.AngularMomentum_code, dtype=float), expected_angular
+            np.asarray(fluid.AngularMomentum_code, dtype=float),
+            expected_angular,
         )
         # Rotational energy is exchanged through the conservative transport
         # flux. It must not receive a second centrifugal-work source.
@@ -923,20 +972,22 @@ class Testing(unittest.TestCase):
         )
         radius = np.asarray(mesh.coordinate, dtype=float)
         old_rotational = 0.5 * old_angular**2 / (old_mass * radius**2)
-        new_rotational = 0.5 * np.asarray(fluid.AngularMomentum_code, dtype=float)**2 / (
-            np.asarray(fluid.Mass_code, dtype=float) * radius**2
+        new_rotational = (
+            0.5
+            * np.asarray(fluid.AngularMomentum_code, dtype=float) ** 2
+            / (np.asarray(fluid.Mass_code, dtype=float) * radius**2)
         )
         self.assertGreater(np.max(np.abs(new_rotational - old_rotational)), 0.0)
 
     def test_periodic_boundary_wraps_interior(self):
         fluid = Fluid()
-        Solver().SetBoundary(None, fluid, Par('Periodic'))
+        Solver().SetBoundary(None, fluid, Par("Periodic"))
 
         np.testing.assert_array_equal(fluid.rho_proper_code[:2].value, [4.0, 5.0])
         np.testing.assert_array_equal(fluid.rho_proper_code[-2:].value, [2.0, 3.0])
 
     def test_periodic_boundary_fluxes_match_after_reconstruction(self):
-        par = make_code_par('Periodic')
+        par = make_code_par("Periodic")
         mesh = make_code_mesh(n=12)
         mesh._par = par
         fluid = make_code_fluid(n=8)
@@ -952,7 +1003,7 @@ class Testing(unittest.TestCase):
 
         first = par.mesh.ghost_cells
         last = first + par.mesh.grid_cells
-        for name in ('Mass_code', 'Mom_code', 'Energy_code'):
+        for name in ("Mass_code", "Mom_code", "Energy_code"):
             flux = np.asarray(getattr(fluid, name).flux, dtype=float)
             self.assertEqual(flux[first], flux[last])
 
@@ -960,7 +1011,7 @@ class Testing(unittest.TestCase):
         fluid = Fluid()
         fluid.xHI = np.arange(8, dtype=float) / 10.0
 
-        Solver().SetBoundary(None, fluid, Par('Periodic'))
+        Solver().SetBoundary(None, fluid, Par("Periodic"))
 
         np.testing.assert_array_equal(fluid.xHI[:2], [0.4, 0.5])
         np.testing.assert_array_equal(fluid.xHI[-2:], [0.2, 0.3])
@@ -969,14 +1020,14 @@ class Testing(unittest.TestCase):
         fluid = Fluid()
         fluid.ngamma_code = np.arange(8, dtype=float) / unyt.cm**3
 
-        Solver().SetBoundary(None, fluid, Par('Periodic'))
+        Solver().SetBoundary(None, fluid, Par("Periodic"))
 
         np.testing.assert_array_equal(fluid.ngamma_code[:2].value, [4.0, 5.0])
         np.testing.assert_array_equal(fluid.ngamma_code[-2:].value, [2.0, 3.0])
 
     def test_reflecting_boundary_reverses_velocity(self):
         fluid = Fluid()
-        Solver().SetBoundary(None, fluid, Par('Reflecting'))
+        Solver().SetBoundary(None, fluid, Par("Reflecting"))
 
         np.testing.assert_array_equal(fluid.rho_proper_code[:2].value, [3.0, 2.0])
         np.testing.assert_array_equal(fluid.rho_proper_code[-2:].value, [5.0, 4.0])
@@ -985,7 +1036,7 @@ class Testing(unittest.TestCase):
 
     def test_open_spherical_boundary_uses_center_symmetry(self):
         fluid = Fluid()
-        Solver().SetBoundary(Mesh(), fluid, Par('OpenSph'))
+        Solver().SetBoundary(Mesh(), fluid, Par("OpenSph"))
 
         np.testing.assert_array_equal(fluid.rho_proper_code[:2].value, [3.0, 2.0])
         np.testing.assert_array_equal(fluid.rho_proper_code[-2:].value, [5.0, 5.0])
@@ -995,7 +1046,7 @@ class Testing(unittest.TestCase):
     def test_open_spherical_boundary_skips_origin_cell_when_mesh_straddles_zero(self):
         fluid = Fluid()
         mesh = Mesh(np.linspace(-2.5, 5.5, 9))
-        Solver().SetBoundary(mesh, fluid, Par('OpenSph'))
+        Solver().SetBoundary(mesh, fluid, Par("OpenSph"))
 
         np.testing.assert_array_equal(fluid.rho_proper_code[:2].value, [4.0, 3.0])
         np.testing.assert_array_equal(fluid.rho_proper_code[-2:].value, [5.0, 5.0])
@@ -1007,7 +1058,7 @@ class Testing(unittest.TestCase):
         fluid.xHI = np.arange(8, dtype=float) / 10.0
         fluid.ngamma_code = np.arange(8, dtype=float) / unyt.cm**3
         active_velocity = fluid.vel_proper_code[2:6].copy()
-        par = Par('InflowSph')
+        par = Par("InflowSph")
         par.CodeUnits = CODE_UNITS
         par.hydrogen_xHI_inflow = 0.25
         par.hydrogen_ngamma_inflow = 1.5 / unyt.cm**3
@@ -1026,7 +1077,7 @@ class Testing(unittest.TestCase):
         fluid = Fluid()
         fluid.xHI = np.arange(8, dtype=float) / 10.0
         fluid.ngamma_code = np.arange(8, dtype=float) / unyt.cm**3
-        par = Par('OutflowSph')
+        par = Par("OutflowSph")
         par.CodeUnits = CODE_UNITS
         par.hydrogen_xHI_outflow = 0.75
         par.hydrogen_ngamma_outflow = 2.5 / unyt.cm**3
@@ -1042,7 +1093,7 @@ class Testing(unittest.TestCase):
 
     def test_wind_spherical_boundary_sets_inverse_square_inner_profile(self):
         fluid = Fluid()
-        par = Par('WindSph')
+        par = Par("WindSph")
         par.CodeUnits = CODE_UNITS
 
         Solver().SetBoundary(Mesh(), fluid, par)
@@ -1071,8 +1122,8 @@ class Testing(unittest.TestCase):
             time_proper_code=0.0,
         )
         fluid.Mass_code = np.array([1.0, 0.0, 2.0]) * unyt.g
-        fluid.Mom_code = np.array([2.0, 1.0, 0.0]) * unyt.g*unyt.cm/unyt.s
-        fluid.Energy_code = np.array([10.0, 5.0, 1.0]) * unyt.g*unyt.cm**2/unyt.s**2
+        fluid.Mom_code = np.array([2.0, 1.0, 0.0]) * unyt.g * unyt.cm / unyt.s
+        fluid.Energy_code = np.array([10.0, 5.0, 1.0]) * unyt.g * unyt.cm**2 / unyt.s**2
 
         Solver().SetPrimitive(Mesh(np.linspace(0.0, 3.0, 4)), fluid)
 
@@ -1083,7 +1134,7 @@ class Testing(unittest.TestCase):
 
     def test_spherical_uniform_pressure_does_not_create_momentum(self):
         mesh = Mesh()
-        mesh.coordsys = 'spherical'
+        mesh.coordsys = "spherical"
         fluid = Fluid()
         fluid.rho_proper_code = np.ones(8, dtype=float)
         fluid.vel_proper_code = np.zeros(8, dtype=float)
@@ -1099,13 +1150,13 @@ class Testing(unittest.TestCase):
         fluid.Mom_code.flux = np.ones(8, dtype=float)
         fluid.Energy_code.flux = np.zeros(8, dtype=float)
 
-        Solver().AddFluxes(1.0, mesh, fluid, 'OpenSph')
+        Solver().AddFluxes(1.0, mesh, fluid, "OpenSph")
 
         np.testing.assert_allclose(np.asarray(fluid.Mom_code), np.zeros(8))
 
     def test_spherical_first_active_cell_velocity_is_not_projected(self):
         mesh = make_code_mesh(4)
-        mesh.coordsys = 'spherical'
+        mesh.coordsys = "spherical"
         mesh.boundary[0] = 0.0
         mesh.coordinate[0] = 0.5
         fluid = make_code_fluid(4)
@@ -1119,8 +1170,11 @@ class Testing(unittest.TestCase):
         fluid.Mom_code = as_named_array(fluid.rho_proper_code * fluid.vel_proper_code * mesh.vol)
         fluid.Energy_code = as_named_array(
             fluid.eos.total_energy_density(
-                fluid.rho_proper_code, fluid.vel_proper_code, fluid.pre_proper_code
-            ) * mesh.vol
+                fluid.rho_proper_code,
+                fluid.vel_proper_code,
+                fluid.pre_proper_code,
+            )
+            * mesh.vol,
         )
         total_energy = float(fluid.Energy_code[0])
 
@@ -1139,7 +1193,7 @@ class Testing(unittest.TestCase):
         par.nogrid = 4
         par.mesh.grid_cells = 4
         par.positivity_preserving = True
-        par.positivity_factor_method = 'invariant_domain'
+        par.positivity_factor_method = "invariant_domain"
         mesh = make_code_mesh(4)
         mesh._par = par
         fluid = SimpleNamespace(
@@ -1152,7 +1206,7 @@ class Testing(unittest.TestCase):
         fluid.Mom_code.flux = as_named_array(np.zeros(4))
         fluid.Energy_code.flux = as_named_array(np.array([0.0, 3.0, 0.0, 0.0]))
 
-        Solver().AddFluxes(1.0, mesh, fluid, 'Outflow')
+        Solver().AddFluxes(1.0, mesh, fluid, "Outflow")
 
         self.assertTrue(np.all(fluid.Mass_code >= 0.0))
         self.assertTrue(np.all(fluid.Energy_code >= 0.0))
@@ -1171,24 +1225,36 @@ class Testing(unittest.TestCase):
         par.positivity_energy_floor = 0.0
         par.cfl_density_floor = 0.0
         par.dual_energy = True
-        par.positivity_factor_method = 'analytical'
+        par.positivity_factor_method = "analytical"
         mesh = make_code_mesh(5)
         mesh._par = par
-        mass = np.array([
-            0.8673953529245595, 6.776326090692884,
-            2.768587034204799, 0.42270495958486487,
-            0.2879553791648065,
-        ])
-        momentum = np.array([
-            0.09880948326072078, 0.32311661008571224,
-            0.03990724798119123, -0.014152283269336843,
-            0.00925101127551695,
-        ])
-        energy = np.array([
-            0.36731554210974315, 0.14787788678725858,
-            0.22036689100247855, 0.04871676701166089,
-            0.02676529191260478,
-        ])
+        mass = np.array(
+            [
+                0.8673953529245595,
+                6.776326090692884,
+                2.768587034204799,
+                0.42270495958486487,
+                0.2879553791648065,
+            ]
+        )
+        momentum = np.array(
+            [
+                0.09880948326072078,
+                0.32311661008571224,
+                0.03990724798119123,
+                -0.014152283269336843,
+                0.00925101127551695,
+            ]
+        )
+        energy = np.array(
+            [
+                0.36731554210974315,
+                0.14787788678725858,
+                0.22036689100247855,
+                0.04871676701166089,
+                0.02676529191260478,
+            ]
+        )
         fluid = SimpleNamespace(
             Mass_code=as_named_array(mass.copy()),
             Mom_code=as_named_array(momentum.copy()),
@@ -1196,26 +1262,43 @@ class Testing(unittest.TestCase):
             InternalEnergy_code=as_named_array(energy.copy()),
             time=0.0,
         )
-        mass_face = np.array([
-            -1.7690080915545598, 1.7811742205546452,
-            -3.723223801407037, -1.04004798128519,
-            -1.2456146601584484,
-        ])
-        momentum_face = np.array([
-            0.7153755556725097, -0.02435852042891355,
-            -0.26620947455297345, 2.4873892451277824,
-            -2.483994405078338,
-        ])
-        energy_face = np.array([
-            -0.5043952152186525, -1.1852485717384549,
-            -0.9156911448084882, -0.5172337136435069,
-            -1.5154215992557107,
-        ])
+        mass_face = np.array(
+            [
+                -1.7690080915545598,
+                1.7811742205546452,
+                -3.723223801407037,
+                -1.04004798128519,
+                -1.2456146601584484,
+            ]
+        )
+        momentum_face = np.array(
+            [
+                0.7153755556725097,
+                -0.02435852042891355,
+                -0.26620947455297345,
+                2.4873892451277824,
+                -2.483994405078338,
+            ]
+        )
+        energy_face = np.array(
+            [
+                -0.5043952152186525,
+                -1.1852485717384549,
+                -0.9156911448084882,
+                -0.5172337136435069,
+                -1.5154215992557107,
+            ]
+        )
         solver = Solver()
 
         solver._positivity_limited_face_fluxes(
-            fluid, 1.0, mesh, par,
-            mass_face, momentum_face, energy_face,
+            fluid,
+            1.0,
+            mesh,
+            par,
+            mass_face,
+            momentum_face,
+            energy_face,
         )
 
         self.assertTrue(np.all(np.isfinite(fluid.Mass_code)))
@@ -1250,11 +1333,15 @@ class Testing(unittest.TestCase):
             InternalEnergy_code=as_named_array(np.array([1.0])),
             time=0.0,
         )
-        with self.assertRaisesRegex(ValueError, 'outside positivity domain'):
+        with self.assertRaisesRegex(ValueError, "outside positivity domain"):
             Solver()._positivity_limited_face_fluxes(
-                fluid, 1.0, mesh,
+                fluid,
+                1.0,
+                mesh,
                 par,
-                np.zeros(1), np.zeros(1), np.zeros(1),
+                np.zeros(1),
+                np.zeros(1),
+                np.zeros(1),
             )
 
     def test_dual_energy_prefers_dual_when_conservative_thermal_cancels(self):
@@ -1266,7 +1353,7 @@ class Testing(unittest.TestCase):
         par.mesh.grid_cells = 1
         par.cfl_density_floor = 0.0
         par.dual_energy = True
-        par.dual_energy_pressure_selection = 'switch'
+        par.dual_energy_pressure_selection = "switch"
         mesh = make_code_mesh(1)
         mesh._par = par
         fluid = make_code_fluid(1)
@@ -1275,7 +1362,7 @@ class Testing(unittest.TestCase):
         fluid.pre_proper_code = as_named_array(np.ones(1))
         solver = Solver()
         solver.SetConserved(mesh, fluid)
-        fluid.Energy_code[:] = 0.5 * fluid.Mom_code[:]**2 / fluid.Mass_code[:] + 1.0e-12
+        fluid.Energy_code[:] = 0.5 * fluid.Mom_code[:] ** 2 / fluid.Mass_code[:] + 1.0e-12
         fluid.InternalEnergy_code[:] = 1.0e-2
 
         solver.SetPrimitive(mesh, fluid, par=par)
@@ -1295,7 +1382,7 @@ class Testing(unittest.TestCase):
         par.mesh.grid_cells = 1
         par.cfl_density_floor = 0.0
         par.dual_energy = True
-        par.dual_energy_pressure_selection = 'internal'
+        par.dual_energy_pressure_selection = "internal"
         mesh = make_code_mesh(1)
         mesh._par = par
         fluid = make_code_fluid(1)
@@ -1304,7 +1391,7 @@ class Testing(unittest.TestCase):
         fluid.pre_proper_code = as_named_array(np.ones(1))
         solver = Solver()
         solver.SetConserved(mesh, fluid)
-        fluid.Energy_code[:] = 0.5 * fluid.Mom_code[:]**2 / fluid.Mass_code[:] + 1.0e-12
+        fluid.Energy_code[:] = 0.5 * fluid.Mom_code[:] ** 2 / fluid.Mass_code[:] + 1.0e-12
         fluid.InternalEnergy_code[:] = 1.0e-2
 
         solver.SetPrimitive(mesh, fluid, par=par)
@@ -1324,7 +1411,7 @@ class Testing(unittest.TestCase):
         par.mesh.grid_cells = 1
         par.cfl_density_floor = 0.0
         par.dual_energy = True
-        par.dual_energy_pressure_selection = 'switch'
+        par.dual_energy_pressure_selection = "switch"
         par.dual_energy_pressure_floor = 1.0e-20
         mesh = make_code_mesh(1)
         mesh._par = par
@@ -1334,7 +1421,7 @@ class Testing(unittest.TestCase):
         fluid.pre_proper_code = as_named_array(np.ones(1))
         solver = Solver()
         solver.SetConserved(mesh, fluid)
-        fluid.Energy_code[:] = 0.5 * fluid.Mom_code[:]**2 / fluid.Mass_code[:] - 1.0
+        fluid.Energy_code[:] = 0.5 * fluid.Mom_code[:] ** 2 / fluid.Mass_code[:] - 1.0
         fluid.InternalEnergy_code[:] = 1.0e-2
 
         solver.SetPrimitive(mesh, fluid, par=par)
@@ -1348,14 +1435,14 @@ class Testing(unittest.TestCase):
 
     def test_spherical_origin_flux_is_zeroed(self):
         mesh = Mesh()
-        mesh.coordsys = 'spherical'
+        mesh.coordsys = "spherical"
         fluid = Fluid()
         fluid.Mass_code = np.ones(8) * unyt.g
-        fluid.Mom_code = np.ones(8) * unyt.g*unyt.cm/unyt.s
-        fluid.Energy_code = np.ones(8) * unyt.g*unyt.cm**2/unyt.s**2
-        fluid.Mass_code.flux = np.ones(8) * unyt.g/unyt.cm**2/unyt.s
-        fluid.Mom_code.flux = np.ones(8) * unyt.dyn/unyt.cm**2
-        fluid.Energy_code.flux = np.ones(8) * unyt.g/unyt.s**3
+        fluid.Mom_code = np.ones(8) * unyt.g * unyt.cm / unyt.s
+        fluid.Energy_code = np.ones(8) * unyt.g * unyt.cm**2 / unyt.s**2
+        fluid.Mass_code.flux = np.ones(8) * unyt.g / unyt.cm**2 / unyt.s
+        fluid.Mom_code.flux = np.ones(8) * unyt.dyn / unyt.cm**2
+        fluid.Energy_code.flux = np.ones(8) * unyt.g / unyt.s**3
 
         Solver()._zero_spherical_origin_flux(mesh, fluid)
 
@@ -1365,7 +1452,7 @@ class Testing(unittest.TestCase):
 
     def test_spherical_first_active_cell_momentum_evolves_conservatively(self):
         mesh = Mesh()
-        mesh.coordsys = 'spherical'
+        mesh.coordsys = "spherical"
         fluid = Fluid()
         fluid.rho_proper_code = np.ones(8, dtype=float)
         fluid.vel_proper_code = np.zeros(8, dtype=float)
@@ -1381,7 +1468,7 @@ class Testing(unittest.TestCase):
         fluid.Mom_code.flux = np.zeros(8, dtype=float)
         fluid.Energy_code.flux = np.zeros(8, dtype=float)
 
-        Solver().AddFluxes(1.0, mesh, fluid, 'OpenSph')
+        Solver().AddFluxes(1.0, mesh, fluid, "OpenSph")
 
         self.assertEqual(fluid.Mom_code[0], 1.0)
 
@@ -1450,7 +1537,9 @@ class Testing(unittest.TestCase):
 
         np.testing.assert_allclose(np.asarray(fluid.ngamma_code), np.asarray(ngamma_code_before))
         self.assertTrue(np.all(fluid.xHI[2:6] >= xHI_before[2:6]))
-        self.assertTrue(np.all(np.asarray(fluid.Energy_code)[2:6] <= np.asarray(energy_before)[2:6]))
+        self.assertTrue(
+            np.all(np.asarray(fluid.Energy_code)[2:6] <= np.asarray(energy_before)[2:6])
+        )
         np.testing.assert_array_equal(fluid.ngamma_code[:2], ngamma_code_before[:2])
 
     def test_hydrogen_fixed_radiation_field_ionizes_without_attenuation(self):
@@ -1515,7 +1604,7 @@ class Testing(unittest.TestCase):
         par.hydrogen_recombination = False
         par.hydrogen_collisional_ionization = False
         par.radiative_transfer = True
-        par.radiative_transfer_method = 'long_characteristics'
+        par.radiative_transfer_method = "long_characteristics"
         par.radiative_transfer_boundary_flux = 1.0e15
         par.source_photon_rate = 0.0
         par.radiative_transfer_direction = 1
@@ -1533,7 +1622,7 @@ class Testing(unittest.TestCase):
 
         Solver().ApplyThermochemistryFast(1.0e2, mesh, fluid, par)
 
-        self.assertTrue(hasattr(fluid, 'ngamma_code'))
+        self.assertTrue(hasattr(fluid, "ngamma_code"))
         self.assertTrue(np.all(np.isfinite(np.asarray(fluid.ngamma_code))))
         self.assertTrue(np.all(np.asarray(fluid.ngamma_code) >= 0.0))
         self.assertTrue(np.all(fluid.xHI[2:6] < 1.0))
@@ -1629,7 +1718,9 @@ class Testing(unittest.TestCase):
         fluid.pre_proper_code[3] = 1.0e-12
         Solver().SetConserved(mesh, fluid)
         conserved_before = (
-            float(fluid.Mass_code[3]), float(fluid.Mom_code[3]), float(fluid.Energy_code[3])
+            float(fluid.Mass_code[3]),
+            float(fluid.Mom_code[3]),
+            float(fluid.Energy_code[3]),
         )
 
         fluid.Mass_code[3] *= 0.5
@@ -1674,27 +1765,29 @@ class Testing(unittest.TestCase):
 
         Solver().SetPrimitive(mesh, fluid, par)
         fluid.temp_proper_code = fluid.eos.temperature(
-            fluid.rho_proper_code, fluid.pre_proper_code, fluid.mu
+            fluid.rho_proper_code,
+            fluid.pre_proper_code,
+            fluid.mu,
         )
 
         np.testing.assert_allclose(fluid.temp_proper_code, 3.0)
         self.assertTrue(np.all(np.asarray(fluid.pre_proper_code) > 0.0))
 
     def test_unknown_thermochemistry_network_raises_clear_error(self):
-        par = Par('Periodic')
-        par.thermochemistry_network = 'unknown'
+        par = Par("Periodic")
+        par.thermochemistry_network = "unknown"
 
-        with self.assertRaisesRegex(ValueError, 'Unknown thermo-chemistry network'):
+        with self.assertRaisesRegex(ValueError, "Unknown thermo-chemistry network"):
             rtc.get_network(par)
 
     def test_rsim_step_rejects_unknown_mode(self):
-        sim = Rsim.FromComponents(Par('Periodic'), Mesh(), Fluid())
+        sim = Rsim.FromComponents(Par("Periodic"), Mesh(), Fluid())
 
-        with self.assertRaisesRegex(ValueError, 'Unknown step mode'):
-            sim.Step(dt=1.0 * unyt.s, mode='unknown')
+        with self.assertRaisesRegex(ValueError, "Unknown step mode"):
+            sim.Step(dt=1.0 * unyt.s, mode="unknown")
 
     def test_rsim_hydro_step_supports_ssprk2(self):
-        par = Par('Periodic')
+        par = Par("Periodic")
         par.hydrogen_chemistry = False
         mesh = Mesh()
         fluid = RealFluid()
@@ -1705,58 +1798,60 @@ class Testing(unittest.TestCase):
         sim = Rsim.FromComponents(par, mesh, fluid)
 
         call_counts = {
-            'prepare': 0,
-            'advance': 0,
-            'finalize': 0,
-            'sync': 0,
+            "prepare": 0,
+            "advance": 0,
+            "finalize": 0,
+            "sync": 0,
         }
 
         def fake_prepare(fluid=None):
-            call_counts['prepare'] += 1
+            call_counts["prepare"] += 1
 
         def fake_advance(dt, fluid=None):
-            call_counts['advance'] += 1
+            call_counts["advance"] += 1
             old_mass = fluid.Mass_code.copy()
-            mass_flux = np.ones_like(fluid.Mass_code) * (
-                unyt.g / (unyt.cm**2 * unyt.s)
-            )
+            mass_flux = np.ones_like(fluid.Mass_code) * (unyt.g / (unyt.cm**2 * unyt.s))
             return old_mass, mass_flux
 
         def fake_finalize(
-            dt, old_mass, mass_flux, advect_chemistry=True, fluid=None,
+            dt,
+            old_mass,
+            mass_flux,
+            advect_chemistry=True,
+            fluid=None,
             apply_gravity=True,
         ):
-            call_counts['finalize'] += 1
+            call_counts["finalize"] += 1
             fluid.Mass_code = fluid.Mass_code + 1.0 * unyt.g
             fluid.Mom_code = fluid.Mom_code + 2.0 * (unyt.g * unyt.cm / unyt.s)
             fluid.Energy_code = fluid.Energy_code + 3.0 * (unyt.g * unyt.cm**2 / unyt.s**2)
             fluid.time_proper_code += dt
 
         def fake_sync(fluid=None):
-            call_counts['sync'] += 1
+            call_counts["sync"] += 1
 
         sim.PrepareConservedStep = fake_prepare
         sim.AdvanceHydroFluxes = fake_advance
         sim.FinalizeHydroStep = fake_finalize
         sim._sync_hydro_state = fake_sync
 
-        result = sim.Step(dt=0.25 * unyt.s, mode='hydro', hydro_integrator='ssprk2')
+        result = sim.Step(dt=0.25 * unyt.s, mode="hydro", hydro_integrator="ssprk2")
 
-        self.assertEqual(result['hydro_steps'], 1)
-        self.assertEqual(result['source_steps'], 0)
-        self.assertEqual(call_counts['prepare'], 2)
-        self.assertEqual(call_counts['advance'], 2)
-        self.assertEqual(call_counts['finalize'], 2)
-        self.assertEqual(call_counts['sync'], 1)
+        self.assertEqual(result["hydro_steps"], 1)
+        self.assertEqual(result["source_steps"], 0)
+        self.assertEqual(call_counts["prepare"], 2)
+        self.assertEqual(call_counts["advance"], 2)
+        self.assertEqual(call_counts["finalize"], 2)
+        self.assertEqual(call_counts["sync"], 1)
         self.assertEqual(fluid.time_proper_code, 0.25 * unyt.s)
         np.testing.assert_allclose(fluid.Mass_code.value, np.full(8, 2.0))
         np.testing.assert_allclose(fluid.Mom_code.value, np.full(8, 3.0))
         np.testing.assert_allclose(fluid.Energy_code.value, np.full(8, 4.0))
 
     def test_rsim_ssprk2_strang_applies_sources_outside_rk_stages(self):
-        par = Par('Periodic')
+        par = Par("Periodic")
         par.hydrogen_chemistry = False
-        par.source_integrator = 'strang'
+        par.source_integrator = "strang"
         par.externalgravity = True
         mesh = Mesh()
         fluid = RealFluid()
@@ -1782,7 +1877,11 @@ class Testing(unittest.TestCase):
             return fluid.Mass_code.copy(), np.zeros_like(fluid.Mass_code)
 
         def fake_finalize(
-            dt, old_mass, mass_flux, advect_chemistry=True, fluid=None,
+            dt,
+            old_mass,
+            mass_flux,
+            advect_chemistry=True,
+            fluid=None,
             apply_gravity=True,
         ):
             stage_gravity_flags.append(apply_gravity)
@@ -1796,17 +1895,17 @@ class Testing(unittest.TestCase):
 
         result = sim.Step(
             dt=0.25 * unyt.s,
-            mode='hydro',
-            hydro_integrator='ssprk2',
+            mode="hydro",
+            hydro_integrator="ssprk2",
         )
 
-        self.assertEqual(result['hydro_steps'], 1)
+        self.assertEqual(result["hydro_steps"], 1)
         self.assertEqual(len(source_steps), 2)
         self.assertTrue(all(np.isclose(float(dt), 0.125) for dt in source_steps))
         self.assertEqual(stage_gravity_flags, [False, False])
 
     def test_rsim_source_step_advances_time_without_hydro_step(self):
-        par = Par('Periodic')
+        par = Par("Periodic")
         par.hydrogen_chemistry = False
         mesh = Mesh()
         fluid = Fluid()
@@ -1819,12 +1918,12 @@ class Testing(unittest.TestCase):
         fluid.time_proper_code = 0.0
         sim = Rsim.FromComponents(par, mesh, fluid)
 
-        result = sim.Step(dt=0.25, mode='sources')
+        result = sim.Step(dt=0.25, mode="sources")
 
-        self.assertEqual(result['hydro_steps'], 0)
-        self.assertEqual(result['source_steps'], 0)
+        self.assertEqual(result["hydro_steps"], 0)
+        self.assertEqual(result["source_steps"], 0)
         self.assertEqual(fluid.time_proper_code, 0.25)
-        self.assertTrue(hasattr(fluid, 'Mass_code'))
+        self.assertTrue(hasattr(fluid, "Mass_code"))
 
     def test_rsim_evolve_uses_step_and_history_callback(self):
         par = make_code_par()
@@ -1843,14 +1942,14 @@ class Testing(unittest.TestCase):
 
         counters = sim.Evolve(
             final_time=0.5,
-            mode='sources',
+            mode="sources",
             history_callback=lambda current_sim: history.append(
-                current_sim.fluid.time_proper_code
+                current_sim.fluid.time_proper_code,
             ),
         )
 
-        self.assertEqual(counters['hydro_steps'], 0)
-        self.assertEqual(counters['source_steps'], 0)
+        self.assertEqual(counters["hydro_steps"], 0)
+        self.assertEqual(counters["source_steps"], 0)
         self.assertEqual(fluid.time_proper_code, 0.5 * unyt.s)
         np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
 
@@ -1871,12 +1970,12 @@ class Testing(unittest.TestCase):
         backend_calls = []
 
         def fail_step(*args, **kwargs):
-            raise AssertionError('Step should not be called when backend is provided')
+            raise AssertionError("Step should not be called when backend is provided")
 
         def custom_backend(dt=None, mode=None, **kwargs):
             backend_calls.append((dt, mode, kwargs))
             fluid.time_proper_code += dt
-            return {'dt': dt, 'hydro_steps': 0, 'source_steps': 0}
+            return {"dt": dt, "hydro_steps": 0, "source_steps": 0}
 
         sim.Step = fail_step
         sim.GetStepTime = lambda dt=None, final_time=None: min(
@@ -1886,15 +1985,15 @@ class Testing(unittest.TestCase):
 
         counters = sim.Evolve(
             final_time=0.5 * unyt.s,
-            mode='sources',
+            mode="sources",
             history_callback=lambda current_sim: history.append(
-                current_sim.fluid.time_proper_code.to_value(unyt.s)
+                current_sim.fluid.time_proper_code.to_value(unyt.s),
             ),
             step_backend=custom_backend,
         )
 
-        self.assertEqual(counters['hydro_steps'], 0)
-        self.assertEqual(counters['source_steps'], 0)
+        self.assertEqual(counters["hydro_steps"], 0)
+        self.assertEqual(counters["source_steps"], 0)
         self.assertEqual(len(backend_calls), 3)
         self.assertEqual(fluid.time_proper_code, 0.5 * unyt.s)
         np.testing.assert_allclose(history, [0.0, 0.2, 0.4, 0.5])
@@ -1935,5 +2034,5 @@ class Testing(unittest.TestCase):
         self.assertEqual(events, ["before_step", "get_step_time", "step"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

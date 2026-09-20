@@ -1,13 +1,13 @@
 """Plot energy accounting inside an evolving multiple of the virial radius."""
 
-from pathlib import Path
 import argparse
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "outputs_correlation_gas_compton_atomic"
@@ -49,9 +49,7 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
             "residual": "gas_energy_balance_residual",
         }.items()
     }
-    changes["accounting_sum"] = (
-        changes["hydro"] + changes["gravity"] + changes["thermochemistry"]
-    )
+    changes["accounting_sum"] = changes["hydro"] + changes["gravity"] + changes["thermochemistry"]
 
     figure = output / (prefix + "_2RvirEnergyBalance_TimeEvolution.jpg")
     fig, axes = plt.subplots(2, 1, figsize=(10, 9), sharex=True)
@@ -59,15 +57,23 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
     # non-circular markers so the energy partition is visually unambiguous.
     axes[0].plot(time_cosmic_code, changes["delta_total"], "o-", lw=2, label=r"$\Delta E_i$")
     axes[0].plot(
-        time_cosmic_code, changes["delta_thermal"], "o-", lw=2,
+        time_cosmic_code,
+        changes["delta_thermal"],
+        "o-",
+        lw=2,
         label=r"$\Delta E_{i,\rm thermal}$",
     )
     axes[0].plot(
-        time_cosmic_code, changes["delta_kinetic"], "o-", lw=2,
+        time_cosmic_code,
+        changes["delta_kinetic"],
+        "o-",
+        lw=2,
         label=r"$\Delta E_{i,\rm kinetic}$",
     )
     axes[0].plot(
-        time_cosmic_code, changes["hydro"], "^-",
+        time_cosmic_code,
+        changes["hydro"],
+        "^-",
         label=r"hydrodynamic flux energy change $\Delta E_{i,\rm flux}$",
     )
     axes[0].plot(time_cosmic_code, changes["gravity"], "s-", label="gravitational work")
@@ -94,9 +100,14 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
         # Use exact snapshot locations.  A secondary-axis interpolation
         # extrapolates the final point when its locator requests z=0, even
         # though this run stops at z~5; explicit ticks prevent that error.
-        selected = np.unique(np.linspace(
-            0, time_valid.size - 1, min(7, time_valid.size), dtype=int
-        ))
+        selected = np.unique(
+            np.linspace(
+                0,
+                time_valid.size - 1,
+                min(7, time_valid.size),
+                dtype=int,
+            )
+        )
         top_axis = axes[0].twiny()
         top_axis.set_xlim(axes[0].get_xlim())
         top_axis.set_xticks(time_valid[selected])
@@ -107,12 +118,20 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
         first_resolved = time_cosmic_code[np.flatnonzero(resolved)[0]]
         for axis in axes:
             axis.axvspan(
-                float(time_cosmic_code[0]), float(first_resolved),
-                color="0.85", alpha=0.35, lw=0,
+                float(time_cosmic_code[0]),
+                float(first_resolved),
+                color="0.85",
+                alpha=0.35,
+                lw=0,
             )
         axes[0].text(
-            0.02, 0.96, "no resolved halo: $r_{200}$ undefined",
-            transform=axes[0].transAxes, va="top", fontsize=9, color="0.25",
+            0.02,
+            0.96,
+            "no resolved halo: $r_{200}$ undefined",
+            transform=axes[0].transAxes,
+            va="top",
+            fontsize=9,
+            color="0.25",
         )
     for axis in axes:
         axis.grid(alpha=0.3)

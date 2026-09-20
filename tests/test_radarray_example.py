@@ -10,7 +10,7 @@ def test_radarray_conversion_example():
         Path(__file__).parents[1]
         / "example"
         / "RadArrayConversion1D"
-        / "radarray_conversion1d.yaml"
+        / "radarray_conversion1d.yaml",
     )
 
     np.testing.assert_allclose(result["radius_proper_code"], [0.5, 1.0])

@@ -1,25 +1,27 @@
 """Rsim execution subsystem helpers."""
 
 import time
-from dataclasses import fields, is_dataclass
 from collections.abc import Mapping
+from dataclasses import fields, is_dataclass
+
 import numpy as np
 import unyt
 
 import radhydropy.io as rio
+from radhydropy.eos import EOS
 from radhydropy.runtime_fields import runtime_fields
 from radhydropy.units import (
-    _CODE_UNIT_GROUPS, apply_code_unit_specs, code_units_from_system,
-    code_quantity_to_cgs, time_seconds, quantity_to_value,
+    _CODE_UNIT_GROUPS,
+    apply_code_unit_specs,
+    code_quantity_to_cgs,
+    code_units_from_system,
 )
-from radhydropy.eos import EOS
+
 
 def Callreadhdf5(sim):
     """Read the configured initial-condition HDF5 file."""
     print("--- Read Initial Condition ---")
-    print("--- %s seconds ---" % (
-        time.time() - getattr(sim, "_start_time", time.time())
-    ))
+    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
     sim._require_code_units()
     rio.readhdf5(
         sim.par,
@@ -28,25 +30,30 @@ def Callreadhdf5(sim):
         sim.par.simulation.initial_condition_filename,
     )
     sim.energy_diagnostics_enabled = bool(
-        getattr(sim.par, "energy_diagnostics", False)
+        getattr(sim.par, "energy_diagnostics", False),
     )
     diagnostic_count = int(
-        sim.par.mesh.grid_cells
+        sim.par.mesh.grid_cells,
     )
     sim.cumulative_gravity_work_by_cell = np.zeros(
-        diagnostic_count, dtype=float
+        diagnostic_count,
+        dtype=float,
     )
     sim.cumulative_hydro_energy_change_by_cell = np.zeros(
-        diagnostic_count, dtype=float
+        diagnostic_count,
+        dtype=float,
     )
     sim.cumulative_thermochemistry_energy_change_by_cell = np.zeros(
-        diagnostic_count, dtype=float
+        diagnostic_count,
+        dtype=float,
     )
     sim.cumulative_compression_work_by_cell = np.zeros(
-        diagnostic_count, dtype=float
+        diagnostic_count,
+        dtype=float,
     )
     sim.cumulative_shock_work_by_cell = np.zeros(
-        diagnostic_count, dtype=float
+        diagnostic_count,
+        dtype=float,
     )
     # ``readhdf5`` restores EOS parameters and code units from the file
     # header.  The EOS object was created before that restoration in
@@ -62,28 +69,25 @@ def Callreadhdf5(sim):
     sim.fluid.SetFluidTime(getattr(sim.par, time_field))
     print("--- Start Initial Time ---")
 
+
 def SetMesh(sim):
     """Initialize mesh geometry and ghost cells."""
-    print("--- Set up the Mesh ---") 
-    print("--- %s seconds ---" % (
-        time.time() - getattr(sim, "_start_time", time.time())
-    ))
+    print("--- Set up the Mesh ---")
+    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
     sim.mesh.SetUpMesh(sim.par)
+
 
 def SetFluid(sim):
     """Initialize fluid ghost cells and pressure."""
-    print("--- Set up the fluid ---") 
-    print("--- %s seconds ---" % (
-        time.time() - getattr(sim, "_start_time", time.time())
-    ))
+    print("--- Set up the fluid ---")
+    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
     sim.fluid.SetUpFluid(sim.par, mesh=sim.mesh)
+
 
 def SetInitFluid(sim):
     """Apply initial boundaries and populate conserved variables."""
-    print("--- Fill up the fluid---") 
-    print("--- %s seconds ---" % (
-        time.time() - getattr(sim, "_start_time", time.time())
-    ))
+    print("--- Fill up the fluid---")
+    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
     sim.ConvertParametersToCodeUnits()
     if getattr(sim.par, "supercomoving_coordinates", False):
         # The IC header is authoritative for cosmological startup time.  Keep
@@ -92,61 +96,65 @@ def SetInitFluid(sim):
         # gravity and source terms use the wrong background scale factor.
         initial_tau = float(
             np.asarray(
-                getattr(sim.par, "tau_supercomoving_code"), dtype=float
-            ).reshape(-1)[0]
+                sim.par.tau_supercomoving_code,
+                dtype=float,
+            ).reshape(-1)[0],
         )
         simulation_tau_value = getattr(
-            sim.par.simulation, "tau_supercomoving_code", initial_tau
+            sim.par.simulation,
+            "tau_supercomoving_code",
+            initial_tau,
         )
         simulation_tau = float(
-            np.asarray(simulation_tau_value, dtype=float).reshape(-1)[0]
+            np.asarray(simulation_tau_value, dtype=float).reshape(-1)[0],
         )
         if not np.isclose(initial_tau, simulation_tau, rtol=0.0, atol=1.0e-12):
             raise ValueError(
                 "cosmological startup time mismatch: par.tau_supercomoving_code "
                 f"={initial_tau} but par.simulation.tau_supercomoving_code="
-                f"{simulation_tau}"
+                f"{simulation_tau}",
             )
         sim.fluid.SetFluidTime(initial_tau)
         fluid_tau = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float))
         if not np.isclose(initial_tau, fluid_tau, rtol=0.0, atol=1.0e-12):
             raise ValueError(
                 "cosmological startup time mismatch after fluid synchronization: "
-                f"initial_tau={initial_tau}, fluid_tau={fluid_tau}"
+                f"initial_tau={initial_tau}, fluid_tau={fluid_tau}",
             )
     sim.mesh._par = sim.par
     sim.solver.InitializeHydrostaticCore(sim.mesh, sim.fluid, sim.par)
-    sim.solver.SetBoundary(sim.mesh,sim.fluid,sim.par)
-    sim.solver.SetConserved(sim.mesh,sim.fluid, verbose=getattr(sim.par, 'verbose', 0))
-    if getattr(sim.par, 'radiative_transfer_temporal_scheme', 'c2ray') != 'c2ray':
+    sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, "verbose", 0))
+    if getattr(sim.par, "radiative_transfer_temporal_scheme", "c2ray") != "c2ray":
         sim.solver.ApplyRadiativeTransfer(sim.mesh, sim.fluid, sim.par)
+
 
 def ConvertParametersToCodeUnits(sim):
     """Convert only the runtime parameters into the internal unit system."""
     code = sim._require_code_units()
-    if getattr(sim, '_runtime_parameters_converted_to_code_units', False):
+    if getattr(sim, "_runtime_parameters_converted_to_code_units", False):
         return
 
     units = code_units_from_system(code)
-    length_unit = units['length']
-    mass_unit = units['mass']
-    time_unit = units['time']
+    length_unit = units["length"]
+    mass_unit = units["mass"]
+    time_unit = units["time"]
     unit_map = {
         **units,
-        'length_inv': 1.0 / length_unit,
-        'time_inv': 1.0 / time_unit,
-        'area': length_unit ** 2,
-        'volume': length_unit ** 3,
-        'number_density': 1.0 / (length_unit ** 3),
-        'momentum': mass_unit * units['velocity'],
-        'mass_flux': mass_unit / (length_unit ** 2 * time_unit),
-        'photon_flux': 1.0 / (length_unit ** 2 * time_unit),
-        'photon_rate': 1.0 / time_unit,
-        'luminosity': units['energy'] / time_unit,
-        'alpha': length_unit ** 3 / time_unit,
-        'acceleration': length_unit / time_unit ** 2,
-        'potential': units['velocity'] ** 2,
-        'specific_angular_momentum': length_unit * units['velocity'],
+        "length_inv": 1.0 / length_unit,
+        "time_inv": 1.0 / time_unit,
+        "area": length_unit**2,
+        "volume": length_unit**3,
+        "number_density": 1.0 / (length_unit**3),
+        "momentum": mass_unit * units["velocity"],
+        "mass_flux": mass_unit / (length_unit**2 * time_unit),
+        "photon_flux": 1.0 / (length_unit**2 * time_unit),
+        "photon_rate": 1.0 / time_unit,
+        "luminosity": units["energy"] / time_unit,
+        "alpha": length_unit**3 / time_unit,
+        "acceleration": length_unit / time_unit**2,
+        "potential": units["velocity"] ** 2,
+        "specific_angular_momentum": length_unit * units["velocity"],
     }
     apply_code_unit_specs(sim.par, _CODE_UNIT_GROUPS[-1].specs, unit_map)
     nested_specs = {
@@ -204,9 +212,7 @@ def ConvertParametersToCodeUnits(sim):
             ("selfgravity_softening", "length"),
             ("selfgravity_boundary_acceleration", "acceleration"),
         ),
-        "dark_matter_config": (
-            ("softening", "length"),
-        ),
+        "dark_matter_config": (("softening", "length"),),
     }
     for group_name, specs in nested_specs.items():
         group = getattr(sim.par, group_name, None)
@@ -219,8 +225,7 @@ def ConvertParametersToCodeUnits(sim):
     initialize_groups = getattr(sim.par, "_initialize_parameter_groups", None)
     if initialize_groups is None:
         raise TypeError(
-            "ConvertParametersToCodeUnits requires the canonical Par "
-            "parameter container"
+            "ConvertParametersToCodeUnits requires the canonical Par parameter container",
         )
     initialize_groups()
     sync_simulation = getattr(sim.par, "_sync_simulation_parameters", None)
@@ -228,26 +233,29 @@ def ConvertParametersToCodeUnits(sim):
         sync_simulation()
     configure_cosmology = getattr(sim.par, "_configure_cosmology", None)
     if configure_cosmology is not None and getattr(
-        sim.par, "cosmological_expansion", False
+        sim.par,
+        "cosmological_expansion",
+        False,
     ):
         configure_cosmology()
     _require_unitless_runtime_parameters(sim)
-    source_rate = getattr(sim.par, 'source_photon_rate', None)
-    if source_rate is None and hasattr(sim.par, '_parameter'):
+    source_rate = getattr(sim.par, "source_photon_rate", None)
+    if source_rate is None and hasattr(sim.par, "_parameter"):
         source_rate = sim.par._parameter(
-            'source_photon_rate', 0.0 / unyt.s
+            "source_photon_rate",
+            0.0 / unyt.s,
         )
     if source_rate is None:
         source_rate = 0.0 / unyt.s
-    if hasattr(source_rate, 'to_value'):
+    if hasattr(source_rate, "to_value"):
         sim.par._static_source_rate_s = float(source_rate.to_value(1.0 / unyt.s))
     else:
         sim.par._static_source_rate_s = float(
             code_quantity_to_cgs(
                 source_rate,
                 code,
-                'photon_rate_per_s',
-            )
+                "photon_rate_per_s",
+            ),
         )
     sim._runtime_parameters_converted_to_code_units = True
 
@@ -291,18 +299,27 @@ def _require_unitless_runtime_parameters(sim):
         elif hasattr(value, "__dict__"):
             for name, child in vars(value).items():
                 if name.startswith("_") or name in {
-                    "par_config", "nested_par_config", "units", "unit_system",
-                    "CodeUnits", "model",
+                    "par_config",
+                    "nested_par_config",
+                    "units",
+                    "unit_system",
+                    "CodeUnits",
+                    "model",
                 }:
                     continue
                 visit(child, f"{path}.{name}")
 
     for name, value in vars(sim.par).items():
         if name in {
-            "par_config", "nested_par_config", "units", "unit_system", "CodeUnits",
+            "par_config",
+            "nested_par_config",
+            "units",
+            "unit_system",
+            "CodeUnits",
             # These are persisted, unit-bearing analysis views restored from
             # HDF5, not mutable solver runtime parameters.
-            "dark_matter_snapshot", "dark_matter_radarrays",
+            "dark_matter_snapshot",
+            "dark_matter_radarrays",
         }:
             continue
         visit(value, f"par.{name}")
@@ -313,12 +330,13 @@ def _require_unitless_runtime_parameters(sim):
             names += f", ... ({len(leaked)} total)"
         raise TypeError(
             "runtime parameters must be unitless code values after startup "
-            f"conversion; unitful value(s) found in: {names}"
+            f"conversion; unitful value(s) found in: {names}",
         )
+
 
 def _require_code_units(sim):
     """Return the active code-unit system or fail fast during startup."""
-    code = getattr(getattr(sim.par, 'units', None), 'CodeUnits', None)
+    code = getattr(getattr(sim.par, "units", None), "CodeUnits", None)
     if code is None:
         raise ValueError("simulation startup requires configured code units")
     return code

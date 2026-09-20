@@ -2,12 +2,12 @@
 
 import argparse
 import copy
-import os
 import sys
 from pathlib import Path
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -19,106 +19,118 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+import example_utils as eu
+
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-import example_utils as eu
 from tools import build_initial_condition
 
-
-DEFAULT_CONFIG = EXAMPLE_DIR / 'pie_cooling_isochoric_parcel1d.yaml'
+DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_isochoric_parcel1d.yaml"
 CASES = (
-    ('diffuse_cold', 1.0e-4, 1.0e4),
-    ('diffuse_hot', 1.0e-4, 1.0e6),
-    ('dense_cold', 1.0e-2, 1.0e4),
-    ('dense_hot', 1.0e-2, 1.0e6),
+    ("diffuse_cold", 1.0e-4, 1.0e4),
+    ("diffuse_hot", 1.0e-4, 1.0e6),
+    ("dense_cold", 1.0e-2, 1.0e4),
+    ("dense_hot", 1.0e-2, 1.0e6),
 )
 SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
 PROTON_MASS_G = unyt.mp.to_value(unyt.g)
 BOLTZMANN_ERG_cgs_K = unyt.kb.to_value(unyt.erg / unyt.K)
 
 
-def _net_rate(table, temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, metallicity, redshift):
+def _net_rate(
+    table, temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, metallicity, redshift
+):
     heating, cooling = table.rates(
-        temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, metallicity=metallicity, redshift=redshift
+        temperature_proper_cgs_K,
+        hydrogen_number_density_cgs_cm3,
+        metallicity=metallicity,
+        redshift=redshift,
     )
     return np.asarray(heating) - np.asarray(cooling)
 
 
 def _equilibrium_temperature(table, hydrogen_number_density_cgs_cm3, metallicity, redshift, mu):
     temperatures = np.logspace(
-        table.log_temperature[0], table.log_temperature[-1], 2048
+        table.log_temperature[0],
+        table.log_temperature[-1],
+        2048,
     )
     net = _net_rate(table, temperatures, hydrogen_number_density_cgs_cm3, metallicity, redshift)
     crossings = np.flatnonzero((net[:-1] >= 0.0) & (net[1:] < 0.0))
     if not len(crossings):
         return np.nan
     index = crossings[0]
-    x0, x1 = np.log(temperatures[index:index + 2])
-    y0, y1 = net[index:index + 2]
+    x0, x1 = np.log(temperatures[index : index + 2])
+    y0, y1 = net[index : index + 2]
     if y1 == y0:
         return float(temperatures[index])
     return float(np.exp(x0 - y0 * (x1 - x0) / (y1 - y0)))
 
 
 def _snapshot(filename, config, time_proper_Myr=None):
-    eu._require_complete_example_config(config, '_snapshot')
+    eu._require_complete_example_config(config, "_snapshot")
     snapshot = rio.loadhdf5(config, filename)
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
     code_units = snapshot.par.units.CodeUnits
-    snapshot_time_proper_Myr = (
-        float(snapshot.fluid.time_proper_code) * code_units.time_unit.to_value(unyt.Myr)
-    )
+    snapshot_time_proper_Myr = float(
+        snapshot.fluid.time_proper_code
+    ) * code_units.time_unit.to_value(unyt.Myr)
     return {
-        'time_proper_Myr': (
-            snapshot_time_proper_Myr
-            if time_proper_Myr is None else float(time_proper_Myr)
+        "time_proper_Myr": (
+            snapshot_time_proper_Myr if time_proper_Myr is None else float(time_proper_Myr)
         ),
-        'rho_proper_code': snapshot.fluid.rho_radarray.value[first:last],
-        'temp_proper_code': snapshot.fluid.temp_radarray.value[first:last],
+        "rho_proper_code": snapshot.fluid.rho_radarray.value[first:last],
+        "temp_proper_code": snapshot.fluid.temp_radarray.value[first:last],
     }
 
 
 def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K, table):
 
-    hydro = config["par"]['hydrodynamics']
-    thermo = config["par"]['thermochemistry']
-    initial_condition = config['initial_condition']
+    hydro = config["par"]["hydrodynamics"]
+    thermo = config["par"]["thermochemistry"]
+    initial_condition = config["initial_condition"]
     case_config = copy.deepcopy(config)
-    output_dir = EXAMPLE_DIR / 'outputs' / label
+    output_dir = EXAMPLE_DIR / "outputs" / label
     output_dir.mkdir(parents=True, exist_ok=True)
-    case_config['par']['simulation']['name'] = label
-    case_config['par']['simulation']['initial_condition_filename'] = str(
-        output_dir / f'InitialCondition_{label}.hdf5'
+    case_config["par"]["simulation"]["name"] = label
+    case_config["par"]["simulation"]["initial_condition_filename"] = str(
+        output_dir / f"InitialCondition_{label}.hdf5",
     )
-    case_config['par']['output'].update({
-        'directory': str(output_dir),
-        'filename_prefix': f'Output_{label}',
-    })
-    output_prefix = case_config['par']['output']['filename_prefix']
+    case_config["par"]["output"].update(
+        {
+            "directory": str(output_dir),
+            "filename_prefix": f"Output_{label}",
+        }
+    )
+    output_prefix = case_config["par"]["output"]["filename_prefix"]
     case_initial_condition = dict(initial_condition)
-    case_initial_condition.update({
-        'hydrogen_number_density': hydrogen_number_density_cgs_cm3 / unyt.cm**3,
-        'temperature_proper': temperature_proper_cgs_K * unyt.K,
-    })
-    case_config['par']['thermochemistry']['metallicity'] = thermo['metallicity']
+    case_initial_condition.update(
+        {
+            "hydrogen_number_density": hydrogen_number_density_cgs_cm3 / unyt.cm**3,
+            "temperature_proper": temperature_proper_cgs_K * unyt.K,
+        }
+    )
+    case_config["par"]["thermochemistry"]["metallicity"] = thermo["metallicity"]
     output_dir.mkdir(parents=True, exist_ok=True)
-    code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(case_config["par"]["units"]["CodeUnits"])
     case_config = {
-        'par': case_config['par'],
-        'initial_condition': case_initial_condition,
-        'example': config['example'],
-        '_code_units': code_units,
+        "par": case_config["par"],
+        "initial_condition": case_initial_condition,
+        "example": config["example"],
+        "_code_units": code_units,
     }
     eu.clean_previous_outputs(case_config)
     initial_state = build_initial_condition(case_config)
-    initial_state.write(case_config['par']['simulation']['initial_condition_filename'], validate=True)
+    initial_state.write(
+        case_config["par"]["simulation"]["initial_condition_filename"], validate=True
+    )
     # The canonical IC builder already returned a fully initialized Rsim.  Keep
     # its loaded PIE table instead of reconstructing Par from the mutated
     # nested mapping (which serializes the table object as a plain dict).
-    sim = Rsim(case_config['par'])
+    sim = Rsim(case_config["par"])
     sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
@@ -126,50 +138,74 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
     sim.SetInitFluid()
     # This is a one-cell isochoric parcel.  Use the dedicated source-only
     # mode so no hydro flux gradient is evaluated on the single active cell.
-    sim.Run(outputtime=0, mode='sources')
-    snapshots = sorted(output_dir.glob(f'{output_prefix}_*.hdf5'))
+    sim.Run(outputtime=0, mode="sources")
+    snapshots = sorted(output_dir.glob(f"{output_prefix}_*.hdf5"))
     if len(snapshots) < 2:
-        raise RuntimeError(f'expected snapshots in {output_dir}')
-    initial_net_rate_cgs_erg_cm3_s = float(_net_rate(
-        table, temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, thermo['metallicity'], thermo['metal_pie_redshift']
-    ))
-    rho_proper_cgs_g_cm3 = hydrogen_number_density_cgs_cm3 * PROTON_MASS_G / thermo['hydrogen_mass_fraction']
-    thermal_energy = rho_proper_cgs_g_cm3 * BOLTZMANN_ERG_cgs_K * temperature_proper_cgs_K / (
-        (hydro['gamma'] - 1.0) * initial_condition['mean_molecular_weight'] * PROTON_MASS_G
+        raise RuntimeError(f"expected snapshots in {output_dir}")
+    initial_net_rate_cgs_erg_cm3_s = float(
+        _net_rate(
+            table,
+            temperature_proper_cgs_K,
+            hydrogen_number_density_cgs_cm3,
+            thermo["metallicity"],
+            thermo["metal_pie_redshift"],
+        )
     )
-    thermal_time_proper_Myr = thermal_energy / max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99) / SECONDS_PER_MYR
+    rho_proper_cgs_g_cm3 = (
+        hydrogen_number_density_cgs_cm3 * PROTON_MASS_G / thermo["hydrogen_mass_fraction"]
+    )
+    thermal_energy = (
+        rho_proper_cgs_g_cm3
+        * BOLTZMANN_ERG_cgs_K
+        * temperature_proper_cgs_K
+        / ((hydro["gamma"] - 1.0) * initial_condition["mean_molecular_weight"] * PROTON_MASS_G)
+    )
+    thermal_time_proper_Myr = (
+        thermal_energy / max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99) / SECONDS_PER_MYR
+    )
     equilibrium = _equilibrium_temperature(
-        table, hydrogen_number_density_cgs_cm3, thermo['metallicity'], thermo['metal_pie_redshift'],
-        initial_condition['mean_molecular_weight']
+        table,
+        hydrogen_number_density_cgs_cm3,
+        thermo["metallicity"],
+        thermo["metal_pie_redshift"],
+        initial_condition["mean_molecular_weight"],
     )
     return {
-        'label': label,
-        'hydrogen_number_density_cgs_cm3': hydrogen_number_density_cgs_cm3,
-        'temperature_initial_proper_cgs_K': temperature_proper_cgs_K,
-        'initial_net_rate_cgs_erg_cm3_s': initial_net_rate_cgs_erg_cm3_s,
-        'thermal_time_proper_Myr': thermal_time_proper_Myr,
-        'temperature_equilibrium_proper_cgs_K': equilibrium,
-        'snapshots': snapshots,
+        "label": label,
+        "hydrogen_number_density_cgs_cm3": hydrogen_number_density_cgs_cm3,
+        "temperature_initial_proper_cgs_K": temperature_proper_cgs_K,
+        "initial_net_rate_cgs_erg_cm3_s": initial_net_rate_cgs_erg_cm3_s,
+        "thermal_time_proper_Myr": thermal_time_proper_Myr,
+        "temperature_equilibrium_proper_cgs_K": equilibrium,
+        "snapshots": snapshots,
     }
 
 
 def _write_report(results, config, filename):
-    with open(filename, 'w', encoding='utf-8') as report:
+    with open(filename, "w", encoding="utf-8") as report:
         report.write(
-            'case nH_cgs_cm3 T_initial_proper_cgs_K T_final_proper_cgs_K T_equilibrium_proper_cgs_K '
-            'initial_net_rate_cgs_erg_cm3_s thermal_time_proper_Myr '
-            'density_relative_change\n'
+            "case nH_cgs_cm3 T_initial_proper_cgs_K T_final_proper_cgs_K T_equilibrium_proper_cgs_K "
+            "initial_net_rate_cgs_erg_cm3_s thermal_time_proper_Myr "
+            "density_relative_change\n",
         )
         for result in results:
-            initial = _snapshot(result['snapshots'][0], config)
-            final = _snapshot(result['snapshots'][-1], config)
-            density_change = np.median(final['rho_proper_code']) / np.median(initial['rho_proper_code']) - 1.0
+            initial = _snapshot(result["snapshots"][0], config)
+            final = _snapshot(result["snapshots"][-1], config)
+            density_change = (
+                np.median(final["rho_proper_code"]) / np.median(initial["rho_proper_code"]) - 1.0
+            )
             report.write(
-                '%s %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n' % (
-                    result['label'], result['hydrogen_number_density_cgs_cm3'], result['temperature_initial_proper_cgs_K'],
-                    np.median(final['temp_proper_code']), result['temperature_equilibrium_proper_cgs_K'],
-                    result['initial_net_rate_cgs_erg_cm3_s'], result['thermal_time_proper_Myr'], density_change,
-                )
+                "%s %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n"
+                % (
+                    result["label"],
+                    result["hydrogen_number_density_cgs_cm3"],
+                    result["temperature_initial_proper_cgs_K"],
+                    np.median(final["temp_proper_code"]),
+                    result["temperature_equilibrium_proper_cgs_K"],
+                    result["initial_net_rate_cgs_erg_cm3_s"],
+                    result["thermal_time_proper_Myr"],
+                    density_change,
+                ),
             )
 
 
@@ -179,78 +215,89 @@ def _plot(results, config, filename):
     for result in results:
         times = []
         temperatures = []
-        for output_index, snapshot in enumerate(result['snapshots']):
+        for output_index, snapshot in enumerate(result["snapshots"]):
             data = _snapshot(snapshot, config, time_proper_Myr=output_index * 50.0)
-            times.append(data['time_proper_Myr'])
-            temperatures.append(np.median(data['temp_proper_code']))
-        line, = axes[0].plot(times, temperatures, marker='o', label=result['label'])
-        equilibrium = result['temperature_equilibrium_proper_cgs_K']
+            times.append(data["time_proper_Myr"])
+            temperatures.append(np.median(data["temp_proper_code"]))
+        (line,) = axes[0].plot(times, temperatures, marker="o", label=result["label"])
+        equilibrium = result["temperature_equilibrium_proper_cgs_K"]
         if np.isfinite(equilibrium):
-            axes[0].axhline(equilibrium, color=line.get_color(), ls=':', alpha=0.6)
+            axes[0].axhline(equilibrium, color=line.get_color(), ls=":", alpha=0.6)
         temperatures_grid = np.logspace(2, 8, 512)
         net = _net_rate(
-            TABLE, temperatures_grid, result['hydrogen_number_density_cgs_cm3'], METALLICITY, REDSHIFT
+            TABLE,
+            temperatures_grid,
+            result["hydrogen_number_density_cgs_cm3"],
+            METALLICITY,
+            REDSHIFT,
         )
-        net_per_nh2 = net / result['hydrogen_number_density_cgs_cm3'] ** 2
+        net_per_nh2 = net / result["hydrogen_number_density_cgs_cm3"] ** 2
         magnitude = np.maximum(np.abs(net_per_nh2), 1.0e-99)
         heating = np.where(net_per_nh2 >= 0.0, magnitude, np.nan)
         cooling = np.where(net_per_nh2 < 0.0, magnitude, np.nan)
-        cold_markers = result['label'].endswith('_cold')
+        cold_markers = result["label"].endswith("_cold")
         axes[1].plot(
             temperatures_grid,
             heating,
             color=line.get_color(),
-            marker='o' if cold_markers else None,
+            marker="o" if cold_markers else None,
             markevery=32 if cold_markers else None,
             markersize=3.0,
-            label=result['label'],
+            label=result["label"],
         )
         axes[1].plot(
             temperatures_grid,
             cooling,
             color=line.get_color(),
-            linestyle='--',
-            marker='o' if cold_markers else None,
+            linestyle="--",
+            marker="o" if cold_markers else None,
             markevery=32 if cold_markers else None,
             markersize=3.0,
-            label='_nolegend_',
+            label="_nolegend_",
         )
-        initial_net_rate_cgs_erg_cm3_s = float(_net_rate(
-            TABLE,
-            result['temperature_initial_proper_cgs_K'],
-            result['hydrogen_number_density_cgs_cm3'],
-            METALLICITY,
-            REDSHIFT,
-        )) / result['hydrogen_number_density_cgs_cm3'] ** 2
-        right_markers.append((
-            result['temperature_initial_proper_cgs_K'],
-            max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99),
-            line.get_color(),
-        ))
+        initial_net_rate_cgs_erg_cm3_s = (
+            float(
+                _net_rate(
+                    TABLE,
+                    result["temperature_initial_proper_cgs_K"],
+                    result["hydrogen_number_density_cgs_cm3"],
+                    METALLICITY,
+                    REDSHIFT,
+                )
+            )
+            / result["hydrogen_number_density_cgs_cm3"] ** 2
+        )
+        right_markers.append(
+            (
+                result["temperature_initial_proper_cgs_K"],
+                max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99),
+                line.get_color(),
+            )
+        )
     for temperature_proper_cgs_K, rate, color in right_markers:
         axes[1].plot(
             temperature_proper_cgs_K,
             rate,
-            marker='o',
+            marker="o",
             markersize=6,
             color=color,
-            linestyle='none',
-            markeredgecolor='black',
+            linestyle="none",
+            markeredgecolor="black",
             markeredgewidth=0.5,
-            label='_nolegend_',
+            label="_nolegend_",
             zorder=5,
         )
-    axes[0].set_xlabel('time [Myr]')
-    axes[0].set_ylabel('temperature [K]')
-    axes[0].set_yscale('log')
-    axes[1].set_xlabel('temperature [K]')
-    axes[1].set_ylabel(r'$|\Gamma-\mathcal{C}|/n_{\rm H}^2$ [erg cm$^3$ s$^{-1}$]')
-    axes[1].set_xscale('log')
-    axes[1].set_yscale('log')
+    axes[0].set_xlabel("time [Myr]")
+    axes[0].set_ylabel("temperature [K]")
+    axes[0].set_yscale("log")
+    axes[1].set_xlabel("temperature [K]")
+    axes[1].set_ylabel(r"$|\Gamma-\mathcal{C}|/n_{\rm H}^2$ [erg cm$^3$ s$^{-1}$]")
+    axes[1].set_xscale("log")
+    axes[1].set_yscale("log")
     for axis in axes:
         axis.grid(alpha=0.25)
         axis.legend(frameon=False, fontsize=8)
-    fig.suptitle('Isochoric HM12 PIE thermal evolution')
+    fig.suptitle("Isochoric HM12 PIE thermal evolution")
     fig.tight_layout()
     fig.savefig(filename, dpi=180)
     plt.close(fig)
@@ -267,41 +314,50 @@ def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
 
     config = nested
-    thermo = config["par"]['thermochemistry']
-    table_path = (config_filename.parent / thermo['metal_pie_table_filename']).resolve()
-    thermo['metal_pie_table_filename'] = str(table_path)
+    thermo = config["par"]["thermochemistry"]
+    table_path = (config_filename.parent / thermo["metal_pie_table_filename"]).resolve()
+    thermo["metal_pie_table_filename"] = str(table_path)
     TABLE = MetalPIETable(table_path)
     if not TABLE.is_hm12_uv_background:
-        raise ValueError('the example requires an HM12 UV-background table')
-    METALLICITY = float(thermo['metallicity'])
-    REDSHIFT = float(thermo['metal_pie_redshift'])
+        raise ValueError("the example requires an HM12 UV-background table")
+    METALLICITY = float(thermo["metallicity"])
+    REDSHIFT = float(thermo["metal_pie_redshift"])
     results = []
     for label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K in CASES:
-        results.append(_run_case(
-            config, label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K, TABLE
-        ))
-    figure = EXAMPLE_DIR / 'PIECoolingIsochoricParcel1D.jpg'
-    report = EXAMPLE_DIR / 'PIECoolingIsochoricParcel1D_ThermalReport.txt'
+        results.append(
+            _run_case(
+                config,
+                label,
+                hydrogen_number_density_cgs_cm3,
+                temperature_proper_cgs_K,
+                TABLE,
+            )
+        )
+    figure = EXAMPLE_DIR / "PIECoolingIsochoricParcel1D.jpg"
+    report = EXAMPLE_DIR / "PIECoolingIsochoricParcel1D_ThermalReport.txt"
     _plot(results, config, figure)
     _write_report(results, config, report)
     for result in results:
-        final = _snapshot(result['snapshots'][-1], config)
+        final = _snapshot(result["snapshots"][-1], config)
         print(
-            '%s: T_initial=%.6g K, T_final=%.6g K, T_eq=%.6g K' % (
-                result['label'], result['temperature_initial_proper_cgs_K'],
-                np.median(final['temp_proper_code']), result['temperature_equilibrium_proper_cgs_K'],
-            )
+            "%s: T_initial=%.6g K, T_final=%.6g K, T_eq=%.6g K"
+            % (
+                result["label"],
+                result["temperature_initial_proper_cgs_K"],
+                np.median(final["temp_proper_code"]),
+                result["temperature_equilibrium_proper_cgs_K"],
+            ),
         )
-    print('figure = %s' % figure)
-    print('report = %s' % report)
+    print("figure = %s" % figure)
+    print("report = %s" % report)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

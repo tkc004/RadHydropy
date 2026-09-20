@@ -1,12 +1,13 @@
 """Test homogeneous Hubble flow against the standalone cosmology tool."""
 
-from pathlib import Path
 import copy
 import sys
+from pathlib import Path
 
+import matplotlib
 import numpy as np
 import unyt
-import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -17,24 +18,22 @@ sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
+import example_utils as eu
+from cosmological_density_evolution1d import (
+    CODE_LENGTH_CM,
+    CODE_TIME_S,
+    CODE_VELOCITY_CM_S,
+    SECONDS_PER_GYR,
+    density_msun_mpc3_to_cgs,
+)
+from cosmological_initial_condition import build_initial_condition
+from cosmology import EinsteinDeSitter as PhysicalEdS
+from cosmology import LambdaCDM as PhysicalLambdaCDM
+
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.units import CodeUnits
-from cosmology import EinsteinDeSitter as PhysicalEdS
-from cosmology import LambdaCDM as PhysicalLambdaCDM
-from cosmological_density_evolution1d import (
-    CODE_TIME_S,
-    CODE_LENGTH_CM,
-    CODE_VELOCITY_CM_S,
-    SECONDS_PER_GYR,
-    density_msun_mpc3_to_cgs,
-    make_units,
-    unit_mapping,
-)
-from cosmological_initial_condition import build_initial_condition
-import example_utils as eu
-
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 CONFIG_FILE = Path(__file__).with_name("cosmological_hubble_flow1d.yaml")
@@ -73,14 +72,19 @@ def run():
         final_time = final_time_gyr / time_unit_gyr
         if code_class is CodeEdS:
             code_cosmology = code_class.from_code_units(
-                units, t_ref=physical.age_0 / time_unit_gyr, a_ref=1.0
+                units,
+                t_ref=physical.age_0 / time_unit_gyr,
+                a_ref=1.0,
             )
             cosmology_type = "einstein_de_sitter"
             cosmology_parameters = {}
         else:
             code_cosmology = code_class.from_code_units(
-                units, t_ref=physical.age_0 / time_unit_gyr, a_ref=1.0,
-                omega_m=physical.omega_m, omega_lambda=physical.omega_lambda,
+                units,
+                t_ref=physical.age_0 / time_unit_gyr,
+                a_ref=1.0,
+                omega_m=physical.omega_m,
+                omega_lambda=physical.omega_lambda,
                 hubble_ref=physical.hubble_0_gyr * time_unit_gyr,
             )
             cosmology_type = "lambda_cdm"
@@ -91,9 +95,12 @@ def run():
             }
         initial_tau = float(code_cosmology.supercomoving_time(initial_time))
         final_tau = float(code_cosmology.supercomoving_time(final_time))
-        rho_proper_code = density_msun_mpc3_to_cgs(
-            physical.critical_density(initial_time_gyr)
-        ) / density_unit
+        rho_proper_code = (
+            density_msun_mpc3_to_cgs(
+                physical.critical_density(initial_time_gyr),
+            )
+            / density_unit
+        )
         case_config = copy.deepcopy(config)
         case_config["_code_cosmology"] = code_cosmology
         case_config["initial_condition"] = {
@@ -105,10 +112,10 @@ def run():
             rho_proper_code * initial_scale_factor**3,
         )
         case_config["_temp_supercomoving_code"] = np.ones(
-            int(config["par"]["mesh"]["grid_cells"])
+            int(config["par"]["mesh"]["grid_cells"]),
         )
         case_config["_vel_supercomoving_code"] = np.zeros(
-            int(config["par"]["mesh"]["grid_cells"])
+            int(config["par"]["mesh"]["grid_cells"]),
         )
         initial = build_initial_condition(case_config)
         output_dir = OUTPUT_ROOT / label
@@ -150,9 +157,11 @@ def run():
         sim.Run(outputtime=0)
 
         final_tau_sim = float(
-            np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).flat[0]
+            np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).flat[0],
         )
-        time_cosmic_code, final_a, final_hubble = code_cosmology.background_state_from_supercomoving(final_tau_sim)
+        time_cosmic_code, final_a, final_hubble = (
+            code_cosmology.background_state_from_supercomoving(final_tau_sim)
+        )
         first = int(sim.par.mesh.ghost_cells)
         last = first + int(sim.par.mesh.grid_cells)
         x_comoving_code = sim.mesh.x_comoving_code[first:last]
@@ -160,28 +169,26 @@ def run():
         positions = code_values(x_comoving_code, units.length_unit)
         peculiar = code_values(vel_supercomoving_code, units.velocity_unit)
         proper_velocity_code = final_hubble * final_a * positions + peculiar / final_a
-        expected_hubble_code = (
-            physical.hubble(final_time_gyr)
-            / 3.0856775814913673e19
-            * CODE_TIME_S
-        )
+        expected_hubble_code = physical.hubble(final_time_gyr) / 3.0856775814913673e19 * CODE_TIME_S
         expected_velocity_code = expected_hubble_code * final_scale_factor * positions
         velocity_error = float(np.max(np.abs(proper_velocity_code - expected_velocity_code)))
         peculiar_error = float(np.max(np.abs(peculiar)))
         proper_velocity_kms = proper_velocity_code * CODE_VELOCITY_CM_S / 1.0e5
         expected_velocity_kms = expected_velocity_code * CODE_VELOCITY_CM_S / 1.0e5
-        radius_proper_kpc = positions * CODE_LENGTH_CM / float((1.0 * unyt.kpc).to_value('cm'))
-        histories.append({
-            "label": label,
-            "physical": physical,
-            "radius_proper_kpc": radius_proper_kpc,
-            "velocity_proper_km_s": proper_velocity_kms,
-            "expected_velocity_proper_km_s": expected_velocity_kms,
-        })
+        radius_proper_kpc = positions * CODE_LENGTH_CM / float((1.0 * unyt.kpc).to_value("cm"))
+        histories.append(
+            {
+                "label": label,
+                "physical": physical,
+                "radius_proper_kpc": radius_proper_kpc,
+                "velocity_proper_km_s": proper_velocity_kms,
+                "expected_velocity_proper_km_s": expected_velocity_kms,
+            }
+        )
         print(
             f"{label}: a={final_a:.12g}, H={final_hubble:.12g}, "
             f"max|v_peculiar|={peculiar_error:.6e}, "
-            f"max|u-u_Hubble|={velocity_error:.6e}"
+            f"max|u-u_Hubble|={velocity_error:.6e}",
         )
         if not np.isclose(final_a, final_scale_factor, rtol=2.0e-8):
             raise RuntimeError(f"{label}: scale factor disagrees")
@@ -195,19 +202,23 @@ def run():
     for history in histories:
         physical = history["physical"]
         scale_factors = np.linspace(initial_scale_factor, final_scale_factor, 200)
-        times_gyr = np.asarray([
-            physical.cosmic_time_from_scale_factor(float(scale_factor))
-            for scale_factor in scale_factors
-        ])
+        times_gyr = np.asarray(
+            [
+                physical.cosmic_time_from_scale_factor(float(scale_factor))
+                for scale_factor in scale_factors
+            ]
+        )
         hubble = np.asarray([physical.hubble(float(time_gyr)) for time_gyr in times_gyr])
         radius_proper_mpc = history["radius_proper_kpc"][[-1]][0] / 1000.0
         velocity_proper_km_s = hubble * scale_factors * radius_proper_mpc
         flow_axis.plot(scale_factors, velocity_proper_km_s, label=history["label"])
         relative_error = np.abs(
             (history["velocity_proper_km_s"] - history["expected_velocity_proper_km_s"])
-            / np.maximum(np.abs(history["expected_velocity_proper_km_s"]), 1.0e-30)
+            / np.maximum(np.abs(history["expected_velocity_proper_km_s"]), 1.0e-30),
         )
-        error_axis.plot(history["radius_proper_kpc"], relative_error, marker="o", label=history["label"])
+        error_axis.plot(
+            history["radius_proper_kpc"], relative_error, marker="o", label=history["label"]
+        )
     flow_axis.set_ylabel("proper Hubble velocity [km/s]")
     flow_axis.set_title("Homogeneous Hubble-flow evolution")
     flow_axis.grid(alpha=0.25)

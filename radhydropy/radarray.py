@@ -6,8 +6,10 @@ import unyt
 from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import (
     FieldSpec,
-    field_spec as make_field_spec,
     hubble_parameter_code,
+)
+from radhydropy.field_metadata import (
+    field_spec as make_field_spec,
 )
 
 
@@ -43,11 +45,11 @@ def _code_unit_for_spec(code_units, spec):
 def _unit_for_dimensions(code_units, dimensions):
     mass, length, velocity, current, temperature = dimensions
     return (
-        code_units.mass_unit ** mass
-        * code_units.length_unit ** length
-        * code_units.velocity_unit ** velocity
-        * code_units.current_unit ** current
-        * code_units.temperature_unit ** temperature
+        code_units.mass_unit**mass
+        * code_units.length_unit**length
+        * code_units.velocity_unit**velocity
+        * code_units.current_unit**current
+        * code_units.temperature_unit**temperature
     )
 
 
@@ -112,7 +114,8 @@ class RadArray(unyt.unyt_array):
     def _representation_field_name(self, proper_name, comoving_name):
         if self.field_name in {"radius_proper_code", "radius_comoving_code"}:
             return proper_name.replace("boundary_", "radius_"), comoving_name.replace(
-                "boundary_", "radius_"
+                "boundary_",
+                "radius_",
             )
         return proper_name, comoving_name
 
@@ -128,7 +131,8 @@ class RadArray(unyt.unyt_array):
 
         if quantity == "radius":
             proper_name, _ = self._representation_field_name(
-                "boundary_proper_code", "boundary_comoving_code"
+                "boundary_proper_code",
+                "boundary_comoving_code",
             )
             return self._target(values * a, proper_name)
         if quantity == "mass_density":
@@ -147,7 +151,7 @@ class RadArray(unyt.unyt_array):
         if quantity == "velocity":
             if x_comoving_code is None:
                 raise ValueError(
-                    "supercomoving velocity conversion requires x_comoving_code"
+                    "supercomoving velocity conversion requires x_comoving_code",
                 )
             hubble_code = hubble_parameter_code(
                 self.code_units,
@@ -159,7 +163,8 @@ class RadArray(unyt.unyt_array):
             )
         if quantity == "specific_angular_momentum":
             return self._target(
-                values, "specific_angular_momentum_proper_code"
+                values,
+                "specific_angular_momentum_proper_code",
             )
 
         raise ValueError(f"unsupported proper conversion for {quantity!r}")
@@ -176,7 +181,8 @@ class RadArray(unyt.unyt_array):
 
         if source.representation == "proper" and quantity == "radius":
             _, comoving_name = self._representation_field_name(
-                "boundary_proper_code", "boundary_comoving_code"
+                "boundary_proper_code",
+                "boundary_comoving_code",
             )
             return self._target(values / a, comoving_name)
         if source.representation == "proper" and quantity == "mass_density":
@@ -198,7 +204,7 @@ class RadArray(unyt.unyt_array):
         if source.representation == "proper" and quantity == "velocity":
             if x_comoving_code is None:
                 raise ValueError(
-                    "proper velocity conversion requires x_comoving_code"
+                    "proper velocity conversion requires x_comoving_code",
                 )
             hubble_code = hubble_parameter_code(
                 self.code_units,
@@ -210,7 +216,8 @@ class RadArray(unyt.unyt_array):
             )
         if source.representation == "proper" and quantity == "specific_angular_momentum":
             return self._target(
-                values, "specific_angular_momentum_supercomoving_code"
+                values,
+                "specific_angular_momentum_supercomoving_code",
             )
         raise ValueError(f"unsupported comoving conversion for {quantity!r}")
 
@@ -248,11 +255,11 @@ class RadArray(unyt.unyt_array):
             for other in rad_inputs[1:]:
                 if first.representation != other.representation:
                     raise RepresentationMismatchError(
-                        "RadArray arithmetic requires matching representations"
+                        "RadArray arithmetic requires matching representations",
                     )
                 if first.cosmology != other.cosmology:
                     raise ValueError(
-                        "RadArray arithmetic requires matching cosmology contexts"
+                        "RadArray arithmetic requires matching cosmology contexts",
                     )
 
         # Perform arithmetic on the stored code values.  Delegating directly
@@ -263,7 +270,8 @@ class RadArray(unyt.unyt_array):
             if ufunc in (np.add, np.subtract) and len(rad_inputs) == 2:
                 left, right = inputs
                 result_value = getattr(np, ufunc.__name__)(
-                    left.value, right.value
+                    left.value,
+                    right.value,
                 )
                 return RadArray(
                     result_value,
@@ -295,14 +303,12 @@ class RadArray(unyt.unyt_array):
                     representation=first.representation,
                     coordinate_frame=first.field_spec.coordinate_frame,
                     code_unit_cgs=float(
-                        unyt.unyt_quantity(1.0, result_units).in_cgs().value
+                        unyt.unyt_quantity(1.0, result_units).in_cgs().value,
                     ),
                     physical_relation="derived from RadArray arithmetic",
                     cosmology=first.cosmology.cosmology,
                     scale_factor=first.cosmology.scale_factor,
-                    hubble_parameter_km_s_Mpc=(
-                        first.cosmology.hubble_parameter_km_s_Mpc
-                    ),
+                    hubble_parameter_km_s_Mpc=(first.cosmology.hubble_parameter_km_s_Mpc),
                 )
                 result = RadArray(
                     result_value,
@@ -336,9 +342,7 @@ class RadArray(unyt.unyt_array):
             return result
 
         first = rad_inputs[0]
-        if len(rad_inputs) == 1:
-            result_spec = first.field_spec
-        elif ufunc in (np.add, np.subtract):
+        if len(rad_inputs) == 1 or ufunc in (np.add, np.subtract):
             result_spec = first.field_spec
         else:
             if ufunc is np.multiply:
@@ -365,14 +369,12 @@ class RadArray(unyt.unyt_array):
                 representation=first.representation,
                 coordinate_frame=first.field_spec.coordinate_frame,
                 code_unit_cgs=float(
-                    unyt.unyt_quantity(1.0, result.units).in_cgs().value
+                    unyt.unyt_quantity(1.0, result.units).in_cgs().value,
                 ),
                 physical_relation="derived from RadArray arithmetic",
                 cosmology=first.cosmology.cosmology,
                 scale_factor=first.cosmology.scale_factor,
-                hubble_parameter_km_s_Mpc=(
-                    first.cosmology.hubble_parameter_km_s_Mpc
-                ),
+                hubble_parameter_km_s_Mpc=(first.cosmology.hubble_parameter_km_s_Mpc),
             )
         wrapped = RadArray(
             result.value,
@@ -445,7 +447,8 @@ class RadQuantity(unyt.unyt_quantity):
     def _representation_field_name(self, proper_name, comoving_name):
         if self.field_name in {"radius_proper_code", "radius_comoving_code"}:
             return proper_name.replace("boundary_", "radius_"), comoving_name.replace(
-                "boundary_", "radius_"
+                "boundary_",
+                "radius_",
             )
         return proper_name, comoving_name
 
@@ -460,7 +463,8 @@ class RadQuantity(unyt.unyt_quantity):
         quantity = source.quantity
         if quantity == "radius":
             proper_name, _ = self._representation_field_name(
-                "boundary_proper_code", "boundary_comoving_code"
+                "boundary_proper_code",
+                "boundary_comoving_code",
             )
             return self._target(value * a, proper_name)
         if quantity == "mass_density":
@@ -478,7 +482,7 @@ class RadQuantity(unyt.unyt_quantity):
         if quantity == "velocity":
             if x_comoving_code is None:
                 raise ValueError(
-                    "supercomoving velocity conversion requires x_comoving_code"
+                    "supercomoving velocity conversion requires x_comoving_code",
                 )
             hubble_code = hubble_parameter_code(
                 self.code_units,
@@ -490,7 +494,8 @@ class RadQuantity(unyt.unyt_quantity):
             )
         if quantity == "specific_angular_momentum":
             return self._target(
-                value, "specific_angular_momentum_proper_code"
+                value,
+                "specific_angular_momentum_proper_code",
             )
         raise ValueError(f"unsupported proper conversion for {quantity!r}")
 
@@ -505,7 +510,8 @@ class RadQuantity(unyt.unyt_quantity):
         quantity = source.quantity
         if quantity == "radius":
             _, comoving_name = self._representation_field_name(
-                "boundary_proper_code", "boundary_comoving_code"
+                "boundary_proper_code",
+                "boundary_comoving_code",
             )
             return self._target(value / a, comoving_name)
         if quantity == "mass_density":
@@ -523,7 +529,7 @@ class RadQuantity(unyt.unyt_quantity):
         if quantity == "velocity":
             if x_comoving_code is None:
                 raise ValueError(
-                    "proper velocity conversion requires x_comoving_code"
+                    "proper velocity conversion requires x_comoving_code",
                 )
             hubble_code = hubble_parameter_code(
                 self.code_units,
@@ -535,7 +541,8 @@ class RadQuantity(unyt.unyt_quantity):
             )
         if quantity == "specific_angular_momentum":
             return self._target(
-                value, "specific_angular_momentum_supercomoving_code"
+                value,
+                "specific_angular_momentum_supercomoving_code",
             )
         raise ValueError(f"unsupported comoving conversion for {quantity!r}")
 
@@ -560,10 +567,10 @@ class RadQuantity(unyt.unyt_quantity):
             for other in rad_inputs[1:]:
                 if first.representation != other.representation:
                     raise RepresentationMismatchError(
-                        "RadQuantity arithmetic requires matching representations"
+                        "RadQuantity arithmetic requires matching representations",
                     )
                 if first.cosmology != other.cosmology:
                     raise ValueError(
-                        "RadQuantity arithmetic requires matching cosmology contexts"
+                        "RadQuantity arithmetic requires matching cosmology contexts",
                     )
         return super().__array_ufunc__(ufunc, method, *inputs, **kwargs)

@@ -1,8 +1,8 @@
 """Compare homogeneous adiabatic temperature evolution with cosmology tools."""
 
-from pathlib import Path
 import copy
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -14,21 +14,19 @@ sys.path.insert(0, str(TOOLS_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(DENSITY_EXAMPLE_ROOT))
 
+import example_utils as eu
+from cosmological_density_evolution1d import (
+    CODE_TIME_S,
+    SECONDS_PER_GYR,
+)
+from cosmological_initial_condition import build_initial_condition
+from cosmology import EinsteinDeSitter as PhysicalEdS
+from cosmology import LambdaCDM as PhysicalLambdaCDM
+
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.units import CodeUnits
-from cosmology import EinsteinDeSitter as PhysicalEdS
-from cosmology import LambdaCDM as PhysicalLambdaCDM
-from cosmological_density_evolution1d import (
-    CODE_TIME_S,
-    SECONDS_PER_GYR,
-    make_units,
-    unit_mapping,
-)
-from cosmological_initial_condition import build_initial_condition
-import example_utils as eu
-
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 CONFIG_FILE = Path(__file__).with_name("cosmological_adiabatic_temperature1d.yaml")
@@ -43,7 +41,7 @@ def run():
     initial_scale_factor = float(example["initial_scale_factor"])
     final_scale_factor = float(example["final_scale_factor"])
     temperature_proper_code = float(
-        example["temperature_proper"].to_value(units.temperature_unit)
+        example["temperature_proper"].to_value(units.temperature_unit),
     )
     cases = [
         ("EdS", PhysicalEdS(h0=70.0), CodeEdS),
@@ -57,14 +55,19 @@ def run():
         final_time = final_time_gyr / time_unit_gyr
         if code_class is CodeEdS:
             code_cosmology = code_class.from_code_units(
-                units, t_ref=physical.age_0 / time_unit_gyr, a_ref=1.0
+                units,
+                t_ref=physical.age_0 / time_unit_gyr,
+                a_ref=1.0,
             )
             cosmology_type = "einstein_de_sitter"
             cosmology_parameters = {}
         else:
             code_cosmology = code_class.from_code_units(
-                units, t_ref=physical.age_0 / time_unit_gyr, a_ref=1.0,
-                omega_m=physical.omega_m, omega_lambda=physical.omega_lambda,
+                units,
+                t_ref=physical.age_0 / time_unit_gyr,
+                a_ref=1.0,
+                omega_m=physical.omega_m,
+                omega_lambda=physical.omega_lambda,
                 hubble_ref=physical.hubble_0_gyr * time_unit_gyr,
             )
             cosmology_type = "lambda_cdm"
@@ -83,12 +86,14 @@ def run():
             "time_cosmic": initial_time * units.time_unit,
         }
         case_config["_rho_comoving_code"] = np.full(
-            grid_cells, initial_scale_factor**3
+            grid_cells,
+            initial_scale_factor**3,
         )
         # For gamma=5/3, T_tilde = T*a^2.  The stored temperature is therefore
         # constant for homogeneous adiabatic expansion.
         case_config["_temp_supercomoving_code"] = np.full(
-            grid_cells, temperature_proper_code * initial_scale_factor**2
+            grid_cells,
+            temperature_proper_code * initial_scale_factor**2,
         )
         case_config["_vel_supercomoving_code"] = np.zeros(grid_cells)
         initial = build_initial_condition(case_config)
@@ -133,12 +138,14 @@ def run():
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
         stored_temperature = float(np.mean(sim.fluid.temp_supercomoving_code))
         measured_temperature = stored_temperature / final_a**2
-        expected_temperature = temperature_proper_code * (initial_scale_factor / final_scale_factor) ** 2
+        expected_temperature = (
+            temperature_proper_code * (initial_scale_factor / final_scale_factor) ** 2
+        )
         print(
             f"{label}: a={final_a:.12g}, T_stored={stored_temperature:.12g}, "
             f"T_physical={measured_temperature:.12g} K, "
             f"analytic={expected_temperature:.12g} K, "
-            f"relative_error={(measured_temperature - expected_temperature) / expected_temperature:.6e}"
+            f"relative_error={(measured_temperature - expected_temperature) / expected_temperature:.6e}",
         )
         if not np.isclose(final_a, final_scale_factor, rtol=2.0e-8):
             raise RuntimeError(f"{label}: scale factor disagrees")

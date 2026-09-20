@@ -9,82 +9,91 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
-
 from gas_centrifugal_hydro_expansion1d import (
-    CONFIG, run_simulation, spherical_centers,
+    CONFIG,
+    run_simulation,
+    spherical_centers,
 )
-import example_utils as eu
 from shell_remap import centrifugal_shell_reference
+
 from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def total_energy_error(config):
-    initial_condition = config['initial_condition']
-    (sim, saved_mesh, saved, _initial_mass, _initial_energy,
-     _initial_radius, _gravity_work, _potential_change,
-     _potential_flux) = run_simulation(config)
+    initial_condition = config["initial_condition"]
+    (
+        sim,
+        saved_mesh,
+        saved,
+        _initial_mass,
+        _initial_energy,
+        _initial_radius,
+        _gravity_work,
+        _potential_change,
+        _potential_flux,
+    ) = run_simulation(config)
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
     active = slice(first, first + count)
     saved_boundary = np.asarray(saved_mesh.boundary_proper_code, dtype=float)
-    source_boundary = saved_boundary[
-        first:first + count + 1
-    ]
+    source_boundary = saved_boundary[first : first + count + 1]
     saved_radius = spherical_centers(saved_boundary)[active]
-    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    central_mass = quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
-    rotation_factor = float(initial_condition['rotation_factor'])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    central_mass = quantity_to_value(initial_condition["central_mass_proper"], units.mass_unit)
+    rotation_factor = float(initial_condition["rotation_factor"])
     final_time = float(sim.fluid.time_proper_code)
     reference = centrifugal_shell_reference(
         source_boundary,
         source_boundary,
         final_time,
-        quantity_to_value(initial_condition['rho_proper'], units.density_unit),
+        quantity_to_value(initial_condition["rho_proper"], units.density_unit),
         central_mass,
         rotation_factor,
-        samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
+        samples_per_cell=int(initial_condition.get("reference_samples_per_cell", 32)),
     )
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_total = np.sum(
         np.asarray(saved.Energy_code[active], dtype=float)
-        - central_mass * saved_mass / saved_radius
+        - central_mass * saved_mass / saved_radius,
     )
-    ode_total = np.sum(reference['energy_proper_code'])
+    ode_total = np.sum(reference["energy_proper_code"])
     return abs(saved_total - ode_total) / max(abs(ode_total), 1.0e-12)
 
 
 def main():
     config = eu.load_nested_example_config(CONFIG)
-    initial_condition = config['initial_condition']
+    initial_condition = config["initial_condition"]
     # Keep the mesh fixed so this isolates source time integration rather than
     # mixing temporal and spatial convergence errors.
     dtmax_values = np.asarray((1.0e-3, 5.0e-4, 2.5e-4, 1.25e-4), dtype=float)
     errors = []
     for dtmax in dtmax_values:
         case_config = copy.deepcopy(config)
-        case_config['par']['mesh']['grid_cells'] = 128
-        case_config['par']['mesh']['ghost_cells'] = 2
-        case_config['par']['timestep']['dtmax'] = float(dtmax)
+        case_config["par"]["mesh"]["grid_cells"] = 128
+        case_config["par"]["mesh"]["ghost_cells"] = 2
+        case_config["par"]["timestep"]["dtmax"] = float(dtmax)
         error = total_energy_error(case_config)
         errors.append(error)
-        print('dtmax %.6g: total-energy error %.8g' % (dtmax, error))
+        print("dtmax %.6g: total-energy error %.8g" % (dtmax, error))
 
     errors = np.asarray(errors)
-    output = ROOT / 'outputs' / 'GasCentrifugalHydroExpansion1D_time_convergence.jpg'
+    output = ROOT / "outputs" / "GasCentrifugalHydroExpansion1D_time_convergence.jpg"
     fig, axis = plt.subplots(figsize=(6, 4))
-    axis.loglog(dtmax_values, errors, 'o-')
-    axis.set_xlabel('maximum timestep')
-    axis.set_ylabel('relative total-energy error')
-    axis.grid(alpha=0.25, which='both')
+    axis.loglog(dtmax_values, errors, "o-")
+    axis.set_xlabel("maximum timestep")
+    axis.set_ylabel("relative total-energy error")
+    axis.grid(alpha=0.25, which="both")
     fig.tight_layout()
     fig.savefig(output, dpi=180)
     plt.close(fig)
-    print('time-convergence figure = %s' % output)
+    print("time-convergence figure = %s" % output)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -5,17 +5,16 @@ import unyt
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, SPEED_OF_LIGHT_CGS
 
-
 THOMSON_CROSS_SECTION_CGS = float(
-    unyt.physical_constants.thomson_cross_section_cgs.to_value(unyt.cm**2)
+    unyt.physical_constants.thomson_cross_section_cgs.to_value(unyt.cm**2),
 )
 ELECTRON_MASS_CGS = float(
-    unyt.physical_constants.electron_mass_cgs.to_value(unyt.g)
+    unyt.physical_constants.electron_mass_cgs.to_value(unyt.g),
 )
 RADIATION_DENSITY_CONSTANT_CGS = float(
     unyt.physical_constants.radiation_density_constant_cgs.to_value(
-        unyt.erg / (unyt.cm**3 * unyt.K**4)
-    )
+        unyt.erg / (unyt.cm**3 * unyt.K**4),
+    ),
 )
 
 
@@ -47,6 +46,9 @@ def cmb_compton_rate(
         * BOLTZMANN_CONSTANT_CGS
         / (ELECTRON_MASS_CGS * SPEED_OF_LIGHT_CGS**2)
     )
-    return coefficient * electron_density_cgs_cm3 * cmb_temperature**4 * (
-        cmb_temperature - temperature_cgs_K
+    return (
+        coefficient
+        * electron_density_cgs_cm3
+        * cmb_temperature**4
+        * (cmb_temperature - temperature_cgs_K)
     )

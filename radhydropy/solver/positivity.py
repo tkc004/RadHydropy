@@ -3,8 +3,7 @@
 import numpy as np
 
 
-def limit_internal_flux(old_internal, flux, area, dt,
-                        physical):
+def limit_internal_flux(old_internal, flux, area, dt, physical):
     """Limit dual internal-energy face fluxes to preserve positivity.
 
     The total-energy flux has its own paired-face limiter.  This second
@@ -43,9 +42,17 @@ def limit_internal_flux(old_internal, flux, area, dt,
             state[right] = max(0.0, state[right])
     return result
 
-def positive_conserved_state(mass, momentum, energy, mass_floor=0.0,
-                              energy_floor=0.0, relative_tolerance=1.0e-12,
-                              angular_momentum=None, radius=None):
+
+def positive_conserved_state(
+    mass,
+    momentum,
+    energy,
+    mass_floor=0.0,
+    energy_floor=0.0,
+    relative_tolerance=1.0e-12,
+    angular_momentum=None,
+    radius=None,
+):
     """Return the invariant-domain admissibility mask for Euler states."""
     mass = np.asarray(mass, dtype=float)
     momentum = np.asarray(momentum, dtype=float)
@@ -55,23 +62,21 @@ def positive_conserved_state(mass, momentum, energy, mass_floor=0.0,
     internal = np.zeros_like(energy)
     positive_mass = mass > np.maximum(mass_floor, 0.0)
     internal[positive_mass] = (
-        energy[positive_mass]
-        - 0.5 * momentum[positive_mass]**2 / mass[positive_mass]
+        energy[positive_mass] - 0.5 * momentum[positive_mass] ** 2 / mass[positive_mass]
     )
     if angular_momentum is not None and radius is not None:
         angular_momentum = np.asarray(angular_momentum, dtype=float)
         radius = np.asarray(radius, dtype=float)
         valid_radius = positive_mass & np.isfinite(radius) & (radius > 0.0)
         internal[valid_radius] -= (
-            0.5 * angular_momentum[valid_radius]**2
-            / (mass[valid_radius] * radius[valid_radius]**2)
+            0.5
+            * angular_momentum[valid_radius] ** 2
+            / (mass[valid_radius] * radius[valid_radius] ** 2)
         )
     vacuum = ~positive_mass
     internal[vacuum] = energy[vacuum]
     kinetic = np.zeros_like(energy)
-    kinetic[positive_mass] = (
-        0.5 * momentum[positive_mass]**2 / mass[positive_mass]
-    )
+    kinetic[positive_mass] = 0.5 * momentum[positive_mass] ** 2 / mass[positive_mass]
     # Cold pressureless states lie on the invariant-domain boundary.  A
     # relative tolerance prevents harmless cancellation in E-K from
     # turning that boundary state into a negative internal energy.

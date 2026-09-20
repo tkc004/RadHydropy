@@ -3,20 +3,29 @@
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 HERE = Path(__file__).resolve().parent
 OUTPUTS = HERE / "outputs_correlation_gas_crossing_comparison"
 RUNS = [
-    (0.0, HERE / "outputs_correlation_gas_crossing_f0p00",
-     "CosmologicalGasCorrelationZ100_crossing_f0p00"),
-    (0.01, HERE / "outputs_correlation_gas_batch_001_0p50",
-     "CosmologicalGasCorrelationZ100_batch_001_0p50"),
-    (0.5, HERE / "outputs_correlation_gas_batched_crossings",
-     "CosmologicalGasCorrelationZ100_batched_crossings"),
+    (
+        0.0,
+        HERE / "outputs_correlation_gas_crossing_f0p00",
+        "CosmologicalGasCorrelationZ100_crossing_f0p00",
+    ),
+    (
+        0.01,
+        HERE / "outputs_correlation_gas_batch_001_0p50",
+        "CosmologicalGasCorrelationZ100_batch_001_0p50",
+    ),
+    (
+        0.5,
+        HERE / "outputs_correlation_gas_batched_crossings",
+        "CosmologicalGasCorrelationZ100_batched_crossings",
+    ),
 ]
 
 
@@ -38,11 +47,24 @@ def main():
         gas_rho_proper_code = gas["rho_proper_code"][-1]
         dm_radius_proper_kpc = dm["radius_proper_kpc"][-1]
         dm_rho_comoving_code = dm["rho_comoving_code"][-1]
-        gas_ax.loglog(gas_radius_proper_kpc, gas_rho_proper_code, color=color, label=_label(fraction))
-        dm_ax.loglog(dm_radius_proper_kpc, np.maximum(dm_rho_comoving_code, 1.0e-300), color=color,
-                     label=_label(fraction))
-        rows.append((fraction, gas["time_cosmic_Gyr"][-1], gas["rvir_kpc"][-1],
-                     dm["radius_proper_kpc"][-1].max(), dm["mass_code"][-1].sum()))
+        gas_ax.loglog(
+            gas_radius_proper_kpc, gas_rho_proper_code, color=color, label=_label(fraction)
+        )
+        dm_ax.loglog(
+            dm_radius_proper_kpc,
+            np.maximum(dm_rho_comoving_code, 1.0e-300),
+            color=color,
+            label=_label(fraction),
+        )
+        rows.append(
+            (
+                fraction,
+                gas["time_cosmic_Gyr"][-1],
+                gas["rvir_kpc"][-1],
+                dm["radius_proper_kpc"][-1].max(),
+                dm["mass_code"][-1].sum(),
+            )
+        )
 
     gas_ax.set_xlabel("proper radius [kpc]")
     gas_ax.set_ylabel("gas density [code units]")
@@ -63,7 +85,8 @@ def main():
     plt.close(dm_fig)
 
     np.savetxt(
-        OUTPUTS / "profile_summary.txt", np.asarray(rows),
+        OUTPUTS / "profile_summary.txt",
+        np.asarray(rows),
         header="fraction final_time_Gyr rvir_kpc max_dm_radius_kpc total_dm_mass",
     )
 

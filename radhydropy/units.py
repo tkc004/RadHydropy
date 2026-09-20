@@ -6,9 +6,7 @@ from functools import cached_property
 import numpy as np
 import unyt
 
-from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
-from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
-
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, GRAVITATIONAL_CONSTANT_CGS, PROTON_MASS_CGS
 
 PHOTON_FLUX_UNIT = 1.0 / (unyt.cm**2 * unyt.s)
 PHOTON_RATE_UNIT = 1.0 / unyt.s
@@ -21,6 +19,7 @@ CGS_MASS_DENSITY_UNIT = unyt.g / CGS_VOLUME_UNIT
 CGS_NUMBER_DENSITY_UNIT = 1.0 / CGS_VOLUME_UNIT
 CGS_RATE_UNIT = 1.0 / unyt.s
 CGS_PHOTON_FLUX_UNIT = 1.0 / (CGS_AREA_UNIT * unyt.s)
+
 
 def _as_cgs_float(value, unit):
     if hasattr(value, "to_value"):
@@ -45,111 +44,111 @@ class _CodeUnitGroup:
 
 _CODE_UNIT_GROUPS = (
     _CodeUnitGroup(
-        'mesh',
+        "mesh",
         (
-            ('boundary_proper_code', 'length'),
-            ('boundary_comoving_code', 'length'),
-            ('width_proper_code', 'length'),
-            ('width_comoving_code', 'length'),
-            ('oneoverdx', 'length_inv'),
-            ('x_proper_code', 'length'),
-            ('x_comoving_code', 'length'),
-            ('area_proper_code', 'area'),
-            ('area_comoving_code', 'area'),
-            ('volume_proper_code', 'volume'),
-            ('volume_comoving_code', 'volume'),
+            ("boundary_proper_code", "length"),
+            ("boundary_comoving_code", "length"),
+            ("width_proper_code", "length"),
+            ("width_comoving_code", "length"),
+            ("oneoverdx", "length_inv"),
+            ("x_proper_code", "length"),
+            ("x_comoving_code", "length"),
+            ("area_proper_code", "area"),
+            ("area_comoving_code", "area"),
+            ("volume_proper_code", "volume"),
+            ("volume_comoving_code", "volume"),
         ),
     ),
     _CodeUnitGroup(
-        'fluid',
+        "fluid",
         (
-            ('rho_proper_code', 'density'),
-            ('rho_comoving_code', 'density'),
-            ('vel_proper_code', 'velocity'),
-            ('vel_supercomoving_code', 'velocity'),
-            ('pre_proper_code', 'pressure'),
-            ('pre_supercomoving_code', 'pressure'),
-            ('temp_proper_code', 'temperature'),
-            ('temp_supercomoving_code', 'temperature'),
-            ('Mass_code', 'mass'),
-            ('Mom_code', 'momentum'),
-            ('Energy_code', 'energy'),
-            ('AngularMomentum_code', 'angular_momentum'),
-            ('specific_angular_momentum_code', 'specific_angular_momentum'),
-            ('ngamma_code', 'number_density'),
-            ('cs_code', 'velocity'),
-            ('vsignal_code', 'velocity'),
-            ('flux_code', 'mass_flux'),
+            ("rho_proper_code", "density"),
+            ("rho_comoving_code", "density"),
+            ("vel_proper_code", "velocity"),
+            ("vel_supercomoving_code", "velocity"),
+            ("pre_proper_code", "pressure"),
+            ("pre_supercomoving_code", "pressure"),
+            ("temp_proper_code", "temperature"),
+            ("temp_supercomoving_code", "temperature"),
+            ("Mass_code", "mass"),
+            ("Mom_code", "momentum"),
+            ("Energy_code", "energy"),
+            ("AngularMomentum_code", "angular_momentum"),
+            ("specific_angular_momentum_code", "specific_angular_momentum"),
+            ("ngamma_code", "number_density"),
+            ("cs_code", "velocity"),
+            ("vsignal_code", "velocity"),
+            ("flux_code", "mass_flux"),
         ),
     ),
     _CodeUnitGroup(
-        'par',
+        "par",
         (
-            ('time_proper_code', 'time'),
-            ('tau_supercomoving_code', 'time'),
-            ('timesim', 'time'),
-            ('initial_time', 'time'),
-            ('time_interval', 'time'),
-            ('dtmin', 'time'),
-            ('dtmax', 'time'),
-            ('chemistry_timestep', 'time'),
-            ('evolution_timestep', 'time'),
-            ('output_interval', 'time'),
-            ('supercomoving_timestep', 'time'),
-            ('relaxation_damping_time', 'time'),
-            ('outdeltatime', 'time'),
-            ('hydrogen_source_dtmin', 'time'),
-            ('pie_uvbg_photoionization_timescale', 'time'),
-            ('box_size_proper', 'length'),
-            ('area_proper', 'area'),
-            ('temperature_proper', 'temperature'),
-            ('selfgravity_softening', 'length'),
-            ('dark_matter_softening', 'length'),
-            ('selfgravity_boundary_acceleration', 'acceleration'),
-            ('rho_inflow_proper', 'density'),
-            ('rho_outflow_proper', 'density'),
-            ('cfl_density_floor', 'density'),
-            ('positivity_density_floor', 'density'),
-            ('vel_inflow_proper', 'velocity'),
-            ('vel_outflow_proper', 'velocity'),
-            ('specific_angular_momentum_inflow', 'specific_angular_momentum'),
-            ('specific_angular_momentum_outflow', 'specific_angular_momentum'),
-            ('temperature', 'temperature'),
-            ('temperature_inflow_proper', 'temperature'),
-            ('temperature_outflow_proper', 'temperature'),
-            ('cooling_temperature_floor', 'temperature'),
-            ('hydro_temperature_floor', 'temperature'),
-            ('cosmology_t_ref', 'time'),
-            ('cosmology_hubble_ref', 'time_inv'),
-            ('hydrogen_implicit_absolute_temperature_tolerance', 'temperature'),
-            ('cmb_temperature_0', 'temperature'),
-            ('hydrogen_photon_energy', 'energy'),
-            ('hydrogen_ngamma_initial', 'number_density'),
-            ('hydrogen_ngamma_inflow', 'number_density'),
-            ('hydrogen_ngamma_outflow', 'number_density'),
-            ('radiative_transfer_boundary_flux', 'photon_flux'),
-            ('source_photon_rate', 'photon_rate'),
-            ('radiation_pressure_source_luminosity', 'luminosity'),
-            ('radiative_transfer_boundary_flux_groups', 'photon_flux'),
-            ('source_photon_rate_groups', 'photon_rate'),
-            ('spectrum_total_photon_rate', 'photon_rate'),
-            ('radiation_group_sigma_gamma', 'area'),
-            ('radiation_group_epsilon_gamma', 'energy'),
-            ('radiation_group_sigma_gamma_HeI', 'area'),
-            ('radiation_group_sigma_gamma_HeII', 'area'),
-            ('radiation_group_epsilon_gamma_HeI', 'energy'),
-            ('radiation_group_epsilon_gamma_HeII', 'energy'),
-            ('hydrogen_sigma_gamma', 'area'),
-            ('hydrogen_epsilon_gamma', 'energy'),
-            ('hydrogen_alpha_B', 'alpha'),
-            ('hydrogen_beta', 'alpha'),
-            ('gravity_coordinate', 'length'),
-            ('gravity_potential', 'potential'),
-            ('gravity_acceleration', 'acceleration'),
-            ('gravity_strength', 'acceleration'),
-            ('selfgravity_softening', 'length'),
-            ('selfgravity_boundary_acceleration', 'acceleration'),
-            ('radius_core_proper', 'length'),
+            ("time_proper_code", "time"),
+            ("tau_supercomoving_code", "time"),
+            ("timesim", "time"),
+            ("initial_time", "time"),
+            ("time_interval", "time"),
+            ("dtmin", "time"),
+            ("dtmax", "time"),
+            ("chemistry_timestep", "time"),
+            ("evolution_timestep", "time"),
+            ("output_interval", "time"),
+            ("supercomoving_timestep", "time"),
+            ("relaxation_damping_time", "time"),
+            ("outdeltatime", "time"),
+            ("hydrogen_source_dtmin", "time"),
+            ("pie_uvbg_photoionization_timescale", "time"),
+            ("box_size_proper", "length"),
+            ("area_proper", "area"),
+            ("temperature_proper", "temperature"),
+            ("selfgravity_softening", "length"),
+            ("dark_matter_softening", "length"),
+            ("selfgravity_boundary_acceleration", "acceleration"),
+            ("rho_inflow_proper", "density"),
+            ("rho_outflow_proper", "density"),
+            ("cfl_density_floor", "density"),
+            ("positivity_density_floor", "density"),
+            ("vel_inflow_proper", "velocity"),
+            ("vel_outflow_proper", "velocity"),
+            ("specific_angular_momentum_inflow", "specific_angular_momentum"),
+            ("specific_angular_momentum_outflow", "specific_angular_momentum"),
+            ("temperature", "temperature"),
+            ("temperature_inflow_proper", "temperature"),
+            ("temperature_outflow_proper", "temperature"),
+            ("cooling_temperature_floor", "temperature"),
+            ("hydro_temperature_floor", "temperature"),
+            ("cosmology_t_ref", "time"),
+            ("cosmology_hubble_ref", "time_inv"),
+            ("hydrogen_implicit_absolute_temperature_tolerance", "temperature"),
+            ("cmb_temperature_0", "temperature"),
+            ("hydrogen_photon_energy", "energy"),
+            ("hydrogen_ngamma_initial", "number_density"),
+            ("hydrogen_ngamma_inflow", "number_density"),
+            ("hydrogen_ngamma_outflow", "number_density"),
+            ("radiative_transfer_boundary_flux", "photon_flux"),
+            ("source_photon_rate", "photon_rate"),
+            ("radiation_pressure_source_luminosity", "luminosity"),
+            ("radiative_transfer_boundary_flux_groups", "photon_flux"),
+            ("source_photon_rate_groups", "photon_rate"),
+            ("spectrum_total_photon_rate", "photon_rate"),
+            ("radiation_group_sigma_gamma", "area"),
+            ("radiation_group_epsilon_gamma", "energy"),
+            ("radiation_group_sigma_gamma_HeI", "area"),
+            ("radiation_group_sigma_gamma_HeII", "area"),
+            ("radiation_group_epsilon_gamma_HeI", "energy"),
+            ("radiation_group_epsilon_gamma_HeII", "energy"),
+            ("hydrogen_sigma_gamma", "area"),
+            ("hydrogen_epsilon_gamma", "energy"),
+            ("hydrogen_alpha_B", "alpha"),
+            ("hydrogen_beta", "alpha"),
+            ("gravity_coordinate", "length"),
+            ("gravity_potential", "potential"),
+            ("gravity_acceleration", "acceleration"),
+            ("gravity_strength", "acceleration"),
+            ("selfgravity_softening", "length"),
+            ("selfgravity_boundary_acceleration", "acceleration"),
+            ("radius_core_proper", "length"),
         ),
     ),
 )
@@ -194,6 +193,7 @@ def quantity_to_value(value, unit):
         return np.asarray(value.to_value(unit), dtype=float)
     return np.asarray(value, dtype=float)
 
+
 def to_unit_value(value, unit):
     """Return a plain NumPy array expressed in the supplied unit.
 
@@ -210,6 +210,7 @@ def to_unit_value(value, unit):
         return np.asarray(value, dtype=float) * scale
     return np.asarray(value, dtype=float)
 
+
 def from_unit_value(value, unit):
     """Return a plain NumPy array converted from the supplied unit scale.
 
@@ -225,6 +226,7 @@ def from_unit_value(value, unit):
             return np.asarray(value.to_value(unit.units), dtype=float) / scale
         return np.asarray(value, dtype=float) / scale
     return np.asarray(value, dtype=float)
+
 
 def apply_code_unit_specs(obj, specs, units):
     """Apply code-unit conversions for each named attribute in ``specs``."""
@@ -306,7 +308,8 @@ def code_unit_scales(code):
         "specific_angular_momentum": length_cgs_cm * velocity_cgs_cm_s,
         "angular_momentum": mass_g * length_cgs_cm * velocity_cgs_cm_s,
         "proton_mass_code": PROTON_MASS_CGS / mass_g,
-        "boltzmann_code": BOLTZMANN_CONSTANT_CGS / (energy_cgs_erg / float(code.temperature_in_cgs)),
+        "boltzmann_code": BOLTZMANN_CONSTANT_CGS
+        / (energy_cgs_erg / float(code.temperature_in_cgs)),
     }
 
 
@@ -448,11 +451,11 @@ class CodeUnits:
 
     @property
     def area_unit(self):
-        return self.length_unit ** 2
+        return self.length_unit**2
 
     @property
     def volume_unit(self):
-        return self.length_unit ** 3
+        return self.length_unit**3
 
     @property
     def density_unit(self):
@@ -460,11 +463,11 @@ class CodeUnits:
 
     @property
     def pressure_unit(self):
-        return self.mass_unit / (self.length_unit * self.time_unit ** 2)
+        return self.mass_unit / (self.length_unit * self.time_unit**2)
 
     @property
     def energy_unit(self):
-        return self.mass_unit * self.velocity_unit ** 2
+        return self.mass_unit * self.velocity_unit**2
 
     @property
     def specific_energy_unit(self):
@@ -476,7 +479,7 @@ class CodeUnits:
 
     @property
     def mass_flux_unit(self):
-        return self.mass_unit / (self.length_unit ** 2 * self.time_unit)
+        return self.mass_unit / (self.length_unit**2 * self.time_unit)
 
     @property
     def momentum_flux_unit(self):
@@ -484,7 +487,7 @@ class CodeUnits:
 
     @property
     def energy_flux_unit(self):
-        return self.energy_unit / (self.length_unit ** 2 * self.time_unit)
+        return self.energy_unit / (self.length_unit**2 * self.time_unit)
 
     @property
     def number_density_unit(self):
@@ -538,7 +541,7 @@ class CodeUnits:
         internal = data.get("InternalUnitSystem", data)
         if not isinstance(internal, dict):
             raise TypeError(
-                "CodeUnits must be built from a mapping, a UnitSystem, or None"
+                "CodeUnits must be built from a mapping, a UnitSystem, or None",
             )
 
         mass_in_cgs = _as_cgs_float(

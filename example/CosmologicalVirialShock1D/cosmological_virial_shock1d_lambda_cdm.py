@@ -1,8 +1,7 @@
 """Launch the preserved LambdaCDM virial-shock comparison workflow."""
 
-from pathlib import Path
 import runpy
-
+from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parent.parent / (
     "CosmologicalVirialShock1DLambdaCDM/cosmological_virial_shock1d.py"

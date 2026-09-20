@@ -6,11 +6,12 @@ energy.
 """
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -23,13 +24,13 @@ if str(_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(_PACKAGE_DIR))
 
 from example_utils import load_nested_example_config
+
 from radhydropy.units import CodeUnits
 
-
 HERE = Path(__file__).resolve().parent
-NO_WIND_DIR = HERE.parent / 'DynamicStromgrenSpherePhotoheating20pc1D'
-NO_WIND_CONFIG = NO_WIND_DIR / 'dynamic_stromgren_sphere_photoheating20pc1d.yaml'
-WIND_CONFIG = HERE / 'dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml'
+NO_WIND_DIR = HERE.parent / "DynamicStromgrenSpherePhotoheating20pc1D"
+NO_WIND_CONFIG = NO_WIND_DIR / "dynamic_stromgren_sphere_photoheating20pc1d.yaml"
+WIND_CONFIG = HERE / "dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml"
 if str(HERE.parent) not in sys.path:
     sys.path.insert(0, str(HERE.parent))
 if str(HERE.parents[1]) not in sys.path:
@@ -37,12 +38,12 @@ if str(HERE.parents[1]) not in sys.path:
 
 
 def _load_tools(example_dir):
-    if example_dir.name == 'DynamicStromgrenSpherePhotoheating20pc1D':
+    if example_dir.name == "DynamicStromgrenSpherePhotoheating20pc1D":
         from DynamicStromgrenSpherePhotoheating20pc1D import tools
-    elif example_dir.name == 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D':
+    elif example_dir.name == "DynamicStromgrenSpherePhotoheating20pcStellarWind1D":
         from DynamicStromgrenSpherePhotoheating20pcStellarWind1D import tools
     else:
-        raise ValueError(f'unsupported Dynamic Stromgren example: {example_dir}')
+        raise ValueError(f"unsupported Dynamic Stromgren example: {example_dir}")
     return tools
 
 
@@ -56,12 +57,16 @@ def _snapshot_energy(snapshot, config, tools):
     code = CodeUnits.from_mapping(par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(mesh.volume_radarray[interior].to_value(unyt.cm**3), dtype=float)
     pressure_cgs_erg_cm3 = tools._pressure_from_radarrays(fluid, config)[interior]
-    density_cgs_g_cm3 = np.asarray(fluid.rho_radarray[interior].to_value(unyt.g / unyt.cm**3), dtype=float)
-    velocity_cgs_cm_s = np.asarray(fluid.vel_radarray[interior].to_value(unyt.cm / unyt.s), dtype=float)
+    density_cgs_g_cm3 = np.asarray(
+        fluid.rho_radarray[interior].to_value(unyt.g / unyt.cm**3), dtype=float
+    )
+    velocity_cgs_cm_s = np.asarray(
+        fluid.vel_radarray[interior].to_value(unyt.cm / unyt.s), dtype=float
+    )
     thermal = float(np.sum(pressure_cgs_erg_cm3 / (par.hydrodynamics.gamma - 1.0) * volume_cgs_cm3))
     kinetic = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
     time_proper_Myr = float(
-        np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr)
+        np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr),
     )
     return time_proper_Myr, thermal, kinetic, thermal + kinetic
 
@@ -69,10 +74,10 @@ def _snapshot_energy(snapshot, config, tools):
 def _history(example_dir, config_filename):
     config = _load_config(config_filename)
     tools = _load_tools(example_dir)
-    prefix = config['par']['output'].get('filename_prefix', 'Output')
-    snapshots = sorted(example_dir.glob(f'{prefix}_*.hdf5'))
+    prefix = config["par"]["output"].get("filename_prefix", "Output")
+    snapshots = sorted(example_dir.glob(f"{prefix}_*.hdf5"))
     if not snapshots:
-        raise FileNotFoundError(f'No {prefix}_*.hdf5 snapshots found in {example_dir}')
+        raise FileNotFoundError(f"No {prefix}_*.hdf5 snapshots found in {example_dir}")
     return np.asarray(
         [_snapshot_energy(snapshot, config, tools) for snapshot in snapshots],
         dtype=float,
@@ -87,7 +92,7 @@ def main(no_wind_dir=NO_WIND_DIR, wind_dir=HERE):
 
     common_times = np.intersect1d(wind[:, 0], no_wind[:, 0])
     if common_times.size == 0:
-        raise ValueError('The two examples have no snapshots at matching times.')
+        raise ValueError("The two examples have no snapshots at matching times.")
     wind = wind[np.isin(wind[:, 0], common_times)]
     no_wind = no_wind[np.isin(no_wind[:, 0], common_times)]
     wind = wind[np.argsort(wind[:, 0])]
@@ -97,50 +102,57 @@ def main(no_wind_dir=NO_WIND_DIR, wind_dir=HERE):
     nonzero = no_wind[:, 3] != 0.0
     relative_difference[nonzero] = energy_difference[nonzero] / no_wind[nonzero, 3]
 
-    figure = wind_dir / 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D_TotalGasEnergy.jpg'
+    figure = wind_dir / "DynamicStromgrenSpherePhotoheating20pcStellarWind1D_TotalGasEnergy.jpg"
     fig, axes = plt.subplots(2, 1, figsize=(7.5, 6.5), sharex=True)
-    axes[0].plot(wind[:, 0], wind[:, 3], 'o-', label='with stellar wind')
-    axes[0].plot(no_wind[:, 0], no_wind[:, 3], 'o-', label='without stellar wind')
-    axes[0].set_yscale('log')
-    axes[0].set_ylabel('total gas energy [erg]')
+    axes[0].plot(wind[:, 0], wind[:, 3], "o-", label="with stellar wind")
+    axes[0].plot(no_wind[:, 0], no_wind[:, 3], "o-", label="without stellar wind")
+    axes[0].set_yscale("log")
+    axes[0].set_ylabel("total gas energy [erg]")
     axes[0].legend(frameon=False)
-    axes[1].plot(wind[:, 0], relative_difference, 'o-', color='tab:purple')
+    axes[1].plot(wind[:, 0], relative_difference, "o-", color="tab:purple")
     axes[1].set_ylabel(
-        r'$(E_{\rm wind}-E_{\rm no\ wind})/E_{\rm no\ wind}$'
+        r"$(E_{\rm wind}-E_{\rm no\ wind})/E_{\rm no\ wind}$",
     )
-    axes[1].set_xlabel('time [Myr]')
+    axes[1].set_xlabel("time [Myr]")
     for axis in axes:
-        axis.grid(True, which='both', alpha=0.25)
+        axis.grid(True, which="both", alpha=0.25)
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
 
-    data = wind_dir / 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D_TotalGasEnergy.csv'
+    data = wind_dir / "DynamicStromgrenSpherePhotoheating20pcStellarWind1D_TotalGasEnergy.csv"
     np.savetxt(
         data,
-        np.column_stack((
-            common_times,
-            no_wind[:, 1], no_wind[:, 2], no_wind[:, 3],
-            wind[:, 1], wind[:, 2], wind[:, 3],
-            energy_difference, relative_difference,
-        )),
-        delimiter=',',
-        header=(
-            'time_proper_Myr,no_wind_thermal_proper_cgs_erg,no_wind_kinetic_proper_cgs_erg,no_wind_total_proper_cgs_erg,'
-            'wind_thermal_cgs_erg,wind_kinetic_cgs_erg,wind_total_cgs_erg,'
-            'wind_minus_no_wind_cgs_erg,relative_difference'
+        np.column_stack(
+            (
+                common_times,
+                no_wind[:, 1],
+                no_wind[:, 2],
+                no_wind[:, 3],
+                wind[:, 1],
+                wind[:, 2],
+                wind[:, 3],
+                energy_difference,
+                relative_difference,
+            )
         ),
-        comments='',
+        delimiter=",",
+        header=(
+            "time_proper_Myr,no_wind_thermal_proper_cgs_erg,no_wind_kinetic_proper_cgs_erg,no_wind_total_proper_cgs_erg,"
+            "wind_thermal_cgs_erg,wind_kinetic_cgs_erg,wind_total_cgs_erg,"
+            "wind_minus_no_wind_cgs_erg,relative_difference"
+        ),
+        comments="",
     )
-    print('final wind/no-wind total-energy difference = %.6e erg' % energy_difference[-1])
-    print('final relative difference = %.6e' % relative_difference[-1])
-    print('energy figure = %s' % figure)
-    print('energy data = %s' % data)
+    print("final wind/no-wind total-energy difference = %.6e erg" % energy_difference[-1])
+    print("final relative difference = %.6e" % relative_difference[-1])
+    print("energy figure = %s" % figure)
+    print("energy data = %s" % data)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--no-wind-dir', type=Path, default=NO_WIND_DIR)
-    parser.add_argument('--wind-dir', type=Path, default=HERE)
+    parser.add_argument("--no-wind-dir", type=Path, default=NO_WIND_DIR)
+    parser.add_argument("--wind-dir", type=Path, default=HERE)
     args = parser.parse_args()
     main(args.no_wind_dir.resolve(), args.wind_dir.resolve())

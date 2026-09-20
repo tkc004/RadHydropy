@@ -19,71 +19,76 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path("/tmp/radhydropy-matplotlib")))
 matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-import example_utils as eu
 from tools import build_initial_condition
-
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_cooling_uniform_sph1d.yaml"
 CASES = {"diffuse": 1.0, "self_shielded": 100.0}
 
 
 def _snapshot(filename, config):
-    eu._require_complete_example_config(config, '_snapshot')
+    eu._require_complete_example_config(config, "_snapshot")
     snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
     boundary_proper_code = snapshot.mesh.boundary_radarray.to_value(
-        config['_code_units'].length_unit
-    )[first:last + 1]
+        config["_code_units"].length_unit,
+    )[first : last + 1]
     return {
-        "radius_proper_code": 0.5 * (
-            boundary_proper_code[:-1] + boundary_proper_code[1:]
-        ),
+        "radius_proper_code": 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:]),
         "rho_proper_code": np.asarray(
-            snapshot.fluid.rho_radarray.value[first:last], dtype=float
+            snapshot.fluid.rho_radarray.value[first:last],
+            dtype=float,
         ),
         "temp_proper_code": np.asarray(
-            snapshot.fluid.temp_radarray.value[first:last], dtype=float
+            snapshot.fluid.temp_radarray.value[first:last],
+            dtype=float,
         ),
     }
 
 
 def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
-    initial_mapping = config['initial_condition']
+    initial_mapping = config["initial_condition"]
     output_dir = EXAMPLE_DIR / "outputs" / label
     output_dir.mkdir(parents=True, exist_ok=True)
     case_config = copy.deepcopy(config)
-    case_config['par']['simulation']['initial_condition_filename'] = str(
-        output_dir / f'InitialCondition_{label}.hdf5'
+    case_config["par"]["simulation"]["initial_condition_filename"] = str(
+        output_dir / f"InitialCondition_{label}.hdf5",
     )
-    case_config['par']['output']['directory'] = str(output_dir)
-    case_config['par']['output']['filename_prefix'] = f'Output_{label}'
+    case_config["par"]["output"]["directory"] = str(output_dir)
+    case_config["par"]["output"]["filename_prefix"] = f"Output_{label}"
 
-    code_units = CodeUnits.from_mapping(case_config['par']['units']['CodeUnits'])
-    case_config['initial_condition'] = {
+    code_units = CodeUnits.from_mapping(case_config["par"]["units"]["CodeUnits"])
+    case_config["initial_condition"] = {
         **initial_mapping,
-        'hydrogen_number_density': hydrogen_number_density_cgs_cm3 / unyt.cm**3,
-        'hydrogen_mass_fraction': case_config['par']['thermochemistry']['hydrogen_mass_fraction'],
-        'proton_mass_g': float(unyt.mp.to_value(unyt.g)),
-        'vel_proper': 0.0 * unyt.cm / unyt.s,
+        "hydrogen_number_density": hydrogen_number_density_cgs_cm3 / unyt.cm**3,
+        "hydrogen_mass_fraction": case_config["par"]["thermochemistry"]["hydrogen_mass_fraction"],
+        "proton_mass_g": float(unyt.mp.to_value(unyt.g)),
+        "vel_proper": 0.0 * unyt.cm / unyt.s,
     }
-    case_config['_code_units'] = code_units
+    case_config["_code_units"] = code_units
     ric = build_initial_condition(case_config)
-    ric.write(case_config['par']['simulation']['initial_condition_filename'], validate=True)
+    ric.write(case_config["par"]["simulation"]["initial_condition_filename"], validate=True)
 
     runtime_only = {
-        'final_time', 'number_of_cells', 'evolution_timestep',
-        'chemistry_timestep', 'box_size_proper', 'coordinate_system',
-        'time_proper', 'grid_cells', 'temperature_proper',
-        'mean_molecular_weight',
+        "final_time",
+        "number_of_cells",
+        "evolution_timestep",
+        "chemistry_timestep",
+        "box_size_proper",
+        "coordinate_system",
+        "time_proper",
+        "grid_cells",
+        "temperature_proper",
+        "mean_molecular_weight",
     }
-    sim = Rsim(case_config['par'])
+    sim = Rsim(case_config["par"])
     sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
@@ -95,15 +100,18 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
         raise RuntimeError(f"expected initial and final snapshots in {output_dir}")
 
     temperature_proper_cgs_K = float(
-        case_config['initial_condition']["temperature_proper"].to_value(unyt.K)
+        case_config["initial_condition"]["temperature_proper"].to_value(unyt.K),
     )
     heating, cooling = table.rates(
         temperature_proper_cgs_K,
         hydrogen_number_density_cgs_cm3,
-        metallicity=case_config['par']['thermochemistry']["metallicity"],
-        redshift=case_config['par']['thermochemistry']["metal_pie_redshift"],
+        metallicity=case_config["par"]["thermochemistry"]["metallicity"],
+        redshift=case_config["par"]["thermochemistry"]["metal_pie_redshift"],
     )
-    if hydrogen_number_density_cgs_cm3 > case_config['par']['thermochemistry']["metal_pie_photoheating_max_density_cgs_cm3"]:
+    if (
+        hydrogen_number_density_cgs_cm3
+        > case_config["par"]["thermochemistry"]["metal_pie_photoheating_max_density_cgs_cm3"]
+    ):
         heating_used = 0.0
     else:
         heating_used = heating
@@ -111,7 +119,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
         f"{label}: nH={hydrogen_number_density_cgs_cm3:g} cm^-3, "
         f"table heating={heating:.6e}, used heating={heating_used:.6e}, "
         f"cooling={cooling:.6e}, net={heating_used - cooling:.6e} "
-        "erg cm^-3 s^-1"
+        "erg cm^-3 s^-1",
     )
     return snapshots, output_dir
 
@@ -119,14 +127,16 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']
-    config['_code_units'] = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    table_path = (config_filename.parent / par['thermochemistry']["metal_pie_table_filename"]).resolve()
-    par['thermochemistry']['metal_pie_table_filename'] = str(table_path)
+    par = config["par"]
+    config["_code_units"] = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    table_path = (
+        config_filename.parent / par["thermochemistry"]["metal_pie_table_filename"]
+    ).resolve()
+    par["thermochemistry"]["metal_pie_table_filename"] = str(table_path)
     table = MetalPIETable(table_path)
     if not table.is_hm12_uv_background:
         raise ValueError("the example requires an HM12 UV-background table")
-    if par['radiation'].get("radiative_transfer", False):
+    if par["radiation"].get("radiative_transfer", False):
         raise ValueError("the example requires radiative_transfer: false")
 
     results = {}
@@ -180,7 +190,7 @@ def main(config_filename=DEFAULT_CONFIG):
             **simulation_style,
         )
         axes[0, column].set_title(
-            rf"{label}: $n_H={CASES[label]:g}\ \mathrm{{cm^{{-3}}}}$"
+            rf"{label}: $n_H={CASES[label]:g}\ \mathrm{{cm^{{-3}}}}$",
         )
         axes[0, column].set_yscale("log")
         axes[1, column].set_yscale("log")

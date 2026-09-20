@@ -98,9 +98,8 @@ when called from the repository root:
 
 ```python
 from tools.lcdm_correlation import generate_lcdm_correlation_table
-generate_lcdm_correlation_table(
-    "outputs_correlation/lcdm_linear_correlation.h5"
-)
+
+generate_lcdm_correlation_table("outputs_correlation/lcdm_linear_correlation.h5")
 ```
 
 `linear_correlation_from_power_spectrum` performs the exact Fourier-Bessel

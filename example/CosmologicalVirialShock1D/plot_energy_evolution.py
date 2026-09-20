@@ -9,10 +9,10 @@ saved proper shell radii and are intentionally labelled as proxies.
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "outputs_correlation_gas"
@@ -37,7 +37,9 @@ def _shell_edges(radius_comoving_code):
 
 def _gas_mass_profile(radius_comoving_code, rho_comoving_code):
     edges = _shell_edges(radius_comoving_code)
-    mass_comoving_code = np.asarray(rho_comoving_code, dtype=float) * (4.0 * np.pi / 3.0) * np.diff(edges**3)
+    mass_comoving_code = (
+        np.asarray(rho_comoving_code, dtype=float) * (4.0 * np.pi / 3.0) * np.diff(edges**3)
+    )
     return edges, np.maximum(mass_comoving_code, 0.0)
 
 
@@ -53,8 +55,10 @@ def _dark_matter_proxy(gas, dark_matter):
     potential = np.full(times.size, np.nan)
     for i in range(times.size):
         valid = (
-            np.isfinite(radius_shell_proper_kpc[i]) & np.isfinite(shell_mass_code[i])
-            & (radius_shell_proper_kpc[i] > 0.0) & (shell_mass_code[i] > 0.0)
+            np.isfinite(radius_shell_proper_kpc[i])
+            & np.isfinite(shell_mass_code[i])
+            & (radius_shell_proper_kpc[i] > 0.0)
+            & (shell_mass_code[i] > 0.0)
         )
         radius_comoving_code = radius_shell_proper_kpc[i, valid]
         mass_code = shell_mass_code[i, valid]
@@ -64,12 +68,15 @@ def _dark_matter_proxy(gas, dark_matter):
         gas_radius = gas_radius_comoving * scale[i]
         gas_edges, gas_cell_mass = _gas_mass_profile(gas_radius, gas_density[i])
         gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_cell_mass)))
-        gas_inside = np.interp(radius_comoving_code, gas_edges, gas_cumulative,
-                               left=0.0, right=gas_cumulative[-1])
+        gas_inside = np.interp(
+            radius_comoving_code, gas_edges, gas_cumulative, left=0.0, right=gas_cumulative[-1]
+        )
         dm_inside = np.cumsum(mass_code)
         core_mass = float(np.asarray(dark_matter["central_core_mass"])[i])
         enclosed = gas_inside + dm_inside + core_mass
-        potential[i] = -G_CODE * np.sum(mass_code * enclosed / (radius_comoving_code + SOFTENING_cgs_KPC))
+        potential[i] = -G_CODE * np.sum(
+            mass_code * enclosed / (radius_comoving_code + SOFTENING_cgs_KPC)
+        )
 
         # Shell velocities are absent from the saved file.  A rank-matched
         # finite difference gives a useful global kinetic-energy proxy, but
@@ -82,8 +89,8 @@ def _dark_matter_proxy(gas, dark_matter):
             count = min(radius_comoving_code.size, previous.size, following.size)
             if count:
                 dt = times[i + 1] - times[i - 1]
-                vel_peculiar_proper_km_s = (following[:count] - previous[:count]) / dt * (
-                    1.0 / KPC_PER_GYR_PER_cgs_KM_S
+                vel_peculiar_proper_km_s = (
+                    (following[:count] - previous[:count]) / dt * (1.0 / KPC_PER_GYR_PER_cgs_KM_S)
                 )
                 kinetic[i] = 0.5 * np.sum(mass_code[:count] * vel_peculiar_proper_km_s**2)
         elif times.size > 1:
@@ -110,7 +117,7 @@ def main():
     gas_gravity = np.cumsum(np.asarray(audit["gravitational_work"], dtype=float))
     gas_boundary = np.cumsum(
         np.asarray(audit["hydro_boundary_energy_flux"], dtype=float)
-        + np.asarray(audit["background_reservoir_energy_change"], dtype=float)
+        + np.asarray(audit["background_reservoir_energy_change"], dtype=float),
     )
     gas_budget = gas_total[0] + gas_gravity + gas_boundary
     gas_residual = gas_total - gas_budget

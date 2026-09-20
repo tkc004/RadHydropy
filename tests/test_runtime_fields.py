@@ -87,10 +87,12 @@ def test_runtime_selectors_choose_matching_proper_and_supercomoving_arrays():
         volume_comoving_code=np.array([9.0]),
     )
     supercomoving_arrays = select_fluid_primitive_arrays(
-        supercomoving_fluid, supercomoving_par,
+        supercomoving_fluid,
+        supercomoving_par,
     )
     supercomoving_geometry_arrays = select_mesh_geometry_arrays(
-        supercomoving_geometry, supercomoving_par,
+        supercomoving_geometry,
+        supercomoving_par,
     )
     assert [array[0] for array in supercomoving_arrays[:4]] == [6.0, 7.0, 8.0, 9.0]
     assert [array[0] for array in supercomoving_geometry_arrays] == [6.0, 5.0, 2.0, 8.0, 9.0]

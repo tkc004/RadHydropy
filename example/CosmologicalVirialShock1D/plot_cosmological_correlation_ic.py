@@ -1,10 +1,11 @@
 """Plot and verify a generated z=100 correlation-function IC file."""
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,15 +16,15 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.cosmology import EinsteinDeSitter
-import radhydropy.io as rio
-from example_utils import load_nested_example_config
-from radhydropy.units import CodeUnits, quantity_to_value
 import virial_shock_tools as et
+from example_utils import load_nested_example_config
 
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name(
-    "cosmological_dark_matter_correlation_z100.yaml"
+    "cosmological_dark_matter_correlation_z100.yaml",
 )
 
 
@@ -55,16 +56,20 @@ def main(config_filename=DEFAULT_CONFIG):
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
     boundary_comoving_code = np.asarray(
-        snapshot.mesh.boundary_comoving_code[first:last + 1], dtype=float
+        snapshot.mesh.boundary_comoving_code[first : last + 1],
+        dtype=float,
     )
     rho_comoving_code = np.asarray(
-        snapshot.fluid.rho_comoving_code[first:last], dtype=float
+        snapshot.fluid.rho_comoving_code[first:last],
+        dtype=float,
     )
     temp_supercomoving_code = np.asarray(
-        snapshot.fluid.temp_supercomoving_code[first:last], dtype=float
+        snapshot.fluid.temp_supercomoving_code[first:last],
+        dtype=float,
     )
     vel_supercomoving_code = np.asarray(
-        snapshot.fluid.vel_supercomoving_code[first:last], dtype=float
+        snapshot.fluid.vel_supercomoving_code[first:last],
+        dtype=float,
     )
 
     radius_comoving_code = et.cell_centres(boundary_comoving_code)
@@ -77,23 +82,30 @@ def main(config_filename=DEFAULT_CONFIG):
         * float(initial_condition.get("correlation_h", 0.674))
     )
     expected_delta, expected_mean_delta = et.density_contrast_profile(
-        radius_comoving_code, config,
+        radius_comoving_code,
+        config,
         length_unit_mpc_h=length_unit_mpc_h,
     )
     rho_background = float(cosmology.background_density(initial_time))
     fb = float(initial_condition["baryon_fraction"])
     actual_delta = rho_comoving_code / (rho_background * scale_factor**3 * fb) - 1.0
     expected_velocity = (
-        -scale_factor**2 * float(cosmology.hubble(initial_time))
-        * expected_mean_delta * radius_comoving_code / 3.0
+        -(scale_factor**2)
+        * float(cosmology.hubble(initial_time))
+        * expected_mean_delta
+        * radius_comoving_code
+        / 3.0
     )
     if bool(initial_condition.get("cmb_equilibrium_initial", False)):
-        expected_temperature = float(
-            initial_condition.get("cmb_temperature_0", 2.7255 * unyt.K).to_value(unyt.K)
-        ) / scale_factor
+        expected_temperature = (
+            float(
+                initial_condition.get("cmb_temperature_0", 2.7255 * unyt.K).to_value(unyt.K),
+            )
+            / scale_factor
+        )
     else:
         expected_temperature = float(
-            initial_condition.get("cie_temperature_proper", 10.0 * unyt.K).to_value(unyt.K)
+            initial_condition.get("cie_temperature_proper", 10.0 * unyt.K).to_value(unyt.K),
         )
 
     radius_perturbation_comoving_code = et.radius_perturbation_comoving_code(config)
@@ -101,19 +113,23 @@ def main(config_filename=DEFAULT_CONFIG):
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(clipped_edges**3)
     target_volume = 4.0 * np.pi / 3.0 * radius_perturbation_comoving_code**3
     target_mean_delta = np.sum(
-        (rho_comoving_code - rho_background * scale_factor**3 * fb) * shell_volume
+        (rho_comoving_code - rho_background * scale_factor**3 * fb) * shell_volume,
     ) / (rho_background * scale_factor**3 * fb * target_volume)
 
     rho_proper_cgs_g_cm3 = rho_comoving_code * float(units.density_unit) / scale_factor**3
     temperature_proper_cgs_K = (
         temp_supercomoving_code * float(units.temperature_unit) / scale_factor**2
     )
-    hubble_vel_proper_cgs_cm_s = float(cosmology.hubble(initial_time)) * scale_factor * radius_comoving_code
+    hubble_vel_proper_cgs_cm_s = (
+        float(cosmology.hubble(initial_time)) * scale_factor * radius_comoving_code
+    )
     vel_peculiar_proper_cgs_cm_s = vel_supercomoving_code / scale_factor
     vel_radial_proper_cgs_cm_s = hubble_vel_proper_cgs_cm_s + vel_peculiar_proper_cgs_cm_s
     velocity_to_km_s = float(units.velocity_in_cgs) / 1.0e5
     proper_radius_kpc = (
-        scale_factor * radius_comoving_code * float(units.length_in_cgs)
+        scale_factor
+        * radius_comoving_code
+        * float(units.length_in_cgs)
         / float((1.0 * unyt.kpc).to_value("cm"))
     )
 
@@ -125,7 +141,9 @@ def main(config_filename=DEFAULT_CONFIG):
     if temperature_error > 1.0e-10:
         raise RuntimeError("stored temperature does not match the requested cold IC")
     if abs(target_mean_delta - float(initial_condition["initial_overdensity"])) > 2.0e-4:
-        raise RuntimeError("stored target overdensity is inconsistent with the requested normalization")
+        raise RuntimeError(
+            "stored target overdensity is inconsistent with the requested normalization"
+        )
 
     output = filename.with_name("CosmologicalCorrelationInitialCondition.jpg")
     fig, axes = plt.subplots(2, 2, figsize=(11.0, 8.0))
@@ -142,15 +160,18 @@ def main(config_filename=DEFAULT_CONFIG):
     axes[1, 0].set_ylabel("gas temperature [K]")
     axes[1, 0].set_xlabel("proper radius [kpc]")
     axes[1, 1].semilogx(
-        proper_radius_kpc, hubble_vel_proper_cgs_cm_s * velocity_to_km_s,
+        proper_radius_kpc,
+        hubble_vel_proper_cgs_cm_s * velocity_to_km_s,
         label="Hubble flow",
     )
     axes[1, 1].semilogx(
-        proper_radius_kpc, vel_peculiar_proper_cgs_cm_s / scale_factor * velocity_to_km_s,
+        proper_radius_kpc,
+        vel_peculiar_proper_cgs_cm_s / scale_factor * velocity_to_km_s,
         label="peculiar",
     )
     axes[1, 1].semilogx(
-        proper_radius_kpc, vel_radial_proper_cgs_cm_s * velocity_to_km_s,
+        proper_radius_kpc,
+        vel_radial_proper_cgs_cm_s * velocity_to_km_s,
         label="total physical",
     )
     axes[1, 1].set_ylabel("radial velocity [km/s]")
@@ -166,14 +187,22 @@ def main(config_filename=DEFAULT_CONFIG):
     print("figure = %s" % output)
     print("scale factor = %.12g, redshift = %.8g" % (scale_factor, redshift))
     print("target radius = %.8g code lengths" % radius_perturbation_comoving_code)
-    print("target enclosed overdensity = %.12g (requested %.12g)" % (
-        target_mean_delta, float(initial_condition["initial_overdensity"])
-    ))
+    print(
+        "target enclosed overdensity = %.12g (requested %.12g)"
+        % (
+            target_mean_delta,
+            float(initial_condition["initial_overdensity"]),
+        )
+    )
     print("max density-profile error = %.6e" % density_error)
     print("max peculiar-velocity error = %.6e code velocity" % velocity_error)
-    print("temperature range = [%.8g, %.8g] K" % (
-        temperature_physical.min(), temperature_physical.max()
-    ))
+    print(
+        "temperature range = [%.8g, %.8g] K"
+        % (
+            temperature_physical.min(),
+            temperature_physical.max(),
+        )
+    )
     print("verification = PASS")
 
 

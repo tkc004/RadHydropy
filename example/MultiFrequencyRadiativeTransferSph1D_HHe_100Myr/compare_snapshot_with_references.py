@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,10 +18,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, SOURCE_EXAMPLE):
         sys.path.insert(0, str(path))
 
 import example_utils as eu
-import unyt
-
 from multifrequency_tools import active_radarray, load_snapshot
-
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOT = HERE / "Output_000.hdf5"
@@ -28,13 +26,10 @@ FIGURE = HERE / "HHe_multifrequency_snapshot_vs_reference.jpg"
 CONFIG = HERE / "multifrequency_radiative_transfer_sph1d_hhe_100myr.yaml"
 HYDROGEN_MASS_FRACTION = 0.75
 HELIUM_MASS_FRACTION = 0.25
-HELIUM_TO_HYDROGEN_NUMBER_RATIO = (
-    HELIUM_MASS_FRACTION / (4.0 * HYDROGEN_MASS_FRACTION)
-)
+HELIUM_TO_HYDROGEN_NUMBER_RATIO = HELIUM_MASS_FRACTION / (4.0 * HYDROGEN_MASS_FRACTION)
 
 
-def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
-         config_filename=CONFIG):
+def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE, config_filename=CONFIG):
     snapshot_filename = Path(snapshot_filename)
     figure_filename = Path(figure_filename)
     config = eu.load_nested_example_config(config_filename)
@@ -69,9 +64,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
         ghost_cells,
         boundary=True,
     )
-    radius_proper_radarray = 0.5 * (
-        boundary_proper_radarray[:-1] + boundary_proper_radarray[1:]
-    )
+    radius_proper_radarray = 0.5 * (boundary_proper_radarray[:-1] + boundary_proper_radarray[1:])
     radius_proper_kpc = radius_proper_radarray.to("kpc").value / 5.4
     snapshot = {
         "H I": xhi,
@@ -89,17 +82,24 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
     }
 
     snapshot_label = (
-        "C²-Ray snapshot: 100 Myr"
-        if "C2Ray" in snapshot_filename.stem
-        else "snapshot: 100 Myr"
+        "C²-Ray snapshot: 100 Myr" if "C2Ray" in snapshot_filename.stem else "snapshot: 100 Myr"
     )
     fig, axes = plt.subplots(2, 3, figsize=(13.0, 7.5), sharex=True)
     for axis, (species, reference_name) in zip(axes.flat, references.items()):
-        axis.plot(radius_proper_kpc, np.clip(snapshot[species], 1.0e-12, 1.0),
-                  color="tab:blue", label=snapshot_label)
+        axis.plot(
+            radius_proper_kpc,
+            np.clip(snapshot[species], 1.0e-12, 1.0),
+            color="tab:blue",
+            label=snapshot_label,
+        )
         reference = np.loadtxt(HERE / reference_name, delimiter=",")
-        axis.scatter(reference[:, 0], 10.0 ** reference[:, 1],
-                     color="tab:orange", s=18, label="reference: 100 Myr")
+        axis.scatter(
+            reference[:, 0],
+            10.0 ** reference[:, 1],
+            color="tab:orange",
+            s=18,
+            label="reference: 100 Myr",
+        )
         axis.set_yscale("log")
         axis.set_ylim(1.0e-6, 1.1)
         axis.set_title(species)
@@ -115,9 +115,12 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
             1.0,
             None,
         ),
-                           color="tab:red", label=snapshot_label)
+        color="tab:red",
+        label=snapshot_label,
+    )
     temperature_reference = np.loadtxt(
-        HERE / "TTT1D_Stromgren100Myr_HHe.txt", delimiter=","
+        HERE / "TTT1D_Stromgren100Myr_HHe.txt",
+        delimiter=",",
     )
     temperature_axis.scatter(
         temperature_reference[:, 0],
@@ -126,8 +129,9 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE,
         s=18,
         label="reference: 100 Myr",
     )
-    temperature_axis.axhline(1.0e5, color="tab:purple", linestyle="--",
-                             label=r"$T_{\rm rad}=10^5$ K")
+    temperature_axis.axhline(
+        1.0e5, color="tab:purple", linestyle="--", label=r"$T_{\rm rad}=10^5$ K"
+    )
     temperature_axis.set_yscale("log")
     temperature_axis.set_ylim(1.0e1, 1.0e8)
     temperature_axis.set_title("Temperature")

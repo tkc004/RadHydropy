@@ -31,7 +31,7 @@ def as_named_array(value, dtype=float):
     if hasattr(value, "units") or hasattr(value, "to_value"):
         raise TypeError(
             "runtime arrays must be unitless code-unit values; "
-            "convert physical quantities at the input boundary"
+            "convert physical quantities at the input boundary",
         )
     if isinstance(value, NamedArray):
         return value

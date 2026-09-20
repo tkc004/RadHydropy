@@ -1,77 +1,88 @@
 import unittest
-from radhydropy.mesh import Mesh
-from radhydropy.units import CodeUnits
-import numpy as np
-import unyt
 from types import SimpleNamespace
 
-class Par():
+import numpy as np
+import unyt
+
+from radhydropy.mesh import Mesh
+from radhydropy.units import CodeUnits
+
+
+class Par:
     def __init__(self):
         self.CodeUnits = CodeUnits.from_mapping(
             {
-                'name': 'test_units',
-                'InternalUnitSystem': {
-                    'UnitMass_in_cgs': 1.0,
-                    'UnitLength_in_cgs': 1.0,
-                    'UnitVelocity_in_cgs': 1.0,
-                    'UnitCurrent_in_cgs': 1.0,
-                    'UnitTemp_in_cgs': 1.0,
+                "name": "test_units",
+                "InternalUnitSystem": {
+                    "UnitMass_in_cgs": 1.0,
+                    "UnitLength_in_cgs": 1.0,
+                    "UnitVelocity_in_cgs": 1.0,
+                    "UnitCurrent_in_cgs": 1.0,
+                    "UnitTemp_in_cgs": 1.0,
                 },
-            }
+            },
         )
         self.nogrid = 10
         self.noghost = 2
-        self.coordsys = 'cartesian'
+        self.coordsys = "cartesian"
         self.area_proper = 3.0 * unyt.cm**2
         self.mesh = SimpleNamespace(
-            ghost_cells=2, grid_cells=10,
+            ghost_cells=2,
+            grid_cells=10,
             area_proper=self.area_proper,
         )
-        self.simulation = SimpleNamespace(coordinate_system='cartesian')
+        self.simulation = SimpleNamespace(coordinate_system="cartesian")
         self.units = SimpleNamespace(CodeUnits=self.CodeUnits)
+
 
 class Testing(unittest.TestCase):
     def setUp(self):
         self.par = Par()
         self.mesh = Mesh()
-        self.mesh.boundary_proper_code = (
-            np.linspace(1, 10, num=self.par.nogrid + 1) * unyt.cm
-        )
+        self.mesh.boundary_proper_code = np.linspace(1, 10, num=self.par.nogrid + 1) * unyt.cm
 
     def test_SetUpMesh(self):
         self.mesh.SetUpMesh(self.par)
         self.assertEqual(len(self.mesh.volume_proper_code), self.par.nogrid + 2 * self.par.noghost)
-        self.assertEqual(len(self.mesh.boundary_proper_code), self.par.nogrid + 1 + 2 * self.par.noghost)
-        np.testing.assert_allclose(self.mesh.volume_proper_code, np.full(len(self.mesh.volume_proper_code), 2.7))
-        self.assertFalse(hasattr(self.mesh.boundary_proper_code, 'units'))
+        self.assertEqual(
+            len(self.mesh.boundary_proper_code), self.par.nogrid + 1 + 2 * self.par.noghost
+        )
+        np.testing.assert_allclose(
+            self.mesh.volume_proper_code, np.full(len(self.mesh.volume_proper_code), 2.7)
+        )
+        self.assertFalse(hasattr(self.mesh.boundary_proper_code, "units"))
         for name in (
-            "x_proper_code", "boundary_proper_code", "width_proper_code",
-            "area_proper_code", "volume_proper_code",
+            "x_proper_code",
+            "boundary_proper_code",
+            "width_proper_code",
+            "area_proper_code",
+            "volume_proper_code",
         ):
             self.assertFalse(hasattr(getattr(self.mesh.geometry_state, name), "units"))
 
     def test_unknown_coordinate_system_raises(self):
-        self.par.coordsys = 'cylindrical'
-        self.par.simulation.coordinate_system = 'cylindrical'
+        self.par.coordsys = "cylindrical"
+        self.par.simulation.coordinate_system = "cylindrical"
         with self.assertRaises(ValueError):
             self.mesh.SetUpMesh(self.par)
 
     def test_spherical_origin_face_has_zero_area(self):
-        self.par.coordsys = 'spherical'
-        self.par.simulation.coordinate_system = 'spherical'
+        self.par.coordsys = "spherical"
+        self.par.simulation.coordinate_system = "spherical"
         self.mesh.boundary_proper_code = np.linspace(-0.5, 1.5, num=self.par.nogrid + 1)
 
         self.mesh.SetUpMesh(self.par)
 
         origin_cell = np.where(
-            np.logical_and(self.mesh.boundary_proper_code[:-1] < 0.0,
-                           self.mesh.boundary_proper_code[1:] > 0.0)
+            np.logical_and(
+                self.mesh.boundary_proper_code[:-1] < 0.0, self.mesh.boundary_proper_code[1:] > 0.0
+            ),
         )[0][0]
         self.assertEqual(self.mesh.area_proper_code[origin_cell], 0.0)
 
     def test_spherical_zero_inner_boundary_has_zero_area(self):
-        self.par.coordsys = 'spherical'
-        self.par.simulation.coordinate_system = 'spherical'
+        self.par.coordsys = "spherical"
+        self.par.simulation.coordinate_system = "spherical"
         self.mesh.boundary_proper_code = np.linspace(0.0, 1.0, num=self.par.nogrid + 1)
 
         self.mesh.SetUpMesh(self.par)
@@ -80,5 +91,9 @@ class Testing(unittest.TestCase):
         self.assertEqual(self.mesh.area_proper_code[self.par.noghost], 0.0)
         self.assertAlmostEqual(
             float(self.mesh.x_proper_code[self.par.noghost]),
-            0.75 * float(self.mesh.boundary_proper_code[self.par.noghost+1] - self.mesh.boundary_proper_code[self.par.noghost]),
+            0.75
+            * float(
+                self.mesh.boundary_proper_code[self.par.noghost + 1]
+                - self.mesh.boundary_proper_code[self.par.noghost]
+            ),
         )

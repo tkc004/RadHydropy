@@ -3,11 +3,11 @@
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import SymLogNorm
-
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "outputs_correlation_gas_compton_atomic"
@@ -23,13 +23,20 @@ def _signed_norm(values):
 def _plot(fields, time_cosmic_Gyr, radius_proper_kpc, filename, title, ylabel):
     fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True, sharey=True)
     radius_proper_kpc = np.asarray(radius_proper_kpc, dtype=float)
-    time_grid = np.broadcast_to(np.asarray(time_cosmic_Gyr, dtype=float)[:, None], radius_proper_kpc.shape)
+    time_grid = np.broadcast_to(
+        np.asarray(time_cosmic_Gyr, dtype=float)[:, None], radius_proper_kpc.shape
+    )
     radius_grid = radius_proper_kpc
     for axis, (key, label) in zip(axes.flat, fields):
         values = np.asarray(key, dtype=float)
         image = axis.scatter(
-            time_grid.ravel(), radius_grid.ravel(), c=values.ravel(),
-            s=18, marker="s", linewidths=0, cmap="coolwarm",
+            time_grid.ravel(),
+            radius_grid.ravel(),
+            c=values.ravel(),
+            s=18,
+            marker="s",
+            linewidths=0,
+            cmap="coolwarm",
             norm=_signed_norm(values),
         )
         axis.set_title(label)
@@ -51,7 +58,9 @@ def main():
     scale = np.asarray(profiles["scale_factor"], dtype=float)
 
     gas_time_cosmic_Gyr = np.asarray(data["gas_time_cosmic_Gyr"], dtype=float)
-    gas_radius_proper_kpc = np.asarray(profiles["radius_comoving_kpc"], dtype=float)[None, :] * scale[:, None]
+    gas_radius_proper_kpc = (
+        np.asarray(profiles["radius_comoving_kpc"], dtype=float)[None, :] * scale[:, None]
+    )
     _plot(
         [
             (data["gas_total_energy"], "total energy"),
@@ -59,9 +68,11 @@ def main():
             (data["gas_thermal_energy"], "thermal energy"),
             (data["gas_delta_thermal_energy"], "thermal change from initial"),
         ],
-        gas_time_cosmic_Gyr, gas_radius_proper_kpc,
+        gas_time_cosmic_Gyr,
+        gas_radius_proper_kpc,
         OUTPUT / (PREFIX + "_GasCellEnergy_TimeRadius.jpg"),
-        "Gas-cell energy versus time and proper radius", "proper radius [kpc]",
+        "Gas-cell energy versus time and proper radius",
+        "proper radius [kpc]",
     )
 
     dm_time_cosmic_Gyr = np.asarray(data["dm_time_cosmic_Gyr"], dtype=float)
@@ -73,7 +84,8 @@ def main():
             (data["dm_total_energy"], "total energy"),
             (data["dm_delta_total_energy"], "total change from initial"),
         ],
-        dm_time_cosmic_Gyr, dm_radius_proper_kpc,
+        dm_time_cosmic_Gyr,
+        dm_radius_proper_kpc,
         OUTPUT / (PREFIX + "_DarkMatterShellEnergy_TimeRadius.jpg"),
         "Dark-matter-shell energy versus time and proper radius",
         "proper radius [kpc]",

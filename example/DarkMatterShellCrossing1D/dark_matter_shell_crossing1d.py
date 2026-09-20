@@ -13,34 +13,40 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-os.environ.setdefault('MPLCONFIGDIR', os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'))
+os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from radhydropy.units import quantity_to_value
-import example_utils as eu
 import tools as et
+from radhydropy.units import quantity_to_value
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name(
-    'dark_matter_shell_crossing1d.yaml'
+DEFAULT_CONFIG = (
+    Path(__file__)
+    .resolve()
+    .with_name(
+        "dark_matter_shell_crossing1d.yaml",
+    )
 )
 
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
-    initial_condition = config['initial_condition']
-    timestep = config["par"]['timestep']
-    output = config["par"]['output']
+    initial_condition = config["initial_condition"]
+    timestep = config["par"]["timestep"]
+    output = config["par"]["output"]
     code_units = et.code_units_from_config(config)
     final_time_proper_code = quantity_to_value(
-        config["par"]['simulation']['final_time'], code_units.time_unit
+        config["par"]["simulation"]["final_time"],
+        code_units.time_unit,
     )
     output_interval_proper_code = quantity_to_value(
-        timestep['output_interval'], code_units.time_unit
+        timestep["output_interval"],
+        code_units.time_unit,
     )
     shells = et.make_shells(config)
     time_proper_code = 0.0
@@ -55,13 +61,13 @@ def main(config_filename=DEFAULT_CONFIG):
             final_time_proper_code - time_proper_code,
         )
         predicted = shells.crossing_timestep(
-            safety_factor=float(timestep['crossing_safety_factor'])
+            safety_factor=float(timestep["crossing_safety_factor"]),
         )
         if predicted < dt:
             crossings += 1
         actual_dt = shells.step(
             dt,
-            crossing_safety_factor=float(timestep['crossing_safety_factor']),
+            crossing_safety_factor=float(timestep["crossing_safety_factor"]),
         )
         time_proper_code += actual_dt
         history_time_proper_code.append(time_proper_code)
@@ -71,42 +77,42 @@ def main(config_filename=DEFAULT_CONFIG):
     history_radius = np.asarray(history_radius)
     history_energy = np.asarray(history_energy)
     if not np.all(np.isfinite(history_radius)):
-        raise RuntimeError('dark-matter shell radii became non-finite')
+        raise RuntimeError("dark-matter shell radii became non-finite")
     if not np.all(np.diff(history_radius, axis=1) >= 0.0):
-        raise RuntimeError('dark-matter shells are not sorted after evolution')
-    if not np.isclose(np.sum(shells.mass), float(initial_condition['total_mass_dimensionless'])):
-        raise RuntimeError('dark-matter shell mass was not conserved')
+        raise RuntimeError("dark-matter shells are not sorted after evolution")
+    if not np.isclose(np.sum(shells.mass), float(initial_condition["total_mass_dimensionless"])):
+        raise RuntimeError("dark-matter shell mass was not conserved")
 
     radius_unit = code_units.length_unit
-    radius_proper_pc = quantity_to_value(history_radius * radius_unit, 'pc')
-    time_proper_Myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value('Myr')
+    radius_proper_pc = quantity_to_value(history_radius * radius_unit, "pc")
+    time_proper_Myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value("Myr")
     energy_fractional_change = np.abs(
-        (history_energy - history_energy[0]) / max(abs(history_energy[0]), np.finfo(float).tiny)
+        (history_energy - history_energy[0]) / max(abs(history_energy[0]), np.finfo(float).tiny),
     )
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(time_proper_Myr, radius_proper_pc)
-    axes[0].set_xlabel('time [Myr]')
-    axes[0].set_ylabel('sorted shell radius [pc]')
+    axes[0].set_xlabel("time [Myr]")
+    axes[0].set_ylabel("sorted shell radius [pc]")
     axes[1].plot(time_proper_Myr, energy_fractional_change)
-    axes[1].set_xlabel('time [Myr]')
-    axes[1].set_ylabel('fractional diagnostic energy change')
+    axes[1].set_xlabel("time [Myr]")
+    axes[1].set_ylabel("fractional diagnostic energy change")
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
-    figure = Path(output['directory']) / 'DarkMatterShellCrossing1D.jpg'
+    figure = Path(output["directory"]) / "DarkMatterShellCrossing1D.jpg"
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-    print('crossing-limited steps = %d' % crossings)
-    print('maximum fractional diagnostic energy change = %.6g' % np.max(energy_fractional_change))
-    print('figure = %s' % figure)
+    print("crossing-limited steps = %d" % crossings)
+    print("maximum fractional diagnostic energy change = %.6g" % np.max(energy_fractional_change))
+    print("figure = %s" % figure)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Run the pure dark-matter shell-crossing example.')
-    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser = argparse.ArgumentParser(description="Run the pure dark-matter shell-crossing example.")
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

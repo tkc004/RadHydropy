@@ -2,15 +2,16 @@
 
 import argparse
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
 os.environ.setdefault(
-    'MPLCONFIGDIR',
-    os.path.join('/tmp', 'radhydropy-matplotlib'),
+    "MPLCONFIGDIR",
+    os.path.join("/tmp", "radhydropy-matplotlib"),
 )
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -19,22 +20,26 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
+import example_utils as eu
+
 import radhydropy.io as rio
+import tools as et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-import example_utils as eu
-import tools as et
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name(
-    'passive_gas_angular_momentum1d.yaml'
+DEFAULT_CONFIG = (
+    Path(__file__)
+    .resolve()
+    .with_name(
+        "passive_gas_angular_momentum1d.yaml",
+    )
 )
 
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
-    Path(config["par"]['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     config["_code_units"] = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     writer = et.build_initial_condition(config)
@@ -45,12 +50,14 @@ def main(config_filename=DEFAULT_CONFIG):
     rho_proper_code = np.asarray(initial.fluid.rho_radarray.value, dtype=float)
     vel_proper_code = np.asarray(initial.fluid.vel_radarray.value, dtype=float)
     temperature_proper_code = np.asarray(initial.fluid.temp_radarray.value, dtype=float)
-    boundary_proper_code = np.asarray(initial.mesh.boundary_radarray.to_value(config["_code_units"].length_unit), dtype=float)
+    boundary_proper_code = np.asarray(
+        initial.mesh.boundary_radarray.to_value(config["_code_units"].length_unit), dtype=float
+    )
     initial_total_j = np.sum(
-        rho_proper_code * initial_j * np.diff(boundary_proper_code)
+        rho_proper_code * initial_j * np.diff(boundary_proper_code),
     )
     sim = Rsim(config["par"])
-    sim.RunAll(outputtime=0, mode='hydro')
+    sim.RunAll(outputtime=0, mode="hydro")
     interior = slice(
         sim.par.mesh.ghost_cells,
         sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells,
@@ -62,67 +69,85 @@ def main(config_filename=DEFAULT_CONFIG):
         dtype=float,
     )
     if not np.allclose(
-        final_j_from_conserved, final_j, rtol=1.0e-12, atol=1.0e-14
+        final_j_from_conserved,
+        final_j,
+        rtol=1.0e-12,
+        atol=1.0e-14,
     ):
-        raise RuntimeError('AngularMomentum/Mass does not reconstruct final j')
+        raise RuntimeError("AngularMomentum/Mass does not reconstruct final j")
     final_total_j = np.sum(np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float))
     if not np.isclose(final_total_j, initial_total_j, rtol=1.0e-12, atol=1.0e-14):
-        raise RuntimeError('periodic angular-momentum transport failed conservation')
+        raise RuntimeError("periodic angular-momentum transport failed conservation")
 
-    outputs = sorted(Path(config["par"]['output']['directory']).glob('Output_*.hdf5'))
+    outputs = sorted(Path(config["par"]["output"]["directory"]).glob("Output_*.hdf5"))
     if not outputs:
-        raise FileNotFoundError('no output snapshot was written')
+        raise FileNotFoundError("no output snapshot was written")
     restart = rio.loadhdf5(config, str(outputs[-1]))
-    if not hasattr(restart.fluid, 'AngularMomentum_code'):
-        raise RuntimeError('restart snapshot is missing AngularMomentum')
+    if not hasattr(restart.fluid, "AngularMomentum_code"):
+        raise RuntimeError("restart snapshot is missing AngularMomentum")
     restarted_j = np.asarray(
         (restart.fluid.AngularMomentum_code / restart.fluid.Mass_code)[interior],
         dtype=float,
     )
     restarted_specific_j = np.asarray(
-        restart.fluid.specific_angular_momentum_radarray.value[interior], dtype=float
+        restart.fluid.specific_angular_momentum_radarray.value[interior],
+        dtype=float,
     )
     if not np.allclose(
-        restarted_j, restarted_specific_j, rtol=1.0e-12, atol=1.0e-14
+        restarted_j,
+        restarted_specific_j,
+        rtol=1.0e-12,
+        atol=1.0e-14,
     ):
-        raise RuntimeError('HDF5 restart changed J/M')
+        raise RuntimeError("HDF5 restart changed J/M")
 
     radius_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    figure = Path(config["par"]['output']['directory']) / 'PassiveGasAngularMomentum1D.jpg'
+    figure = Path(config["par"]["output"]["directory"]) / "PassiveGasAngularMomentum1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)
     final_snapshot = rio.loadhdf5(config, str(outputs[-1]))
-    final_density_proper_code = np.asarray(final_snapshot.fluid.rho_radarray.value[interior], dtype=float)
-    final_velocity_proper_code = np.asarray(final_snapshot.fluid.vel_radarray.value[interior], dtype=float)
-    final_temperature_proper_code = np.asarray(final_snapshot.fluid.temp_radarray.value[interior], dtype=float)
+    final_density_proper_code = np.asarray(
+        final_snapshot.fluid.rho_radarray.value[interior], dtype=float
+    )
+    final_velocity_proper_code = np.asarray(
+        final_snapshot.fluid.vel_radarray.value[interior], dtype=float
+    )
+    final_temperature_proper_code = np.asarray(
+        final_snapshot.fluid.temp_radarray.value[interior], dtype=float
+    )
     conserved_j = np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float)
 
     fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
     hydro_plots = (
-        (axes[0, 0], rho_proper_code, final_density_proper_code, 'density [proper code]'),
-        (axes[0, 1], vel_proper_code, final_velocity_proper_code, 'velocity [proper code]'),
-        (axes[1, 0], temperature_proper_code, final_temperature_proper_code, 'temperature [proper code]'),
+        (axes[0, 0], rho_proper_code, final_density_proper_code, "density [proper code]"),
+        (axes[0, 1], vel_proper_code, final_velocity_proper_code, "velocity [proper code]"),
+        (
+            axes[1, 0],
+            temperature_proper_code,
+            final_temperature_proper_code,
+            "temperature [proper code]",
+        ),
     )
     for axis, initial_values, final_values, ylabel in hydro_plots:
-        axis.plot(radius_proper_code, initial_values, '--', label='initial')
-        axis.plot(radius_proper_code, final_values, 'o', ms=3, label='final')
+        axis.plot(radius_proper_code, initial_values, "--", label="initial")
+        axis.plot(radius_proper_code, final_values, "o", ms=3, label="final")
         axis.set_ylabel(ylabel)
         axis.grid(alpha=0.25)
 
-    axes[1, 1].plot(radius_proper_code, initial_j, '--', label='initial j')
-    axes[1, 1].plot(radius_proper_code, final_j, 'o', ms=3, label='final j = J/M')
-    axes[1, 1].set_ylabel('angular momentum [code units]')
+    axes[1, 1].plot(radius_proper_code, initial_j, "--", label="initial j")
+    axes[1, 1].plot(radius_proper_code, final_j, "o", ms=3, label="final j = J/M")
+    axes[1, 1].set_ylabel("angular momentum [code units]")
     axes[1, 1].grid(alpha=0.25)
     j_axis = axes[1, 1].twinx()
-    j_axis.plot(radius_proper_code, conserved_j, ':', lw=1.2, color='tab:red', label='stored J')
-    j_axis.set_ylabel('extensive J [code mass·length$^2$/code time]', color='tab:red')
-    j_axis.tick_params(axis='y', labelcolor='tab:red')
+    j_axis.plot(radius_proper_code, conserved_j, ":", lw=1.2, color="tab:red", label="stored J")
+    j_axis.set_ylabel("extensive J [code mass·length$^2$/code time]", color="tab:red")
+    j_axis.tick_params(axis="y", labelcolor="tab:red")
     for axis in axes[1, :]:
-        axis.set_xlabel('cell coordinate [code length]')
+        axis.set_xlabel("cell coordinate [code length]")
     axes[0, 0].legend()
     handles, labels = axes[1, 1].get_legend_handles_labels()
     j_handles, j_labels = j_axis.get_legend_handles_labels()
-    axes[1, 1].legend(handles + j_handles, labels + j_labels, fontsize='small')
-    fig.suptitle('Passive gas angular-momentum storage check')
+    axes[1, 1].legend(handles + j_handles, labels + j_labels, fontsize="small")
+    fig.suptitle("Passive gas angular-momentum storage check")
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
@@ -134,50 +159,48 @@ def main(config_filename=DEFAULT_CONFIG):
         snapshot_times.append(float(np.asarray(snapshot.fluid.time_proper_code)))
         snapshot_total_j.append(
             np.sum(
-                np.asarray(snapshot.fluid.AngularMomentum_code[interior], dtype=float)
-            )
+                np.asarray(snapshot.fluid.AngularMomentum_code[interior], dtype=float),
+            ),
         )
     snapshot_times = np.asarray(snapshot_times)
     # Older output writers may leave the header time at the initial value.
     # Do not plot duplicate timestamps as a vertical line; reconstruct the
     # configured output timeline in code units for that diagnostic only.
     if snapshot_times.size > 1 and np.allclose(snapshot_times, snapshot_times[0]):
-        final_time = config["par"]['simulation']['final_time']
+        final_time = config["par"]["simulation"]["final_time"]
         units = initial.par.units.CodeUnits
         final_time_proper_code = float(
-            final_time.to_value(units.time_unit)
-            if hasattr(final_time, 'to_value')
-            else final_time
+            final_time.to_value(units.time_unit) if hasattr(final_time, "to_value") else final_time,
         )
         snapshot_times = np.linspace(0.0, final_time_proper_code, snapshot_times.size)
     snapshot_total_j = np.asarray(snapshot_total_j)
-    relative_conservation_error = (
-        snapshot_total_j - initial_total_j
-    ) / max(abs(initial_total_j), np.finfo(float).tiny)
+    relative_conservation_error = (snapshot_total_j - initial_total_j) / max(
+        abs(initial_total_j), np.finfo(float).tiny
+    )
     conservation_figure = (
-        Path(config["par"]['output']['directory']) / 'PassiveGasAngularMomentum1D_conservation.jpg'
+        Path(config["par"]["output"]["directory"]) / "PassiveGasAngularMomentum1D_conservation.jpg"
     )
     conservation_fig, conservation_axes = plt.subplots(1, 2, figsize=(10, 4))
-    conservation_axes[0].plot(snapshot_times, snapshot_total_j, 'o-')
-    conservation_axes[0].axhline(initial_total_j, color='k', ls='--', lw=1.0)
-    conservation_axes[0].set_xlabel('time [code units]')
-    conservation_axes[0].set_ylabel('total gas J [code units]')
-    conservation_axes[1].plot(snapshot_times, relative_conservation_error, 'o-')
-    conservation_axes[1].axhline(0.0, color='k', ls='--', lw=1.0)
-    conservation_axes[1].set_xlabel('time [code units]')
-    conservation_axes[1].set_ylabel('relative conservation error')
+    conservation_axes[0].plot(snapshot_times, snapshot_total_j, "o-")
+    conservation_axes[0].axhline(initial_total_j, color="k", ls="--", lw=1.0)
+    conservation_axes[0].set_xlabel("time [code units]")
+    conservation_axes[0].set_ylabel("total gas J [code units]")
+    conservation_axes[1].plot(snapshot_times, relative_conservation_error, "o-")
+    conservation_axes[1].axhline(0.0, color="k", ls="--", lw=1.0)
+    conservation_axes[1].set_xlabel("time [code units]")
+    conservation_axes[1].set_ylabel("relative conservation error")
     for axis in conservation_axes:
         axis.grid(alpha=0.25)
-    conservation_fig.suptitle('Gas angular-momentum conservation history')
+    conservation_fig.suptitle("Gas angular-momentum conservation history")
     conservation_fig.tight_layout()
     conservation_fig.savefig(conservation_figure, dpi=180)
     plt.close(conservation_fig)
-    print('active angular-momentum transport, conservation, and restart checks passed')
-    print('figure = %s' % figure)
-    print('conservation figure = %s' % conservation_figure)
+    print("active angular-momentum transport, conservation, and restart checks passed")
+    print("figure = %s" % figure)
+    print("conservation figure = %s" % conservation_figure)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
     main(parser.parse_args().config)

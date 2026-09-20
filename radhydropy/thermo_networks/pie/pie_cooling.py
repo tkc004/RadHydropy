@@ -2,12 +2,12 @@
 
 import numpy as np
 
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.runtime_fields import runtime_fields
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
 from radhydropy.thermo_networks.cie.cie_cooling import _state, _update_temperature
 from radhydropy.thermo_networks.hydrogen import _rotational_specific_energy_code
-from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.units import from_unit_value, to_unit_value
-from radhydropy.runtime_fields import runtime_fields
 
 
 class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
@@ -24,7 +24,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
     def enabled(self, fluid, par):
         return bool(
             getattr(par, "metal_pie_enabled", False)
-            and getattr(par, "metal_pie_table", None) is not None
+            and getattr(par, "metal_pie_table", None) is not None,
         )
 
     def radiation_enabled(self, fluid, par):
@@ -43,7 +43,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         if table.component != "hydrogen+helium+metals":
             raise ValueError(
                 "pie_uvbg_cooling requires a total H/He+metals PIE table; "
-                "use hydrogen_helium for a metal-only PIE table"
+                "use hydrogen_helium for a metal-only PIE table",
             )
         state = _state(mesh, fluid, par)
         state.update(
@@ -51,19 +51,19 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
             metallicity=float(getattr(par, "metallicity", 1.0)),
             redshift=float(getattr(par, "metal_pie_redshift", 0.0)),
             hydrogen_mass_fraction=float(
-                getattr(par, "hydrogen_mass_fraction", 1.0)
+                getattr(par, "hydrogen_mass_fraction", 1.0),
             ),
             cooling_safety_factor=float(
-                getattr(par, "cooling_safety_factor", 0.1)
+                getattr(par, "cooling_safety_factor", 0.1),
             ),
             compton_cmb_enabled=bool(
-                getattr(par, "compton_cmb_enabled", False)
+                getattr(par, "compton_cmb_enabled", False),
             ),
             compton_cmb_redshift=float(
-                getattr(par, "compton_cmb_redshift", 0.0)
+                getattr(par, "compton_cmb_redshift", 0.0),
             ),
             cmb_temperature_0_cgs_K=float(
-                to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), "K")
+                to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), "K"),
             ),
         )
         return state
@@ -80,11 +80,15 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
             redshift=state["redshift"],
         )
         max_heating_density = getattr(
-            state["par"], "metal_pie_photoheating_max_density_cgs_cm3", 50.0
+            state["par"],
+            "metal_pie_photoheating_max_density_cgs_cm3",
+            50.0,
         )
         if max_heating_density is not None:
             heating = np.where(
-                nH > float(max_heating_density), 0.0, heating
+                nH > float(max_heating_density),
+                0.0,
+                heating,
             )
         return heating - cooling
 
@@ -108,15 +112,14 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         state = self.source_state(mesh, fluid, par)
         code = state["code"]
         remaining_s = (
-            float(to_unit_value(remaining, code.time_unit))
-            * state["source_scale_factor"]**2
+            float(to_unit_value(remaining, code.time_unit)) * state["source_scale_factor"] ** 2
         )
         # The thermal update is implicit, so the cooling time no longer has
         # to limit the hydro/source timestep.  The hydro CFL step is still
         # passed in as ``remaining``.
         rate = self.thermal_rate(state, None)
         return from_unit_value(
-            remaining_s / state["source_scale_factor"]**2,
+            remaining_s / state["source_scale_factor"] ** 2,
             code.time_unit,
         ), rate
 
@@ -194,19 +197,29 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
     def _implicit_converged_step(self, state, old_energy, dt_s, floor_cgs_K):
         """Compare a full implicit step with two implicit half steps."""
         full_energy, full_ok = self._implicit_energy_step(
-            state, old_energy, dt_s, floor_cgs_K
+            state,
+            old_energy,
+            dt_s,
+            floor_cgs_K,
         )
         half_energy, first_ok = self._implicit_energy_step(
-            state, old_energy, 0.5 * dt_s, floor_cgs_K
+            state,
+            old_energy,
+            0.5 * dt_s,
+            floor_cgs_K,
         )
         second_state = dict(state)
         second_state["specific_energy_cgs_erg_g"] = half_energy
         _update_temperature(second_state)
         half_energy, second_ok = self._implicit_energy_step(
-            second_state, half_energy, 0.5 * dt_s, floor_cgs_K
+            second_state,
+            half_energy,
+            0.5 * dt_s,
+            floor_cgs_K,
         )
         relative_difference = np.abs(half_energy - full_energy) / np.maximum(
-            np.abs(half_energy), self._energy_at_temperature(state, floor_cgs_K)
+            np.abs(half_energy),
+            self._energy_at_temperature(state, floor_cgs_K),
         )
         tolerance = float(getattr(state["par"], "pie_uvbg_implicit_tolerance", 1.0e-3))
         converged = (
@@ -231,19 +244,17 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         )
         minimum_energy = self._energy_at_temperature(state, floor_cgs_K)
         state["specific_energy_cgs_erg_g"] = np.maximum(
-            state["specific_energy_cgs_erg_g"], minimum_energy
+            state["specific_energy_cgs_erg_g"],
+            minimum_energy,
         )
         return state["specific_energy_cgs_erg_g"].copy(), dt_s
 
     def apply_fast(self, dt, mesh, fluid, par):
         state = self.source_state(mesh, fluid, par)
         code = state["code"]
-        remaining_s = (
-            float(to_unit_value(dt, code.time_unit))
-            * state["source_scale_factor"]**2
-        )
+        remaining_s = float(to_unit_value(dt, code.time_unit)) * state["source_scale_factor"] ** 2
         floor_cgs_K = float(
-            to_unit_value(getattr(par, "cooling_temperature_floor", 1.0), "K")
+            to_unit_value(getattr(par, "cooling_temperature_floor", 1.0), "K"),
         )
         source_steps = 0
         retries = int(getattr(par, "pie_uvbg_implicit_max_retries", 8))
@@ -255,11 +266,17 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
             for _ in range(retries + 1):
                 if getattr(par, "pie_uvbg_implicit_step_doubling", True):
                     new_energy, converged = self._implicit_converged_step(
-                        state, old_energy, dt_s, floor_cgs_K
+                        state,
+                        old_energy,
+                        dt_s,
+                        floor_cgs_K,
                     )
                 else:
                     new_energy, converged = self._implicit_energy_step(
-                        state, old_energy, dt_s, floor_cgs_K
+                        state,
+                        old_energy,
+                        dt_s,
+                        floor_cgs_K,
                     )
                 if np.all(converged):
                     state["specific_energy_cgs_erg_g"] = new_energy
@@ -274,7 +291,10 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
                 # temperature-floor limited, so accept one full-step
                 # implicit update after the retry budget is exhausted.
                 new_energy, _ = self._implicit_energy_step(
-                    state, old_energy, remaining_s, floor_cgs_K
+                    state,
+                    old_energy,
+                    remaining_s,
+                    floor_cgs_K,
                 )
                 state["specific_energy_cgs_erg_g"] = new_energy
                 dt_s = remaining_s
@@ -284,7 +304,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         _update_temperature(state)
         interior = state["interior"]
         fields = runtime_fields(par)
-        if getattr(par, 'supercomoving_coordinates', False):
+        if getattr(par, "supercomoving_coordinates", False):
             rho_runtime_code = fluid.rho_comoving_code
             temp_runtime_code = fluid.temp_supercomoving_code
             pre_runtime_code = fluid.pre_supercomoving_code
@@ -292,11 +312,8 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
             rho_runtime_code = fluid.rho_proper_code
             temp_runtime_code = fluid.temp_proper_code
             pre_runtime_code = fluid.pre_proper_code
-        internal_super = (
-            state["specific_energy_cgs_erg_g"]
-            * state["source_temperature_factor"]
-        )
-        total_super = internal_super + 0.5 * state["velocity_supercomoving_cgs_cm_s"]**2
+        internal_super = state["specific_energy_cgs_erg_g"] * state["source_temperature_factor"]
+        total_super = internal_super + 0.5 * state["velocity_supercomoving_cgs_cm_s"] ** 2
         fluid.Energy_code[interior] = from_unit_value(
             state["mass_g"] * total_super,
             code.energy_unit,

@@ -25,9 +25,7 @@ class DarkMatterSnapshot:
         self.radius_radarray = radius_radarray
         self.radial_velocity_radarray = radial_velocity_radarray
         self.dark_matter_mass_radarray = dark_matter_mass_radarray
-        self.specific_angular_momentum_radarray = (
-            specific_angular_momentum_radarray
-        )
+        self.specific_angular_momentum_radarray = specific_angular_momentum_radarray
         self.softening_radquantity = softening_radquantity
 
     @property
@@ -49,32 +47,44 @@ class EnclosedGasMassProfile:
         if code_units is None:
             raise ValueError("gas mass coupling requires configured code units")
         geometry = getattr(mesh, "geometry_state", None)
-        if geometry is not None and getattr(
-            geometry, "boundary_comoving_code", None
-        ) is not None:
+        if (
+            geometry is not None
+            and getattr(
+                geometry,
+                "boundary_comoving_code",
+                None,
+            )
+            is not None
+        ):
             boundary_code = geometry.boundary_comoving_code
-        elif geometry is not None and getattr(
-            geometry, "boundary_proper_code", None
-        ) is not None:
+        elif (
+            geometry is not None
+            and getattr(
+                geometry,
+                "boundary_proper_code",
+                None,
+            )
+            is not None
+        ):
             boundary_code = geometry.boundary_proper_code
         else:
             raise AttributeError(
-                "mesh.geometry_state must provide explicit comoving or proper boundaries"
+                "mesh.geometry_state must provide explicit comoving or proper boundaries",
             )
         boundaries = np.asarray(
-            quantity_to_value(boundary_code, code_units.length_unit), dtype=float
+            quantity_to_value(boundary_code, code_units.length_unit),
+            dtype=float,
         )
         density = np.asarray(
-            quantity_to_value(rho, code_units.density_unit), dtype=float
+            quantity_to_value(rho, code_units.density_unit),
+            dtype=float,
         )
         first = int(par.mesh.ghost_cells)
         last = first + int(par.mesh.grid_cells)
         self.inner = boundaries[first:last]
-        self.outer = boundaries[first + 1:last + 1]
+        self.outer = boundaries[first + 1 : last + 1]
         self.density = density[first:last]
-        shell_volume = 4.0 * np.pi / 3.0 * (
-            self.outer**3 - self.inner**3
-        )
+        shell_volume = 4.0 * np.pi / 3.0 * (self.outer**3 - self.inner**3)
         shell_mass = self.density * shell_volume
         self.prefix = np.concatenate(([0.0], np.cumsum(shell_mass)))
 
@@ -84,9 +94,7 @@ class EnclosedGasMassProfile:
         cell = np.searchsorted(self.outer, clipped, side="right")
         cell = np.clip(cell, 0, len(self.inner) - 1)
         before = self.prefix[cell]
-        partial = self.density[cell] * 4.0 * np.pi / 3.0 * (
-            clipped**3 - self.inner[cell]**3
-        )
+        partial = self.density[cell] * 4.0 * np.pi / 3.0 * (clipped**3 - self.inner[cell] ** 3)
         result = before + np.maximum(partial, 0.0)
         return np.where(
             radius <= self.inner[0],
@@ -153,14 +161,14 @@ class DarkMatterShells:
         self.softening = float(quantity_to_value(softening, length))
         self.central_core_radius = float(quantity_to_value(central_core_radius, length))
         self.core_absorption_velocity = float(
-            quantity_to_value(core_absorption_velocity, velocity_unit)
+            quantity_to_value(core_absorption_velocity, velocity_unit),
         )
         if self.central_core_radius < 0.0:
             raise ValueError("central core radius must be non-negative")
         if self.core_absorption_velocity < 0.0:
             raise ValueError("core absorption velocity must be non-negative")
         self.core_absorption_energy = float(
-            quantity_to_value(core_absorption_energy, velocity_unit**2)
+            quantity_to_value(core_absorption_energy, velocity_unit**2),
         )
         if callable(fixed_enclosed_mass):
             self.fixed_enclosed_mass = fixed_enclosed_mass
@@ -169,7 +177,8 @@ class DarkMatterShells:
         else:
             self.fixed_enclosed_mass = float(quantity_to_value(fixed_enclosed_mass, mass_unit))
         self.central_core_mass = (
-            0.0 if self.fixed_enclosed_mass is None or callable(self.fixed_enclosed_mass)
+            0.0
+            if self.fixed_enclosed_mass is None or callable(self.fixed_enclosed_mass)
             else float(self.fixed_enclosed_mass)
         )
         self._mass_prefix_cache = None
@@ -181,7 +190,11 @@ class DarkMatterShells:
         self.last_origin_reflection_count = 0
         self.total_origin_reflection_count = 0
         if not (
-            self.radius.ndim == self.velocity.ndim == self.mass.ndim == self.angular_momentum.ndim == 1
+            self.radius.ndim
+            == self.velocity.ndim
+            == self.mass.ndim
+            == self.angular_momentum.ndim
+            == 1
         ):
             raise ValueError("dark-matter shell state must be one-dimensional")
         if not (
@@ -239,12 +252,10 @@ class DarkMatterShells:
                 self._enclosed_mass_cache = prefix[:-1] + 0.5 * self.mass
                 return self._enclosed_mass_cache
             starts = np.flatnonzero(
-                np.r_[True, self.radius[1:] > self.radius[:-1]]
+                np.r_[True, self.radius[1:] > self.radius[:-1]],
             )
             ends = np.r_[starts[1:], self.number_of_shells]
-            group_values = prefix[starts] + 0.5 * (
-                prefix[ends] - prefix[starts]
-            )
+            group_values = prefix[starts] + 0.5 * (prefix[ends] - prefix[starts])
             self._enclosed_mass_cache = np.repeat(group_values, ends - starts)
             return self._enclosed_mass_cache
         radius = np.asarray(radius, dtype=float)
@@ -269,12 +280,10 @@ class DarkMatterShells:
         sorted_mass = self.mass[order]
         prefix = np.concatenate(([0.0], np.cumsum(sorted_mass)))
         starts = np.flatnonzero(
-            np.r_[True, sorted_radius[1:] > sorted_radius[:-1]]
+            np.r_[True, sorted_radius[1:] > sorted_radius[:-1]],
         )
         ends = np.r_[starts[1:], radius.size]
-        group_values = prefix[starts] + 0.5 * (
-            prefix[ends] - prefix[starts]
-        )
+        group_values = prefix[starts] + 0.5 * (prefix[ends] - prefix[starts])
         sorted_result = np.repeat(group_values, ends - starts)
         result = np.empty_like(sorted_result)
         result[order] = sorted_result
@@ -328,7 +337,8 @@ class DarkMatterShells:
                 enclosed = dynamic
             elif callable(self.fixed_enclosed_mass):
                 enclosed = dynamic + np.asarray(
-                    self.fixed_enclosed_mass(self.radius), dtype=float
+                    self.fixed_enclosed_mass(self.radius),
+                    dtype=float,
                 )
             elif include_shell_mass_with_fixed:
                 enclosed = dynamic + self.fixed_enclosed_mass
@@ -336,7 +346,7 @@ class DarkMatterShells:
                 enclosed = np.full_like(self.radius, self.fixed_enclosed_mass)
         else:
             enclosed = self.gravitating_enclosed_mass(
-                include_shell_mass_with_fixed=include_shell_mass_with_fixed
+                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
             )
         if gas_enclosed_mass is not None:
             if callable(gas_enclosed_mass):
@@ -346,8 +356,7 @@ class DarkMatterShells:
             enclosed = enclosed + gas_mass
         if cosmological and background_enclosed_mass is not None:
             if callable(background_enclosed_mass):
-                background = np.asarray(
-                    background_enclosed_mass(self.radius), dtype=float)
+                background = np.asarray(background_enclosed_mass(self.radius), dtype=float)
             else:
                 background = np.asarray(background_enclosed_mass, dtype=float)
             enclosed = enclosed - background
@@ -375,8 +384,13 @@ class DarkMatterShells:
         # Coincident shells are already at the crossing event.  Returning
         # zero here can make the global hydro loop advance with dt=0 forever;
         # ``step`` resolves the crossing by exchanging shell states first.
-        tolerance = 32.0 * np.finfo(float).eps * max(
-            1.0, float(np.max(np.abs(self.radius)))
+        tolerance = (
+            32.0
+            * np.finfo(float).eps
+            * max(
+                1.0,
+                float(np.max(np.abs(self.radius))),
+            )
         )
         closing = (closing_speed > 0.0) & (separation > tolerance)
         candidates = separation[closing] / closing_speed[closing]
@@ -390,8 +404,13 @@ class DarkMatterShells:
             return
         separation = self.radius[1:] - self.radius[:-1]
         closing_speed = self.velocity[:-1] - self.velocity[1:]
-        tolerance = 32.0 * np.finfo(float).eps * max(
-            1.0, float(np.max(np.abs(self.radius)))
+        tolerance = (
+            32.0
+            * np.finfo(float).eps
+            * max(
+                1.0,
+                float(np.max(np.abs(self.radius))),
+            )
         )
         pairs = np.flatnonzero((separation <= tolerance) & (closing_speed > 0.0))
         self._exchange_shell_states(pairs)
@@ -410,8 +429,7 @@ class DarkMatterShells:
             velocity = self.velocity[pairs].copy()
             mass = self.mass[pairs].copy()
             angular_momentum = self.angular_momentum[pairs].copy()
-            shell_id = (self.shell_id[pairs].copy()
-                        if self.shell_id is not None else None)
+            shell_id = self.shell_id[pairs].copy() if self.shell_id is not None else None
             self.velocity[pairs] = self.velocity[right]
             self.mass[pairs] = self.mass[right]
             self.angular_momentum[pairs] = self.angular_momentum[right]
@@ -423,11 +441,13 @@ class DarkMatterShells:
                 self.shell_id[right] = shell_id
         else:
             for index in pairs:
-                self.velocity[index:index + 2] = self.velocity[index:index + 2][::-1]
-                self.mass[index:index + 2] = self.mass[index:index + 2][::-1]
-                self.angular_momentum[index:index + 2] = self.angular_momentum[index:index + 2][::-1]
+                self.velocity[index : index + 2] = self.velocity[index : index + 2][::-1]
+                self.mass[index : index + 2] = self.mass[index : index + 2][::-1]
+                self.angular_momentum[index : index + 2] = self.angular_momentum[index : index + 2][
+                    ::-1
+                ]
                 if self.shell_id is not None:
-                    self.shell_id[index:index + 2] = self.shell_id[index:index + 2][::-1]
+                    self.shell_id[index : index + 2] = self.shell_id[index : index + 2][::-1]
         if pairs.size:
             self._mass_prefix_cache = None
             self._enclosed_mass_cache = None
@@ -436,13 +456,16 @@ class DarkMatterShells:
         """Return pairs whose predicted crossing is the current event."""
         separation = self.radius[1:] - self.radius[:-1]
         closing_speed = self.velocity[:-1] - self.velocity[1:]
-        tolerance = 32.0 * np.finfo(float).eps * max(
-            1.0, float(np.max(np.abs(self.radius)))
+        tolerance = (
+            32.0
+            * np.finfo(float).eps
+            * max(
+                1.0,
+                float(np.max(np.abs(self.radius))),
+            )
         )
         closing = (closing_speed > 0.0) & (separation > tolerance)
-        event = closing & (
-            separation <= crossing_dt * closing_speed * (1.0 + 1.0e-12)
-        )
+        event = closing & (separation <= crossing_dt * closing_speed * (1.0 + 1.0e-12))
         return np.flatnonzero(event)
 
     def _reflect_at_origin(self):
@@ -490,7 +513,8 @@ class DarkMatterShells:
         if self.fixed_enclosed_mass is not None:
             if callable(self.fixed_enclosed_mass):
                 fixed = np.asarray(
-                    self.fixed_enclosed_mass(safe_radius), dtype=float
+                    self.fixed_enclosed_mass(safe_radius),
+                    dtype=float,
                 )
             else:
                 fixed = np.full_like(safe_radius, self.fixed_enclosed_mass)
@@ -513,12 +537,8 @@ class DarkMatterShells:
             )
             enclosed = enclosed - background
         g_code = _gravitational_constant_code(self.CodeUnits)
-        potential = -g_code * float(scale_factor) * enclosed / (
-            safe_radius + self.softening
-        )
-        angular = 0.5 * self.angular_momentum**2 / (
-            safe_radius + self.softening
-        )**2
+        potential = -g_code * float(scale_factor) * enclosed / (safe_radius + self.softening)
+        angular = 0.5 * self.angular_momentum**2 / (safe_radius + self.softening) ** 2
         total_energy = 0.5 * velocity**2 + angular + potential
         bound = total_energy <= self.core_absorption_energy
         if self.core_absorption_velocity > 0.0:
@@ -587,10 +607,7 @@ class DarkMatterShells:
             crossing_dt = self.crossing_timestep(safety_factor=1.0)
             substep = remaining
             event_pairs = np.empty(0, dtype=int)
-            batched_crossing = (
-                crossing_batch_fraction > 0.0
-                and crossing_dt < substep
-            )
+            batched_crossing = crossing_batch_fraction > 0.0 and crossing_dt < substep
             if crossing_dt < substep:
                 # Advance exactly to the first crossing, exchange the
                 # neighboring shell states at the event, then continue with
@@ -633,19 +650,14 @@ class DarkMatterShells:
                 # exact event step.  Place each event pair at the common
                 # crossing radius before exchanging states so the next loop
                 # iteration cannot generate a zero-progress crossing event.
-                crossing_radius = 0.5 * (
-                    self.radius[event_pairs] + self.radius[event_pairs + 1]
-                )
-                disjoint = (
-                    event_pairs.size == 1
-                    or np.all(np.diff(event_pairs) > 1)
-                )
+                crossing_radius = 0.5 * (self.radius[event_pairs] + self.radius[event_pairs + 1])
+                disjoint = event_pairs.size == 1 or np.all(np.diff(event_pairs) > 1)
                 if disjoint:
                     self.radius[event_pairs] = crossing_radius
                     self.radius[event_pairs + 1] = crossing_radius
                 else:
                     for index, radius in zip(event_pairs, crossing_radius):
-                        self.radius[index:index + 2] = radius
+                        self.radius[index : index + 2] = radius
                 self._exchange_shell_states(event_pairs)
             self._absorb_into_core(
                 self.radius,
@@ -673,8 +685,11 @@ class DarkMatterShells:
             elapsed += substep
             if state_callback is not None:
                 state_callback(
-                    float(elapsed), float(a_end), self.radius.copy(),
-                    self.velocity.copy(), self.mass.copy(),
+                    float(elapsed),
+                    float(a_end),
+                    self.radius.copy(),
+                    self.velocity.copy(),
+                    self.mass.copy(),
                     None if self.shell_id is None else self.shell_id.copy(),
                 )
             remaining = dt - elapsed

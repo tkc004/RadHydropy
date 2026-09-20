@@ -10,21 +10,23 @@ from radhydropy.cosmology.state import (
     to_supercomoving_state,
     validate_supercomoving_contract,
 )
-from radhydropy.units import CodeUnits
 from radhydropy.io.cosmology_state import (
     read_supercomoving_state_hdf5,
     write_supercomoving_state_hdf5,
 )
+from radhydropy.units import CodeUnits
 
 
 def _units():
-    return CodeUnits.from_mapping({
-        "UnitMass_in_cgs": 1.0e33,
-        "UnitLength_in_cgs": 1.0e18,
-        "UnitVelocity_in_cgs": 1.0e5,
-        "UnitCurrent_in_cgs": 1.0,
-        "UnitTemp_in_cgs": 1.0,
-    })
+    return CodeUnits.from_mapping(
+        {
+            "UnitMass_in_cgs": 1.0e33,
+            "UnitLength_in_cgs": 1.0e18,
+            "UnitVelocity_in_cgs": 1.0e5,
+            "UnitCurrent_in_cgs": 1.0,
+            "UnitTemp_in_cgs": 1.0,
+        }
+    )
 
 
 def test_supercomoving_proper_round_trip():
@@ -42,21 +44,29 @@ def test_supercomoving_proper_round_trip():
 
     proper = to_proper_state(state, cosmology, units, gamma=5.0 / 3.0)
     restored = to_supercomoving_state(
-        proper, cosmology, units, tau_supercomoving_code=tau, gamma=5.0 / 3.0
+        proper,
+        cosmology,
+        units,
+        tau_supercomoving_code=tau,
+        gamma=5.0 / 3.0,
     )
 
     np.testing.assert_allclose(restored.x_comoving_code, state.x_comoving_code)
     np.testing.assert_allclose(
-        restored.rho_comoving_code, state.rho_comoving_code
+        restored.rho_comoving_code,
+        state.rho_comoving_code,
     )
     np.testing.assert_allclose(
-        restored.vel_supercomoving_code, state.vel_supercomoving_code
+        restored.vel_supercomoving_code,
+        state.vel_supercomoving_code,
     )
     np.testing.assert_allclose(
-        restored.pre_supercomoving_code, state.pre_supercomoving_code
+        restored.pre_supercomoving_code,
+        state.pre_supercomoving_code,
     )
     np.testing.assert_allclose(
-        restored.temp_supercomoving_code, state.temp_supercomoving_code
+        restored.temp_supercomoving_code,
+        state.temp_supercomoving_code,
     )
 
 

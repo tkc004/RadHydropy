@@ -5,7 +5,7 @@ import copy
 import numpy as np
 
 from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.runtime_fields import MeshGeometryState, SUPERCOMOVING_RUNTIME_FIELDS
+from radhydropy.runtime_fields import SUPERCOMOVING_RUNTIME_FIELDS, MeshGeometryState
 
 
 def build_initial_condition(config):
@@ -22,12 +22,12 @@ def build_initial_condition(config):
     code_units = writer.code_units
     grid_cells = int(par["mesh"]["grid_cells"])
     initial_time_code = float(
-        initial_condition["time_cosmic"].to_value(code_units.time_unit)
+        initial_condition["time_cosmic"].to_value(code_units.time_unit),
     )
     result.par.cosmological_expansion = True
     result.par.supercomoving_coordinates = True
     result.par.cosmological_gravity = bool(
-        par.get("cosmology", {}).get("cosmological", False)
+        par.get("cosmology", {}).get("cosmological", False),
     )
     result.par.set_cosmology_model(code_cosmology)
     result.par.cosmology_type = code_cosmology.type_name
@@ -47,17 +47,20 @@ def build_initial_condition(config):
     result.par.simulation.tau_supercomoving_code = result.par.tau_supercomoving_code
 
     box_size_comoving_code = float(
-        initial_condition["box_size_comoving"].to_value(code_units.length_unit)
+        initial_condition["box_size_comoving"].to_value(code_units.length_unit),
     )
     result.par.simulation.box_size_comoving_code = box_size_comoving_code
     result.par.simulation.coordinate_system = par["simulation"].get(
-        "coordinate_system", "cartesian"
+        "coordinate_system",
+        "cartesian",
     )
     boundary_override = config.get("_boundary_comoving_code")
     if boundary_override is None:
         boundary_start = float(config.get("_boundary_start_code", 0.0))
         boundary = np.linspace(
-            boundary_start, boundary_start + box_size_comoving_code, grid_cells + 1
+            boundary_start,
+            boundary_start + box_size_comoving_code,
+            grid_cells + 1,
         )
     else:
         boundary = np.asarray(boundary_override, dtype=float)
@@ -84,7 +87,8 @@ def build_initial_condition(config):
 
     writer.box_size = writer.radquantity(initial_condition["box_size_comoving"])
     writer.mesh.boundary_radarray = writer.radarray(
-        boundary * code_units.length_unit, representation="comoving"
+        boundary * code_units.length_unit,
+        representation="comoving",
     )
     writer.set_field(
         "x_comoving_code",
@@ -108,8 +112,12 @@ def build_initial_condition(config):
         )
         temp_proper_code = np.where(
             left,
-            float(initial_condition["temperature_left_proper"].to_value(code_units.temperature_unit)),
-            float(initial_condition["temperature_right_proper"].to_value(code_units.temperature_unit)),
+            float(
+                initial_condition["temperature_left_proper"].to_value(code_units.temperature_unit)
+            ),
+            float(
+                initial_condition["temperature_right_proper"].to_value(code_units.temperature_unit)
+            ),
         )
         rho_field, temp_field = "rho_proper_code", "temp_proper_code"
     else:
@@ -117,7 +125,8 @@ def build_initial_condition(config):
         temp_supercomoving_code = np.asarray(config["_temp_supercomoving_code"], dtype=float)
         rho_field, temp_field = "rho_comoving_code", "temp_supercomoving_code"
     vel_supercomoving_code = np.asarray(
-        config.get("_vel_supercomoving_code", np.zeros(grid_cells)), dtype=float
+        config.get("_vel_supercomoving_code", np.zeros(grid_cells)),
+        dtype=float,
     )
     mu = np.asarray(config.get("_mu_dimensionless", np.ones(grid_cells)), dtype=float)
     writer.fluid.rho_radarray = writer.radarray(

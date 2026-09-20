@@ -4,7 +4,7 @@ import numpy as np
 
 from radhydropy.arrays import as_named_array
 from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import MeshGeometryState, PROPER_RUNTIME_FIELDS
+from radhydropy.runtime_fields import PROPER_RUNTIME_FIELDS, MeshGeometryState
 
 
 def _validate_active_proper_state(sim, first, last, *, allow_vacuum=False):
@@ -86,7 +86,7 @@ def _validate_active_proper_state(sim, first, last, *, allow_vacuum=False):
         atol=1.0e-14,
     ):
         raise ValueError(
-            "active Energy_code is inconsistent with rho/vel/pre/volume"
+            "active Energy_code is inconsistent with rho/vel/pre/volume",
         )
 
 
@@ -137,7 +137,7 @@ def make_initial_condition(
         area_proper_code = np.asarray(area_proper_code, dtype=float)
         if area_proper_code.size != grid_cells:
             raise ValueError(
-                "custom area must contain one proper-code value per physical cell"
+                "custom area must contain one proper-code value per physical cell",
             )
         ghost_cells = int(sim.par.mesh.ghost_cells)
         area_with_ghosts = np.concatenate(
@@ -145,11 +145,11 @@ def make_initial_condition(
                 np.full(ghost_cells, area_proper_code[0]),
                 area_proper_code,
                 np.full(ghost_cells, area_proper_code[-1]),
-            )
+            ),
         )
         sim.mesh.area_proper_code = as_named_array(area_with_ghosts)
         sim.mesh.volume_proper_code = as_named_array(
-            area_with_ghosts * np.asarray(sim.mesh.width_proper_code, dtype=float)
+            area_with_ghosts * np.asarray(sim.mesh.width_proper_code, dtype=float),
         )
         sim.mesh.geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS,
@@ -164,13 +164,22 @@ def make_initial_condition(
     first = int(sim.par.mesh.ghost_cells)
     last = first + grid_cells
     _validate_active_proper_state(
-        sim, first, last, allow_vacuum=allow_vacuum
+        sim,
+        first,
+        last,
+        allow_vacuum=allow_vacuum,
     )
-    sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first:last + 1])
+    sim.mesh.boundary_proper_code = as_named_array(sim.mesh.boundary_proper_code[first : last + 1])
     for field in (
-        "rho_proper_code", "vel_proper_code", "pre_proper_code",
-        "temp_proper_code", "mu",
-        "Mass_code", "Mom_code", "AngularMomentum_code", "Energy_code",
+        "rho_proper_code",
+        "vel_proper_code",
+        "pre_proper_code",
+        "temp_proper_code",
+        "mu",
+        "Mass_code",
+        "Mom_code",
+        "AngularMomentum_code",
+        "Energy_code",
         "InternalEnergy_code",
     ):
         if hasattr(sim.fluid, field):
@@ -193,12 +202,20 @@ def finalize_initial_condition(sim, grid_cells, extra_fields=()):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(grid_cells)
     sim.mesh.boundary_proper_code = as_named_array(
-        sim.mesh.boundary_proper_code[first:last + 1]
+        sim.mesh.boundary_proper_code[first : last + 1],
     )
     fields = (
-        "rho_proper_code", "vel_proper_code", "temp_proper_code", "pre_proper_code", "mu",
-        "Mass_code", "Mom_code", "AngularMomentum_code", "Energy_code",
-        "InternalEnergy_code", *extra_fields,
+        "rho_proper_code",
+        "vel_proper_code",
+        "temp_proper_code",
+        "pre_proper_code",
+        "mu",
+        "Mass_code",
+        "Mom_code",
+        "AngularMomentum_code",
+        "Energy_code",
+        "InternalEnergy_code",
+        *extra_fields,
     )
     for field in fields:
         if hasattr(sim.fluid, field):
@@ -221,8 +238,9 @@ def finalize_initial_condition(sim, grid_cells, extra_fields=()):
 def physical_snapshot(config, filename):
     sim = Rsim(config["par"])
     import radhydropy.io as rio
+
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
-    return sim, boundary_proper_code[first:last + 1], slice(first, last)
+    return sim, boundary_proper_code[first : last + 1], slice(first, last)

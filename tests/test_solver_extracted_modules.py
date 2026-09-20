@@ -31,7 +31,10 @@ def test_apply_radiation_pressure_updates_conserved_arrays_at_module_boundary():
     solver = Mock()
     solver._interior_slice.return_value = slice(0, 1)
     solver._active_primitive_arrays.return_value = (
-        np.ones(1), np.zeros(1), np.ones(1), np.ones(1),
+        np.ones(1),
+        np.zeros(1),
+        np.ones(1),
+        np.ones(1),
     )
     solver._geometry_state.return_value = SimpleNamespace(
         volume_runtime_code=np.ones(1),
@@ -64,7 +67,12 @@ def test_apply_radiation_pressure_updates_conserved_arrays_at_module_boundary():
         },
     ):
         applied = apply_radiation_pressure(
-            solver, 4.0, SimpleNamespace(), fluid, par, source_result,
+            solver,
+            4.0,
+            SimpleNamespace(),
+            fluid,
+            par,
+            source_result,
         )
 
     assert applied == 1

@@ -5,13 +5,37 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from radhydropy.constants import PROTON_MASS_CGS
-
-
 ELEMENT_SYMBOLS = (
-    "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
-    "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca",
-    "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+    "H",
+    "He",
+    "Li",
+    "Be",
+    "B",
+    "C",
+    "N",
+    "O",
+    "F",
+    "Ne",
+    "Na",
+    "Mg",
+    "Al",
+    "Si",
+    "P",
+    "S",
+    "Cl",
+    "Ar",
+    "K",
+    "Ca",
+    "Sc",
+    "Ti",
+    "V",
+    "Cr",
+    "Mn",
+    "Fe",
+    "Co",
+    "Ni",
+    "Cu",
+    "Zn",
 )
 
 
@@ -46,7 +70,7 @@ class CIETable:
             cooling = table["cooling_erg_cm3_s"][:]
 
         abundance_atomic_number, abundance = _read_abundance_file(
-            self.abundance_file
+            self.abundance_file,
         )
         if not np.array_equal(self.atomic_number, abundance_atomic_number):
             raise ValueError("CIE and abundance tables contain different elements.")
@@ -91,7 +115,7 @@ class CIETable:
                 raise ValueError(
                     f"metallicity {key:g} is outside the cooling table range "
                     f"{self.metallicity_cooling[0]:g} to "
-                    f"{self.metallicity_cooling[-1]:g}"
+                    f"{self.metallicity_cooling[-1]:g}",
                 )
             metallicity_index = np.clip(
                 np.searchsorted(self.metallicity_cooling, key) - 1,
@@ -101,10 +125,9 @@ class CIETable:
             z0 = self.metallicity_cooling[metallicity_index]
             z1 = self.metallicity_cooling[metallicity_index + 1]
             weight = (key - z0) / (z1 - z0)
-            selected = (
-                (1.0 - weight) * self._cooling[metallicity_index]
-                + weight * self._cooling[metallicity_index + 1]
-            )
+            selected = (1.0 - weight) * self._cooling[metallicity_index] + weight * self._cooling[
+                metallicity_index + 1
+            ]
             self._cooling_log_cache[key] = np.log10(np.maximum(selected, 1.0e-99))
 
         log_cooling = self._cooling_log_cache[key]
@@ -135,9 +158,8 @@ class CIETable:
             + wt * (1.0 - wn) * c10
             + wt * wn * c11
         )
-        result = 10.0 ** result
-        valid_temperature = (
-            (log_temperature >= self.log_temperature_cooling[0])
-            & (log_temperature <= self.log_temperature_cooling[-1])
+        result = 10.0**result
+        valid_temperature = (log_temperature >= self.log_temperature_cooling[0]) & (
+            log_temperature <= self.log_temperature_cooling[-1]
         )
         return np.where(valid_temperature, result, 0.0)

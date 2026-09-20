@@ -20,7 +20,6 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TABLE = REPOSITORY_ROOT / "metal_pie_table" / "metal_pie_hm12_total.h5"
 DEFAULT_REDSHIFTS = (0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0)
@@ -29,9 +28,8 @@ DEFAULT_REDSHIFTS = (0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0)
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Plot log10 net cooling and photoheating rates from an HM12 "
-            "MetalPIE HDF5 table."
-        )
+            "Plot log10 net cooling and photoheating rates from an HM12 MetalPIE HDF5 table."
+        ),
     )
     parser.add_argument(
         "table",
@@ -52,10 +50,7 @@ def parse_args():
         type=float,
         default=None,
         metavar="LOG_NH",
-        help=(
-            "Generate one figure for each log10(nH/cm^-3) value. "
-            "Overrides --hydrogen-density."
-        ),
+        help=("Generate one figure for each log10(nH/cm^-3) value. Overrides --hydrogen-density."),
     )
     parser.add_argument(
         "--redshifts",
@@ -72,20 +67,14 @@ def parse_args():
         "--metallicity",
         type=float,
         default=1.0,
-        help=(
-            "Metallicity in Z/Zsun. The nearest table plane is used. "
-            "Default: 1.0."
-        ),
+        help=("Metallicity in Z/Zsun. The nearest table plane is used. Default: 1.0."),
     )
     parser.add_argument(
         "--max-log-heating",
         type=float,
         default=None,
         metavar="LOG_RATE",
-        help=(
-            "Mask heating-rate points with log10(heating) greater than "
-            "this threshold."
-        ),
+        help=("Mask heating-rate points with log10(heating) greater than this threshold."),
     )
     parser.add_argument(
         "--output",
@@ -105,9 +94,7 @@ def interpolate_axis(values, axis_values, target, axis_number=0):
     if upper == len(axis_values):
         return np.take(values, -1, axis=axis_number)
     lower = upper - 1
-    weight = (target - axis_values[lower]) / (
-        axis_values[upper] - axis_values[lower]
-    )
+    weight = (target - axis_values[lower]) / (axis_values[upper] - axis_values[lower])
     low = np.take(values, lower, axis=axis_number)
     high = np.take(values, upper, axis=axis_number)
     return (1.0 - weight) * low + weight * high
@@ -128,11 +115,13 @@ def load_rates(table_path, hydrogen_density, redshifts, metallicity):
         axes = group["axes"]
         temperature = np.asarray(axes["log10_temperature_K"], dtype=float)
         log_density = np.asarray(
-            axes["log10_hydrogen_density_cm-3"], dtype=float
+            axes["log10_hydrogen_density_cm-3"],
+            dtype=float,
         )
         table_redshifts = np.asarray(axes["redshift"], dtype=float)
         metallicity_index, selected_metallicity = select_metallicity(
-            group, metallicity
+            group,
+            metallicity,
         )
 
         if hydrogen_density <= 0.0:
@@ -148,18 +137,22 @@ def load_rates(table_path, hydrogen_density, redshifts, metallicity):
         heating = np.asarray(group[f"rates/{heating_name}"][:, :, :, metallicity_index])
 
     density_cooling = interpolate_axis(
-        cooling, log_density, requested_log_density, axis_number=1
+        cooling,
+        log_density,
+        requested_log_density,
+        axis_number=1,
     )
     density_heating = interpolate_axis(
-        heating, log_density, requested_log_density, axis_number=1
+        heating,
+        log_density,
+        requested_log_density,
+        axis_number=1,
     )
     cooling_by_redshift = np.stack(
-        [interpolate_axis(density_cooling, table_redshifts, z, axis_number=1)
-         for z in redshifts]
+        [interpolate_axis(density_cooling, table_redshifts, z, axis_number=1) for z in redshifts],
     )
     heating_by_redshift = np.stack(
-        [interpolate_axis(density_heating, table_redshifts, z, axis_number=1)
-         for z in redshifts]
+        [interpolate_axis(density_heating, table_redshifts, z, axis_number=1) for z in redshifts],
     )
     return temperature, cooling_by_redshift, heating_by_redshift, selected_metallicity
 
@@ -173,7 +166,10 @@ def plot_rates(
     max_log_heating=None,
 ):
     log_temperature, cooling, heating, selected_metallicity = load_rates(
-        table_path, hydrogen_density, redshifts, metallicity
+        table_path,
+        hydrogen_density,
+        redshifts,
+        metallicity,
     )
     net_cooling = cooling - heating
     absolute_net_cooling = np.maximum(np.abs(net_cooling), 1.0e-99)
@@ -181,14 +177,19 @@ def plot_rates(
         heating_log = np.log10(np.maximum(heating, 1.0e-99))
         valid_heating = heating_log <= max_log_heating
         absolute_net_cooling = np.where(
-            valid_heating, absolute_net_cooling, np.nan
+            valid_heating,
+            absolute_net_cooling,
+            np.nan,
         )
         heating = np.where(heating_log <= max_log_heating, heating, np.nan)
 
     fig, ax = plt.subplots(figsize=(9.0, 6.0), constrained_layout=True)
     colors = plt.get_cmap("viridis")(np.linspace(0.05, 0.95, len(redshifts)))
     for color, redshift, net_curve, heating_curve in zip(
-        colors, redshifts, absolute_net_cooling, heating
+        colors,
+        redshifts,
+        absolute_net_cooling,
+        heating,
     ):
         label = rf"$z={redshift:g}$"
         ax.plot(
@@ -210,11 +211,11 @@ def plot_rates(
     component = "metals" if "metals" in table_path.stem else "H/He + metals"
     ax.set_xlabel(r"$\log_{10}(T\,[\mathrm{K}])$")
     ax.set_ylabel(
-        r"$\log_{10}(\mathrm{rate}\,[\mathrm{erg\,cm^{-3}\,s^{-1}}])$"
+        r"$\log_{10}(\mathrm{rate}\,[\mathrm{erg\,cm^{-3}\,s^{-1}}])$",
     )
     ax.set_title(
         rf"HM12 {component}: $n_\mathrm{{H}}={hydrogen_density:g}\,\mathrm{{cm^{{-3}}}}$, "
-        rf"$Z/Z_\odot={selected_metallicity:g}$"
+        rf"$Z/Z_\odot={selected_metallicity:g}$",
     )
     ax.grid(True, alpha=0.25)
     ax.legend(ncol=2, frameon=False, fontsize=8)
@@ -232,16 +233,16 @@ def main():
         else [np.log10(args.hydrogen_density)]
     )
     for log_density in log_densities:
-        hydrogen_density = 10.0 ** log_density
+        hydrogen_density = 10.0**log_density
         if args.output is None:
             output_path = table_path.with_name(
-                f"{table_path.stem}_rates_lognH_{log_density:g}.png"
+                f"{table_path.stem}_rates_lognH_{log_density:g}.png",
             )
         else:
             output_path = args.output
             if len(log_densities) > 1:
                 output_path = args.output.with_name(
-                    f"{args.output.stem}_lognH_{log_density:g}{args.output.suffix}"
+                    f"{args.output.stem}_lognH_{log_density:g}{args.output.suffix}",
                 )
         metallicity = plot_rates(
             table_path,
@@ -255,7 +256,7 @@ def main():
         print(
             f"Using log10(nH/cm^-3) = {log_density:g}, "
             f"nH = {hydrogen_density:g} cm^-3, "
-            f"metallicity = {metallicity:g} Z/Zsun"
+            f"metallicity = {metallicity:g} Z/Zsun",
         )
         print(f"Redshifts: {', '.join(f'{z:g}' for z in args.redshifts)}")
         print(f"Wrote: {output_path}")

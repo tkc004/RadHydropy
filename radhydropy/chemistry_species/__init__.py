@@ -3,8 +3,8 @@
 from . import helium, hydrogen, metal, molecule
 
 __all__ = [
-    "hydrogen",
     "helium",
+    "hydrogen",
     "metal",
     "molecule",
 ]

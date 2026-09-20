@@ -16,124 +16,132 @@ from pathlib import Path
 repo_root = Path(__file__).resolve().parents[2]
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
-static_stromgren_dir = Path(__file__).resolve().parents[1] / 'StaticStromgrenSphere1D'
+static_stromgren_dir = Path(__file__).resolve().parents[1] / "StaticStromgrenSphere1D"
 if str(static_stromgren_dir) not in sys.path:
     sys.path.append(str(static_stromgren_dir))
 example_root = Path(__file__).resolve().parents[1]
 if str(example_root) not in sys.path:
     sys.path.insert(0, str(example_root))
 
-cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
-mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
+mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
-os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
+os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
+import example_utils as eu
+import stromgren_analytic as sa
 import unyt
 
-from radhydropy.rsim import Rsim
 import radhydropy.io as rio
-import stromgren_analytic as sa
-import example_utils as eu
 import tools as et
+from radhydropy.rsim import Rsim
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name(
-    'static_stromgren_sphere_photoheating1d.yaml'
+DEFAULT_CONFIG = (
+    Path(__file__)
+    .resolve()
+    .with_name(
+        "static_stromgren_sphere_photoheating1d.yaml",
+    )
 )
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
-    print('rundir', rundir)
+    print("rundir", rundir)
     nested = eu.load_nested_example_config(config_filename)
     config = nested
-    initial = config['initial_condition']
-    example = config.get('example', {})
+    initial = config["initial_condition"]
+    example = config.get("example", {})
     eu.clean_previous_outputs(config)
     config_dir = Path(config_filename).resolve().parent
     for key in (
-        'temperature_reference_filename',
-        'neutral_fraction_reference_filename',
+        "temperature_reference_filename",
+        "neutral_fraction_reference_filename",
     ):
         if key in example:
             value = Path(example[key])
             if not value.is_absolute():
                 example[key] = str(config_dir / value)
 
-    Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(nested["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
+    Path(nested["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
-    mainrun = Rsim(nested['par'])
-    rio.readhdf5(mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename)
+    mainrun = Rsim(nested["par"])
+    rio.readhdf5(
+        mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename
+    )
     mainrun.SetMesh()
     mainrun.SetFluid()
     mainrun.SetInitFluid()
 
     history = mainrun.EvolveStaticThermochemistry(
-        nested['par']['simulation']['final_time'],
-        nested['par']['timestep']['evolution_timestep'],
+        nested["par"]["simulation"]["final_time"],
+        nested["par"]["timestep"]["evolution_timestep"],
         include_thermal_history=True,
-        reference_time=example['reference_time'],
+        reference_time=example["reference_time"],
     )
     et.normalize_static_history(history)
 
-    output_filename = Path(nested['par']['output']['directory']) / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
+    output_filename = (
+        Path(nested["par"]["output"]["directory"])
+        / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
+    )
     rio.writehdf5(mainrun, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
-    config['_output_par'] = out_par
-    figure_name = 'StaticStromgrenSpherePhotoheating1D.jpg'
-    if nested['par']['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
-        figure_name = 'StaticStromgrenSpherePhotoheating1D_C2Ray.jpg'
-    figure_filename = Path(nested['par']['output']['directory']) / figure_name
+    config["_output_par"] = out_par
+    figure_name = "StaticStromgrenSpherePhotoheating1D.jpg"
+    if nested["par"]["radiation"].get("radiative_transfer_temporal_scheme") == "c2ray":
+        figure_name = "StaticStromgrenSpherePhotoheating1D_C2Ray.jpg"
+    figure_filename = Path(nested["par"]["output"]["directory"]) / figure_name
     et.save_plot(out_mesh, out_fluid, history, config, figure_filename)
 
-    print('time = %s' % out_fluid.time_proper_code)
-    if nested['par']['thermochemistry'].get('hydrogen_alpha_B') is None:
-        print('stromgren radius = temperature-dependent alpha_H(T)')
-        print('analytic front radius = unavailable for temperature-dependent rates')
+    print("time = %s" % out_fluid.time_proper_code)
+    if nested["par"]["thermochemistry"].get("hydrogen_alpha_B") is None:
+        print("stromgren radius = temperature-dependent alpha_H(T)")
+        print("analytic front radius = unavailable for temperature-dependent rates")
     else:
         print(
-            'stromgren radius = %s'
+            "stromgren radius = %s"
             % sa.stromgren_radius(
-                nested['par']['radiation']['source_photon_rate'],
-                initial['hydrogen_number_density'],
-                nested['par']['thermochemistry']['hydrogen_alpha_B'],
-            ).to(unyt.kpc)
+                nested["par"]["radiation"]["source_photon_rate"],
+                initial["hydrogen_number_density"],
+                nested["par"]["thermochemistry"]["hydrogen_alpha_B"],
+            ).to(unyt.kpc),
         )
         print(
-            'analytic front radius = %s'
+            "analytic front radius = %s"
             % sa.ionization_front_radius(
-                nested['par']['simulation']['final_time'],
-                nested['par']['radiation']['source_photon_rate'],
-                initial['hydrogen_number_density'],
-                nested['par']['thermochemistry']['hydrogen_alpha_B'],
-            ).to(unyt.kpc)
+                nested["par"]["simulation"]["final_time"],
+                nested["par"]["radiation"]["source_photon_rate"],
+                initial["hydrogen_number_density"],
+                nested["par"]["thermochemistry"]["hydrogen_alpha_B"],
+            ).to(unyt.kpc),
         )
-    print('mean ionized temperature = %.3e K' % history['mean_ionized_temp_cgs_K'][-1])
-    print('front radius = %.3e kpc' % history['front_radius_proper_kpc'][-1])
-    print('evolution steps = %d' % history['evolution_steps'])
-    print('IC file = %s' % nested['par']['simulation']['initial_condition_filename'])
-    print('output file = %s' % output_filename)
-    print('figure = %s' % figure_filename)
+    print("mean ionized temperature = %.3e K" % history["mean_ionized_temp_cgs_K"][-1])
+    print("front radius = %.3e kpc" % history["front_radius_proper_kpc"][-1])
+    print("evolution steps = %d" % history["evolution_steps"])
+    print("IC file = %s" % nested["par"]["simulation"]["initial_condition_filename"])
+    print("output file = %s" % output_filename)
+    print("figure = %s" % figure_filename)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Run the static Stromgren sphere photoheating example.',
+        description="Run the static Stromgren sphere photoheating example.",
     )
     parser.add_argument(
-        '--config',
+        "--config",
         default=DEFAULT_CONFIG,
-        help='YAML file containing nested runtime and initial-condition settings.',
+        help="YAML file containing nested runtime and initial-condition settings.",
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

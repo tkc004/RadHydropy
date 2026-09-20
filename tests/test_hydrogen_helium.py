@@ -1,31 +1,30 @@
 import unittest
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 
 import radhydropy.radiative_transfer as rrt
-from radhydropy.constants import PROTON_MASS_CGS
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.fluid import Fluid
+from radhydropy.runtime_fields import (
+    SUPERCOMOVING_RUNTIME_FIELDS,
+    FluidRuntimeState,
+    MeshGeometryState,
+)
 from radhydropy.thermo_networks.hydrogen_helium import (
-    _closure,
     _alpha_heii,
     _alpha_heii_dielectronic,
     _alpha_heiii,
     _beta_hei,
     _beta_heii,
+    _closure,
     _gamma_bremsstrahlung,
     _rates,
-    source_state,
     ionization_fraction_implicit_update,
+    source_state,
 )
-from radhydropy.constants import BOLTZMANN_CONSTANT_CGS
-from radhydropy.fluid import Fluid
 from radhydropy.units import CodeUnits
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    SUPERCOMOVING_RUNTIME_FIELDS,
-)
+from tests.parameter_fixtures import parameter_namespace
 
 
 class HydrogenHeliumNetworkTests(unittest.TestCase):
@@ -56,9 +55,7 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
 
         n_h = state["rho_cgs_g_cm3"] * 0.7 / PROTON_MASS_CGS
         n_he = state["rho_cgs_g_cm3"] * 0.28 / (4.0 * PROTON_MASS_CGS)
-        expected_ne = n_h * (1.0 - state["xHI"]) + n_he * (
-            state["xHeII"] + 2.0 * state["xHeIII"]
-        )
+        expected_ne = n_h * (1.0 - state["xHI"]) + n_he * (state["xHeII"] + 2.0 * state["xHeIII"])
 
         np.testing.assert_allclose(state["xHeI"] + state["xHeII"] + state["xHeIII"], 1.0)
         np.testing.assert_allclose(state["ne_cgs_cm3"], expected_ne)
@@ -73,7 +70,9 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         for value in rates:
             self.assertTrue(np.all(np.isfinite(value)))
 
-        photo_rates = rrt.species_photoionization_rates(ngamma_cgs_cm3, state["sigma_gamma_cgs_cm2"])
+        photo_rates = rrt.species_photoionization_rates(
+            ngamma_cgs_cm3, state["sigma_gamma_cgs_cm2"]
+        )
         photo_heating = rrt.species_photoionization_heating(
             ngamma_cgs_cm3,
             state["sigma_gamma_cgs_cm2"],
@@ -111,22 +110,23 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         self.assertTrue(np.all(state["xHeI"] + state["xHeII"] + state["xHeIII"] <= 1.0 + 1.0e-12))
 
     def test_supercomoving_source_state_is_physical(self):
-        code = CodeUnits.from_mapping({
-            "InternalUnitSystem": {
-                "UnitMass_in_cgs": 1.0,
-                "UnitLength_in_cgs": 1.0,
-                "UnitVelocity_in_cgs": 1.0,
-                "UnitCurrent_in_cgs": 1.0,
-                "UnitTemp_in_cgs": 1.0,
+        code = CodeUnits.from_mapping(
+            {
+                "InternalUnitSystem": {
+                    "UnitMass_in_cgs": 1.0,
+                    "UnitLength_in_cgs": 1.0,
+                    "UnitVelocity_in_cgs": 1.0,
+                    "UnitCurrent_in_cgs": 1.0,
+                    "UnitTemp_in_cgs": 1.0,
+                },
             }
-        })
+        )
         scale_factor = 2.0
         gamma = 5.0 / 3.0
         temperature = 100.0
         mu = 1.0 / (0.75 + 0.25 / 4.0)
         specific_internal = (
-            BOLTZMANN_CONSTANT_CGS * temperature
-            / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
+            BOLTZMANN_CONSTANT_CGS * temperature / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
         )
         velocity_super = 2.0
         fluid = Fluid()
@@ -135,10 +135,11 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         fluid.temp_supercomoving_code = np.array([temperature * scale_factor**2])
         fluid.mu = np.array([mu])
         fluid.Mass_code = np.array([8.0])
-        fluid.Energy_code = np.array([
-            8.0 * (specific_internal * scale_factor**2
-                    + 0.5 * velocity_super**2)
-        ])
+        fluid.Energy_code = np.array(
+            [
+                8.0 * (specific_internal * scale_factor**2 + 0.5 * velocity_super**2),
+            ]
+        )
         fluid.xHI = np.array([1.0])
         fluid.xHeI = np.array([1.0])
         fluid.xHeII = np.array([0.0])
@@ -163,7 +164,7 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
                 width_comoving_code=np.ones(1),
                 area_comoving_code=np.ones(1),
                 volume_comoving_code=np.ones(1),
-            )
+            ),
         )
         par = parameter_namespace(
             CodeUnits=code,

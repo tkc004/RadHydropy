@@ -1,7 +1,7 @@
 """Runtime diagnostics for hydro and thermo-chemistry simulations."""
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 import numpy as np
 
@@ -18,8 +18,8 @@ def temperature_physical_cgs_K(sim):
     """Return the simulation gas temperature in physical kelvin."""
     runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
     try:
-        _, _, _, temperature_field, time_runtime_code = (
-            select_fluid_primitive_arrays(runtime_state, sim.par)
+        _, _, _, temperature_field, time_runtime_code = select_fluid_primitive_arrays(
+            runtime_state, sim.par
         )
     except AttributeError:
         # Some controlled solver tests use a partially initialized fluid and
@@ -29,7 +29,7 @@ def temperature_physical_cgs_K(sim):
     if temperature_field is None:
         return None
     temperature = np.asarray(temperature_field, dtype=float)
-    code = getattr(sim.par, 'CodeUnits', None)
+    code = getattr(sim.par, "CodeUnits", None)
     if code is not None:
         temperature = temperature * float(code.temperature_in_cgs)
     fields = runtime_fields(sim.par)
@@ -39,7 +39,9 @@ def temperature_physical_cgs_K(sim):
             tau_supercomoving_code=time_runtime_code,
         )
         temperature = physical_temperature(
-            temperature, scale_factor, float(sim.fluid.eos.gamma)
+            temperature,
+            scale_factor,
+            float(sim.fluid.eos.gamma),
         )
     return np.asarray(temperature, dtype=float)
 
@@ -52,23 +54,24 @@ def thermochemistry_active_mask(rho_physical_cgs_g_cm3, par, density_factor=1.0)
     the supercomoving conversion factor (normally ``a**3``).
     """
     density_floor = max(
-        0.0, float(np.asarray(getattr(par, 'cfl_density_floor', 0.0)))
+        0.0,
+        float(np.asarray(getattr(par, "cfl_density_floor", 0.0))),
     )
     if density_floor <= 0.0:
         return np.asarray(rho_physical_cgs_g_cm3, dtype=float) > 0.0
-    code = getattr(par, 'CodeUnits', None)
+    code = getattr(par, "CodeUnits", None)
     if code is None:
         return np.asarray(rho_physical_cgs_g_cm3, dtype=float) > 0.0
     physical_floor = (
-        density_floor
-        * float(code.unit_conversion['density_cgs_g_cm3'])
-        / float(density_factor)
+        density_floor * float(code.unit_conversion["density_cgs_g_cm3"]) / float(density_factor)
     )
     return np.asarray(rho_physical_cgs_g_cm3, dtype=float) > physical_floor
 
 
 def check_conserved_energy_admissibility(
-    sim, stage, relative_tolerance=1.0e-7,
+    sim,
+    stage,
+    relative_tolerance=1.0e-7,
 ):
     """Reject resolved cells whose kinetic energy exceeds total energy.
 
@@ -79,7 +82,7 @@ def check_conserved_energy_admissibility(
     larger deficits are reported at the update stage that created them.
     """
     par = sim.par
-    if getattr(par, 'dual_energy', False):
+    if getattr(par, "dual_energy", False):
         # In dual-energy mode, E-K may lose the tiny thermal component in a
         # cold spherical flow.  Pressure is reconstructed from InternalEnergy;
         # audit the conservative state with the same cancellation allowance.
@@ -88,24 +91,24 @@ def check_conserved_energy_admissibility(
     # conservative variable.  Their Energy field may therefore contain only
     # kinetic energy (or zero), while pressure is reconstructed from T and mu;
     # the adiabatic E >= K invariant is not applicable here.
-    if getattr(getattr(sim, 'fluid', None), 'eos', None) is not None:
-        if getattr(sim.fluid.eos, 'is_isothermal', False):
+    if getattr(getattr(sim, "fluid", None), "eos", None) is not None:
+        if getattr(sim.fluid.eos, "is_isothermal", False):
             return
-    if not all(
-        hasattr(sim.fluid, name) for name in ('Mass_code', 'Mom_code', 'Energy_code')
-    ):
+    if not all(hasattr(sim.fluid, name) for name in ("Mass_code", "Mom_code", "Energy_code")):
         # Source-only/unit-test states may not have been initialized with
         # hydrodynamic conserved fields.
         return
     first = int(par.mesh.ghost_cells)
     last = first + int(par.mesh.grid_cells)
-    if not hasattr(sim.mesh, 'geometry_state'):
+    if not hasattr(sim.mesh, "geometry_state"):
         return
     _, _, _, _, volume_runtime_code = select_mesh_geometry_arrays(
-        sim.mesh.geometry_state, par
+        sim.mesh.geometry_state,
+        par,
     )
     volume = np.asarray(
-        volume_runtime_code, dtype=float
+        volume_runtime_code,
+        dtype=float,
     )
     mass = np.asarray(sim.fluid.Mass_code, dtype=float)
     momentum = np.asarray(sim.fluid.Mom_code, dtype=float)
@@ -113,44 +116,45 @@ def check_conserved_energy_admissibility(
     if last <= first:
         return
     physical = np.zeros(len(mass), dtype=bool)
-    physical[first:min(last, len(mass))] = True
+    physical[first : min(last, len(mass))] = True
     density_floor = max(
-        0.0, float(np.asarray(getattr(par, 'cfl_density_floor', 0.0)))
+        0.0,
+        float(np.asarray(getattr(par, "cfl_density_floor", 0.0))),
     )
-    resolved = physical & (
-        mass > density_floor * np.maximum(volume, 0.0)
-    )
-    finite = (
-        np.isfinite(mass) & np.isfinite(momentum) & np.isfinite(energy)
-    )
+    resolved = physical & (mass > density_floor * np.maximum(volume, 0.0))
+    finite = np.isfinite(mass) & np.isfinite(momentum) & np.isfinite(energy)
     positive_mass = resolved & finite & (mass > 0.0)
     kinetic = np.zeros_like(energy)
-    kinetic[positive_mass] = (
-        0.5 * momentum[positive_mass]**2 / mass[positive_mass]
-    )
+    kinetic[positive_mass] = 0.5 * momentum[positive_mass] ** 2 / mass[positive_mass]
     configured_energy_floor = max(
-        0.0, float(np.asarray(getattr(par, 'positivity_energy_floor', 0.0)))
+        0.0,
+        float(np.asarray(getattr(par, "positivity_energy_floor", 0.0))),
     )
     energy_floor = configured_energy_floor * np.maximum(volume, 0.0)
     admissible_energy = np.maximum(energy, energy_floor)
     scale = np.maximum(
-        np.maximum(kinetic, np.abs(admissible_energy)), np.finfo(float).tiny
+        np.maximum(kinetic, np.abs(admissible_energy)),
+        np.finfo(float).tiny,
     )
     deficit = kinetic - admissible_energy
-    invalid = positive_mass & (
-        deficit > float(relative_tolerance) * scale
-    )
+    invalid = positive_mass & (deficit > float(relative_tolerance) * scale)
     if not np.any(invalid):
         return
     index = int(np.flatnonzero(invalid)[0])
     diagnostic = (
-        'conserved energy admissibility error after %s at cell %d: '
-        'kinetic energy exceeds total energy; mass=%s momentum=%s '
-        'energy=%s kinetic=%s deficit=%s relative_deficit=%s '
-        'relative_tolerance=%s'
+        "conserved energy admissibility error after %s at cell %d: "
+        "kinetic energy exceeds total energy; mass=%s momentum=%s "
+        "energy=%s kinetic=%s deficit=%s relative_deficit=%s "
+        "relative_tolerance=%s"
         % (
-            stage, index, mass[index], momentum[index], energy[index],
-            kinetic[index], deficit[index], deficit[index] / scale[index],
+            stage,
+            index,
+            mass[index],
+            momentum[index],
+            energy[index],
+            kinetic[index],
+            deficit[index],
+            deficit[index] / scale[index],
             relative_tolerance,
         )
     )
@@ -172,7 +176,7 @@ def check_conserved_energy_admissibility(
 
 def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     """Raise and save a neighborhood dump when a new T exceeds the guard."""
-    threshold = getattr(sim.par, 'temperature_jump_error_threshold', None)
+    threshold = getattr(sim.par, "temperature_jump_error_threshold", None)
     if threshold is None:
         return
     threshold = float(threshold)
@@ -198,13 +202,10 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
         _,
     ) = select_mesh_geometry_arrays(sim.mesh.geometry_state, sim.par)
     density = np.asarray(
-        density_runtime_code, dtype=float
+        density_runtime_code,
+        dtype=float,
     )
-    crossing = (
-        (density > 0.0)
-        & np.isfinite(temperature_after)
-        & (temperature_after > threshold)
-    )
+    crossing = (density > 0.0) & np.isfinite(temperature_after) & (temperature_after > threshold)
     if before.shape == temperature_after.shape:
         crossing &= before <= threshold
     if not np.any(crossing):
@@ -217,50 +218,73 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
         return
     index = int(candidates[0])
     radius = np.asarray(
-        coordinate_runtime_code, dtype=float
+        coordinate_runtime_code,
+        dtype=float,
     )
     velocity = np.asarray(
-        velocity_runtime_code, dtype=float
+        velocity_runtime_code,
+        dtype=float,
     )
     pressure = np.asarray(
-        pressure_runtime_code, dtype=float
+        pressure_runtime_code,
+        dtype=float,
     )
     sound_speed = np.asarray(
-        getattr(sim.fluid, 'cs_code', np.zeros_like(density)), dtype=float
+        getattr(sim.fluid, "cs_code", np.zeros_like(density)),
+        dtype=float,
     )
     energy = np.asarray(sim.fluid.Energy_code, dtype=float)
     mass = np.asarray(sim.fluid.Mass_code, dtype=float)
     lines = [
-        'temperature jump error: physical gas temperature exceeded %.6e K '
-        'during %s at cell %d (time=%s)' % (
-            threshold, stage, index, time_runtime_code,
+        "temperature jump error: physical gas temperature exceeded %.6e K "
+        "during %s at cell %d (time=%s)"
+        % (
+            threshold,
+            stage,
+            index,
+            time_runtime_code,
         ),
-        'cell: radius=%s T_before=%s K T_after=%s K rho=%s vel=%s '
-        'pressure=%s cs=%s mass=%s energy=%s' % (
-            radius[index], before[index], temperature_after[index],
-            density[index], velocity[index], pressure[index],
-            sound_speed[index], mass[index], energy[index],
+        "cell: radius=%s T_before=%s K T_after=%s K rho=%s vel=%s "
+        "pressure=%s cs=%s mass=%s energy=%s"
+        % (
+            radius[index],
+            before[index],
+            temperature_after[index],
+            density[index],
+            velocity[index],
+            pressure[index],
+            sound_speed[index],
+            mass[index],
+            energy[index],
         ),
-        'neighborhood: idx radius T_before[K] T_after[K] rho vel pressure cs mass energy',
+        "neighborhood: idx radius T_before[K] T_after[K] rho vel pressure cs mass energy",
     ]
     for neighbor in range(max(first, index - 2), min(last, index + 3)):
         lines.append(
-            '%d %s %s %s %s %s %s %s %s %s' % (
-                neighbor, radius[neighbor],
+            "%d %s %s %s %s %s %s %s %s %s"
+            % (
+                neighbor,
+                radius[neighbor],
                 before[neighbor] if before.shape == temperature_after.shape else np.nan,
-                temperature_after[neighbor], density[neighbor], velocity[neighbor],
-                pressure[neighbor], sound_speed[neighbor], mass[neighbor], energy[neighbor],
-            )
+                temperature_after[neighbor],
+                density[neighbor],
+                velocity[neighbor],
+                pressure[neighbor],
+                sound_speed[neighbor],
+                mass[neighbor],
+                energy[neighbor],
+            ),
         )
     if source_result:
         lines.append(
-            'source solver: %s relative_change=%s source_steps=%s' % (
-                source_result.get('source_solver', 'unknown'),
-                source_result.get('relative_change', 'unknown'),
-                source_result.get('source_steps', 'unknown'),
-            )
+            "source solver: %s relative_change=%s source_steps=%s"
+            % (
+                source_result.get("source_solver", "unknown"),
+                source_result.get("relative_change", "unknown"),
+                source_result.get("source_steps", "unknown"),
+            ),
         )
-    diagnostic = '\n'.join(lines)
+    diagnostic = "\n".join(lines)
     log_diagnostic(
         logging.ERROR,
         "temperature_jump_error",
@@ -273,8 +297,8 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     output_dir = sim.par.output.directory
     if output_dir is not None:
         try:
-            filename = Path(output_dir) / 'temperature_jump_error.txt'
-            filename.write_text(diagnostic + '\n', encoding='utf-8')
+            filename = Path(output_dir) / "temperature_jump_error.txt"
+            filename.write_text(diagnostic + "\n", encoding="utf-8")
         except OSError:
             # The diagnostic is best-effort while the temperature failure is
             # authoritative; an unwritable output directory must not mask it.
@@ -289,43 +313,49 @@ def check_source_temperature(state, par, temperature_before, stage, source_step)
     only the active mesh cells, unlike the full fluid state checked by
     :func:`check_temperature_jump`.
     """
-    threshold = getattr(par, 'temperature_jump_error_threshold', None)
+    threshold = getattr(par, "temperature_jump_error_threshold", None)
     if threshold is None:
         return
     threshold = float(threshold)
     if not np.isfinite(threshold) or threshold <= 0.0:
         return
-    temperature_after = np.asarray(state.get('temperature_cgs_K'), dtype=float)
+    temperature_after = np.asarray(state.get("temperature_cgs_K"), dtype=float)
     if temperature_after.ndim == 0:
         return
     before = np.asarray(temperature_before, dtype=float)
     active = np.asarray(
-        state.get('active', np.ones_like(temperature_after, dtype=bool)),
+        state.get("active", np.ones_like(temperature_after, dtype=bool)),
         dtype=bool,
     )
-    crossing = active & np.isfinite(temperature_after) & (
-        temperature_after > threshold
-    )
+    crossing = active & np.isfinite(temperature_after) & (temperature_after > threshold)
     if before.shape == temperature_after.shape:
         crossing &= before <= threshold
     if not np.any(crossing):
         return
     index = int(np.flatnonzero(crossing)[0])
-    interior = state.get('interior', slice(0, len(temperature_after)))
+    interior = state.get("interior", slice(0, len(temperature_after)))
     mesh_index = int(interior.start or 0) + index
-    rho = np.asarray(state.get('rho_cgs_g_cm3', np.nan), dtype=float)
-    xhi = np.asarray(state.get('xHI', np.nan), dtype=float)
+    rho = np.asarray(state.get("rho_cgs_g_cm3", np.nan), dtype=float)
+    xhi = np.asarray(state.get("xHI", np.nan), dtype=float)
     energy = np.asarray(
-        state.get('specific_energy_cgs_erg_g', np.nan), dtype=float
+        state.get("specific_energy_cgs_erg_g", np.nan),
+        dtype=float,
     )
     diagnostic = (
-        'temperature jump error: physical gas temperature exceeded '
-        '%.6e K during %s source substep %d at cell %d '
-        '(T_before=%s K T_after=%s K rho=%s g/cm^3 xHI=%s '
-        'specific_energy=%s erg/g)' % (
-            threshold, stage, int(source_step), mesh_index,
+        "temperature jump error: physical gas temperature exceeded "
+        "%.6e K during %s source substep %d at cell %d "
+        "(T_before=%s K T_after=%s K rho=%s g/cm^3 xHI=%s "
+        "specific_energy=%s erg/g)"
+        % (
+            threshold,
+            stage,
+            int(source_step),
+            mesh_index,
             before[index] if before.shape == temperature_after.shape else np.nan,
-            temperature_after[index], rho[index], xhi[index], energy[index],
+            temperature_after[index],
+            rho[index],
+            xhi[index],
+            energy[index],
         )
     )
     log_diagnostic(
@@ -340,8 +370,8 @@ def check_source_temperature(state, par, temperature_before, stage, source_step)
     output_dir = par.output.directory
     if output_dir is not None:
         try:
-            filename = Path(output_dir) / 'temperature_jump_error.txt'
-            filename.write_text(diagnostic + '\n', encoding='utf-8')
+            filename = Path(output_dir) / "temperature_jump_error.txt"
+            filename.write_text(diagnostic + "\n", encoding="utf-8")
         except OSError:
             # The source-state failure is authoritative; an unwritable
             # diagnostic directory must not hide it.

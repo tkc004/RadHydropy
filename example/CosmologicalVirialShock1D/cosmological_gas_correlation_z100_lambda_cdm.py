@@ -6,10 +6,9 @@ workflow discoverable from the canonical cosmological virial-shock example
 without copying or modifying either original directory.
 """
 
-from pathlib import Path
 import runpy
 import sys
-
+from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parent.parent / (
     "CosmologicalVirialShock1D/cosmological_gas_correlation_z100.py"
@@ -18,10 +17,14 @@ SOURCE = Path(__file__).resolve().parent.parent / (
 
 if __name__ == "__main__":
     if "--config" not in sys.argv:
-        sys.argv.extend([
-            "--config",
-            str(Path(__file__).with_name(
-                "cosmological_gas_correlation_z100_lambda_cdm.yaml"
-            )),
-        ])
+        sys.argv.extend(
+            [
+                "--config",
+                str(
+                    Path(__file__).with_name(
+                        "cosmological_gas_correlation_z100_lambda_cdm.yaml",
+                    )
+                ),
+            ]
+        )
     runpy.run_path(str(SOURCE), run_name="__main__")

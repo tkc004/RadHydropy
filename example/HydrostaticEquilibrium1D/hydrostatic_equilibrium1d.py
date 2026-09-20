@@ -1,8 +1,8 @@
 import argparse
 import os
 import sys
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -15,72 +15,75 @@ from radhydropy.gravity import Gravity
 from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
-    'MPLCONFIGDIR',
-    os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'),
+    "MPLCONFIGDIR",
+    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
 import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import radhydropy.io as rio
+
+matplotlib.use("Agg")
 import example_utils as eu
+import matplotlib.pyplot as plt
+
+import radhydropy.io as rio
 import tools as et
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrostatic_equilibrium1d.yaml')
+DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrostatic_equilibrium1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
-    initial_condition = config['initial_condition']
+    initial_condition = config["initial_condition"]
     eu.clean_previous_outputs(config)
-    code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
+    code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
-    config['_code_units'] = code_units_obj
+    config["_code_units"] = code_units_obj
     ric = et.build_initial_condition(config)
-    ric.write(config["par"]['simulation']['initial_condition_filename'], validate=True)
+    ric.write(config["par"]["simulation"]["initial_condition_filename"], validate=True)
 
-    mainrun = rio.loadhdf5(config, config["par"]['simulation']['initial_condition_filename'])
+    mainrun = rio.loadhdf5(config, config["par"]["simulation"]["initial_condition_filename"])
     mainrun.par.gravity = Gravity(
         externalgravity=True,
         acceleration=et.constant_gravity_acceleration(
-        initial_condition['gravity_strength'],
+            initial_condition["gravity_strength"],
             code_unit_system=code_units_obj,
         ),
         code_units=code_units_obj,
     )
-    mainrun.RunAll(outputtime=0, mode='hydro')
+    mainrun.RunAll(outputtime=0, mode="hydro")
 
     output_files = sorted(
-        Path(config["par"]['output']['directory']).glob(
-            config["par"]['output']['filename_prefix'] + '_*.hdf5'
-        )
+        Path(config["par"]["output"]["directory"]).glob(
+            config["par"]["output"]["filename_prefix"] + "_*.hdf5",
+        ),
     )
     if not output_files:
-        raise FileNotFoundError('hydrostatic run produced no output snapshot')
+        raise FileNotFoundError("hydrostatic run produced no output snapshot")
     final_outfile = str(output_files[-1])
     et.plot_snapshot(
         final_outfile,
         config,
-        ls='none',
-        marker='o',
-        mfc='none',
+        ls="none",
+        marker="o",
+        mfc="none",
         markevery=1,
-        color='C0',
+        color="C0",
     )
-    figure_filename = os.path.join(config["par"]['output']['directory'], 'HydrostaticEquilibrium1D.jpg')
+    figure_filename = os.path.join(
+        config["par"]["output"]["directory"], "HydrostaticEquilibrium1D.jpg"
+    )
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
-    print('figure = %s' % figure_filename)
+    print("figure = %s" % figure_filename)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Run the hydrostatic-equilibrium gravity check example.'
+        description="Run the hydrostatic-equilibrium gravity check example.",
     )
     parser.add_argument(
-        '--config',
+        "--config",
         default=DEFAULT_CONFIG,
         help='YAML file with config["par"] and initial_condition.',
     )

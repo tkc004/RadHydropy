@@ -15,7 +15,6 @@ import yaml
 
 from example.example_utils import load_nested_example_config
 
-
 REPO_ROOT = Path(__file__).parents[1]
 EXAMPLE_ROOT = REPO_ROOT / "example"
 
@@ -161,9 +160,19 @@ NON_PHYSICAL_LOCAL_MARKERS = (
 # history/configuration fields carry the proper/comoving representation; the
 # locals only hold already-converted numerical arrays or scalar clocks.
 ALLOWED_CONVERTED_LOCAL_NAMES = {
-    "time_s", "times_s", "times_gyr", "velocity_to_km_s", "pressure_time_myr",
-    "velocity_kms", "radius_spitzer_pc", "radius_hosokawa_inutsuka_pc",
-    "radius_stagnation_pc", "mass_g", "timesim_yr", "time_yr", "times_yr",
+    "time_s",
+    "times_s",
+    "times_gyr",
+    "velocity_to_km_s",
+    "pressure_time_myr",
+    "velocity_kms",
+    "radius_spitzer_pc",
+    "radius_hosokawa_inutsuka_pc",
+    "radius_stagnation_pc",
+    "mass_g",
+    "timesim_yr",
+    "time_yr",
+    "times_yr",
 }
 
 PHYSICAL_FALLBACK_KEYS = {
@@ -193,10 +202,7 @@ def _python_files() -> list[Path]:
 
 
 def _text_report_files() -> list[Path]:
-    return sorted(
-        path for path in EXAMPLE_ROOT.rglob("*.txt")
-        if "outputs" not in path.parts
-    )
+    return sorted(path for path in EXAMPLE_ROOT.rglob("*.txt") if "outputs" not in path.parts)
 
 
 def _walk_mapping(value):
@@ -234,8 +240,10 @@ def _construct_unique_mapping(loader, node, deep=False):
         key = loader.construct_object(key_node, deep=deep)
         if key in mapping:
             raise yaml.constructor.ConstructorError(
-                "while constructing a mapping", node.start_mark,
-                f"found duplicate key {key!r}", key_node.start_mark,
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key {key!r}",
+                key_node.start_mark,
             )
         mapping[key] = loader.construct_object(value_node, deep=deep)
     return mapping
@@ -252,15 +260,24 @@ def _literal_string(node: ast.AST):
 
 
 def _dict_key_strings(node: ast.Dict):
-    return [key.value for key in node.keys if isinstance(key, ast.Constant) and isinstance(key.value, str)]
+    return [
+        key.value
+        for key in node.keys
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    ]
 
 
 def _is_representation_named(name: str) -> bool:
     return any(
         marker in name
         for marker in (
-            "_code", "_cgs_", "_proper", "_comoving", "_supercomoving",
-            "_cosmic", "_physical",
+            "_code",
+            "_cgs_",
+            "_proper",
+            "_comoving",
+            "_supercomoving",
+            "_cosmic",
+            "_physical",
         )
     )
 
@@ -279,11 +296,13 @@ def _is_ambiguous_physical_name(name: str) -> bool:
     # Only classify names which visibly encode a physical unit.  Names such
     # as ``density_contrast`` and ``temperature_rate_coefficient`` are
     # dimensionless diagnostics, not unlabelled physical state.
-    return bool(re.search(
-        r"_(?:s|yr|myr|gyr|g|K|pc|kpc|mpc|cm|cm3|cm_s|km_s|kms)$",
-        name,
-        re.IGNORECASE,
-    ))
+    return bool(
+        re.search(
+            r"_(?:s|yr|myr|gyr|g|K|pc|kpc|mpc|cm|cm3|cm_s|km_s|kms)$",
+            name,
+            re.IGNORECASE,
+        )
+    )
 
 
 def _is_physical_yaml_key(name: str) -> bool:
@@ -292,17 +311,21 @@ def _is_physical_yaml_key(name: str) -> bool:
         return False
     if any(marker in lowered for marker in DIMENSIONLESS_NAME_MARKERS):
         return False
-    if any(marker in lowered for marker in ("coordinate", "representation", "limiter", "diagnostics")):
+    if any(
+        marker in lowered for marker in ("coordinate", "representation", "limiter", "diagnostics")
+    ):
         return False
     has_physical_role = any(
         re.search(rf"(?:^|_){re.escape(prefix)}(?:_|$)", lowered)
         for prefix in PHYSICAL_NAME_PREFIXES
     )
-    has_unit_or_frame = bool(re.search(
-        r"(?:_cgs(?:_|$)|_proper(?:_|$)|_comoving(?:_|$)|_cosmic(?:_|$)|"
-        r"_(?:g|K|s|yr|pc|kpc|mpc|cm3)(?:_|$))",
-        lowered,
-    ))
+    has_unit_or_frame = bool(
+        re.search(
+            r"(?:_cgs(?:_|$)|_proper(?:_|$)|_comoving(?:_|$)|_cosmic(?:_|$)|"
+            r"_(?:g|K|s|yr|pc|kpc|mpc|cm3)(?:_|$))",
+            lowered,
+        )
+    )
     return has_physical_role and has_unit_or_frame
 
 
@@ -329,7 +352,7 @@ def test_every_example_yaml_is_a_complete_loadable_config():
             continue
         if set(config) != {"par", "initial_condition", "example"}:
             failures.append(
-                f"{filename.relative_to(REPO_ROOT)}: incomplete top-level config"
+                f"{filename.relative_to(REPO_ROOT)}: incomplete top-level config",
             )
     assert not failures, "\n".join(failures)
 
@@ -343,8 +366,7 @@ def test_physical_yaml_values_have_explicit_units():
                 continue
             if not _is_unit_mapping(value):
                 failures.append(
-                    f"{filename.relative_to(REPO_ROOT)}: {key!r} must be "
-                    "a {value, unit} mapping"
+                    f"{filename.relative_to(REPO_ROOT)}: {key!r} must be a {{value, unit}} mapping",
                 )
     assert not failures, "\n".join(failures)
 
@@ -367,7 +389,7 @@ def test_all_physical_yaml_inputs_have_explicit_units():
             if not _is_unit_mapping(value):
                 failures.append(
                     f"{filename.relative_to(REPO_ROOT)}:{'.'.join(path)} must be "
-                    "a {value, unit} mapping"
+                    "a {value, unit} mapping",
                 )
     assert not failures, "\n".join(failures)
 
@@ -395,7 +417,7 @@ def test_example_python_has_no_duplicate_literal_mapping_keys():
             if duplicates:
                 failures.append(
                     f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
-                    f"duplicate mapping key(s): {', '.join(duplicates)}"
+                    f"duplicate mapping key(s): {', '.join(duplicates)}",
                 )
     assert not failures, "\n".join(failures)
 
@@ -412,7 +434,7 @@ def test_diagnostic_keys_and_physical_parameters_use_representation_names():
                     if key in AMBIGUOUS_PHYSICAL_NAMES:
                         failures.append(
                             f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
-                            f"ambiguous diagnostic/mapping key: {key}"
+                            f"ambiguous diagnostic/mapping key: {key}",
                         )
 
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -421,13 +443,15 @@ def test_diagnostic_keys_and_physical_parameters_use_representation_names():
                     if argument.arg in GENERIC_PHYSICAL_NAMES | AMBIGUOUS_PHYSICAL_NAMES:
                         failures.append(
                             f"{filename.relative_to(REPO_ROOT)}:{argument.lineno}: "
-                            f"ambiguous physical parameter: {argument.arg}"
+                            f"ambiguous physical parameter: {argument.arg}",
                         )
 
             if isinstance(node, ast.Call):
                 callee_name = (
-                    node.func.id if isinstance(node.func, ast.Name)
-                    else node.func.attr if isinstance(node.func, ast.Attribute)
+                    node.func.id
+                    if isinstance(node.func, ast.Name)
+                    else node.func.attr
+                    if isinstance(node.func, ast.Attribute)
                     else ""
                 )
                 allowed = INTENTIONAL_KEYWORD_EXCEPTIONS.get(callee_name, set())
@@ -435,7 +459,7 @@ def test_diagnostic_keys_and_physical_parameters_use_representation_names():
                     if keyword.arg in GENERIC_PHYSICAL_NAMES and keyword.arg not in allowed:
                         failures.append(
                             f"{filename.relative_to(REPO_ROOT)}:{keyword.lineno}: "
-                            f"ambiguous physical keyword: {keyword.arg}"
+                            f"ambiguous physical keyword: {keyword.arg}",
                         )
 
     assert not failures, "\n".join(failures)
@@ -478,10 +502,20 @@ def test_known_diagnostic_names_identify_representation_and_units():
 def test_text_report_headers_use_representation_and_unit_names():
     """Text diagnostics must obey the same naming contract as Python mappings."""
     forbidden = {
-        "time_Myr", "shock_radius_kpc", "shock_speed_km_s", "Mach",
-        "rho_ratio_measured", "rho_ratio_RH", "T_ratio_measured", "T_ratio_RH",
-        "central_density_g_cm3", "central_temperature_K", "minimum_temperature_K",
-        "atmosphere_mass_Msun", "max_abs_force_residual", "temperature_floor_K",
+        "time_Myr",
+        "shock_radius_kpc",
+        "shock_speed_km_s",
+        "Mach",
+        "rho_ratio_measured",
+        "rho_ratio_RH",
+        "T_ratio_measured",
+        "T_ratio_RH",
+        "central_density_g_cm3",
+        "central_temperature_K",
+        "minimum_temperature_K",
+        "atmosphere_mass_Msun",
+        "max_abs_force_residual",
+        "temperature_floor_K",
         "floor_reached",
     }
     failures = []
@@ -493,14 +527,16 @@ def test_text_report_headers_use_representation_and_unit_names():
         if names:
             failures.append(
                 f"{filename.relative_to(REPO_ROOT)}: ambiguous report field(s): "
-                f"{', '.join(sorted(names))}"
+                f"{', '.join(sorted(names))}",
             )
     assert not failures, "\n".join(failures)
 
 
 def test_cosmological_diagnostics_do_not_mix_coordinate_representations():
     """A comoving diagnostic must not be populated from proper-radius fields."""
-    filename = EXAMPLE_ROOT / "CosmologicalVirialShock1D" / "cosmological_gas_correlation_support.py"
+    filename = (
+        EXAMPLE_ROOT / "CosmologicalVirialShock1D" / "cosmological_gas_correlation_support.py"
+    )
     source = filename.read_text(encoding="utf-8")
     required_assignments = (
         'radius_proper_kpc = np.asarray(profile["dm_radius_proper_kpc"]',
@@ -527,13 +563,13 @@ def test_physical_locals_use_representation_names_everywhere():
                     is_physical_generic = any(marker in rhs for marker in PHYSICAL_SOURCE_MARKERS)
                     if (
                         isinstance(target, ast.Name)
-                            and target.id not in ALLOWED_CONVERTED_LOCAL_NAMES
-                            and _is_ambiguous_physical_name(target.id)
+                        and target.id not in ALLOWED_CONVERTED_LOCAL_NAMES
+                        and _is_ambiguous_physical_name(target.id)
                         and (target.id not in GENERIC_PHYSICAL_NAMES or is_physical_generic)
                     ):
                         failures.append(
                             f"{filename.relative_to(REPO_ROOT)}:{target.lineno}: "
-                            f"representationless physical local: {target.id}"
+                            f"representationless physical local: {target.id}",
                         )
 
     assert not failures, "\n".join(failures)
@@ -555,7 +591,7 @@ def test_physical_conversion_labels_are_representation_qualified():
                 if label is not None and _is_ambiguous_physical_name(label):
                     failures.append(
                         f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
-                        f"representationless conversion label: {label}"
+                        f"representationless conversion label: {label}",
                     )
     assert not failures, "\n".join(failures)
 
@@ -577,7 +613,7 @@ def test_nested_snapshot_consumers_use_representation_names():
             ):
                 failures.append(
                     f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
-                    f"representationless nested field: {key}"
+                    f"representationless nested field: {key}",
                 )
     assert not failures, "\n".join(failures)
 
@@ -597,7 +633,7 @@ def test_physical_get_fallbacks_are_not_unitless():
             if key in PHYSICAL_FALLBACK_KEYS and isinstance(fallback, (ast.Constant, ast.Num)):
                 failures.append(
                     f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
-                    f"unitless fallback for physical key {key!r}"
+                    f"unitless fallback for physical key {key!r}",
                 )
     assert not failures, "\n".join(failures)
 
@@ -618,7 +654,7 @@ def test_example_python_has_no_forbidden_compatibility_apis():
                 continue
             if node.func.attr == "safe_load" and filename.name != "example_utils.py":
                 failures.append(
-                    f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: direct yaml.safe_load"
+                    f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: direct yaml.safe_load",
                 )
     assert not failures, "\n".join(failures)
 
@@ -631,7 +667,11 @@ def test_cosmological_startup_restores_all_three_clocks():
             continue
         if not any(
             marker in filename.parts
-            for marker in ("Cosmological", "BertschingerGasReference", "GasCentrifugalCosmologicalOrbit1D")
+            for marker in (
+                "Cosmological",
+                "BertschingerGasReference",
+                "GasCentrifugalCosmologicalOrbit1D",
+            )
         ):
             continue
         required = (
@@ -667,7 +707,7 @@ def test_physical_locals_use_explicit_names():
             if any(marker in rhs for marker in PHYSICAL_SOURCE_MARKERS):
                 failures.append(
                     f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
-                    f"generic physical local(s): {', '.join(sorted(generic_names))}"
+                    f"generic physical local(s): {', '.join(sorted(generic_names))}",
                 )
     assert not failures, "\n".join(failures)
 
@@ -677,7 +717,9 @@ def _is_par_projection(node: ast.AST) -> bool:
         return False
     index = node.slice
     if isinstance(node.value, ast.Name):
-        return node.value.id == "config" and isinstance(index, ast.Constant) and index.value == "par"
+        return (
+            node.value.id == "config" and isinstance(index, ast.Constant) and index.value == "par"
+        )
     return _is_par_projection(node.value)
 
 
@@ -696,8 +738,10 @@ def test_complete_config_is_preserved_at_helper_boundaries():
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
-            callee = node.func.attr if isinstance(node.func, ast.Attribute) else (
-                node.func.id if isinstance(node.func, ast.Name) else ""
+            callee = (
+                node.func.attr
+                if isinstance(node.func, ast.Attribute)
+                else (node.func.id if isinstance(node.func, ast.Name) else "")
             )
             if callee not in boundary_names and not callee.startswith("_to_"):
                 continue
@@ -712,6 +756,6 @@ def test_complete_config_is_preserved_at_helper_boundaries():
             if projected:
                 failures.append(
                     f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
-                    f"{callee} received config['par'] instead of complete config"
+                    f"{callee} received config['par'] instead of complete config",
                 )
     assert not failures, "\n".join(failures)

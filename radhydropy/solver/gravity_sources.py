@@ -1,22 +1,9 @@
 """Numerical solver subsystem helpers."""
 
 import numpy as np
-from radhydropy.runtime_fields import runtime_fields
-from types import SimpleNamespace
 
-import radhydropy.utils as ru
-import radhydropy.chemistry_species.hydrogen as rh
-import radhydropy.radiative_transfer as rrt
-import radhydropy.thermo_chemistry as rtc
 import radhydropy.gravity as rg
-from radhydropy.constants import DEFAULT_SIGMA_GAMMA_CGS_CM2, SPEED_OF_LIGHT_CGS
-from radhydropy.units import (
-    CGS_AREA_UNIT, CGS_MASS_DENSITY_UNIT, CGS_NUMBER_DENSITY_UNIT,
-    CGS_PHOTON_FLUX_UNIT, CGS_RATE_UNIT, CGS_VOLUME_UNIT,
-    code_unit_scales, _as_cgs_float, _code_units, code_quantity_to_cgs,
-    photon_number_density,
-)
-from radhydropy.arrays import as_named_array
+from radhydropy.runtime_fields import runtime_fields
 
 
 def _gravity_model(solver, par):
@@ -42,7 +29,9 @@ def _gravity_model(solver, par):
         code_units=getattr(par, "CodeUnits", None),
         selfgravity_softening=getattr(par, "selfgravity_softening", 0.0),
         selfgravity_boundary_acceleration=getattr(
-            par, "selfgravity_boundary_acceleration", 0.0
+            par,
+            "selfgravity_boundary_acceleration",
+            0.0,
         ),
         dark_matter=getattr(par, "dark_matter", None),
         cosmological=getattr(par, "cosmological_gravity", False),
@@ -74,38 +63,41 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
     required = kinetic
     if getattr(par, "gas_rotational_energy", False):
         angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
-        radius = np.abs(np.asarray(
-            solver._geometry_state(mesh, par).coordinate_runtime_code, dtype=float
-        ))
+        radius = np.abs(
+            np.asarray(
+                solver._geometry_state(mesh, par).coordinate_runtime_code,
+                dtype=float,
+            )
+        )
         rotational = np.zeros_like(energy)
         valid = (mass > 0.0) & (radius > 0.0) & np.isfinite(angular)
-        rotational[valid] = 0.5 * angular[valid]**2 / (
-            mass[valid] * radius[valid]**2
-        )
+        rotational[valid] = 0.5 * angular[valid] ** 2 / (mass[valid] * radius[valid] ** 2)
         required = required + rotational
     density_floor = max(
-        0.0, float(np.asarray(getattr(par, "cfl_density_floor", 0.0)))
+        0.0,
+        float(np.asarray(getattr(par, "cfl_density_floor", 0.0))),
     )
     volume_runtime_code = np.asarray(
-        solver._geometry_state(mesh, par).volume_runtime_code, dtype=float
+        solver._geometry_state(mesh, par).volume_runtime_code,
+        dtype=float,
     )
     resolved = mass > density_floor * np.maximum(volume_runtime_code, 0.0)
     finite = np.isfinite(mass) & np.isfinite(energy) & np.isfinite(required)
     scale = np.maximum(
-        np.maximum(np.abs(energy), required), np.finfo(float).tiny
+        np.maximum(np.abs(energy), required),
+        np.finfo(float).tiny,
     )
-    relative_tolerance = (
-        1.0e-6
-        if getattr(par, "dual_energy", False)
-        else 1.0e-7
-    )
+    relative_tolerance = 1.0e-6 if getattr(par, "dual_energy", False) else 1.0e-7
     # The midpoint work and kinetic-energy expressions have different
     # evaluation order.  Allow a small margin at this source boundary before
     # handing the state to the stricter global admissibility check.
     synchronization_tolerance = 1.05 * relative_tolerance
     deficit = required - energy
     correct = (
-        resolved & finite & (mass > 0.0) & (deficit > 0.0)
+        resolved
+        & finite
+        & (mass > 0.0)
+        & (deficit > 0.0)
         & (deficit <= synchronization_tolerance * scale)
     )
     if not np.any(correct):
@@ -127,8 +119,8 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     interior = solver._interior_slice(par)
     gravity = solver._gravity_model(par)
     rotational_support = solver._rotational_energy_enabled(par)
-    if rotational_support and getattr(mesh, 'coordsys', None) != 'spherical':
-        raise ValueError('gas_rotational_energy requires a spherical mesh')
+    if rotational_support and getattr(mesh, "coordsys", None) != "spherical":
+        raise ValueError("gas_rotational_energy requires a spherical mesh")
     if gravity is None and not rotational_support:
         solver.last_centrifugal_work = 0.0
         solver.last_centrifugal_work_by_cell = None
@@ -137,7 +129,8 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
                 int(par.mesh.grid_cells),
                 dtype=float,
             )
-            if getattr(par, "energy_diagnostics", False) else None
+            if getattr(par, "energy_diagnostics", False)
+            else None
         )
         return 0
     if gravity is not None and getattr(gravity, "cosmological", False):
@@ -161,13 +154,16 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     # use the same state.
     fields = runtime_fields(par)
     volume_runtime_code = np.asarray(
-        solver._geometry_state(mesh, par).volume_runtime_code, dtype=float
+        solver._geometry_state(mesh, par).volume_runtime_code,
+        dtype=float,
     )
     mass = np.asarray(fluid.Mass_code, dtype=float)
     momentum = np.asarray(fluid.Mom_code, dtype=float)
     current_rho = np.zeros_like(mass)
     np.divide(
-        mass, volume_runtime_code, out=current_rho,
+        mass,
+        volume_runtime_code,
+        out=current_rho,
         where=volume_runtime_code > 0.0,
     )
     current_vel = np.zeros_like(momentum)
@@ -176,7 +172,9 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         acceleration = np.zeros_like(current_rho)
     else:
         acceleration = gravity.acceleration_on_mesh(
-                mesh, rho=current_rho, par=par
+            mesh,
+            rho=current_rho,
+            par=par,
         )
     code_units = getattr(par, "CodeUnits", None)
     if code_units is not None:
@@ -189,7 +187,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     if np.shape(acceleration) != np.shape(density_field):
         raise ValueError(
             "Gravity acceleration shape %s does not match fluid state shape %s"
-            % (np.shape(acceleration), np.shape(density_field))
+            % (np.shape(acceleration), np.shape(density_field)),
         )
     gravity_acceleration = acceleration.copy()
     rotational_acceleration = np.zeros_like(current_rho)
@@ -197,17 +195,20 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
         angular_momentum = np.asarray(fluid.AngularMomentum_code, dtype=float)
         specific = np.zeros_like(current_rho)
         np.divide(
-            angular_momentum, mass, out=specific, where=mass > 0.0
+            angular_momentum,
+            mass,
+            out=specific,
+            where=mass > 0.0,
         )
-        radius = np.abs(np.asarray(
-            solver._geometry_state(mesh, par).coordinate_runtime_code, dtype=float
-        ))
-        valid_radius = (
-            (radius > 0.0) & np.isfinite(radius)
-            & np.isfinite(specific) & (mass > 0.0)
+        radius = np.abs(
+            np.asarray(
+                solver._geometry_state(mesh, par).coordinate_runtime_code,
+                dtype=float,
+            )
         )
+        valid_radius = (radius > 0.0) & np.isfinite(radius) & np.isfinite(specific) & (mass > 0.0)
         rotational_acceleration[valid_radius] = (
-            specific[valid_radius]**2 / radius[valid_radius]**3
+            specific[valid_radius] ** 2 / radius[valid_radius] ** 3
         )
         rotational_acceleration[~valid_radius] = 0.0
 
@@ -219,47 +220,40 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     # E_total < E_kin + E_rot.
     dt_value = float(np.asarray(dt, dtype=float))
     gravity_momentum = momentum + mass * gravity_acceleration * dt_value
-    gravity_work = 0.5 * (
-        momentum + gravity_momentum
-    ) * gravity_acceleration * dt_value
-    new_energy = (
-        np.asarray(fluid.Energy_code, dtype=float)
-        + gravity_work
-    )
+    gravity_work = 0.5 * (momentum + gravity_momentum) * gravity_acceleration * dt_value
+    new_energy = np.asarray(fluid.Energy_code, dtype=float) + gravity_work
 
     source_increment = mass * rotational_acceleration * dt_value
     source_factors = np.ones_like(source_increment)
     if rotational_support:
         angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
-        radius = np.abs(np.asarray(
-            solver._geometry_state(mesh, par).coordinate_runtime_code, dtype=float
-        ))
+        radius = np.abs(
+            np.asarray(
+                solver._geometry_state(mesh, par).coordinate_runtime_code,
+                dtype=float,
+            )
+        )
         rotational_energy = np.zeros_like(mass)
         valid_rotational = (
-            (mass > 0.0) & (radius > 0.0)
-            & np.isfinite(angular) & np.isfinite(radius)
+            (mass > 0.0) & (radius > 0.0) & np.isfinite(angular) & np.isfinite(radius)
         )
         rotational_energy[valid_rotational] = (
-            0.5 * angular[valid_rotational]**2
-            / (mass[valid_rotational] * radius[valid_rotational]**2)
+            0.5
+            * angular[valid_rotational] ** 2
+            / (mass[valid_rotational] * radius[valid_rotational] ** 2)
         )
         available_radial_energy = new_energy - rotational_energy
         base_admissible = (
-            np.isfinite(mass) & (mass > 0.0)
+            np.isfinite(mass)
+            & (mass > 0.0)
             & np.isfinite(gravity_momentum)
             & np.isfinite(available_radial_energy)
-            & (0.5 * gravity_momentum**2 / mass
-               <= available_radial_energy)
+            & (0.5 * gravity_momentum**2 / mass <= available_radial_energy)
         )
 
         def source_admissible(index, factor):
-            trial_momentum = (
-                gravity_momentum[index] + factor * source_increment[index]
-            )
-            trial_kinetic = (
-                0.5 * trial_momentum**2 / mass[index]
-                if mass[index] > 0.0 else 0.0
-            )
+            trial_momentum = gravity_momentum[index] + factor * source_increment[index]
+            trial_kinetic = 0.5 * trial_momentum**2 / mass[index] if mass[index] > 0.0 else 0.0
             tolerance = 1.0e-12 * max(
                 abs(new_energy[index]),
                 abs(rotational_energy[index]),
@@ -280,40 +274,40 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
             source_factors[index] = low
 
     new_momentum = gravity_momentum + source_factors * source_increment
-    centrifugal_work = 0.5 * (
-        gravity_momentum + new_momentum
-    ) * rotational_acceleration * dt_value
+    centrifugal_work = 0.5 * (gravity_momentum + new_momentum) * rotational_acceleration * dt_value
     fluid.Mom_code[...] = new_momentum
     fluid.Energy_code[...] = new_energy
     _synchronize_gravity_energy_roundoff(
-        solver, mesh, fluid, par, new_momentum
+        solver,
+        mesh,
+        fluid,
+        par,
+        new_momentum,
     )
-    if (
-        gravity is not None
-        and hasattr(fluid, 'GravitationalPotentialEnergy_code')
-    ):
+    if gravity is not None and hasattr(fluid, "GravitationalPotentialEnergy_code"):
         # The explicit potential-energy reservoir receives the opposite
         # of the gravity work. Centrifugal work is retained as a diagnostic
         # only because E_rot is already part of total Energy.
         fluid.GravitationalPotentialEnergy_code[...] -= gravity_work
     solver.last_gravity_work = float(
-        np.sum(gravity_work[interior])
+        np.sum(gravity_work[interior]),
     )
     solver.last_gravity_work_by_cell = (
         np.asarray(gravity_work[interior], dtype=float).copy()
-        if getattr(par, "energy_diagnostics", False) else None
+        if getattr(par, "energy_diagnostics", False)
+        else None
     )
     solver.last_centrifugal_work = float(np.sum(centrifugal_work[interior]))
     solver.last_centrifugal_source_factors = source_factors.copy()
     solver.centrifugal_source_limited_count = int(
-        np.count_nonzero(source_factors[interior] < 1.0 - 1.0e-12)
+        np.count_nonzero(source_factors[interior] < 1.0 - 1.0e-12),
     )
     solver.last_centrifugal_work_by_cell = (
         np.asarray(centrifugal_work[interior], dtype=float).copy()
-        if getattr(par, "energy_diagnostics", False) else None
+        if getattr(par, "energy_diagnostics", False)
+        else None
     )
     solver.last_dark_matter_substeps = int(
-        getattr(getattr(gravity, "dark_matter", None),
-                "last_substep_count", 0)
+        getattr(getattr(gravity, "dark_matter", None), "last_substep_count", 0),
     )
     return 1

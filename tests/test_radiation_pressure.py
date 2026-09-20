@@ -1,19 +1,18 @@
 """Tests for momentum deposition from absorbed radiation."""
 
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 
 from radhydropy.constants import SPEED_OF_LIGHT_CGS
-from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits
 from radhydropy.runtime_fields import (
+    PROPER_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
-    PROPER_RUNTIME_FIELDS,
 )
-
+from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
+from tests.parameter_fixtures import parameter_namespace
 
 CODE_UNITS = CodeUnits.from_mapping(
     {
@@ -25,7 +24,7 @@ CODE_UNITS = CodeUnits.from_mapping(
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
         },
-    }
+    },
 )
 
 

@@ -1,11 +1,10 @@
 """Immutable metadata for dimensional, representation-aware fields."""
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from numbers import Real
 
 import unyt
-
 
 FIELD_DIMENSION_BASIS = (
     "mass",
@@ -19,129 +18,179 @@ FIELD_DIMENSION_BASIS_NAME = ",".join(FIELD_DIMENSION_BASIS)
 
 _FIELD_DEFINITIONS = {
     "boundary": {
-        "quantity": "radius", "dimensions": (0, 1, 0, 0, 0),
-        "unit_property": "length_unit", "representation": "proper",
+        "quantity": "radius",
+        "dimensions": (0, 1, 0, 0, 0),
+        "unit_property": "length_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "boundary_proper_code": {
-        "quantity": "radius", "dimensions": (0, 1, 0, 0, 0),
-        "unit_property": "length_unit", "representation": "proper",
+        "quantity": "radius",
+        "dimensions": (0, 1, 0, 0, 0),
+        "unit_property": "length_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "boundary_comoving_code": {
-        "quantity": "radius", "dimensions": (0, 1, 0, 0, 0),
-        "unit_property": "length_unit", "representation": "comoving",
+        "quantity": "radius",
+        "dimensions": (0, 1, 0, 0, 0),
+        "unit_property": "length_unit",
+        "representation": "comoving",
         "physical_relation": "physical = a * stored",
     },
     "radius_proper_code": {
-        "quantity": "radius", "dimensions": (0, 1, 0, 0, 0),
-        "unit_property": "length_unit", "representation": "proper",
+        "quantity": "radius",
+        "dimensions": (0, 1, 0, 0, 0),
+        "unit_property": "length_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "radius_comoving_code": {
-        "quantity": "radius", "dimensions": (0, 1, 0, 0, 0),
-        "unit_property": "length_unit", "representation": "comoving",
+        "quantity": "radius",
+        "dimensions": (0, 1, 0, 0, 0),
+        "unit_property": "length_unit",
+        "representation": "comoving",
         "physical_relation": "physical = a * stored",
     },
     "rho_proper_code": {
-        "quantity": "mass_density", "dimensions": (1, -3, 0, 0, 0),
-        "unit_property": "density_unit", "representation": "proper",
+        "quantity": "mass_density",
+        "dimensions": (1, -3, 0, 0, 0),
+        "unit_property": "density_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "rho_comoving_code": {
-        "quantity": "mass_density", "dimensions": (1, -3, 0, 0, 0),
-        "unit_property": "density_unit", "representation": "comoving",
+        "quantity": "mass_density",
+        "dimensions": (1, -3, 0, 0, 0),
+        "unit_property": "density_unit",
+        "representation": "comoving",
         "physical_relation": "physical = stored / a**3",
     },
     "vel_proper_code": {
-        "quantity": "velocity", "dimensions": (0, 0, 1, 0, 0),
-        "unit_property": "velocity_unit", "representation": "proper",
+        "quantity": "velocity",
+        "dimensions": (0, 0, 1, 0, 0),
+        "unit_property": "velocity_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "vel_supercomoving_code": {
-        "quantity": "velocity", "dimensions": (0, 0, 1, 0, 0),
-        "unit_property": "velocity_unit", "representation": "supercomoving",
+        "quantity": "velocity",
+        "dimensions": (0, 0, 1, 0, 0),
+        "unit_property": "velocity_unit",
+        "representation": "supercomoving",
         "physical_relation": "physical = H*a*x + stored/a",
         "requires_hubble_parameter": True,
     },
     "temp_proper_code": {
-        "quantity": "temperature", "dimensions": (0, 0, 0, 0, 1),
-        "unit_property": "temperature_unit", "representation": "proper",
+        "quantity": "temperature",
+        "dimensions": (0, 0, 0, 0, 1),
+        "unit_property": "temperature_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "temp_supercomoving_code": {
-        "quantity": "temperature", "dimensions": (0, 0, 0, 0, 1),
-        "unit_property": "temperature_unit", "representation": "supercomoving",
+        "quantity": "temperature",
+        "dimensions": (0, 0, 0, 0, 1),
+        "unit_property": "temperature_unit",
+        "representation": "supercomoving",
         "physical_relation": "physical = stored / a**(3*(gamma - 1))",
     },
     "pre_proper_code": {
-        "quantity": "pressure", "dimensions": (1, -3, 2, 0, 0),
-        "unit_property": "pressure_unit", "representation": "proper",
+        "quantity": "pressure",
+        "dimensions": (1, -3, 2, 0, 0),
+        "unit_property": "pressure_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "pre_supercomoving_code": {
-        "quantity": "pressure", "dimensions": (1, -3, 2, 0, 0),
-        "unit_property": "pressure_unit", "representation": "supercomoving",
+        "quantity": "pressure",
+        "dimensions": (1, -3, 2, 0, 0),
+        "unit_property": "pressure_unit",
+        "representation": "supercomoving",
         "physical_relation": "physical = stored / a**(3*gamma)",
     },
     "Mass_code": {
-        "quantity": "mass", "dimensions": (1, 0, 0, 0, 0),
-        "unit_property": "mass_unit", "representation": "physical",
+        "quantity": "mass",
+        "dimensions": (1, 0, 0, 0, 0),
+        "unit_property": "mass_unit",
+        "representation": "physical",
         "physical_relation": "physical = stored",
     },
     "dark_matter_mass_code": {
-        "quantity": "mass", "dimensions": (1, 0, 0, 0, 0),
-        "unit_property": "mass_unit", "representation": "physical",
+        "quantity": "mass",
+        "dimensions": (1, 0, 0, 0, 0),
+        "unit_property": "mass_unit",
+        "representation": "physical",
         "physical_relation": "physical = stored",
     },
     "Energy_code": {
-        "quantity": "energy", "dimensions": (1, 0, 2, 0, 0),
-        "unit_property": "energy_unit", "representation": "physical",
+        "quantity": "energy",
+        "dimensions": (1, 0, 2, 0, 0),
+        "unit_property": "energy_unit",
+        "representation": "physical",
         "physical_relation": "physical = stored",
     },
     "InternalEnergy_code": {
-        "quantity": "energy", "dimensions": (1, 0, 2, 0, 0),
-        "unit_property": "energy_unit", "representation": "physical",
+        "quantity": "energy",
+        "dimensions": (1, 0, 2, 0, 0),
+        "unit_property": "energy_unit",
+        "representation": "physical",
         "physical_relation": "physical = stored",
     },
     "GravitationalPotentialEnergy_code": {
-        "quantity": "energy", "dimensions": (1, 0, 2, 0, 0),
-        "unit_property": "energy_unit", "representation": "physical",
+        "quantity": "energy",
+        "dimensions": (1, 0, 2, 0, 0),
+        "unit_property": "energy_unit",
+        "representation": "physical",
         "physical_relation": "physical = stored",
     },
     "AngularMomentum_code": {
-        "quantity": "angular_momentum", "dimensions": (1, 1, 1, 0, 0),
-        "unit_property": "angular_momentum_unit", "representation": "physical",
+        "quantity": "angular_momentum",
+        "dimensions": (1, 1, 1, 0, 0),
+        "unit_property": "angular_momentum_unit",
+        "representation": "physical",
         "physical_relation": "physical = stored",
     },
     "specific_angular_momentum_code": {
-        "quantity": "specific_angular_momentum", "dimensions": (0, 1, 1, 0, 0),
-        "unit_property": "specific_angular_momentum_unit", "representation": "physical",
+        "quantity": "specific_angular_momentum",
+        "dimensions": (0, 1, 1, 0, 0),
+        "unit_property": "specific_angular_momentum_unit",
+        "representation": "physical",
         "physical_relation": "physical = stored",
     },
     "specific_angular_momentum_proper_code": {
-        "quantity": "specific_angular_momentum", "dimensions": (0, 1, 1, 0, 0),
-        "unit_property": "specific_angular_momentum_unit", "representation": "proper",
+        "quantity": "specific_angular_momentum",
+        "dimensions": (0, 1, 1, 0, 0),
+        "unit_property": "specific_angular_momentum_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "specific_angular_momentum_supercomoving_code": {
-        "quantity": "specific_angular_momentum", "dimensions": (0, 1, 1, 0, 0),
-        "unit_property": "specific_angular_momentum_unit", "representation": "supercomoving",
+        "quantity": "specific_angular_momentum",
+        "dimensions": (0, 1, 1, 0, 0),
+        "unit_property": "specific_angular_momentum_unit",
+        "representation": "supercomoving",
         "physical_relation": "physical = stored",
     },
     "ngamma_proper_code": {
-        "quantity": "number_density", "dimensions": (0, -3, 0, 0, 0),
-        "unit_property": "number_density_unit", "representation": "proper",
+        "quantity": "number_density",
+        "dimensions": (0, -3, 0, 0, 0),
+        "unit_property": "number_density_unit",
+        "representation": "proper",
         "physical_relation": "physical = stored",
     },
     "ngamma_comoving_code": {
-        "quantity": "number_density", "dimensions": (0, -3, 0, 0, 0),
-        "unit_property": "number_density_unit", "representation": "comoving",
+        "quantity": "number_density",
+        "dimensions": (0, -3, 0, 0, 0),
+        "unit_property": "number_density_unit",
+        "representation": "comoving",
         "physical_relation": "physical = stored / a**3",
     },
     "ngamma_code": {
-        "quantity": "number_density", "dimensions": (0, -3, 0, 0, 0),
-        "unit_property": "number_density_unit", "representation": "physical",
+        "quantity": "number_density",
+        "dimensions": (0, -3, 0, 0, 0),
+        "unit_property": "number_density_unit",
+        "representation": "physical",
         "physical_relation": "physical = stored",
     },
 }
@@ -172,10 +221,9 @@ def _code_unit_cgs(code_units, property_name):
 
 def hubble_parameter_code(code_units, hubble_parameter_km_s_Mpc):
     """Convert an observational Hubble parameter to inverse code time."""
-    unit_hubble_km_s_Mpc = (
-        code_units.velocity_unit.to_value(unyt.km / unyt.s)
-        / code_units.length_unit.to_value(unyt.Mpc)
-    )
+    unit_hubble_km_s_Mpc = code_units.velocity_unit.to_value(
+        unyt.km / unyt.s
+    ) / code_units.length_unit.to_value(unyt.Mpc)
     return float(hubble_parameter_km_s_Mpc) / float(unit_hubble_km_s_Mpc)
 
 
@@ -205,12 +253,9 @@ def field_spec(
         "specific_angular_momentum_unit",
     }:
         raise TypeError("field_spec requires a RadHydropy CodeUnits instance")
-    if (
-        definition.get("requires_hubble_parameter")
-        and hubble_parameter_km_s_Mpc is None
-    ):
+    if definition.get("requires_hubble_parameter") and hubble_parameter_km_s_Mpc is None:
         raise ValueError(
-            f"{field_name} requires hubble_parameter_km_s_Mpc for physical conversion"
+            f"{field_name} requires hubble_parameter_km_s_Mpc for physical conversion",
         )
     return FieldSpec(
         quantity=definition["quantity"],
@@ -264,12 +309,11 @@ class FieldSpec:
             raise ValueError("FieldSpec.quantity must be a non-empty string")
         if self.dimension_basis != FIELD_DIMENSION_BASIS_NAME:
             raise ValueError(
-                "FieldSpec.dimension_basis must be "
-                f"{FIELD_DIMENSION_BASIS_NAME!r}"
+                f"FieldSpec.dimension_basis must be {FIELD_DIMENSION_BASIS_NAME!r}",
             )
         if self.storage_unit not in {"code", "cgs"}:
             raise ValueError(
-                "FieldSpec.storage_unit must be either 'code' or 'cgs'"
+                "FieldSpec.storage_unit must be either 'code' or 'cgs'",
             )
         try:
             dimensions = tuple(self.dimensions)
@@ -278,7 +322,7 @@ class FieldSpec:
         if len(dimensions) != len(FIELD_DIMENSION_BASIS):
             raise ValueError(
                 "FieldSpec.dimensions must contain five exponents ordered as "
-                "(mass, length, velocity, current, temperature)"
+                "(mass, length, velocity, current, temperature)",
             )
         if any(isinstance(value, bool) or not isinstance(value, Real) for value in dimensions):
             raise TypeError("FieldSpec.dimensions must contain numeric exponents")
@@ -303,7 +347,9 @@ class FieldSpec:
         if not math.isfinite(scale_factor) or scale_factor <= 0.0:
             raise ValueError("FieldSpec.scale_factor must be finite and positive")
         object.__setattr__(self, "scale_factor", scale_factor)
-        if isinstance(self.scale_factor_power, bool) or not isinstance(self.scale_factor_power, Real):
+        if isinstance(self.scale_factor_power, bool) or not isinstance(
+            self.scale_factor_power, Real
+        ):
             raise TypeError("FieldSpec.scale_factor_power must be a real number")
         scale_factor_power = float(self.scale_factor_power)
         if not math.isfinite(scale_factor_power):
@@ -317,18 +363,21 @@ class FieldSpec:
         object.__setattr__(self, "conversion_factor", conversion_factor)
         if self.hubble_parameter_km_s_Mpc is not None:
             if isinstance(self.hubble_parameter_km_s_Mpc, bool) or not isinstance(
-                self.hubble_parameter_km_s_Mpc, Real
+                self.hubble_parameter_km_s_Mpc,
+                Real,
             ):
                 raise TypeError(
-                    "FieldSpec.hubble_parameter_km_s_Mpc must be real or None"
+                    "FieldSpec.hubble_parameter_km_s_Mpc must be real or None",
                 )
             hubble_parameter_km_s_Mpc = float(self.hubble_parameter_km_s_Mpc)
             if not math.isfinite(hubble_parameter_km_s_Mpc):
                 raise ValueError(
-                    "FieldSpec.hubble_parameter_km_s_Mpc must be finite"
+                    "FieldSpec.hubble_parameter_km_s_Mpc must be finite",
                 )
             object.__setattr__(
-                self, "hubble_parameter_km_s_Mpc", hubble_parameter_km_s_Mpc
+                self,
+                "hubble_parameter_km_s_Mpc",
+                hubble_parameter_km_s_Mpc,
             )
         if isinstance(self.code_unit_cgs, bool) or not isinstance(self.code_unit_cgs, Real):
             raise TypeError("FieldSpec.code_unit_cgs must be a positive real number")
@@ -370,7 +419,7 @@ class FieldSpec:
         missing = required.difference(metadata)
         if missing:
             raise ValueError(
-                "FieldSpec metadata is missing: " + ", ".join(sorted(missing))
+                "FieldSpec metadata is missing: " + ", ".join(sorted(missing)),
             )
         return cls(
             quantity=metadata["quantity"],

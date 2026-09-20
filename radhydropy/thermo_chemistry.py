@@ -2,11 +2,10 @@
 
 from radhydropy.thermo_networks import (
     CIECoolingNetwork,
-    HydrogenNetwork,
     HydrogenHeliumNetwork,
+    HydrogenNetwork,
     PIEUVBGCoolingNetwork,
 )
-
 
 _NETWORKS = {
     HydrogenNetwork.name: HydrogenNetwork,
@@ -29,8 +28,7 @@ def get_network(par):
     except KeyError as exc:
         available = ", ".join(available_networks())
         raise ValueError(
-            "Unknown thermo-chemistry network "
-            f"{network_name!r}; available networks: {available}"
+            f"Unknown thermo-chemistry network {network_name!r}; available networks: {available}",
         ) from exc
     # The dispatcher returns a fresh network instance so each call can read the
     # current runtime parameters without sharing mutable state.
@@ -88,7 +86,7 @@ def get_timestep(state, ngamma_cgs_cm3, par, remaining_s, dtmax_s):
 
 def update_temperature_from_energy(state):
     """Update temperature from source-state energy for the selected network."""
-    if 'helium_mass_fraction' in state:
+    if "helium_mass_fraction" in state:
         return HydrogenHeliumNetwork().update_temperature_from_energy(state)
     return HydrogenNetwork().update_temperature_from_energy(state)
 
@@ -104,7 +102,7 @@ def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
 
 def coupled_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
     network = get_network(par)
-    if hasattr(network, 'coupled_implicit_update'):
+    if hasattr(network, "coupled_implicit_update"):
         return network.coupled_implicit_update(state, ngamma_cgs_cm3, dt_s)
     network.ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s)
 
@@ -123,8 +121,7 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     """Apply the selected network's fast thermo-chemistry source update."""
     if (
         getattr(par, "radiative_transfer", False)
-        and getattr(par, "radiative_transfer_temporal_scheme", "c2ray")
-        == "c2ray"
+        and getattr(par, "radiative_transfer_temporal_scheme", "c2ray") == "c2ray"
     ):
         from radhydropy.thermo_networks import c2ray
 

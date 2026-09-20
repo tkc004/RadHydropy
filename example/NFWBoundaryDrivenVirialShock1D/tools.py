@@ -3,17 +3,17 @@
 from pathlib import Path
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
-from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import CodeUnits, quantity_to_value
 from example.NFWHydrostaticEquilibrium1D import tools as NFW
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits
 
 KPC_CM = (1.0 * unyt.kpc).to_value(unyt.cm)
 SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)
@@ -26,16 +26,24 @@ spherical_cell_centers = NFW.spherical_cell_centers
 
 
 def pie_equilibrium_temperature(
-    rho_proper_cgs_g_cm3, table, hydrogen_mass_fraction, metallicity, redshift
+    rho_proper_cgs_g_cm3,
+    table,
+    hydrogen_mass_fraction,
+    metallicity,
+    redshift,
 ):
     """Return the lowest stable HM12 PIE equilibrium on the table grid."""
     rho_proper_cgs_g_cm3 = np.atleast_1d(np.asarray(rho_proper_cgs_g_cm3, dtype=float))
-    hydrogen_number_density_cgs_cm3 = hydrogen_mass_fraction * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
+    hydrogen_number_density_cgs_cm3 = (
+        hydrogen_mass_fraction * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
+    )
     log_temperature_proper_K = np.asarray(table.log_temperature, dtype=float)
-    temperature_proper_cgs_K = 10.0 ** log_temperature_proper_K
+    temperature_proper_cgs_K = 10.0**log_temperature_proper_K
     heating, cooling = table.rates(
-        temperature_proper_cgs_K[:, None], hydrogen_number_density_cgs_cm3[None, :],
-        metallicity=metallicity, redshift=redshift,
+        temperature_proper_cgs_K[:, None],
+        hydrogen_number_density_cgs_cm3[None, :],
+        metallicity=metallicity,
+        redshift=redshift,
     )
     difference = np.asarray(heating) - np.asarray(cooling)
     crossing = difference[:-1] * difference[1:] <= 0.0
@@ -61,137 +69,204 @@ def inflow_density(mass_accretion_rate, radius_proper_unyt, vel_peculiar_proper_
     mdot = mass_accretion_rate.to_value(unyt.g / unyt.s)
     radius_proper_cgs_cm = radius_proper_unyt.to_value(unyt.cm)
     speed_proper_cgs_cm_s = abs(vel_peculiar_proper_unyt.to_value(unyt.cm / unyt.s))
-    return mdot / (4.0 * np.pi * radius_proper_cgs_cm**2 * speed_proper_cgs_cm_s) * unyt.g / unyt.cm**3
+    return (
+        mdot / (4.0 * np.pi * radius_proper_cgs_cm**2 * speed_proper_cgs_cm_s) * unyt.g / unyt.cm**3
+    )
 
 
 def boundary_inflow_state(config, halo, table):
     """Return the maintained outer-boundary state in physical units."""
-    initial_condition = config['initial_condition']
+    initial_condition = config["initial_condition"]
 
-    radius_outer_proper_unyt = float(initial_condition['radius_outer_over_R200_dimensionless']) * halo['radius_virial_proper_kpc_unyt']
+    radius_outer_proper_unyt = (
+        float(initial_condition["radius_outer_over_R200_dimensionless"])
+        * halo["radius_virial_proper_kpc_unyt"]
+    )
     vel_inflow_proper_unyt = (
-        -float(initial_condition['inflow_velocity_over_V200']) * halo['vel_virial_proper_km_s_unyt']
+        -float(initial_condition["inflow_velocity_over_V200"]) * halo["vel_virial_proper_km_s_unyt"]
     ).to(unyt.km / unyt.s)
-    rho_inflow_proper_unyt = inflow_density(initial_condition['baryon_accretion_rate'], radius_outer_proper_unyt, vel_inflow_proper_unyt)
-    temperature_inflow_proper_unyt = pie_equilibrium_temperature(
-        [rho_inflow_proper_unyt.to_value(unyt.g / unyt.cm**3)], table,
-        float(config["par"]['chemistry']['hydrogen_mass_fraction']),
-        float(config["par"]['thermochemistry']['metallicity']),
-        float(config["par"]['thermochemistry']['metal_pie_redshift']),
-    )[0] * unyt.K
+    rho_inflow_proper_unyt = inflow_density(
+        initial_condition["baryon_accretion_rate"], radius_outer_proper_unyt, vel_inflow_proper_unyt
+    )
+    temperature_inflow_proper_unyt = (
+        pie_equilibrium_temperature(
+            [rho_inflow_proper_unyt.to_value(unyt.g / unyt.cm**3)],
+            table,
+            float(config["par"]["chemistry"]["hydrogen_mass_fraction"]),
+            float(config["par"]["thermochemistry"]["metallicity"]),
+            float(config["par"]["thermochemistry"]["metal_pie_redshift"]),
+        )[0]
+        * unyt.K
+    )
     return {
-        'rho_inflow_proper': rho_inflow_proper_unyt,
-        'vel_inflow_proper': vel_inflow_proper_unyt,
-        'temperature_inflow_proper': temperature_inflow_proper_unyt,
-        'inflow_mu': float(initial_condition['mu']),
+        "rho_inflow_proper": rho_inflow_proper_unyt,
+        "vel_inflow_proper": vel_inflow_proper_unyt,
+        "temperature_inflow_proper": temperature_inflow_proper_unyt,
+        "inflow_mu": float(initial_condition["mu"]),
     }
 
 
 def build_initial_condition(config):
     """Build a hot NFW atmosphere with a steady cold PIE inflow."""
-    initial_condition = config['initial_condition']
+    initial_condition = config["initial_condition"]
 
-    code_units = config['_code_units']
-    table = config['_pie_table']
-    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    code_units = config["_code_units"]
+    table = config["_pie_table"]
+    grid_cells = int(config["par"]["mesh"]["grid_cells"])
     halo = nfw_halo_parameters(
-        initial_condition['halo_mass'], initial_condition['concentration'],
-        initial_condition['redshift'], initial_condition['overdensity'], initial_condition['h0'],
+        initial_condition["halo_mass"],
+        initial_condition["concentration"],
+        initial_condition["redshift"],
+        initial_condition["overdensity"],
+        initial_condition["h0"],
     )
-    r200 = halo['radius_virial_proper_kpc_unyt']
-    inner = float(initial_condition['radius_inner_over_R200_dimensionless']) * r200
-    outer = float(initial_condition['radius_outer_over_R200_dimensionless']) * r200
-    boundary_proper_cgs_cm_unyt = np.geomspace(
-        inner.to_value(unyt.kpc), outer.to_value(unyt.kpc), grid_cells + 1
-    ) * unyt.kpc
+    r200 = halo["radius_virial_proper_kpc_unyt"]
+    inner = float(initial_condition["radius_inner_over_R200_dimensionless"]) * r200
+    outer = float(initial_condition["radius_outer_over_R200_dimensionless"]) * r200
+    boundary_proper_cgs_cm_unyt = (
+        np.geomspace(
+            inner.to_value(unyt.kpc),
+            outer.to_value(unyt.kpc),
+            grid_cells + 1,
+        )
+        * unyt.kpc
+    )
     radius_proper_unyt = spherical_cell_centers(boundary_proper_cgs_cm_unyt)
-    vel_inflow_proper_unyt = (-float(initial_condition['inflow_velocity_over_V200']) * halo['vel_virial_proper_km_s_unyt']).to(unyt.cm / unyt.s)
-    mdot = initial_condition['baryon_accretion_rate']
+    vel_inflow_proper_unyt = (
+        -float(initial_condition["inflow_velocity_over_V200"]) * halo["vel_virial_proper_km_s_unyt"]
+    ).to(unyt.cm / unyt.s)
+    mdot = initial_condition["baryon_accretion_rate"]
     rho_cold_proper_unyt = inflow_density(mdot, radius_proper_unyt, vel_inflow_proper_unyt)
-    temperature_cold_proper_unyt = pie_equilibrium_temperature(
-        rho_cold_proper_unyt.to_value(unyt.g / unyt.cm**3), table,
-        float(config["par"]['chemistry']['hydrogen_mass_fraction']),
-        float(config["par"]['thermochemistry']['metallicity']),
-        float(config["par"]['thermochemistry']['metal_pie_redshift']),
-    ) * unyt.K
-    radius_atmosphere_proper_unyt = float(initial_condition['radius_atmosphere_over_R200_dimensionless']) * r200
-    rho_transition_proper_unyt = inflow_density(mdot, radius_atmosphere_proper_unyt, vel_inflow_proper_unyt)
-    pressure_ram_proper_unyt = rho_transition_proper_unyt * vel_inflow_proper_unyt**2
-    pressure_hot_proper_unyt = float(initial_condition['atmosphere_ram_pressure_fraction']) * pressure_ram_proper_unyt
-    temperature_hot_proper_unyt = virial_temperature(halo, float(initial_condition['mu']))
-    rho_transition_proper_unyt = (
-        pressure_hot_proper_unyt.to_value(unyt.erg / unyt.cm**3) * float(initial_condition['mu']) * PROTON_MASS_CGS
-        / (BOLTZMANN_CONSTANT_CGS * temperature_hot_proper_unyt.to_value(unyt.K))
-    ) * unyt.g / unyt.cm**3
-    potential_proper_cgs_cm2_s2 = NFW.nfw_potential(radius_proper_unyt, halo['rho_scale_cgs_g_cm3_unyt'], halo['radius_scale_proper_kpc_unyt']).to_value(unyt.cm**2 / unyt.s**2)
-    potential_transition_proper_cgs_cm2_s2 = NFW.nfw_potential(radius_atmosphere_proper_unyt, halo['rho_scale_cgs_g_cm3_unyt'], halo['radius_scale_proper_kpc_unyt']).to_value(unyt.cm**2 / unyt.s**2)
-    beta = float(initial_condition['mu']) * PROTON_MASS_CGS / (BOLTZMANN_CONSTANT_CGS * temperature_hot_proper_unyt.to_value(unyt.K))
-    rho_hot_proper_unyt = rho_transition_proper_unyt * np.exp(-beta * (potential_proper_cgs_cm2_s2 - potential_transition_proper_cgs_cm2_s2))
-    width_transition_proper_unyt = float(initial_condition['transition_width_over_R200']) * r200
-    weight = 0.5 * (1.0 + np.tanh(((radius_proper_unyt - radius_atmosphere_proper_unyt) / width_transition_proper_unyt).to_value(unyt.dimensionless)))
-    log_density = (
-        (1.0 - weight) * np.log(rho_hot_proper_unyt.to_value(unyt.g / unyt.cm**3))
-        + weight * np.log(rho_cold_proper_unyt.to_value(unyt.g / unyt.cm**3))
+    temperature_cold_proper_unyt = (
+        pie_equilibrium_temperature(
+            rho_cold_proper_unyt.to_value(unyt.g / unyt.cm**3),
+            table,
+            float(config["par"]["chemistry"]["hydrogen_mass_fraction"]),
+            float(config["par"]["thermochemistry"]["metallicity"]),
+            float(config["par"]["thermochemistry"]["metal_pie_redshift"]),
+        )
+        * unyt.K
     )
+    radius_atmosphere_proper_unyt = (
+        float(initial_condition["radius_atmosphere_over_R200_dimensionless"]) * r200
+    )
+    rho_transition_proper_unyt = inflow_density(
+        mdot, radius_atmosphere_proper_unyt, vel_inflow_proper_unyt
+    )
+    pressure_ram_proper_unyt = rho_transition_proper_unyt * vel_inflow_proper_unyt**2
+    pressure_hot_proper_unyt = (
+        float(initial_condition["atmosphere_ram_pressure_fraction"]) * pressure_ram_proper_unyt
+    )
+    temperature_hot_proper_unyt = virial_temperature(halo, float(initial_condition["mu"]))
+    rho_transition_proper_unyt = (
+        (
+            pressure_hot_proper_unyt.to_value(unyt.erg / unyt.cm**3)
+            * float(initial_condition["mu"])
+            * PROTON_MASS_CGS
+            / (BOLTZMANN_CONSTANT_CGS * temperature_hot_proper_unyt.to_value(unyt.K))
+        )
+        * unyt.g
+        / unyt.cm**3
+    )
+    potential_proper_cgs_cm2_s2 = NFW.nfw_potential(
+        radius_proper_unyt, halo["rho_scale_cgs_g_cm3_unyt"], halo["radius_scale_proper_kpc_unyt"]
+    ).to_value(unyt.cm**2 / unyt.s**2)
+    potential_transition_proper_cgs_cm2_s2 = NFW.nfw_potential(
+        radius_atmosphere_proper_unyt,
+        halo["rho_scale_cgs_g_cm3_unyt"],
+        halo["radius_scale_proper_kpc_unyt"],
+    ).to_value(unyt.cm**2 / unyt.s**2)
+    beta = (
+        float(initial_condition["mu"])
+        * PROTON_MASS_CGS
+        / (BOLTZMANN_CONSTANT_CGS * temperature_hot_proper_unyt.to_value(unyt.K))
+    )
+    rho_hot_proper_unyt = rho_transition_proper_unyt * np.exp(
+        -beta * (potential_proper_cgs_cm2_s2 - potential_transition_proper_cgs_cm2_s2)
+    )
+    width_transition_proper_unyt = float(initial_condition["transition_width_over_R200"]) * r200
+    weight = 0.5 * (
+        1.0
+        + np.tanh(
+            (
+                (radius_proper_unyt - radius_atmosphere_proper_unyt) / width_transition_proper_unyt
+            ).to_value(unyt.dimensionless)
+        )
+    )
+    log_density = (1.0 - weight) * np.log(
+        rho_hot_proper_unyt.to_value(unyt.g / unyt.cm**3)
+    ) + weight * np.log(rho_cold_proper_unyt.to_value(unyt.g / unyt.cm**3))
     density_proper_cgs_g_cm3_unyt = np.exp(log_density) * unyt.g / unyt.cm**3
     temperature_proper_unyt = (
         (1.0 - weight) * temperature_hot_proper_unyt.to_value(unyt.K)
         + weight * temperature_cold_proper_unyt.to_value(unyt.K)
     ) * unyt.K
-    writer = InitialConditionWriter(par_config=config['par'], code_units=code_units, ic_config=config["initial_condition"])
+    writer = InitialConditionWriter(
+        par_config=config["par"], code_units=code_units, ic_config=config["initial_condition"]
+    )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_cgs_cm_unyt)
     writer.mesh.x_radarray = writer.radarray(radius_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(density_proper_cgs_g_cm3_unyt)
     writer.fluid.vel_radarray = writer.radarray(weight * vel_inflow_proper_unyt)
     writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
-    writer.fluid.mu = np.full(grid_cells, float(initial_condition['mu']))
+    writer.fluid.mu = np.full(grid_cells, float(initial_condition["mu"]))
     return writer
+
 
 def load_output_state(filename, config):
     """Load physical cells from a RadHydropy snapshot in CGS units."""
-    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     snapshot = rio.loadhdf5(config, str(filename))
     first = int(snapshot.par.mesh.ghost_cells)
     count = int(snapshot.par.mesh.grid_cells)
     physical = slice(first, first + count)
     boundary_proper_code = snapshot.mesh.boundary_radarray.to(
-        code_units.length_unit
-    ).value[first:first + count + 1]
-    centers_proper_code = 0.75 * (
-        boundary_proper_code[1:]**4 - boundary_proper_code[:-1]**4
-    ) / (boundary_proper_code[1:]**3 - boundary_proper_code[:-1]**3)
+        code_units.length_unit,
+    ).value[first : first + count + 1]
+    centers_proper_code = (
+        0.75
+        * (boundary_proper_code[1:] ** 4 - boundary_proper_code[:-1] ** 4)
+        / (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
+    )
     return {
-        'time_proper_Myr': (
+        "time_proper_Myr": (
             float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
-            * float(code_units.time_unit.to_value('s')) / SECONDS_PER_MYR
+            * float(code_units.time_unit.to_value("s"))
+            / SECONDS_PER_MYR
         ),
-        'radius_proper_kpc': centers_proper_code * float(
-            code_units.length_unit.to_value('cm')
-        ) / KPC_CM,
-        'rho_proper_cgs_g_cm3': snapshot.fluid.rho_radarray.to(unyt.g / unyt.cm**3).value[physical],
-        'vel_peculiar_proper_km_s': snapshot.fluid.vel_radarray.to(unyt.km / unyt.s).value[physical],
-        'temperature_proper_cgs_K': snapshot.fluid.temp_radarray.to(unyt.K).value[physical],
+        "radius_proper_kpc": centers_proper_code
+        * float(
+            code_units.length_unit.to_value("cm"),
+        )
+        / KPC_CM,
+        "rho_proper_cgs_g_cm3": snapshot.fluid.rho_radarray.to(unyt.g / unyt.cm**3).value[physical],
+        "vel_peculiar_proper_km_s": snapshot.fluid.vel_radarray.to(unyt.km / unyt.s).value[
+            physical
+        ],
+        "temperature_proper_cgs_K": snapshot.fluid.temp_radarray.to(unyt.K).value[physical],
     }
 
 
 def locate_shock(snapshot, r200_kpc):
     """Locate the strongest entropy-producing compression near the halo."""
-    radius_proper_kpc = snapshot['radius_proper_kpc']
-    rho_proper_cgs_g_cm3 = np.maximum(snapshot['rho_proper_cgs_g_cm3'], 1.0e-99)
-    temperature_proper_cgs_K = np.maximum(snapshot['temperature_proper_cgs_K'], 1.0)
+    radius_proper_kpc = snapshot["radius_proper_kpc"]
+    rho_proper_cgs_g_cm3 = np.maximum(snapshot["rho_proper_cgs_g_cm3"], 1.0e-99)
+    temperature_proper_cgs_K = np.maximum(snapshot["temperature_proper_cgs_K"], 1.0)
     pressure_proper_cgs_arb = rho_proper_cgs_g_cm3 * temperature_proper_cgs_K
-    entropy_proper_cgs_arb = pressure_proper_cgs_arb / rho_proper_cgs_g_cm3**(5.0 / 3.0)
+    entropy_proper_cgs_arb = pressure_proper_cgs_arb / rho_proper_cgs_g_cm3 ** (5.0 / 3.0)
     # Radius increases with array index, so a compressed downstream (inner)
     # state is a *negative* outward density gradient.
     score = np.abs(np.diff(np.log(entropy_proper_cgs_arb))) + np.maximum(
-        -np.diff(np.log(rho_proper_cgs_g_cm3)), 0.0
+        -np.diff(np.log(rho_proper_cgs_g_cm3)),
+        0.0,
     )
     density_ratio_dimensionless = rho_proper_cgs_g_cm3[:-1] / rho_proper_cgs_g_cm3[1:]
     temperature_ratio_dimensionless = temperature_proper_cgs_K[:-1] / temperature_proper_cgs_K[1:]
-    vel_peculiar_proper_km_s = snapshot.get('vel_peculiar_proper_km_s')
+    vel_peculiar_proper_km_s = snapshot.get("vel_peculiar_proper_km_s")
     decelerating = (
         np.ones_like(density_ratio_dimensionless, dtype=bool)
-        if vel_peculiar_proper_km_s is None else np.asarray(vel_peculiar_proper_km_s[:-1] - vel_peculiar_proper_km_s[1:] > 0.0)
+        if vel_peculiar_proper_km_s is None
+        else np.asarray(vel_peculiar_proper_km_s[:-1] - vel_peculiar_proper_km_s[1:] > 0.0)
     )
     candidate = (
         (radius_proper_kpc[:-1] > 0.1 * r200_kpc)
@@ -211,93 +286,137 @@ def locate_shock(snapshot, r200_kpc):
 
 def shock_history(filenames, halo, config, times_myr=None):
     """Return shock radius and jump diagnostics from saved snapshots."""
-    r200 = halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
+    r200 = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
     rows = []
     for file_index, filename in enumerate(filenames):
         snapshot = load_output_state(filename, config)
         if times_myr is not None:
-            snapshot['time_proper_Myr'] = float(times_myr[file_index])
+            snapshot["time_proper_Myr"] = float(times_myr[file_index])
         index = locate_shock(snapshot, r200)
-        if index is None or index < 3 or index + 4 >= len(snapshot['radius_proper_kpc']):
+        if index is None or index < 3 or index + 4 >= len(snapshot["radius_proper_kpc"]):
             continue
         inner = slice(index - 3, index)
         outer = slice(index + 1, index + 4)
-        density_inner_proper_cgs_g_cm3 = float(np.median(snapshot['rho_proper_cgs_g_cm3'][inner]))
-        density_outer_proper_cgs_g_cm3 = float(np.median(snapshot['rho_proper_cgs_g_cm3'][outer]))
-        temperature_inner_proper_cgs_K = float(np.median(snapshot['temperature_proper_cgs_K'][inner]))
-        temperature_outer_proper_cgs_K = float(np.median(snapshot['temperature_proper_cgs_K'][outer]))
-        rows.append({
-            'time_proper_Myr': snapshot['time_proper_Myr'],
-            'shock_radius_proper_kpc': float(snapshot['radius_proper_kpc'][index]),
-            'shock_radius_over_R200_dimensionless': float(snapshot['radius_proper_kpc'][index] / r200),
-            'density_ratio_dimensionless': density_inner_proper_cgs_g_cm3 / max(density_outer_proper_cgs_g_cm3, 1.0e-99),
-            'temperature_ratio_dimensionless': temperature_inner_proper_cgs_K / max(temperature_outer_proper_cgs_K, 1.0),
-            'velocity_inner_proper_km_s': float(np.median(snapshot['vel_peculiar_proper_km_s'][inner])),
-            'velocity_outer_proper_km_s': float(np.median(snapshot['vel_peculiar_proper_km_s'][outer])),
-        })
+        density_inner_proper_cgs_g_cm3 = float(np.median(snapshot["rho_proper_cgs_g_cm3"][inner]))
+        density_outer_proper_cgs_g_cm3 = float(np.median(snapshot["rho_proper_cgs_g_cm3"][outer]))
+        temperature_inner_proper_cgs_K = float(
+            np.median(snapshot["temperature_proper_cgs_K"][inner])
+        )
+        temperature_outer_proper_cgs_K = float(
+            np.median(snapshot["temperature_proper_cgs_K"][outer])
+        )
+        rows.append(
+            {
+                "time_proper_Myr": snapshot["time_proper_Myr"],
+                "shock_radius_proper_kpc": float(snapshot["radius_proper_kpc"][index]),
+                "shock_radius_over_R200_dimensionless": float(
+                    snapshot["radius_proper_kpc"][index] / r200
+                ),
+                "density_ratio_dimensionless": density_inner_proper_cgs_g_cm3
+                / max(density_outer_proper_cgs_g_cm3, 1.0e-99),
+                "temperature_ratio_dimensionless": temperature_inner_proper_cgs_K
+                / max(temperature_outer_proper_cgs_K, 1.0),
+                "velocity_inner_proper_km_s": float(
+                    np.median(snapshot["vel_peculiar_proper_km_s"][inner])
+                ),
+                "velocity_outer_proper_km_s": float(
+                    np.median(snapshot["vel_peculiar_proper_km_s"][outer])
+                ),
+            }
+        )
     return rows
 
 
 def write_report(rows, filename):
-    with Path(filename).open('w', encoding='utf-8') as stream:
+    with Path(filename).open("w", encoding="utf-8") as stream:
         stream.write(
-            'time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200_dimensionless density_ratio_dimensionless '
-            'temperature_ratio_dimensionless velocity_inner_proper_km_s velocity_outer_proper_km_s\n'
+            "time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200_dimensionless density_ratio_dimensionless "
+            "temperature_ratio_dimensionless velocity_inner_proper_km_s velocity_outer_proper_km_s\n",
         )
-        for row in rows:
-            stream.write(
-                '%(time_proper_Myr).8g %(shock_radius_proper_kpc).8g '
-                '%(shock_radius_over_R200_dimensionless).8g %(density_ratio_dimensionless).8g '
-                '%(temperature_ratio_dimensionless).8g %(velocity_inner_proper_km_s).8g '
-                '%(velocity_outer_proper_km_s).8g\n' % row
-            )
+        stream.writelines(
+            "%(time_proper_Myr).8g %(shock_radius_proper_kpc).8g "
+            "%(shock_radius_over_R200_dimensionless).8g %(density_ratio_dimensionless).8g "
+            "%(temperature_ratio_dimensionless).8g %(velocity_inner_proper_km_s).8g "
+            "%(velocity_outer_proper_km_s).8g\n" % row
+            for row in rows
+        )
 
 
 def _gas_pressure(rho_proper_cgs_g_cm3, temperature_proper_cgs_K, mu_dimensionless):
-    return rho_proper_cgs_g_cm3 * BOLTZMANN_CONSTANT_CGS * temperature_proper_cgs_K / (mu_dimensionless * PROTON_MASS_CGS)
+    return (
+        rho_proper_cgs_g_cm3
+        * BOLTZMANN_CONSTANT_CGS
+        * temperature_proper_cgs_K
+        / (mu_dimensionless * PROTON_MASS_CGS)
+    )
 
 
 def _pie_net_rate(table, rho_proper_cgs_g_cm3, temperature_proper_cgs_K, config):
 
-    hydrogen_number_density_cgs_cm3 = float(config["par"]['chemistry']['hydrogen_mass_fraction']) * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
+    hydrogen_number_density_cgs_cm3 = (
+        float(config["par"]["chemistry"]["hydrogen_mass_fraction"])
+        * rho_proper_cgs_g_cm3
+        / PROTON_MASS_CGS
+    )
     heating, cooling = table.rates(
-        temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3,
-        metallicity=float(config["par"]['thermochemistry']['metallicity']),
-        redshift=float(config["par"]['thermochemistry']['metal_pie_redshift']),
+        temperature_proper_cgs_K,
+        hydrogen_number_density_cgs_cm3,
+        metallicity=float(config["par"]["thermochemistry"]["metallicity"]),
+        redshift=float(config["par"]["thermochemistry"]["metal_pie_redshift"]),
     )
     return float(np.asarray(cooling)) - float(np.asarray(heating))
 
 
 def pie_stability_diagnostics(
-    filenames, times_myr, halo, table, config, mu,
+    filenames,
+    times_myr,
+    halo,
+    table,
+    config,
+    mu,
 ):
     """Compare simulated post-shock states with finite-Mach estimates."""
-
     profiles = [load_output_state(name, config) for name in filenames]
-    r200 = halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
+    r200 = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
     indices = [locate_shock(profile, r200) for profile in profiles]
     radii = [
-        None if index is None else profile['radius_proper_kpc'][index]
+        None if index is None else profile["radius_proper_kpc"][index]
         for profile, index in zip(profiles, indices)
     ]
-    gamma = float(config["par"]['hydrodynamics']['gamma'])
+    gamma = float(config["par"]["hydrodynamics"]["gamma"])
     downstream = []
     for profile, index in zip(profiles, indices):
-        if index is None or index < 8 or index + 5 >= len(profile['radius_proper_kpc']):
+        if index is None or index < 8 or index + 5 >= len(profile["radius_proper_kpc"]):
             downstream.append(None)
             continue
         band = slice(index - 8, index - 3)
-        rho_postshock_cgs_g_cm3 = float(np.median(profile['rho_proper_cgs_g_cm3'][band]))
-        temperature_postshock_cgs_K = float(np.median(profile['temperature_proper_cgs_K'][band]))
-        downstream.append((rho_postshock_cgs_g_cm3, temperature_postshock_cgs_K, _gas_pressure(rho_postshock_cgs_g_cm3, temperature_postshock_cgs_K, mu)))
+        rho_postshock_cgs_g_cm3 = float(np.median(profile["rho_proper_cgs_g_cm3"][band]))
+        temperature_postshock_cgs_K = float(np.median(profile["temperature_proper_cgs_K"][band]))
+        downstream.append(
+            (
+                rho_postshock_cgs_g_cm3,
+                temperature_postshock_cgs_K,
+                _gas_pressure(rho_postshock_cgs_g_cm3, temperature_postshock_cgs_K, mu),
+            )
+        )
 
     rows = []
     for i in range(len(profiles)):
-        if any(value is None for value in (
-            indices[i], radii[i], downstream[i],
-        )):
+        if any(
+            value is None
+            for value in (
+                indices[i],
+                radii[i],
+                downstream[i],
+            )
+        ):
             continue
-        if i > 0 and i + 1 < len(profiles) and radii[i - 1] is not None and radii[i + 1] is not None:
+        if (
+            i > 0
+            and i + 1 < len(profiles)
+            and radii[i - 1] is not None
+            and radii[i + 1] is not None
+        ):
             dt_myr = float(times_myr[i + 1] - times_myr[i - 1])
             shock_speed = (radii[i + 1] - radii[i - 1]) / dt_myr * 977.792221
         elif i > 0 and radii[i - 1] is not None:
@@ -311,50 +430,61 @@ def pie_stability_diagnostics(
         profile = profiles[i]
         index = indices[i]
         upstream = slice(index + 2, index + 5)
-        rho_upstream_proper_cgs_g_cm3 = float(np.median(profile['rho_proper_cgs_g_cm3'][upstream]))
-        temperature_upstream_proper_cgs_K = float(np.median(profile['temperature_proper_cgs_K'][upstream]))
-        velocity_upstream_proper_km_s = float(np.median(profile['vel_peculiar_proper_km_s'][upstream]))
+        rho_upstream_proper_cgs_g_cm3 = float(np.median(profile["rho_proper_cgs_g_cm3"][upstream]))
+        temperature_upstream_proper_cgs_K = float(
+            np.median(profile["temperature_proper_cgs_K"][upstream])
+        )
+        velocity_upstream_proper_km_s = float(
+            np.median(profile["vel_peculiar_proper_km_s"][upstream])
+        )
         relative_speed = abs(velocity_upstream_proper_km_s - shock_speed)
-        sound_speed = np.sqrt(
-            gamma * BOLTZMANN_CONSTANT_CGS * max(temperature_upstream_proper_cgs_K, 1.0)
-            / (float(mu) * PROTON_MASS_CGS)
-        ) / KM_S_TO_CM_S
+        sound_speed = (
+            np.sqrt(
+                gamma
+                * BOLTZMANN_CONSTANT_CGS
+                * max(temperature_upstream_proper_cgs_K, 1.0)
+                / (float(mu) * PROTON_MASS_CGS),
+            )
+            / KM_S_TO_CM_S
+        )
         mach = relative_speed / max(sound_speed, 1.0e-30)
         mach2 = mach**2
-        density_ratio_dimensionless = (gamma + 1.0) * mach2 / (
-            (gamma - 1.0) * mach2 + 2.0
-        )
-        pressure_ratio = (
-            2.0 * gamma * mach2 - (gamma - 1.0)
-        ) / (gamma + 1.0)
+        density_ratio_dimensionless = (gamma + 1.0) * mach2 / ((gamma - 1.0) * mach2 + 2.0)
+        pressure_ratio = (2.0 * gamma * mach2 - (gamma - 1.0)) / (gamma + 1.0)
         rho_analytic = rho0 * density_ratio_dimensionless
         pressure_analytic = _gas_pressure(rho0, temp0, mu) * pressure_ratio
         temp_analytic = temp0 * pressure_ratio / max(density_ratio_dimensionless, 1.0e-30)
-        ram_pressure = rho0 * (relative_speed * KM_S_TO_CM_S)**2
+        ram_pressure = rho0 * (relative_speed * KM_S_TO_CM_S) ** 2
 
         rho1, temp1, pressure1 = downstream[i]
         net_rate = _pie_net_rate(table, rho1, temp1, config)
         analytic_net_rate = _pie_net_rate(
-            table, rho_analytic, temp_analytic, config
+            table,
+            rho_analytic,
+            temp_analytic,
+            config,
         )
         energy1 = pressure1 / (gamma - 1.0)
         energy_analytic = pressure_analytic / (gamma - 1.0)
-        cooling_time = (
-            energy1 / net_rate / SECONDS_PER_MYR if net_rate > 0.0 else np.inf
-        )
+        cooling_time = energy1 / net_rate / SECONDS_PER_MYR if net_rate > 0.0 else np.inf
         analytic_cooling_time = (
             energy_analytic / analytic_net_rate / SECONDS_PER_MYR
-            if analytic_net_rate > 0.0 else np.inf
+            if analytic_net_rate > 0.0
+            else np.inf
         )
 
         # Birnboim & Dekel's effective index follows a compressed fluid
         # element. Estimate dln(rho)/dt=-div(v) directly from the spherical
         # upstream flow, avoiding a fixed-Eulerian-band time derivative.
-        radius_proper_cgs_cm = profile['radius_proper_kpc'] * KPC_CM
-        velocity_cgs_cm_s = profile['vel_peculiar_proper_km_s'] * KM_S_TO_CM_S
-        divergence = np.gradient(
-            radius_proper_cgs_cm**2 * velocity_cgs_cm_s, radius_proper_cgs_cm
-        ) / radius_proper_cgs_cm**2
+        radius_proper_cgs_cm = profile["radius_proper_kpc"] * KPC_CM
+        velocity_cgs_cm_s = profile["vel_peculiar_proper_km_s"] * KM_S_TO_CM_S
+        divergence = (
+            np.gradient(
+                radius_proper_cgs_cm**2 * velocity_cgs_cm_s,
+                radius_proper_cgs_cm,
+            )
+            / radius_proper_cgs_cm**2
+        )
         compression_rate = -float(np.median(divergence[upstream]))
         # Birnboim & Dekel's local definition follows directly from
         # P=(gamma-1)*rho*e and de/dt=P/rho**2*d(rho)/dt-q:
@@ -368,145 +498,200 @@ def pie_stability_diagnostics(
         specific_energy_analytic = energy_analytic / max(rho_analytic, 1.0e-99)
         gamma_eff = (
             gamma - rho1 * net_rate / (density_rate * specific_energy1)
-            if compression_rate > 1.0e-30 else np.nan
+            if compression_rate > 1.0e-30
+            else np.nan
         )
         gamma_eff_analytic = (
-            gamma - rho_analytic * analytic_net_rate
-            / (analytic_density_rate * specific_energy_analytic)
-            if compression_rate > 1.0e-30 else np.nan
+            gamma
+            - rho_analytic * analytic_net_rate / (analytic_density_rate * specific_energy_analytic)
+            if compression_rate > 1.0e-30
+            else np.nan
         )
-        rows.append({
-            'time_proper_Myr': float(times_myr[i]),
-            'shock_radius_over_R200_dimensionless': float(radii[i] / r200),
-            'shock_speed_proper_km_s': float(shock_speed),
-            'mach_number_dimensionless': float(mach),
-            'postshock_pressure_proper_cgs_erg_cm3': float(pressure1),
-            'analytic_postshock_pressure_proper_cgs_erg_cm3': float(pressure_analytic),
-            'ram_pressure_proper_cgs_erg_cm3': float(ram_pressure),
-            'postshock_to_ram_pressure_ratio_dimensionless': float(pressure1 / max(ram_pressure, 1.0e-99)),
-            'analytic_postshock_to_ram_pressure_ratio_dimensionless': float(
-                pressure_analytic / max(ram_pressure, 1.0e-99)
-            ),
-            'postshock_temperature_proper_cgs_K': float(temp1),
-            'analytic_postshock_temperature_proper_cgs_K': float(temp_analytic),
-            'cooling_time_proper_Myr': float(cooling_time),
-            'analytic_cooling_time_proper_Myr': float(analytic_cooling_time),
-            'gamma_eff_dimensionless': float(gamma_eff),
-            'gamma_eff_analytic_dimensionless': float(gamma_eff_analytic),
-            'gamma_critical_dimensionless': GAMMA_CRITICAL,
-        })
+        rows.append(
+            {
+                "time_proper_Myr": float(times_myr[i]),
+                "shock_radius_over_R200_dimensionless": float(radii[i] / r200),
+                "shock_speed_proper_km_s": float(shock_speed),
+                "mach_number_dimensionless": float(mach),
+                "postshock_pressure_proper_cgs_erg_cm3": float(pressure1),
+                "analytic_postshock_pressure_proper_cgs_erg_cm3": float(pressure_analytic),
+                "ram_pressure_proper_cgs_erg_cm3": float(ram_pressure),
+                "postshock_to_ram_pressure_ratio_dimensionless": float(
+                    pressure1 / max(ram_pressure, 1.0e-99)
+                ),
+                "analytic_postshock_to_ram_pressure_ratio_dimensionless": float(
+                    pressure_analytic / max(ram_pressure, 1.0e-99),
+                ),
+                "postshock_temperature_proper_cgs_K": float(temp1),
+                "analytic_postshock_temperature_proper_cgs_K": float(temp_analytic),
+                "cooling_time_proper_Myr": float(cooling_time),
+                "analytic_cooling_time_proper_Myr": float(analytic_cooling_time),
+                "gamma_eff_dimensionless": float(gamma_eff),
+                "gamma_eff_analytic_dimensionless": float(gamma_eff_analytic),
+                "gamma_critical_dimensionless": GAMMA_CRITICAL,
+            }
+        )
     return rows
 
 
 def write_stability_report(rows, filename):
     keys = (
-        'time_proper_Myr', 'shock_radius_over_R200_dimensionless', 'shock_speed_proper_km_s', 'mach_number_dimensionless',
-        'postshock_pressure_proper_cgs_erg_cm3', 'analytic_postshock_pressure_proper_cgs_erg_cm3',
-        'ram_pressure_proper_cgs_erg_cm3', 'postshock_to_ram_pressure_ratio_dimensionless',
-        'analytic_postshock_to_ram_pressure_ratio_dimensionless',
-        'postshock_temperature_proper_cgs_K', 'analytic_postshock_temperature_proper_cgs_K',
-        'cooling_time_proper_Myr', 'analytic_cooling_time_proper_Myr', 'gamma_eff_dimensionless',
-        'gamma_eff_analytic_dimensionless', 'gamma_critical_dimensionless',
+        "time_proper_Myr",
+        "shock_radius_over_R200_dimensionless",
+        "shock_speed_proper_km_s",
+        "mach_number_dimensionless",
+        "postshock_pressure_proper_cgs_erg_cm3",
+        "analytic_postshock_pressure_proper_cgs_erg_cm3",
+        "ram_pressure_proper_cgs_erg_cm3",
+        "postshock_to_ram_pressure_ratio_dimensionless",
+        "analytic_postshock_to_ram_pressure_ratio_dimensionless",
+        "postshock_temperature_proper_cgs_K",
+        "analytic_postshock_temperature_proper_cgs_K",
+        "cooling_time_proper_Myr",
+        "analytic_cooling_time_proper_Myr",
+        "gamma_eff_dimensionless",
+        "gamma_eff_analytic_dimensionless",
+        "gamma_critical_dimensionless",
     )
-    with Path(filename).open('w', encoding='utf-8') as stream:
-        stream.write(' '.join(keys) + '\n')
-        for row in rows:
-            stream.write(' '.join(f"{row[key]:.8g}" for key in keys) + '\n')
+    with Path(filename).open("w", encoding="utf-8") as stream:
+        stream.write(" ".join(keys) + "\n")
+        stream.writelines(" ".join(f"{row[key]:.8g}" for key in keys) + "\n" for row in rows)
 
 
 def plot_stability_diagnostics(rows, filename):
     """Plot pressure, ram-pressure balance, temperature, cooling, and gamma."""
     fig, axes = plt.subplots(2, 3, figsize=(16.0, 8.0), sharex=True)
     if not rows:
-        axes[0, 0].text(0.5, 0.5, 'No time-resolved shock diagnostics',
-                        ha='center', va='center')
+        axes[0, 0].text(0.5, 0.5, "No time-resolved shock diagnostics", ha="center", va="center")
         for axis in axes.flat:
             axis.set_axis_off()
     else:
-        time_proper_Myr = np.asarray([row['time_proper_Myr'] for row in rows])
+        time_proper_Myr = np.asarray([row["time_proper_Myr"] for row in rows])
         panels = (
-            ('postshock_pressure_proper_cgs_erg_cm3', 'analytic_postshock_pressure_proper_cgs_erg_cm3',
-             r'$P_1$ [erg cm$^{-3}$]', True),
-            ('postshock_to_ram_pressure_ratio_dimensionless', 'analytic_postshock_to_ram_pressure_ratio_dimensionless',
-             r'$P_1/P_{\rm ram}$', False),
-            ('postshock_temperature_proper_cgs_K', 'analytic_postshock_temperature_proper_cgs_K',
-             r'$T_1$ [K]', True),
-            ('cooling_time_proper_Myr', 'analytic_cooling_time_proper_Myr',
-             r'$t_{\rm cool}$ [Myr]', True),
-            ('gamma_eff_dimensionless', 'gamma_eff_analytic_dimensionless', r'$\gamma_{\rm eff}$', False),
-            ('shock_radius_over_R200_dimensionless', 'shock_radius_over_R200_dimensionless',
-             r'$r_{\rm shock}/R_{200}$', False),
+            (
+                "postshock_pressure_proper_cgs_erg_cm3",
+                "analytic_postshock_pressure_proper_cgs_erg_cm3",
+                r"$P_1$ [erg cm$^{-3}$]",
+                True,
+            ),
+            (
+                "postshock_to_ram_pressure_ratio_dimensionless",
+                "analytic_postshock_to_ram_pressure_ratio_dimensionless",
+                r"$P_1/P_{\rm ram}$",
+                False,
+            ),
+            (
+                "postshock_temperature_proper_cgs_K",
+                "analytic_postshock_temperature_proper_cgs_K",
+                r"$T_1$ [K]",
+                True,
+            ),
+            (
+                "cooling_time_proper_Myr",
+                "analytic_cooling_time_proper_Myr",
+                r"$t_{\rm cool}$ [Myr]",
+                True,
+            ),
+            (
+                "gamma_eff_dimensionless",
+                "gamma_eff_analytic_dimensionless",
+                r"$\gamma_{\rm eff}$",
+                False,
+            ),
+            (
+                "shock_radius_over_R200_dimensionless",
+                "shock_radius_over_R200_dimensionless",
+                r"$r_{\rm shock}/R_{200}$",
+                False,
+            ),
         )
         for axis, (measured, analytic, ylabel, logarithmic) in zip(axes.flat, panels):
-            axis.plot(time_proper_Myr, [row[measured] for row in rows], 'o-', label='simulation')
-            axis.plot(time_proper_Myr, [row[analytic] for row in rows], '--', label='analytic')
+            axis.plot(time_proper_Myr, [row[measured] for row in rows], "o-", label="simulation")
+            axis.plot(time_proper_Myr, [row[analytic] for row in rows], "--", label="analytic")
             axis.set_ylabel(ylabel)
             if logarithmic:
-                axis.set_yscale('log')
+                axis.set_yscale("log")
             axis.grid(alpha=0.25)
             axis.legend(frameon=False, fontsize=8)
-        axes[1, 1].axhline(5.0 / 3.0, color='black', ls=':', label=r'$5/3$')
-        axes[1, 1].axhline(GAMMA_CRITICAL, color='red', ls='--', label=r'$10/7$')
+        axes[1, 1].axhline(5.0 / 3.0, color="black", ls=":", label=r"$5/3$")
+        axes[1, 1].axhline(GAMMA_CRITICAL, color="red", ls="--", label=r"$10/7$")
         axes[1, 1].legend(frameon=False, fontsize=8)
         for axis in axes[1]:
-            axis.set_xlabel('total time [Myr]')
-    fig.suptitle('Boundary-driven HM12 PIE shock diagnostics')
+            axis.set_xlabel("total time [Myr]")
+    fig.suptitle("Boundary-driven HM12 PIE shock diagnostics")
     fig.tight_layout()
     fig.savefig(filename, dpi=180)
     plt.close(fig)
 
 
 def plot_comparison(
-    adiabatic_files, pie_files, halo, filename,
+    adiabatic_files,
+    pie_files,
+    halo,
+    filename,
     config,
-    adiabatic_times_myr=None, pie_times_myr=None,
+    adiabatic_times_myr=None,
+    pie_times_myr=None,
 ):
     """Plot profiles and shock histories for the settling and PIE stages."""
     stages = [
-        ('adiabatic settling', adiabatic_files, adiabatic_times_myr),
-        ('PIE restart', pie_files, pie_times_myr),
+        ("adiabatic settling", adiabatic_files, adiabatic_times_myr),
+        ("PIE restart", pie_files, pie_times_myr),
     ]
     fig, axes = plt.subplots(2, 4, figsize=(18.0, 8.5), squeeze=False)
-    r200 = halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
+    r200 = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
     for row, (label, files, times_myr) in enumerate(stages):
         selected = np.unique(np.linspace(0, len(files) - 1, 6, dtype=int))
         colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(selected)))
         for color, index in zip(colors, selected):
             snapshot = load_output_state(files[index], config)
             if times_myr is not None:
-                snapshot['time_proper_Myr'] = float(times_myr[index])
-            radius_proper_over_R200_dimensionless = snapshot['radius_proper_kpc'] / r200
+                snapshot["time_proper_Myr"] = float(times_myr[index])
+            radius_proper_over_R200_dimensionless = snapshot["radius_proper_kpc"] / r200
             plot_label = f"{snapshot['time_proper_Myr']:.0f} Myr"
-            axes[row, 0].plot(radius_proper_over_R200_dimensionless, snapshot['rho_proper_cgs_g_cm3'], color=color,
-                              label=plot_label)
-            axes[row, 1].plot(radius_proper_over_R200_dimensionless, snapshot['temperature_proper_cgs_K'], color=color)
-            axes[row, 2].plot(radius_proper_over_R200_dimensionless, snapshot['vel_peculiar_proper_km_s'], color=color)
+            axes[row, 0].plot(
+                radius_proper_over_R200_dimensionless,
+                snapshot["rho_proper_cgs_g_cm3"],
+                color=color,
+                label=plot_label,
+            )
+            axes[row, 1].plot(
+                radius_proper_over_R200_dimensionless,
+                snapshot["temperature_proper_cgs_K"],
+                color=color,
+            )
+            axes[row, 2].plot(
+                radius_proper_over_R200_dimensionless,
+                snapshot["vel_peculiar_proper_km_s"],
+                color=color,
+            )
         history = shock_history(files, halo, config, times_myr=times_myr)
         if history:
             axes[row, 3].plot(
-                [item['time_proper_Myr'] for item in history],
-                [item['shock_radius_over_R200_dimensionless'] for item in history],
-                marker='o', ms=3,
+                [item["time_proper_Myr"] for item in history],
+                [item["shock_radius_over_R200_dimensionless"] for item in history],
+                marker="o",
+                ms=3,
             )
-        axes[row, 0].set_ylabel(f'{label}\n' + r'$\rho$ [g cm$^{-3}$]')
-        axes[row, 0].set_yscale('log')
-        axes[row, 1].set_yscale('log')
-        axes[row, 1].set_ylabel('T [K]')
-        axes[row, 2].set_ylabel('velocity [km s$^{-1}$]')
-        axes[row, 3].set_ylabel(r'$r_{\rm shock}/R_{200}$')
+        axes[row, 0].set_ylabel(f"{label}\n" + r"$\rho$ [g cm$^{-3}$]")
+        axes[row, 0].set_yscale("log")
+        axes[row, 1].set_yscale("log")
+        axes[row, 1].set_ylabel("T [K]")
+        axes[row, 2].set_ylabel("velocity [km s$^{-1}$]")
+        axes[row, 3].set_ylabel(r"$r_{\rm shock}/R_{200}$")
         axes[row, 0].legend(frameon=False, fontsize=8, ncol=2)
         for column in range(3):
             axes[row, column].set_xlim(0.0, 2.0)
-            axes[row, column].axvline(1.0, color='black', ls=':', alpha=0.6)
-            axes[row, column].set_xlabel(r'$r/R_{200}$')
-        axes[row, 3].set_xlabel('time [Myr]')
+            axes[row, column].axvline(1.0, color="black", ls=":", alpha=0.6)
+            axes[row, column].set_xlabel(r"$r/R_{200}$")
+        axes[row, 3].set_xlabel("time [Myr]")
         for axis in axes[row]:
             axis.grid(alpha=0.25)
-    axes[0, 0].set_title('Density')
-    axes[0, 1].set_title('Temperature')
-    axes[0, 2].set_title('Radial velocity')
-    axes[0, 3].set_title('Shock history')
-    fig.suptitle('Boundary-driven accretion shock in a fixed NFW halo')
+    axes[0, 0].set_title("Density")
+    axes[0, 1].set_title("Temperature")
+    axes[0, 2].set_title("Radial velocity")
+    axes[0, 3].set_title("Shock history")
+    fig.suptitle("Boundary-driven accretion shock in a fixed NFW halo")
     fig.tight_layout()
     fig.savefig(filename, dpi=180)
     plt.close(fig)

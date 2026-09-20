@@ -10,32 +10,29 @@ C²-Ray is the default radiative-transfer temporal scheme; the ordinary
 instantaneous path remains available when explicitly selected.
 """
 
-from dataclasses import dataclass
 import warnings
+from dataclasses import dataclass
 from types import SimpleNamespace
 
 import numpy as np
 import unyt
 
+from radhydropy import radiative_transfer as rrt
 from radhydropy.constants import (
     DEFAULT_EPSILON_GAMMA_CGS_ERG,
     DEFAULT_SIGMA_GAMMA_CGS_CM2,
     PROTON_MASS_CGS,
-    SPEED_OF_LIGHT_CGS,
 )
+from radhydropy.thermo_networks import hydrogen, hydrogen_helium
 from radhydropy.units import (
     CGS_AREA_UNIT,
     PHOTON_FLUX_UNIT,
     PHOTON_RATE_UNIT,
     _code_units,
     from_unit_value,
-    time_seconds,
     quantity_or_code_to_cgs,
+    time_seconds,
 )
-from radhydropy import radiative_transfer as rrt
-from radhydropy.thermo_networks import hydrogen
-from radhydropy.thermo_networks import hydrogen_helium
-from radhydropy.runtime_fields import runtime_fields
 
 
 @dataclass
@@ -62,7 +59,9 @@ def _group_parameters(par):
             sigma_value = getattr(radiation, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
         epsilon_value = getattr(par, "hydrogen_epsilon_gamma", None)
         if epsilon_value is None:
-            epsilon_value = getattr(radiation, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG)
+            epsilon_value = getattr(
+                radiation, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG
+            )
     else:
         edges = np.asarray(edges, dtype=float)
         ngroup = edges.size - 1
@@ -79,7 +78,9 @@ def _group_parameters(par):
         if epsilon_value is None:
             epsilon_value = getattr(par, "hydrogen_epsilon_gamma", None)
         if epsilon_value is None:
-            epsilon_value = getattr(radiation, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG)
+            epsilon_value = getattr(
+                radiation, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG
+            )
 
     code = _code_units(par)
     sigma = quantity_or_code_to_cgs(sigma_value, code, CGS_AREA_UNIT, "area_cgs_cm2")
@@ -90,11 +91,7 @@ def _group_parameters(par):
         "energy_cgs_erg",
     )
     sigma = np.full(ngroup, float(sigma), dtype=float) if sigma.ndim == 0 else sigma
-    epsilon = (
-        np.full(ngroup, float(epsilon), dtype=float)
-        if epsilon.ndim == 0
-        else epsilon
-    )
+    epsilon = np.full(ngroup, float(epsilon), dtype=float) if epsilon.ndim == 0 else epsilon
     if sigma.shape != (ngroup,) or epsilon.shape != (ngroup,):
         raise ValueError("C2-Ray hydrogen group arrays must match the number of groups")
 
@@ -134,9 +131,7 @@ def _group_parameters(par):
         else boundary_flux
     )
     source_rate = (
-        np.full(ngroup, float(source_rate), dtype=float)
-        if source_rate.ndim == 0
-        else source_rate
+        np.full(ngroup, float(source_rate), dtype=float) if source_rate.ndim == 0 else source_rate
     )
     if boundary_flux.shape != (ngroup,) or source_rate.shape != (ngroup,):
         raise ValueError("C2-Ray source arrays must match the number of groups")
@@ -205,9 +200,7 @@ def _front_radius_kpc(state, neutral_fraction=0.5):
     right = left + 1
     if state["xHI"][right] == state["xHI"][left]:
         return float(radius[left])
-    weight = (neutral_fraction - state["xHI"][left]) / (
-        state["xHI"][right] - state["xHI"][left]
-    )
+    weight = (neutral_fraction - state["xHI"][left]) / (state["xHI"][right] - state["xHI"][left])
     return float(radius[left] + weight * (radius[right] - radius[left]))
 
 
@@ -220,11 +213,8 @@ def _recombination_rate(state, par):
     ionized = 1.0 - state["xHI"]
     return float(
         np.sum(
-            np.asarray(alpha)
-            * ionized**2
-            * state["nH_cgs_cm3"]**2
-            * state["volume_cgs_cm3"]
-        )
+            np.asarray(alpha) * ionized**2 * state["nH_cgs_cm3"] ** 2 * state["volume_cgs_cm3"],
+        ),
     )
 
 
@@ -239,14 +229,14 @@ def _append_history(history, state, ngamma_cgs_cm3, time_s, recombined, source_r
     history["recombined_photons"].append(recombined)
     history["volume_photons"].append(volume_photons)
     history["accounted_photons"].append(
-        ionized_atoms + recombined + volume_photons
+        ionized_atoms + recombined + volume_photons,
     )
     if "mean_ionized_temp_cgs_K" in history:
         weight = 1.0 - state["xHI"]
         history["mean_ionized_temp_cgs_K"].append(
             float(np.sum(weight * state["temperature_cgs_K"]) / np.sum(weight))
             if np.sum(weight) > 0.0
-            else 0.0
+            else 0.0,
         )
 
 
@@ -261,7 +251,11 @@ def evolve_static_state(
 ):
     """Evolve a fixed-density hydrogen state with causal C²-Ray transport."""
     initial = trace_initial_state(state, par)
-    ngamma_cgs_cm3 = initial.photon_density[0] if initial.photon_density.shape[0] == 1 else initial.photon_density
+    ngamma_cgs_cm3 = (
+        initial.photon_density[0]
+        if initial.photon_density.shape[0] == 1
+        else initial.photon_density
+    )
     state["ngamma_cgs_cm3"] = ngamma_cgs_cm3
     history = {
         "time_Myr": [],
@@ -281,10 +275,7 @@ def evolve_static_state(
     while time_s < final_time_s:
         remaining = final_time_s - time_s
         dt_s = min(float(dtmax_s), remaining)
-        if (
-            reference_time_s is not None
-            and time_s < reference_time_s <= time_s + dt_s
-        ):
+        if reference_time_s is not None and time_s < reference_time_s <= time_s + dt_s:
             dt_s = reference_time_s - time_s
         start_recombination = _recombination_rate(state, par)
         result = advance_state(state, par, dt_s)
@@ -292,10 +283,18 @@ def evolve_static_state(
         recombined += 0.5 * (start_recombination + end_recombination) * dt_s
         time_s += dt_s
         state["time_s"] = time_s
-        ngamma_cgs_cm3 = result.photon_density[0] if result.photon_density.shape[0] == 1 else result.photon_density
+        ngamma_cgs_cm3 = (
+            result.photon_density[0]
+            if result.photon_density.shape[0] == 1
+            else result.photon_density
+        )
         state["ngamma_cgs_cm3"] = ngamma_cgs_cm3
         _append_history(history, state, ngamma_cgs_cm3, time_s, recombined, source_rate_s)
-        if reference_time_s is not None and "reference_snapshot" not in history and time_s >= reference_time_s:
+        if (
+            reference_time_s is not None
+            and "reference_snapshot" not in history
+            and time_s >= reference_time_s
+        ):
             history["reference_snapshot"] = {
                 "time_Myr": time_s / (1.0 * unyt.Myr).to_value(unyt.s),
                 "radius_kpc": np.asarray(state["radius_kpc"]).copy(),
@@ -314,8 +313,7 @@ def _advance(state, par, dt_s, update_chemistry):
         return _advance_hydrogen_helium(state, par, dt_s, update_chemistry)
     if network != "hydrogen":
         raise NotImplementedError(
-            "C2-Ray supports thermochemistry_network='hydrogen' or "
-            "'hydrogen_helium'"
+            "C2-Ray supports thermochemistry_network='hydrogen' or 'hydrogen_helium'",
         )
 
     geometry = _state_geometry(state, par)
@@ -327,9 +325,13 @@ def _advance(state, par, dt_s, update_chemistry):
     volume = geometry.volume_cgs_cm3
     ncell = width.size
     ngroup = sigma.size
-    nH = np.asarray(state["rho_cgs_g_cm3"], dtype=float) * float(
-        state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 1.0))
-    ) / PROTON_MASS_CGS
+    nH = (
+        np.asarray(state["rho_cgs_g_cm3"], dtype=float)
+        * float(
+            state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 1.0)),
+        )
+        / PROTON_MASS_CGS
+    )
     x_initial = np.clip(np.asarray(state["xHI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
     temperature = np.asarray(state["temperature_cgs_K"], dtype=float).copy()
     photon_density = np.zeros((ngroup, ncell), dtype=float)
@@ -377,37 +379,37 @@ def _advance(state, par, dt_s, update_chemistry):
                 direction,
             )
             photon_rate = np.sum(cell_transport.absorbed_rate) / max(
-                nH[cell] * xmean * volume[cell], 1.0e-99
+                nH[cell] * xmean * volume[cell],
+                1.0e-99,
             )
             if not update_chemistry or dt_s == 0.0:
                 xfinal = x0
                 xnew_mean = x0
                 break
-            else:
-                alpha = alpha_values[cell]
-                beta = beta_values[cell]
-                electron_density = nH[cell] * (1.0 - xmean)
-                recombination_rate = electron_density * alpha if recombination else 0.0
-                collisional_rate = electron_density * beta if collisional else 0.0
-                total_rate = photon_rate + recombination_rate + collisional_rate
-                if total_rate > 0.0:
-                    equilibrium = recombination_rate / total_rate
-                    exponent = total_rate * dt_s
-                    decay = np.exp(-exponent)
-                    xfinal = equilibrium + (x0 - equilibrium) * decay
-                    if exponent > 1.0e-12:
-                        xnew_mean = equilibrium + (x0 - equilibrium) * (-np.expm1(-exponent)) / exponent
-                    else:
-                        xnew_mean = x0
+            alpha = alpha_values[cell]
+            beta = beta_values[cell]
+            electron_density = nH[cell] * (1.0 - xmean)
+            recombination_rate = electron_density * alpha if recombination else 0.0
+            collisional_rate = electron_density * beta if collisional else 0.0
+            total_rate = photon_rate + recombination_rate + collisional_rate
+            if total_rate > 0.0:
+                equilibrium = recombination_rate / total_rate
+                exponent = total_rate * dt_s
+                decay = np.exp(-exponent)
+                xfinal = equilibrium + (x0 - equilibrium) * decay
+                if exponent > 1.0e-12:
+                    xnew_mean = equilibrium + (x0 - equilibrium) * (-np.expm1(-exponent)) / exponent
                 else:
-                    xfinal = x0
                     xnew_mean = x0
-                xnew_mean = float(np.clip(xnew_mean, 1.0e-12, 1.0 - 1.0e-12))
-                if abs(xnew_mean - xmean) <= tolerance:
-                    cell_converged = True
-                xmean = (1.0 - relaxation) * xmean + relaxation * xnew_mean
-                if cell_converged:
-                    break
+            else:
+                xfinal = x0
+                xnew_mean = x0
+            xnew_mean = float(np.clip(xnew_mean, 1.0e-12, 1.0 - 1.0e-12))
+            if abs(xnew_mean - xmean) <= tolerance:
+                cell_converged = True
+            xmean = (1.0 - relaxation) * xmean + relaxation * xnew_mean
+            if cell_converged:
+                break
 
         if update_chemistry and not cell_converged:
             converged[cell] = False
@@ -454,9 +456,7 @@ def _advance(state, par, dt_s, update_chemistry):
             active = np.asarray(state.get("active", rho > 0.0), dtype=bool)
             rho_safe = np.where(active, rho, 1.0)
             energy_update = np.zeros_like(rho, dtype=float)
-            energy_update[active] = (
-                np.asarray(thermal_rate)[active] / rho_safe[active] * dt_s
-            )
+            energy_update[active] = np.asarray(thermal_rate)[active] / rho_safe[active] * dt_s
             if "specific_total_energy_cgs_erg_g" in state:
                 state["specific_total_energy_cgs_erg_g"] = np.maximum(
                     state["specific_total_energy_cgs_erg_g"] + energy_update,
@@ -501,7 +501,9 @@ def _hhe_project(values):
     projected[0] = np.clip(projected[0], 1.0e-12, 1.0 - 1.0e-12)
     projected[1] = np.clip(projected[1], 1.0e-12, 1.0 - 2.0e-12)
     projected[2] = np.clip(
-        projected[2], 0.0, max(0.0, 1.0 - projected[1] - 1.0e-12)
+        projected[2],
+        0.0,
+        max(0.0, 1.0 - projected[1] - 1.0e-12),
     )
     projected[3] = max(float(projected[3]), 1.0e6)
     return projected
@@ -561,10 +563,10 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
     )
     trial = _hhe_project(old)
     residual_tolerance = float(
-        getattr(par, "radiative_transfer_c2ray_ode_tolerance", 1.0e-8)
+        getattr(par, "radiative_transfer_c2ray_ode_tolerance", 1.0e-8),
     )
     max_iterations = int(
-        getattr(par, "radiative_transfer_c2ray_ode_max_iterations", 24)
+        getattr(par, "radiative_transfer_c2ray_ode_max_iterations", 24),
     )
     scales = np.maximum(np.abs(old), np.array([1.0, 1.0, 1.0, 1.0e10]))
 
@@ -586,19 +588,15 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
             # perturbation back onto the same boundary would otherwise create
             # a zero Jacobian column and make Newton appear singular.
             direction = 1.0
-            if column == 0 and trial[column] >= 1.0 - 2.0e-12:
-                direction = -1.0
-            elif column == 1 and trial[column] >= 1.0 - 2.0e-12:
+            if (column == 0 and trial[column] >= 1.0 - 2.0e-12) or (
+                column == 1 and trial[column] >= 1.0 - 2.0e-12
+            ):
                 direction = -1.0
             elif column == 2 and trial[column] <= 2.0e-12:
                 direction = 1.0
             perturbed = trial.copy()
             perturbed[column] += direction * perturbation
-            if (
-                column == 2
-                and trial[column] <= 2.0e-12
-                and trial[1] >= 1.0 - 2.0e-12
-            ):
+            if column == 2 and trial[column] <= 2.0e-12 and trial[1] >= 1.0 - 2.0e-12:
                 # At initially neutral helium, He III can only appear after
                 # He I is converted into He II. Perturb both coordinates so
                 # the finite-difference state enters the simplex rather than
@@ -608,9 +606,7 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
             _hhe_set_trial(local, perturbed)
             derivative_perturbed = _hhe_derivative(local, photon_density)
             residual_perturbed = perturbed - old - dt_s * derivative_perturbed
-            jacobian[:, column] = (
-                residual_perturbed - residual
-            ) / (direction * perturbation)
+            jacobian[:, column] = (residual_perturbed - residual) / (direction * perturbation)
 
         try:
             correction = np.linalg.solve(jacobian, -residual)
@@ -623,9 +619,7 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
         for _ in range(12):
             candidate = _hhe_project(trial + damping * correction)
             _hhe_set_trial(local, candidate)
-            candidate_residual = (
-                candidate - old - dt_s * _hhe_derivative(local, photon_density)
-            )
+            candidate_residual = candidate - old - dt_s * _hhe_derivative(local, photon_density)
             candidate_norm = np.max(np.abs(candidate_residual) / scales)
             if np.isfinite(candidate_norm) and candidate_norm < residual_norm:
                 trial = candidate
@@ -663,7 +657,10 @@ def _hhe_backward_euler(local, photon_density, dt_s, par):
         values = initial.copy()
         for _ in range(subdivisions):
             values, success = _hhe_backward_euler_step(
-                local, photon_density, step_dt, par
+                local,
+                photon_density,
+                step_dt,
+                par,
             )
             if not success:
                 break
@@ -689,7 +686,8 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
     """Advance coupled H/He chemistry with causal multigroup C²-Ray transport."""
     geometry = _state_geometry(state, par)
     sigma_species, epsilon_species, boundary_flux, source_rate = _hhe_group_parameters(
-        state, par
+        state,
+        par,
     )
     sigma_h = sigma_species["HI"]
     ngroup = sigma_h.size
@@ -703,12 +701,20 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
     width = geometry.width_cgs_cm
     volume = geometry.volume_cgs_cm3
     ncell = width.size
-    n_h = np.asarray(state["rho_cgs_g_cm3"], dtype=float) * float(
-        state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 0.7))
-    ) / PROTON_MASS_CGS
-    n_he = np.asarray(state["rho_cgs_g_cm3"], dtype=float) * float(
-        state.get("helium_mass_fraction", getattr(par, "helium_mass_fraction", 0.28))
-    ) / (4.0 * PROTON_MASS_CGS)
+    n_h = (
+        np.asarray(state["rho_cgs_g_cm3"], dtype=float)
+        * float(
+            state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 0.7)),
+        )
+        / PROTON_MASS_CGS
+    )
+    n_he = (
+        np.asarray(state["rho_cgs_g_cm3"], dtype=float)
+        * float(
+            state.get("helium_mass_fraction", getattr(par, "helium_mass_fraction", 0.28)),
+        )
+        / (4.0 * PROTON_MASS_CGS)
+    )
     xhi_initial = np.clip(np.asarray(state["xHI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
     xhei_initial = np.clip(np.asarray(state["xHeI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
     xheiii_initial = np.clip(np.asarray(state["xHeIII"], dtype=float), 0.0, 1.0)
@@ -721,7 +727,9 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
     max_iterations = int(getattr(par, "radiative_transfer_c2ray_max_iterations", 32))
     tolerance = float(getattr(par, "radiative_transfer_c2ray_tolerance", 1.0e-6))
     relaxation = np.clip(
-        float(getattr(par, "radiative_transfer_c2ray_relaxation", 1.0)), 0.0, 1.0
+        float(getattr(par, "radiative_transfer_c2ray_relaxation", 1.0)),
+        0.0,
+        1.0,
     )
 
     for cell in _cell_order(ncell, direction):
@@ -742,7 +750,11 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
             }
             tau = np.maximum(sum(tau_species.values()), 0.0)
             cell_transport = rrt.propagate_causal_cell(
-                geometry, incoming_cell, tau, cell, direction
+                geometry,
+                incoming_cell,
+                tau,
+                cell,
+                direction,
             )
             if not update_chemistry or dt_s == 0.0:
                 xfinal = xhi_initial[cell]
@@ -759,7 +771,10 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
             local["specific_energy_cgs_erg_g"][:] = state["specific_energy_cgs_erg_g"][cell]
             local["temperature_cgs_K"][:] = state["temperature_cgs_K"][cell]
             values, ode_converged = _hhe_backward_euler(
-                local, cell_transport.photon_density, dt_s, par
+                local,
+                cell_transport.photon_density,
+                dt_s,
+                par,
             )
             xfinal, xhei_final, xheiii_final = values[:3]
             new_xhi_mean = 0.5 * (xhi_initial[cell] + xfinal)
@@ -795,10 +810,14 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
         state["xHI"][cell] = final_fraction[cell]
         state["xHeI"][cell] = np.clip(xhei_final, 1.0e-12, 1.0 - 1.0e-12)
         state["xHeIII"][cell] = np.clip(
-            xheiii_final, 0.0, 1.0 - state["xHeI"][cell] - 1.0e-12
+            xheiii_final,
+            0.0,
+            1.0 - state["xHeI"][cell] - 1.0e-12,
         )
         if update_chemistry:
-            state["specific_energy_cgs_erg_g"][cell] = max(float(local["specific_energy_cgs_erg_g"][0]), 1.0e6)
+            state["specific_energy_cgs_erg_g"][cell] = max(
+                float(local["specific_energy_cgs_erg_g"][0]), 1.0e6
+            )
             state["temperature_cgs_K"][cell] = float(local["temperature_cgs_K"][0])
             state["mu"][cell] = float(local["mu"][0])
 
@@ -827,8 +846,7 @@ def apply_fast(dt, mesh, fluid, par):
         state = hydrogen.c2ray_source_state(mesh, fluid, par)
     else:
         raise NotImplementedError(
-            "C2-Ray supports thermochemistry_network='hydrogen' or "
-            "'hydrogen_helium'"
+            "C2-Ray supports thermochemistry_network='hydrogen' or 'hydrogen_helium'",
         )
     code = _code_units(par)
     # The hydro timestep is in supercomoving time; C2-Ray integrates a
@@ -858,19 +876,19 @@ def _ensure_fluid_photon_shape(fluid, photon_density, par):
     target = np.shape(photon_density)
     if np.shape(getattr(fluid, "ngamma_code", None)) == target:
         return
-    if getattr(par, 'supercomoving_coordinates', False):
+    if getattr(par, "supercomoving_coordinates", False):
         density = fluid.rho_comoving_code
     else:
         density = fluid.rho_proper_code
     fluid.ngamma_code = (
         np.zeros((target[0], len(density)), dtype=float)
-        if len(target) == 2 else np.zeros(len(density), dtype=float)
+        if len(target) == 2
+        else np.zeros(len(density), dtype=float)
     )
 
 
 def sync_fluid_photon_density(fluid, photon_density, par, interior):
     """Write a C²-Ray photon density into the runtime fluid field."""
-
     _ensure_fluid_photon_shape(fluid, photon_density, par)
     code = _code_units(par)
     photon_density_code = from_unit_value(

@@ -6,7 +6,6 @@ from types import SimpleNamespace
 import numpy as np
 
 from radhydropy.constants import DEFAULT_SIGMA_GAMMA_CGS_CM2, PROTON_MASS_CGS, SPEED_OF_LIGHT_CGS
-import radhydropy.chemistry_species.hydrogen as rh
 from radhydropy.units import (
     CGS_AREA_UNIT,
     PHOTON_FLUX_UNIT,
@@ -55,7 +54,7 @@ def _parameter_value(par, name, default=None):
     value = getattr(par, name, None)
     if value is not None:
         return value
-    parameter = getattr(par, '_parameter', None)
+    parameter = getattr(par, "_parameter", None)
     return parameter(name, default) if parameter is not None else default
 
 
@@ -73,9 +72,7 @@ def species_photoionization_rates(ngamma_cgs_cm3, sigma_by_species):
         if ngamma_cgs_cm3.ndim == 2 and sigma_gamma_cgs_cm2.ndim == 1:
             sigma_gamma_cgs_cm2 = sigma_gamma_cgs_cm2[:, None]
         rate_cgs_s = SPEED_OF_LIGHT_CGS * sigma_gamma_cgs_cm2 * ngamma_cgs_cm3
-        rates_cgs_s[species] = (
-            np.sum(rate_cgs_s, axis=0) if rate_cgs_s.ndim > 1 else rate_cgs_s
-        )
+        rates_cgs_s[species] = np.sum(rate_cgs_s, axis=0) if rate_cgs_s.ndim > 1 else rate_cgs_s
     return rates_cgs_s
 
 
@@ -83,7 +80,8 @@ def species_photoionization_heating(ngamma_cgs_cm3, sigma_by_species, epsilon_by
     rates_cgs_erg_cm3_s = {}
     for species, sigma_gamma_cgs_cm2 in sigma_by_species.items():
         epsilon_gamma_cgs_erg = np.asarray(
-            epsilon_by_species.get(species, 0.0), dtype=float
+            epsilon_by_species.get(species, 0.0),
+            dtype=float,
         )
         sigma_gamma_cgs_cm2 = np.asarray(sigma_gamma_cgs_cm2, dtype=float)
         if ngamma_cgs_cm3.ndim == 2:
@@ -98,10 +96,7 @@ def species_photoionization_heating(ngamma_cgs_cm3, sigma_by_species, epsilon_by
                 else epsilon_gamma_cgs_erg
             )
         rate_cgs_erg_cm3_s = (
-            SPEED_OF_LIGHT_CGS
-            * sigma_gamma_cgs_cm2
-            * epsilon_gamma_cgs_erg
-            * ngamma_cgs_cm3
+            SPEED_OF_LIGHT_CGS * sigma_gamma_cgs_cm2 * epsilon_gamma_cgs_erg * ngamma_cgs_cm3
         )
         rates_cgs_erg_cm3_s[species] = (
             np.sum(rate_cgs_erg_cm3_s, axis=0)
@@ -113,7 +108,6 @@ def species_photoionization_heating(ngamma_cgs_cm3, sigma_by_species, epsilon_by
 
 def _attenuation_mean(tau):
     """Return ``(1 - exp(-tau)) / tau`` with the small-tau limit."""
-
     tau = np.asarray(tau, dtype=float)
     mean = np.ones_like(tau, dtype=float)
     valid = np.absolute(tau) > 1.0e-10
@@ -152,7 +146,7 @@ def _mesh_boundary_cgs_cm(mesh):
     if hasattr(mesh, "boundary"):
         raise ValueError(
             "radiative-transfer geometry must use canonical boundary_cgs_cm; "
-            "convert code-unit geometry explicitly before tracing"
+            "convert code-unit geometry explicitly before tracing",
         )
     raise AttributeError("radiative-transfer geometry requires boundary_cgs_cm")
 
@@ -169,7 +163,7 @@ def _cell_volumes_cgs_cm3(mesh, coordsys):
         return _plain_cgs_geometry("volume_cgs_cm3", mesh.volume_cgs_cm3)
     if hasattr(mesh, "vol"):
         raise ValueError(
-            "radiative-transfer geometry must use canonical volume_cgs_cm3"
+            "radiative-transfer geometry must use canonical volume_cgs_cm3",
         )
     boundary = _mesh_boundary_cgs_cm(mesh)
     if coordsys == "spherical":
@@ -189,7 +183,7 @@ def _face_areas_cgs_cm2(mesh, coordsys):
             return np.ones(len(boundary)) * area[0]
     elif hasattr(mesh, "area"):
         raise ValueError(
-            "radiative-transfer geometry must use canonical face_area_cgs_cm2"
+            "radiative-transfer geometry must use canonical face_area_cgs_cm2",
         )
     return np.ones(len(boundary))
 
@@ -238,13 +232,7 @@ def propagate_causal_cell(geometry, incoming_rate, optical_depth, cell_index, di
         else:
             attenuation_mean = 1.0
         if geometry.coordsys == "spherical":
-            photon_density = (
-                incoming
-                * width
-                * attenuation_mean
-                / volume
-                / SPEED_OF_LIGHT_CGS
-            )
+            photon_density = incoming * width * attenuation_mean / volume / SPEED_OF_LIGHT_CGS
         else:
             face_index = cell_index if direction >= 0 else cell_index + 1
             area = geometry.face_area_cgs_cm2[face_index]
@@ -263,11 +251,7 @@ def propagate_causal_cell(geometry, incoming_rate, optical_depth, cell_index, di
     volume = geometry.volume_cgs_cm3[cell_index]
     if geometry.coordsys == "spherical":
         photon_density = (
-            incoming_rate
-            * width
-            * _attenuation_mean(optical_depth)
-            / volume
-            / SPEED_OF_LIGHT_CGS
+            incoming_rate * width * _attenuation_mean(optical_depth) / volume / SPEED_OF_LIGHT_CGS
         )
     else:
         area = geometry.face_area_cgs_cm2[face_index]
@@ -309,18 +293,14 @@ def _trace_cartesian(mesh, optical_depth, boundary_flux, direction):
         if ncell > 0:
             face_flux[1:] = boundary_flux * np.cumprod(attenuation)
         cell_flux = face_flux[:-1] * mean_attenuation
-        absorbed_rate = (
-            face_flux[:-1] * face_area[:-1] - face_flux[1:] * face_area[1:]
-        ) / volumes
+        absorbed_rate = (face_flux[:-1] * face_area[:-1] - face_flux[1:] * face_area[1:]) / volumes
     else:
         face_flux = np.empty(ncell + 1, dtype=float)
         face_flux[-1] = boundary_flux
         if ncell > 0:
             face_flux[:-1] = boundary_flux * np.cumprod(attenuation[::-1])[::-1]
         cell_flux = face_flux[1:] * mean_attenuation
-        absorbed_rate = (
-            face_flux[1:] * face_area[1:] - face_flux[:-1] * face_area[:-1]
-        ) / volumes
+        absorbed_rate = (face_flux[1:] * face_area[1:] - face_flux[:-1] * face_area[:-1]) / volumes
 
     face_rate = face_flux * face_area
     cell_density = cell_flux / speed_of_light
@@ -372,14 +352,7 @@ def _trace_spherical(
         face_rate = np.empty(ncell + 1, dtype=float)
         face_rate[0] = incoming_rate
         face_rate[1:] = incoming_rate * np.cumprod(attenuation)
-        cell_density = (
-            incoming_rate
-            * prefix
-            * widths
-            * mean_attenuation
-            / volumes
-            / speed_of_light
-        )
+        cell_density = incoming_rate * prefix * widths * mean_attenuation / volumes / speed_of_light
         absorbed_rate = incoming_rate * prefix * (1.0 - attenuation) / volumes
     else:
         suffix_face = np.ones(ncell, dtype=float)
@@ -391,12 +364,7 @@ def _trace_spherical(
         face_rate[:-1] = incoming_rate * suffix_face
         face_rate[-1] = incoming_rate
         cell_density = (
-            incoming_rate
-            * suffix_cell
-            * widths
-            * mean_attenuation
-            / volumes
-            / speed_of_light
+            incoming_rate * suffix_cell * widths * mean_attenuation / volumes / speed_of_light
         )
         absorbed_rate = incoming_rate * suffix_cell * (1.0 - attenuation) / volumes
 
@@ -447,7 +415,7 @@ def _build_group_optical_depth(
         density = np.asarray(density, dtype=float)
         if density.shape != widths.shape:
             raise ValueError(
-                f"absorber density for {species!r} must have shape {widths.shape}"
+                f"absorber density for {species!r} must have shape {widths.shape}",
             )
         if species not in cross_sections_cgs_cm2:
             raise ValueError(f"missing cross section for absorber {species!r}")
@@ -496,7 +464,6 @@ def trace_long_characteristics(
     one cross section per photon group in ``cm**2``. All result arrays have
     shape ``(ngroup, ncell)``; a single group is represented as ``ngroup=1``.
     """
-
     coordsys = coordsys or getattr(mesh, "coordsys", "cartesian")
     if coordsys not in ("cartesian", "spherical"):
         raise ValueError("coordsys unknown: %s" % coordsys)
@@ -506,7 +473,7 @@ def trace_long_characteristics(
 
     if absorber_densities is None or cross_sections_cgs_cm2 is None:
         raise ValueError(
-            "absorber_densities and cross_sections_cgs_cm2 are required"
+            "absorber_densities and cross_sections_cgs_cm2 are required",
         )
 
     if not absorber_densities:
@@ -532,7 +499,7 @@ def trace_long_characteristics(
         if edge_ngroup != inferred_ngroup:
             raise ValueError(
                 "radiation_group_edges_eV and group rate arrays disagree "
-                f"({edge_ngroup} != {inferred_ngroup})"
+                f"({edge_ngroup} != {inferred_ngroup})",
             )
 
     boundary_flux = _normalize_group_values(
@@ -644,11 +611,37 @@ def trace_photon_density(state, par):
                 "photon_rate_per_s",
             )
         if hasattr(state, "get") and "xHeI" in state:
-            nH = getattr(par, "hydrogen_mass_fraction", 0.7) * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
-            nHe = getattr(par, "helium_mass_fraction", 0.28) * rho_proper_cgs_g_cm3 / (4.0 * PROTON_MASS_CGS)
-            absorbers = {"HI": nH * xHI_dimensionless, "HeI": nHe * state["xHeI"], "HeII": nHe * state["xHeII"]}
-            cross_sections = {"HI": sigma_groups, "HeI": getattr(par, "radiation_group_sigma_gamma_HeI", sigma_groups), "HeII": getattr(par, "radiation_group_sigma_gamma_HeII", sigma_groups)}
-            return np.asarray(trace_long_characteristics(mesh, absorber_densities=absorbers, cross_sections_cgs_cm2=cross_sections, boundary_flux=boundary_groups, source_photon_rate=source_groups, direction=_parameter_value(par, "radiative_transfer_direction", 1), coordsys=getattr(par, "coordsys", "spherical"), group_edges_eV=group_edges_eV).cell_photon_density, dtype=float)
+            nH = (
+                getattr(par, "hydrogen_mass_fraction", 0.7) * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
+            )
+            nHe = (
+                getattr(par, "helium_mass_fraction", 0.28)
+                * rho_proper_cgs_g_cm3
+                / (4.0 * PROTON_MASS_CGS)
+            )
+            absorbers = {
+                "HI": nH * xHI_dimensionless,
+                "HeI": nHe * state["xHeI"],
+                "HeII": nHe * state["xHeII"],
+            }
+            cross_sections = {
+                "HI": sigma_groups,
+                "HeI": getattr(par, "radiation_group_sigma_gamma_HeI", sigma_groups),
+                "HeII": getattr(par, "radiation_group_sigma_gamma_HeII", sigma_groups),
+            }
+            return np.asarray(
+                trace_long_characteristics(
+                    mesh,
+                    absorber_densities=absorbers,
+                    cross_sections_cgs_cm2=cross_sections,
+                    boundary_flux=boundary_groups,
+                    source_photon_rate=source_groups,
+                    direction=_parameter_value(par, "radiative_transfer_direction", 1),
+                    coordsys=getattr(par, "coordsys", "spherical"),
+                    group_edges_eV=group_edges_eV,
+                ).cell_photon_density,
+                dtype=float,
+            )
         result = trace_long_characteristics(
             mesh,
             absorber_densities={
@@ -657,7 +650,7 @@ def trace_photon_density(state, par):
                     * rho_proper_cgs_g_cm3
                     / PROTON_MASS_CGS
                     * np.clip(xHI_dimensionless, 0.0, 1.0)
-                )
+                ),
             },
             cross_sections_cgs_cm2={"HI": sigma_groups},
             boundary_flux=boundary_groups,
@@ -693,7 +686,7 @@ def trace_photon_density(state, par):
                 * rho_proper_cgs_g_cm3
                 / PROTON_MASS_CGS
                 * np.clip(xHI_dimensionless, 0.0, 1.0)
-            )
+            ),
         },
         cross_sections_cgs_cm2={"HI": sigma_gamma_cgs_cm2},
         boundary_flux=boundary_flux,

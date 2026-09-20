@@ -1,6 +1,11 @@
 """High-level simulation runner."""
 
 import copy
+import time
+from pathlib import Path
+
+import unyt
+
 import radhydropy.io as rio
 import radhydropy.utils as ru
 from radhydropy.eos import EOS
@@ -8,11 +13,9 @@ from radhydropy.fluid import Fluid
 from radhydropy.mesh import Mesh
 from radhydropy.params import Par
 from radhydropy.solver import Solver
-from pathlib import Path
-import unyt
-import time
 
-class Rsim():
+
+class Rsim:
     """Coordinate parameters, mesh, fluid state, solver, and output."""
 
     def _initialize_runtime_state(self, *args, **kwargs):
@@ -20,16 +23,14 @@ class Rsim():
 
         return _initialize_runtime_state(self, *args, **kwargs)
 
-    def __init__(self,params) -> None:
+    def __init__(self, params) -> None:
         """Create a simulation from a run-parameter dictionary."""
         self._start_time = time.time()
         print("--- Get simulation parameters ---")
-        print("--- %s seconds ---" % (
-            time.time() - getattr(self, "_start_time", time.time())
-        ))
+        print("--- %s seconds ---" % (time.time() - getattr(self, "_start_time", time.time())))
         self.fluid = Fluid()
-        self.mesh  = Mesh()
-        self.par    = Par(params)
+        self.mesh = Mesh()
+        self.par = Par(params)
         self.solver = Solver()
         self._initialize_runtime_state()
         self.fluid.eos = EOS(
@@ -49,7 +50,6 @@ class Rsim():
         sim._start_time = time.time()
         sim._initialize_runtime_state()
         return sim
-        
 
     def Callreadhdf5(self):
         from .initialization import Callreadhdf5
@@ -61,12 +61,11 @@ class Rsim():
 
         return SetMesh(self)
 
-
     def SetFluid(self):
         from .initialization import SetFluid
 
         return SetFluid(self)
-    
+
     def SetInitFluid(self):
         from .initialization import SetInitFluid
 
@@ -109,7 +108,9 @@ class Rsim():
     def UpdateThermochemistryPrimitiveState(self, update_pressure=True, fluid=None):
         from .sources import UpdateThermochemistryPrimitiveState
 
-        return UpdateThermochemistryPrimitiveState(self, update_pressure=update_pressure, fluid=fluid)
+        return UpdateThermochemistryPrimitiveState(
+            self, update_pressure=update_pressure, fluid=fluid
+        )
 
     def _sync_hydro_state(self, fluid=None):
         from .stepping import _sync_hydro_state
@@ -160,12 +161,16 @@ class Rsim():
     def _hydro_step_once(self, dt, fluid=None, advect_chemistry=True, apply_gravity=True):
         from .stepping import _hydro_step_once
 
-        return _hydro_step_once(self, dt, fluid=fluid, advect_chemistry=advect_chemistry, apply_gravity=apply_gravity)
+        return _hydro_step_once(
+            self, dt, fluid=fluid, advect_chemistry=advect_chemistry, apply_gravity=apply_gravity
+        )
 
     def _hydro_step_ssprk2(self, dt, advect_chemistry=True, apply_gravity=True):
         from .stepping import _hydro_step_ssprk2
 
-        return _hydro_step_ssprk2(self, dt, advect_chemistry=advect_chemistry, apply_gravity=apply_gravity)
+        return _hydro_step_ssprk2(
+            self, dt, advect_chemistry=advect_chemistry, apply_gravity=apply_gravity
+        )
 
     def _accumulate_gravity_work(self):
         from .sources import _accumulate_gravity_work
@@ -350,15 +355,9 @@ class Rsim():
     def checkparams(self):
         """Validate dimensional consistency for selected parameters."""
         print("--- Check parameters ---")
-        print("--- %s seconds ---" % (
-            time.time() - getattr(self, "_start_time", time.time())
-        ))
+        print("--- %s seconds ---" % (time.time() - getattr(self, "_start_time", time.time())))
         ru.CheckDimension(self.par.simulation.box_size_proper_code, 1.0 * unyt.pc)
         ru.CheckDimension(
             self.par.hydrodynamics.gamma,
             1.0,
         )
-
-
-
-        

@@ -13,11 +13,11 @@ def plot_xi_lambda(solution, filename=None, axis=None, **plot_kwargs):
 
     if axis is None:
         _, axis = plt.subplots()
-    defaults = {'linewidth': 1.5}
+    defaults = {"linewidth": 1.5}
     defaults.update(plot_kwargs)
     axis.plot(solution.xi, solution.lam, **defaults)
-    axis.set_xlabel(r'$\xi$')
-    axis.set_ylabel(r'$\lambda$')
+    axis.set_xlabel(r"$\xi$")
+    axis.set_ylabel(r"$\lambda$")
     axis.grid(alpha=0.25)
     if filename is not None:
         axis.figure.tight_layout()
@@ -45,26 +45,23 @@ def first_post_centre_apocentre(solution):
     lam = np.asarray(solution.lam, dtype=float)
     lam_prime = np.asarray(solution.lam_prime, dtype=float)
     if xi.size < 3 or not (xi.size == lam.size == lam_prime.size):
-        raise ValueError('invalid Bertschinger shell solution')
+        raise ValueError("invalid Bertschinger shell solution")
 
-    outbound = np.flatnonzero(
-        (lam_prime[:-1] <= 0.0) & (lam_prime[1:] >= 0.0))
+    outbound = np.flatnonzero((lam_prime[:-1] <= 0.0) & (lam_prime[1:] >= 0.0))
     if not outbound.size:
-        raise RuntimeError('solution contains no post-centre outbound branch')
+        raise RuntimeError("solution contains no post-centre outbound branch")
     start = int(outbound[0] + 1)
-    apocentre = np.flatnonzero(
-        (lam_prime[start:-1] >= 0.0) & (lam_prime[start + 1:] < 0.0))
+    apocentre = np.flatnonzero((lam_prime[start:-1] >= 0.0) & (lam_prime[start + 1 :] < 0.0))
     if not apocentre.size:
-        raise RuntimeError('solution contains no post-centre apocentre')
+        raise RuntimeError("solution contains no post-centre apocentre")
     index = int(start + apocentre[0])
-    second_derivative = ((lam_prime[index + 1] - lam_prime[index]) /
-                         (xi[index + 1] - xi[index]))
+    second_derivative = (lam_prime[index + 1] - lam_prime[index]) / (xi[index + 1] - xi[index])
     if not second_derivative < 0.0:
-        raise RuntimeError('candidate apocentre has non-negative curvature')
+        raise RuntimeError("candidate apocentre has non-negative curvature")
     root = brentq(
-        lambda value: np.interp(value, xi[index:index + 2],
-                                 lam_prime[index:index + 2]),
-        float(xi[index]), float(xi[index + 1]),
+        lambda value: np.interp(value, xi[index : index + 2], lam_prime[index : index + 2]),
+        float(xi[index]),
+        float(xi[index + 1]),
     )
     return float(root), float(np.interp(root, xi, lam))
 
@@ -83,32 +80,36 @@ def first_outer_caustic(solution, turnaround_exponent=8.0 / 9.0):
     lam_prime = np.asarray(solution.lam_prime, dtype=float)
     alpha = float(turnaround_exponent)
     if alpha <= 0.0:
-        raise ValueError('turnaround exponent must be positive')
-    outbound = np.flatnonzero(
-        (lam_prime[:-1] <= 0.0) & (lam_prime[1:] >= 0.0))
+        raise ValueError("turnaround exponent must be positive")
+    outbound = np.flatnonzero((lam_prime[:-1] <= 0.0) & (lam_prime[1:] >= 0.0))
     if not outbound.size:
-        raise RuntimeError('solution contains no post-centre outbound branch')
+        raise RuntimeError("solution contains no post-centre outbound branch")
     start = int(outbound[0] + 1)
     envelope_derivative = lam_prime - alpha * lam
     caustic = np.flatnonzero(
-        (envelope_derivative[start:-1] >= 0.0) &
-        (envelope_derivative[start + 1:] < 0.0))
+        (envelope_derivative[start:-1] >= 0.0) & (envelope_derivative[start + 1 :] < 0.0)
+    )
     if not caustic.size:
-        raise RuntimeError('solution contains no post-centre outer caustic')
+        raise RuntimeError("solution contains no post-centre outer caustic")
     index = int(start + caustic[0])
     root = brentq(
-        lambda value: np.interp(value, xi[index:index + 2],
-                                 envelope_derivative[index:index + 2]),
-        float(xi[index]), float(xi[index + 1]),
+        lambda value: np.interp(
+            value, xi[index : index + 2], envelope_derivative[index : index + 2]
+        ),
+        float(xi[index]),
+        float(xi[index + 1]),
     )
     shell_lambda = float(np.interp(root, xi, lam))
     return float(root), float(np.exp(-alpha * root) * shell_lambda)
 
 
-def solve_eq41_self_similar(xi_end=5.0, points=8192,
-                            similarity_exponent=1.0,
-                            centre_match_lambda=2.0e-3,
-                            centre_matching_velocity=2.30):
+def solve_eq41_self_similar(
+    xi_end=5.0,
+    points=8192,
+    similarity_exponent=1.0,
+    centre_match_lambda=2.0e-3,
+    centre_matching_velocity=2.30,
+):
     r"""Solve the collisionless Bertschinger trajectory through crossings.
 
     Bertschinger's mass closure is
@@ -129,10 +130,14 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
     The matching parameters are recorded by the example driver and should be
     kept fixed when comparing resolutions.
     """
-    if (xi_end <= 0.0 or points < 2 or similarity_exponent <= 0.0
-            or not 0.0 < centre_match_lambda < 1.0
-            or centre_matching_velocity <= 0.0):
-        raise ValueError('invalid self-similar ODE parameters')
+    if (
+        xi_end <= 0.0
+        or points < 2
+        or similarity_exponent <= 0.0
+        or not 0.0 < centre_match_lambda < 1.0
+        or centre_matching_velocity <= 0.0
+    ):
+        raise ValueError("invalid self-similar ODE parameters")
 
     # M is normalized by the EdS background mass inside r_ta.  The mass of a
     # radial shell at turnaround is larger than that background mass by this
@@ -144,8 +149,8 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
     def branch_roots(radius_dimensionless):
         roots = []
         for branch in branches:
-            if branch['minimum'] <= radius_dimensionless <= branch['maximum']:
-                roots.append(float(branch['time_of_radius'](radius_dimensionless)))
+            if branch["minimum"] <= radius_dimensionless <= branch["maximum"]:
+                roots.append(float(branch["time_of_radius"](radius_dimensionless)))
         return roots
 
     def rhs(similarity_time_dimensionless, state):
@@ -155,21 +160,25 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
         roots.append(float(similarity_time_dimensionless))
         roots.sort()
         enclosed_mass_dimensionless = turnaround_mass_normalization * sum(
-            (-1.0) ** index
-            * np.exp(-2.0 * similarity_exponent * root / 3.0)
-            for index, root in enumerate(roots))
-        return [radial_velocity_dimensionless,
-                -7.0 / 9.0 * radial_velocity_dimensionless
-                + 8.0 / 81.0 * radius_dimensionless
-                - 2.0 / 9.0 * enclosed_mass_dimensionless / radius_dimensionless**2]
+            (-1.0) ** index * np.exp(-2.0 * similarity_exponent * root / 3.0)
+            for index, root in enumerate(roots)
+        )
+        return [
+            radial_velocity_dimensionless,
+            -7.0 / 9.0 * radial_velocity_dimensionless
+            + 8.0 / 81.0 * radius_dimensionless
+            - 2.0 / 9.0 * enclosed_mass_dimensionless / radius_dimensionless**2,
+        ]
 
     def centre_event(time_cosmic_code, state):
         return state[0] - centre_match_lambda
+
     centre_event.terminal = True
     centre_event.direction = -1
 
     def apocentre_event(time_cosmic_code, state):
         return state[1]
+
     apocentre_event.terminal = True
     apocentre_event.direction = -1
 
@@ -188,11 +197,13 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
             # radial interval and is safely omitted from the closure.
             return
         branch = {
-            'minimum': float(radius_dimensionless[unique][0]),
-            'maximum': float(radius_dimensionless[unique][-1]),
-            'time_of_radius': PchipInterpolator(
-                radius_dimensionless[unique], similarity_time_dimensionless[unique],
-                extrapolate=False),
+            "minimum": float(radius_dimensionless[unique][0]),
+            "maximum": float(radius_dimensionless[unique][-1]),
+            "time_of_radius": PchipInterpolator(
+                radius_dimensionless[unique],
+                similarity_time_dimensionless[unique],
+                extrapolate=False,
+            ),
         }
         branches.append(branch)
 
@@ -204,10 +215,17 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
     while similarity_time_dimensionless < xi_end - 1.0e-12:
         event = apocentre_event if outbound else centre_event
         solution = solve_ivp(
-            rhs, (similarity_time_dimensionless, float(xi_end)), state, events=event,
-            rtol=2.0e-10, atol=1.0e-12, max_step=max_step, method='RK45')
+            rhs,
+            (similarity_time_dimensionless, float(xi_end)),
+            state,
+            events=event,
+            rtol=2.0e-10,
+            atol=1.0e-12,
+            max_step=max_step,
+            method="RK45",
+        )
         if solution.t.size == 0:
-            raise RuntimeError('empty Bertschinger phase-space branch')
+            raise RuntimeError("empty Bertschinger phase-space branch")
         output_similarity_time_dimensionless.extend(solution.t.tolist())
         output_state.extend(solution.y.T.tolist())
         save_branch(solution)
@@ -216,7 +234,7 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
         if similarity_time_dimensionless >= xi_end - 1.0e-12:
             break
         if not solution.t_events[0].size:
-            raise RuntimeError('Bertschinger branch did not reach its event')
+            raise RuntimeError("Bertschinger branch did not reach its event")
         if outbound:
             # Start the next inward branch just past apocentre.
             state[1] = -1.0e-8
@@ -229,28 +247,34 @@ def solve_eq41_self_similar(xi_end=5.0, points=8192,
             outbound = True
 
     output_similarity_time_dimensionless = np.asarray(
-        output_similarity_time_dimensionless
+        output_similarity_time_dimensionless,
     )
     output_state = np.asarray(output_state)
-    unique = np.concatenate((
-        [True], np.diff(output_similarity_time_dimensionless) > 1.0e-12
-    ))
+    unique = np.concatenate(
+        (
+            [True],
+            np.diff(output_similarity_time_dimensionless) > 1.0e-12,
+        )
+    )
     output_similarity_time_dimensionless = output_similarity_time_dimensionless[unique]
     output_state = output_state[unique]
     sample_time = np.linspace(0.0, float(xi_end), int(points))
     output_lam = np.interp(
-        sample_time, output_similarity_time_dimensionless, output_state[:, 0]
+        sample_time,
+        output_similarity_time_dimensionless,
+        output_state[:, 0],
     )
     output_velocity = np.interp(
-        sample_time, output_similarity_time_dimensionless, output_state[:, 1]
+        sample_time,
+        output_similarity_time_dimensionless,
+        output_state[:, 1],
     )
     output_mass = np.empty_like(sample_time)
     for index, radius_dimensionless in enumerate(output_lam):
         roots = branch_roots(float(radius_dimensionless))
         roots.sort()
         output_mass[index] = turnaround_mass_normalization * sum(
-            (-1.0) ** root_index
-            * np.exp(-2.0 * similarity_exponent * root / 3.0)
-            for root_index, root in enumerate(roots))
-    return BertschingerShellSolution(sample_time, output_lam,
-                                     output_velocity, output_mass)
+            (-1.0) ** root_index * np.exp(-2.0 * similarity_exponent * root / 3.0)
+            for root_index, root in enumerate(roots)
+        )
+    return BertschingerShellSolution(sample_time, output_lam, output_velocity, output_mass)

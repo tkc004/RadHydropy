@@ -1,7 +1,7 @@
 """Executable conversion checks for RadHydropy's representation-aware arrays."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -9,21 +9,19 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
+import example_utils as eu
+
 from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import field_spec
 from radhydropy.radarray import RadArray, RepresentationMismatchError
 from radhydropy.units import CodeUnits
-import example_utils as eu
-
 
 CONFIG_FILE = Path(__file__).with_name("radarray_conversion1d.yaml")
 
 
 def _rad_array(values, field_name, code_units, cosmology):
     hubble_parameter_km_s_Mpc = (
-        cosmology.hubble_parameter_km_s_Mpc
-        if field_name == "vel_supercomoving_code"
-        else None
+        cosmology.hubble_parameter_km_s_Mpc if field_name == "vel_supercomoving_code" else None
     )
     return RadArray(
         values,
@@ -46,7 +44,7 @@ def run(config_file=CONFIG_FILE):
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     scale_factor = float(config["example"]["scale_factor"])
     hubble_parameter_km_s_Mpc = float(
-        config["example"]["hubble_parameter"].to_value("km/(s*Mpc)")
+        config["example"]["hubble_parameter"].to_value("km/(s*Mpc)"),
     )
     cosmology = CosmologyContext(
         gamma=gamma,
@@ -55,7 +53,10 @@ def run(config_file=CONFIG_FILE):
     )
 
     radius_comoving_code_radarray = _rad_array(
-        np.array([1.0, 2.0]), "boundary_comoving_code", code_units, cosmology
+        np.array([1.0, 2.0]),
+        "boundary_comoving_code",
+        code_units,
+        cosmology,
     )
     radius_proper_code_radarray = radius_comoving_code_radarray.to_proper()
     np.testing.assert_allclose(radius_proper_code_radarray.value, [0.5, 1.0])
@@ -65,7 +66,10 @@ def run(config_file=CONFIG_FILE):
     )
 
     rho_comoving_code_radarray = _rad_array(
-        np.array([8.0, 16.0]), "rho_comoving_code", code_units, cosmology
+        np.array([8.0, 16.0]),
+        "rho_comoving_code",
+        code_units,
+        cosmology,
     )
     rho_proper_code_radarray = rho_comoving_code_radarray.to_proper()
     np.testing.assert_allclose(rho_proper_code_radarray.value, [64.0, 128.0])
@@ -75,7 +79,10 @@ def run(config_file=CONFIG_FILE):
     )
 
     temp_supercomoving_code_radarray = _rad_array(
-        np.array([8.0]), "temp_supercomoving_code", code_units, cosmology
+        np.array([8.0]),
+        "temp_supercomoving_code",
+        code_units,
+        cosmology,
     )
     temp_proper_code_radarray = temp_supercomoving_code_radarray.to_proper()
     np.testing.assert_allclose(temp_proper_code_radarray.value, [32.0])
@@ -85,7 +92,10 @@ def run(config_file=CONFIG_FILE):
     )
 
     pre_supercomoving_code_radarray = _rad_array(
-        np.array([64.0]), "pre_supercomoving_code", code_units, cosmology
+        np.array([64.0]),
+        "pre_supercomoving_code",
+        code_units,
+        cosmology,
     )
     pre_proper_code_radarray = pre_supercomoving_code_radarray.to_proper()
     np.testing.assert_allclose(pre_proper_code_radarray.value, [2048.0])
@@ -96,15 +106,18 @@ def run(config_file=CONFIG_FILE):
 
     x_comoving_code = np.array([4.0])
     vel_supercomoving_code_radarray = _rad_array(
-        np.array([2.0]), "vel_supercomoving_code", code_units, cosmology
+        np.array([2.0]),
+        "vel_supercomoving_code",
+        code_units,
+        cosmology,
     )
     vel_proper_code_radarray = vel_supercomoving_code_radarray.to_proper(
-        x_comoving_code=x_comoving_code
+        x_comoving_code=x_comoving_code,
     )
     np.testing.assert_allclose(vel_proper_code_radarray.value, [4.14])
     np.testing.assert_allclose(
         vel_proper_code_radarray.to_comoving(
-            x_comoving_code=x_comoving_code
+            x_comoving_code=x_comoving_code,
         ).value,
         vel_supercomoving_code_radarray.value,
     )
@@ -115,7 +128,7 @@ def run(config_file=CONFIG_FILE):
         pass
     else:
         raise AssertionError(
-            "proper and comoving density arrays must not be addable"
+            "proper and comoving density arrays must not be addable",
         )
 
     return {

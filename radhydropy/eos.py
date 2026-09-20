@@ -2,6 +2,7 @@
 
 import numpy as np
 import unyt
+
 import radhydropy.utils as ru
 from radhydropy.arrays import as_named_array
 from radhydropy.runtime_fields import PROPER_RUNTIME_FIELDS, SUPERCOMOVING_RUNTIME_FIELDS
@@ -17,13 +18,14 @@ class EOS:
         ``"isothermal"``.
     gamma : float, optional
         Adiabatic index for a polytropic gas. ``gamma`` must not be 1.
+
     """
 
     def __init__(self, EOStype: str, gamma=5.0 / 3.0, code_units=None):
         self.EOStype = EOStype
         self.gamma = gamma
         self.CodeUnits = code_units
-        if ((self.EOStype != 'polytropic') and (self.EOStype != 'isothermal')):
+        if (self.EOStype != "polytropic") and (self.EOStype != "isothermal"):
             raise Exception("EOS not recognized: only polytropic or isothermal")
         if self.is_polytropic and gamma == 1.0:
             raise Exception("gamma cannot be equal to 1 for a polytropic EOS")
@@ -31,12 +33,12 @@ class EOS:
     @property
     def is_polytropic(self):
         """Return ``True`` when the EOS evolves thermal energy."""
-        return self.EOStype == 'polytropic'
+        return self.EOStype == "polytropic"
 
     @property
     def is_isothermal(self):
         """Return ``True`` for an isothermal closure."""
-        return self.EOStype == 'isothermal'
+        return self.EOStype == "isothermal"
 
     def pressure(self, rho, temp, mu):
         """Return pressure from density, temperature, and mean molecular weight."""
@@ -46,11 +48,11 @@ class EOS:
             mu_value = np.asarray(mu, dtype=np.longdouble)
             conversion = self.CodeUnits.unit_conversion
             pressure_factor = np.longdouble(
-                conversion["boltzmann_code"] / conversion["proton_mass_code"]
+                conversion["boltzmann_code"] / conversion["proton_mass_code"],
             )
             pressure_value = rho_value * temp_value * pressure_factor
             quotient = np.zeros_like(pressure_value, dtype=np.longdouble)
-            with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+            with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
                 np.divide(pressure_value, mu_value, out=quotient, where=mu_value != 0)
             return as_named_array(np.asarray(quotient, dtype=float))
         return rho / (mu * unyt.mp) * unyt.kb * temp
@@ -62,7 +64,7 @@ class EOS:
             pressure_value = np.asarray(pressure, dtype=float)
             mu_value = np.asarray(mu, dtype=float)
             pressure_over_rho = np.zeros_like(pressure_value, dtype=float)
-            with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+            with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
                 np.divide(
                     pressure_value,
                     rho_value,
@@ -70,11 +72,9 @@ class EOS:
                     where=rho_value != 0,
                 )
             return as_named_array(
-                (
                 pressure_over_rho
                 * (mu_value * self.CodeUnits.proton_mass_code)
-                / self.CodeUnits.boltzmann_code
-                )
+                / self.CodeUnits.boltzmann_code,
             )
         pressure_over_rho = ru.SafeDivide(pressure, rho)
         return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
@@ -94,7 +94,7 @@ class EOS:
             pressure_value = np.asarray(pressure, dtype=float)
             rho_value = np.asarray(rho, dtype=float)
             pressure_over_rho = np.zeros_like(pressure_value, dtype=float)
-            with np.errstate(divide='ignore', invalid='ignore'):
+            with np.errstate(divide="ignore", invalid="ignore"):
                 np.divide(
                     pressure_value,
                     rho_value,
@@ -120,14 +120,16 @@ class EOS:
         if self.is_isothermal:
             if temp is None or mu is None:
                 raise ValueError(
-                    "isothermal pressure reconstruction requires temperature and mu"
+                    "isothermal pressure reconstruction requires temperature and mu",
                 )
             return self.pressure(rho, temp, mu)
         if self.CodeUnits is not None:
             rho_value = np.asarray(rho, dtype=float)
             vel_value = np.asarray(vel, dtype=float)
             energy_value = np.asarray(energy_density, dtype=float)
-            return as_named_array((energy_value - 0.5 * rho_value * vel_value**2) * (self.gamma - 1.0))
+            return as_named_array(
+                (energy_value - 0.5 * rho_value * vel_value**2) * (self.gamma - 1.0)
+            )
         return (energy_density - 0.5 * rho * vel**2) * (self.gamma - 1.0)
 
     def fluxes(self, rho, vel, pressure):
@@ -162,7 +164,7 @@ class EOS:
         and all other cells receive the neutral temperature.
         """
         if not self.is_isothermal:
-            raise ValueError('piecewise isothermal state requires an isothermal EOS')
+            raise ValueError("piecewise isothermal state requires an isothermal EOS")
 
         ghost_cells = int(par.mesh.ghost_cells)
         grid_cells = int(par.mesh.grid_cells)
@@ -175,19 +177,18 @@ class EOS:
         else:
             raise ValueError("piecewise isothermal state requires canonical runtime fields")
         if ionized_fraction_threshold is None:
-            temperature[interior] = (
-                neutral_temperature
-                + ionized_fraction * (ionized_temperature - neutral_temperature)
+            temperature[interior] = neutral_temperature + ionized_fraction * (
+                ionized_temperature - neutral_temperature
             )
         else:
             if not 0.0 <= ionized_fraction_threshold <= 1.0:
-                raise ValueError('ionized_fraction_threshold must be in [0, 1]')
+                raise ValueError("ionized_fraction_threshold must be in [0, 1]")
             temperature[interior] = neutral_temperature
             ionized = ionized_fraction > ionized_fraction_threshold
             interior_temperature = np.asarray(temperature[interior])
             interior_temperature[ionized] = ionized_temperature
             temperature[interior] = interior_temperature
         fluid.SetHydrogenMu(
-            hydrogen_mass_fraction=getattr(par, 'hydrogen_mass_fraction', 1.0)
+            hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
         )
         fluid.SetPressure()

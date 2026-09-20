@@ -4,11 +4,11 @@ import argparse
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm, SymLogNorm
-
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "outputs_correlation_gas"
@@ -35,14 +35,18 @@ def _edges(values):
     return edges
 
 
-def _plot_indicator(axis, time_cosmic_code, radius_comoving_code, values, title, label, signed=True):
+def _plot_indicator(
+    axis, time_cosmic_code, radius_comoving_code, values, title, label, signed=True
+):
     finite = np.isfinite(time_cosmic_code) & np.isfinite(radius_comoving_code) & np.isfinite(values)
     if not np.any(finite):
         return
     time_edges = _edges(time_cosmic_code[finite])
     radius_edges = _edges(radius_comoving_code[finite])
     count, _, _ = np.histogram2d(
-        time_cosmic_code[finite], radius_comoving_code[finite], bins=(time_edges, radius_edges)
+        time_cosmic_code[finite],
+        radius_comoving_code[finite],
+        bins=(time_edges, radius_edges),
     )
     if signed:
         scale = max(float(np.nanmax(np.abs(values[finite]), initial=0.0)), 1.0e-30)
@@ -52,18 +56,26 @@ def _plot_indicator(axis, time_cosmic_code, radius_comoving_code, values, title,
         positive = finite & (values > 0.0)
         if not np.any(positive):
             return
-        norm = LogNorm(vmin=max(float(np.nanmin(values[positive])), 1.0e-12),
-                       vmax=float(np.nanmax(values[positive])))
+        norm = LogNorm(
+            vmin=max(float(np.nanmin(values[positive])), 1.0e-12),
+            vmax=float(np.nanmax(values[positive])),
+        )
         cmap = "magma"
         finite &= values > 0.0
     weighted, _, _ = np.histogram2d(
-        time_cosmic_code[finite], radius_comoving_code[finite], bins=(time_edges, radius_edges),
+        time_cosmic_code[finite],
+        radius_comoving_code[finite],
+        bins=(time_edges, radius_edges),
         weights=values[finite],
     )
     mean = np.divide(weighted, count, out=np.full_like(weighted, np.nan), where=count > 0)
     image = axis.pcolormesh(
-        time_edges, radius_edges, np.ma.masked_invalid(mean.T),
-        cmap=cmap, norm=norm, shading="flat",
+        time_edges,
+        radius_edges,
+        np.ma.masked_invalid(mean.T),
+        cmap=cmap,
+        norm=norm,
+        shading="flat",
     )
     axis.set_title(title)
     axis.set_ylabel("comoving radius [kpc]")
@@ -71,8 +83,7 @@ def _plot_indicator(axis, time_cosmic_code, radius_comoving_code, values, title,
     axis.figure.colorbar(image, ax=axis, label="mean " + label)
 
 
-def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
-         mu=0.59, exclude_outer_cells=2):
+def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, mu=0.59, exclude_outer_cells=2):
     output = Path(output)
     data = np.load(output / (prefix + ".npz"))
     time_cosmic_code = np.asarray(data["time_cosmic_Gyr"], dtype=float)
@@ -84,27 +95,41 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     vel_proper_km_s = np.asarray(data["radial_velocity_proper_km_s"], dtype=float)
     count = max(3, comoving_radius.size - max(0, int(exclude_outer_cells)))
     comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_proper_km_s = (
-        array[..., :count] for array in
-        (comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_proper_km_s)
+        array[..., :count]
+        for array in (
+            comoving_radius,
+            proper_radius,
+            rho_comoving_code,
+            temperature_proper_cgs_K,
+            vel_proper_km_s,
+        )
     )
 
     divergence = _spherical_divergence(proper_radius, vel_proper_km_s)
-    entropy = temperature_proper_cgs_K / np.maximum(rho_comoving_code, 1.0e-300) ** (float(gamma) - 1.0)
+    entropy = temperature_proper_cgs_K / np.maximum(rho_comoving_code, 1.0e-300) ** (
+        float(gamma) - 1.0
+    )
     midpoint_radius = 0.5 * (comoving_radius[1:] + comoving_radius[:-1])
     density_jump = np.log10(
         np.maximum(rho_comoving_code[:, :-1], 1.0e-300)
-        / np.maximum(rho_comoving_code[:, 1:], 1.0e-300)
+        / np.maximum(rho_comoving_code[:, 1:], 1.0e-300),
     )
     entropy_jump = np.log10(
-        np.maximum(entropy[:, :-1], 1.0e-300)
-        / np.maximum(entropy[:, 1:], 1.0e-300)
+        np.maximum(entropy[:, :-1], 1.0e-300) / np.maximum(entropy[:, 1:], 1.0e-300),
     )
-    sound_speed = np.sqrt(
-        float(gamma) * 1.380649e-16 * np.maximum(temperature_proper_cgs_K, 0.0)
-        / (float(mu) * 1.67262192369e-24)
-    ) / 1.0e5
+    sound_speed = (
+        np.sqrt(
+            float(gamma)
+            * 1.380649e-16
+            * np.maximum(temperature_proper_cgs_K, 0.0)
+            / (float(mu) * 1.67262192369e-24),
+        )
+        / 1.0e5
+    )
     pair_sound_speed = 0.5 * (sound_speed[:, 1:] + sound_speed[:, :-1])
-    valid_temperature_pair = (temperature_proper_cgs_K[:, 1:] > 1.0) & (temperature_proper_cgs_K[:, :-1] > 1.0)
+    valid_temperature_pair = (temperature_proper_cgs_K[:, 1:] > 1.0) & (
+        temperature_proper_cgs_K[:, :-1] > 1.0
+    )
     velocity_jump_mach = np.divide(
         np.abs(vel_proper_km_s[:, 1:] - vel_proper_km_s[:, :-1]),
         pair_sound_speed,
@@ -112,30 +137,50 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
         where=(pair_sound_speed > 0.0) & valid_temperature_pair,
     )
     time_cells = np.broadcast_to(time_cosmic_code[:, None], proper_radius.shape)
-    time_pairs = np.broadcast_to(time_cosmic_code[:, None], (time_cosmic_code.size, midpoint_radius.size))
+    time_pairs = np.broadcast_to(
+        time_cosmic_code[:, None], (time_cosmic_code.size, midpoint_radius.size)
+    )
     plot_radius = np.broadcast_to(comoving_radius[None, :], proper_radius.shape)
     plot_midpoint_radius = np.broadcast_to(
-        midpoint_radius[None, :], (time_cosmic_code.size, midpoint_radius.size)
+        midpoint_radius[None, :],
+        (time_cosmic_code.size, midpoint_radius.size),
     )
 
     fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True)
     _plot_indicator(
-        axes[0, 0], time_cells, plot_radius, divergence,
-        r"Velocity divergence $\nabla\cdot v$", "divergence [km s$^{-1}$ kpc$^{-1}$]",
+        axes[0, 0],
+        time_cells,
+        plot_radius,
+        divergence,
+        r"Velocity divergence $\nabla\cdot v$",
+        "divergence [km s$^{-1}$ kpc$^{-1}$]",
     )
     _plot_indicator(
-        axes[0, 1], time_pairs, plot_midpoint_radius, density_jump,
+        axes[0, 1],
+        time_pairs,
+        plot_midpoint_radius,
+        density_jump,
         r"Density jump proxy $\log_{10}(\rho_{\rm inner}/\rho_{\rm outer})$",
-        "log density jump", signed=True,
+        "log density jump",
+        signed=True,
     )
     _plot_indicator(
-        axes[1, 0], time_pairs, plot_midpoint_radius, velocity_jump_mach,
-        r"Velocity-jump Mach proxy $|\Delta v|/c_s$", "Mach proxy", signed=False,
+        axes[1, 0],
+        time_pairs,
+        plot_midpoint_radius,
+        velocity_jump_mach,
+        r"Velocity-jump Mach proxy $|\Delta v|/c_s$",
+        "Mach proxy",
+        signed=False,
     )
     _plot_indicator(
-        axes[1, 1], time_pairs, plot_midpoint_radius, entropy_jump,
+        axes[1, 1],
+        time_pairs,
+        plot_midpoint_radius,
+        entropy_jump,
         r"Entropy jump $\log_{10}(S_{\rm inner}/S_{\rm outer})$",
-        "log entropy jump", signed=True,
+        "log entropy jump",
+        signed=True,
     )
     for axis in axes[-1]:
         axis.set_xlabel("cosmic time [Gyr]")

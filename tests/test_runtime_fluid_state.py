@@ -6,14 +6,13 @@ import unyt
 
 from radhydropy.eos import EOS
 from radhydropy.fluid import Fluid
-from radhydropy.units import CodeUnits
-
 from radhydropy.runtime_fields import (
-    FluidRuntimeState,
     SUPERCOMOVING_RUNTIME_FIELDS,
+    FluidRuntimeState,
     runtime_fields,
 )
 from radhydropy.state_boundaries import UnitBoundaryError
+from radhydropy.units import CodeUnits
 
 
 def test_supercomoving_fluid_runtime_state_has_explicit_fields():
@@ -78,7 +77,7 @@ def test_fluid_setup_converts_physical_builder_arrays_before_runtime_state():
                 "UnitCurrent_in_cgs": 1.0,
                 "UnitTemp_in_cgs": 1.0,
             },
-        }
+        },
     )
     par = SimpleNamespace(
         CodeUnits=code_units,
@@ -102,8 +101,11 @@ def test_fluid_setup_converts_physical_builder_arrays_before_runtime_state():
     fluid.SetUpFluid(par)
 
     for name in (
-        "rho_proper_code", "vel_proper_code", "pre_proper_code",
-        "temp_proper_code", "time_proper_code",
+        "rho_proper_code",
+        "vel_proper_code",
+        "pre_proper_code",
+        "temp_proper_code",
+        "time_proper_code",
     ):
         value = getattr(fluid.runtime_state, name)
         assert not hasattr(value, "units")

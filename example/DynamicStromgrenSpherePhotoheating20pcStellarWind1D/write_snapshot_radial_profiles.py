@@ -20,14 +20,12 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.units import quantity_to_value
 import example_utils as eu
+
 import tools as et
+from radhydropy.units import quantity_to_value
 
-
-DEFAULT_CONFIG = EXAMPLE_DIR / (
-    'dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml'
-)
+DEFAULT_CONFIG = EXAMPLE_DIR / ("dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml")
 
 
 def snapshot_time_myr(snapshot_filename, config):
@@ -49,37 +47,37 @@ def process_snapshots(snapshot_directory=EXAMPLE_DIR, config_filename=DEFAULT_CO
     """Write one time-stamped radial-profile CSV for every snapshot."""
     snapshot_directory = Path(snapshot_directory).resolve()
     config = eu.load_nested_example_config(config_filename)
-    csv_directory = snapshot_directory / 'radial_profiles'
+    csv_directory = snapshot_directory / "radial_profiles"
     csv_directory.mkdir(parents=True, exist_ok=True)
-    snapshots = sorted(snapshot_directory.glob('Output_*.hdf5'))
+    snapshots = sorted(snapshot_directory.glob("Output_*.hdf5"))
     if not snapshots:
-        raise FileNotFoundError(f'No Output_*.hdf5 files found in {snapshot_directory}')
+        raise FileNotFoundError(f"No Output_*.hdf5 files found in {snapshot_directory}")
 
     csv_files = []
     for snapshot in snapshots:
         time_proper_Myr = snapshot_time_myr(snapshot, config)
-        time_label = f'{time_proper_Myr:.6g}'
-        csv_filename = csv_directory / f'radial_profile_{time_label}Myr.csv'
+        time_label = f"{time_proper_Myr:.6g}"
+        csv_filename = csv_directory / f"radial_profile_{time_label}Myr.csv"
         csv_files.append(write_snapshot_profile(snapshot, config, csv_filename))
-        print(f'{snapshot.name} -> {csv_filename.name}')
+        print(f"{snapshot.name} -> {csv_filename.name}")
     return csv_files
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Write radial-profile CSV files from HDF5 snapshots.',
+        description="Write radial-profile CSV files from HDF5 snapshots.",
     )
     parser.add_argument(
-        'snapshot',
-        nargs='?',
+        "snapshot",
+        nargs="?",
         type=Path,
-        help='One snapshot to write as radial_profile.csv.',
+        help="One snapshot to write as radial_profile.csv.",
     )
     parser.add_argument(
-        '--directory',
+        "--directory",
         type=Path,
         default=EXAMPLE_DIR,
-        help='Directory containing Output_*.hdf5 files.',
+        help="Directory containing Output_*.hdf5 files.",
     )
     return parser.parse_args()
 
@@ -89,14 +87,14 @@ def main():
     config = eu.load_nested_example_config(DEFAULT_CONFIG)
     if args.snapshot is not None:
         snapshot = args.snapshot.resolve()
-        output_directory = snapshot.parent / 'radial_profiles'
+        output_directory = snapshot.parent / "radial_profiles"
         output_directory.mkdir(parents=True, exist_ok=True)
-        output = output_directory / 'radial_profile.csv'
+        output = output_directory / "radial_profile.csv"
         write_snapshot_profile(snapshot, config, output)
-        print(f'{snapshot.name} -> {output.name}')
+        print(f"{snapshot.name} -> {output.name}")
     else:
         process_snapshots(args.directory)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -41,10 +41,7 @@ def scale_unit_for_key(scale_key):
 
 def normalize_attr_name(name):
     """Return a safe Python attribute name for an HDF5 dataset name."""
-    normalized = [
-        char if char.isalnum() or char == "_" else "_"
-        for char in str(name)
-    ]
+    normalized = [char if char.isalnum() or char == "_" else "_" for char in str(name)]
     return "".join(normalized).strip("_") or "field"
 
 
@@ -65,13 +62,12 @@ def read_any_dataset(dataset, code_units=None, scale_key=None):
             FieldSpec.from_metadata(metadata)
         except (TypeError, ValueError) as exc:
             raise ValueError(
-                f"Dataset {dataset.name!r} has invalid FieldSpec metadata"
+                f"Dataset {dataset.name!r} has invalid FieldSpec metadata",
             ) from exc
         return as_named_array(data)
     if storage_unit not in {None, "cgs"}:
         raise ValueError(
-            f"Dataset {dataset.name!r} has unsupported storage_unit "
-            f"{storage_unit!r}"
+            f"Dataset {dataset.name!r} has unsupported storage_unit {storage_unit!r}",
         )
     unit_name = dataset.attrs.get("units", None)
     if code_units is not None and scale_key is not None:
@@ -85,7 +81,7 @@ def read_any_dataset(dataset, code_units=None, scale_key=None):
     if unit_name:
         raise ValueError(
             f"Cannot read dataset {dataset.name!r} with units {unit_name!r} "
-            "without a code-unit mapping."
+            "without a code-unit mapping.",
         )
     return as_named_array(data)
 
@@ -107,22 +103,27 @@ def populate_group_targets(group, targets, code_units=None, scale_map=None):
 
 
 def write_quantity(
-    group, name, value, code_units=None, scale_key=None, default_unit=None,
-    metadata=None, field_spec_obj=None,
+    group,
+    name,
+    value,
+    code_units=None,
+    scale_key=None,
+    default_unit=None,
+    metadata=None,
+    field_spec_obj=None,
 ):
     """Write one quantity with canonical units and field metadata."""
+
     def _unit_label(unit_obj):
         return str(getattr(unit_obj, "units", unit_obj))
 
     if code_units is None and scale_key is not None:
         raise ValueError(f"{name} requires code_units for HDF5 serialization")
-    storage_unit = (
-        field_spec_obj.storage_unit if field_spec_obj is not None else "cgs"
-    )
+    storage_unit = field_spec_obj.storage_unit if field_spec_obj is not None else "cgs"
     if field_spec_obj is not None and storage_unit == "code":
         if code_units is None or scale_key is None:
             raise ValueError(
-                f"{name} requires code_units and scale_key for code storage"
+                f"{name} requires code_units and scale_key for code storage",
             )
         code_unit = scale_unit_for_key(scale_key)
         if code_unit is None:
@@ -192,20 +193,22 @@ def radarray_field_spec(dataset, canonical_name, code_units, cosmology):
         expected_representation = "supercomoving"
     elif canonical_name.endswith("_proper_code"):
         expected_representation = "proper"
-    if (
-        expected_representation is not None
-        and restored.representation != expected_representation
-    ):
+    if expected_representation is not None and restored.representation != expected_representation:
         raise ValueError(
             f"{dataset.name!r} uses representation "
             f"{restored.representation!r}; expected "
-            f"{expected_representation!r} for {canonical_name!r}"
+            f"{expected_representation!r} for {canonical_name!r}",
         )
     return restored
 
 
 def attach_radarray_views(
-    group, target, dataset_names, canonical_schema, code_units, cosmology,
+    group,
+    target,
+    dataset_names,
+    canonical_schema,
+    code_units,
+    cosmology,
     allowed_names=None,
 ):
     """Expose loaded dimensional fields as typed ``*_radarray`` views."""
@@ -239,7 +242,10 @@ def attach_radarray_views(
         if not hasattr(target, attr_name):
             continue
         spec = radarray_field_spec(
-            dataset_names[dataset_name], canonical_name, code_units, cosmology
+            dataset_names[dataset_name],
+            canonical_name,
+            code_units,
+            cosmology,
         )
         setattr(
             target,
@@ -264,7 +270,7 @@ def attach_radarray_views(
             spec = radarray_field_spec(dataset, dataset_name, code_units, cosmology)
         except (TypeError, ValueError):
             continue
-        radarray_name = attr_name[:-5] if attr_name.endswith("_code") else attr_name
+        radarray_name = attr_name.removesuffix("_code")
         setattr(
             target,
             f"{radarray_name}_radarray",
@@ -279,7 +285,11 @@ def attach_radarray_views(
 
 
 def attach_dark_matter_radarray_views(
-    group, par, code_units, cosmology, canonical_schema
+    group,
+    par,
+    code_units,
+    cosmology,
+    canonical_schema,
 ):
     """Restore the typed analysis view for a ``DarkMatter`` HDF5 group."""
     if group is None or cosmology is None:
@@ -302,7 +312,7 @@ def attach_dark_matter_radarray_views(
     for dataset_name, canonical_name in field_names.items():
         if dataset_name not in group or not hasattr(par, dataset_name):
             raise ValueError(
-                f"DarkMatter group is missing required dataset {dataset_name!r}"
+                f"DarkMatter group is missing required dataset {dataset_name!r}",
             )
         dataset = group[dataset_name]
         spec = radarray_field_spec(dataset, canonical_name, code_units, cosmology)
@@ -315,21 +325,22 @@ def attach_dark_matter_radarray_views(
         )
 
     softening_runtime_code = _restore_header_attr_value(
-        group.attrs.get("Softening", 0.0)
+        group.attrs.get("Softening", 0.0),
     )
     if hasattr(softening_runtime_code, "to_value"):
         softening_runtime_code = float(
-            np.asarray(softening_runtime_code.to_value(code_units.length_unit))
+            np.asarray(softening_runtime_code.to_value(code_units.length_unit)),
         )
     else:
         softening_runtime_code = float(softening_runtime_code)
     softening_field_name = (
-        "radius_comoving_code"
-        if canonical_schema == "cosmological"
-        else "radius_proper_code"
+        "radius_comoving_code" if canonical_schema == "cosmological" else "radius_proper_code"
     )
     softening_spec = radarray_field_spec(
-        group["Radius"], softening_field_name, code_units, cosmology
+        group["Radius"],
+        softening_field_name,
+        code_units,
+        cosmology,
     )
     return DarkMatterSnapshot(
         radius_radarray=views["Radius"],

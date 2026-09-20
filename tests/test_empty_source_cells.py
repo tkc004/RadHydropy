@@ -38,6 +38,7 @@ def test_compton_source_skips_empty_cells():
     _apply_compton_only_source(state, 1.0e12)
 
     assert np.isclose(state["temperature_cgs_K"][1], 42.0)
-    assert np.isclose(state["specific_total_energy_cgs_erg_g"][1], 42.0 / (
-        (5.0 / 3.0 - 1.0) * 1.0 * 1.67262192369e-24
-    ) * 1.380649e-16)
+    assert np.isclose(
+        state["specific_total_energy_cgs_erg_g"][1],
+        42.0 / ((5.0 / 3.0 - 1.0) * 1.0 * 1.67262192369e-24) * 1.380649e-16,
+    )

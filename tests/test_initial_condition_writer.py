@@ -1,18 +1,17 @@
+import tempfile
 from copy import deepcopy
 from pathlib import Path
-import tempfile
 
 import numpy as np
 import pytest
 
+import radhydropy.io as rio
 from example.example_utils import load_nested_example_config
 from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import field_spec, hubble_parameter_code
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.units import CodeUnits
-import radhydropy.io as rio
-
 
 CONFIG_FILE = (
     Path(__file__).parents[1]
@@ -75,16 +74,28 @@ def test_writer_compact_assignments_roundtrip_proper_ic():
         context,
     )
     writer.fluid.rho_radarray = _radarray(
-        np.array([2.0, 3.0]), "rho_proper_code", code_units, context
+        np.array([2.0, 3.0]),
+        "rho_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.vel_radarray = _radarray(
-        np.array([4.0, 5.0]), "vel_proper_code", code_units, context
+        np.array([4.0, 5.0]),
+        "vel_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.temp_radarray = _radarray(
-        np.array([6.0, 7.0]), "temp_proper_code", code_units, context
+        np.array([6.0, 7.0]),
+        "temp_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.pre_radarray = _radarray(
-        np.array([8.0, 9.0]), "pre_proper_code", code_units, context
+        np.array([8.0, 9.0]),
+        "pre_proper_code",
+        code_units,
+        context,
     )
 
     with tempfile.NamedTemporaryFile(suffix=".hdf5") as output:
@@ -176,7 +187,8 @@ def test_writer_radarray_selects_explicit_cosmological_representations():
 
         if quantity == "velocity":
             hubble_code = hubble_parameter_code(
-                code_units, 70.0
+                code_units,
+                70.0,
             )
             proper = result.to_proper(x_comoving_code=1.0)
             expected_proper = hubble_code * 0.5 + 3.0 / 0.5
@@ -215,7 +227,8 @@ def test_writer_radarray_selects_explicit_cosmological_representations():
 
     disabled_config = deepcopy(config)
     disabled_config["par"]["cosmology"].update(
-        cosmological=False, supercomoving_coordinates=False
+        cosmological=False,
+        supercomoving_coordinates=False,
     )
     disabled_writer = InitialConditionWriter(
         par_config=disabled_config["par"],
@@ -224,11 +237,13 @@ def test_writer_radarray_selects_explicit_cosmological_representations():
     )
     with pytest.raises(ValueError, match="requires"):
         disabled_writer.radarray(
-            1.0 * code_units.density_unit, representation="comoving"
+            1.0 * code_units.density_unit,
+            representation="comoving",
         )
     with pytest.raises(ValueError, match="requires"):
         disabled_writer.radarray(
-            1.0 * code_units.velocity_unit, representation="supercomoving"
+            1.0 * code_units.velocity_unit,
+            representation="supercomoving",
         )
 
     for flag in ("cosmological", "supercomoving_coordinates"):
@@ -256,13 +271,12 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
     simulation = writer.simulation
     scale_factor = 0.5
     time_cosmic_code = float(
-        simulation.par.cosmology.model.cosmic_time_from_scale_factor(scale_factor)
+        simulation.par.cosmology.model.cosmic_time_from_scale_factor(scale_factor),
     )
     hubble_code = float(simulation.par.cosmology.model.hubble(time_cosmic_code))
-    hubble_unit_km_s_Mpc = (
-        code_units.velocity_unit.to_value("km/s")
-        / code_units.length_unit.to_value("Mpc")
-    )
+    hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
+        "km/s"
+    ) / code_units.length_unit.to_value("Mpc")
     context = CosmologyContext(
         gamma=5.0 / 3.0,
         cosmology=simulation.par.cosmology.model.type_name,
@@ -271,12 +285,10 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
     )
     simulation.par.cosmology_context = context
     tau_supercomoving_code = float(
-        simulation.par.cosmology.model.supercomoving_time(time_cosmic_code)
+        simulation.par.cosmology.model.supercomoving_time(time_cosmic_code),
     )
     simulation.par.tau_supercomoving_code = np.array([tau_supercomoving_code])
-    simulation.par.simulation.tau_supercomoving_code = (
-        simulation.par.tau_supercomoving_code.copy()
-    )
+    simulation.par.simulation.tau_supercomoving_code = simulation.par.tau_supercomoving_code.copy()
     simulation.par.coordinate_frame = "comoving"
     simulation.par.time_coordinate = "supercomoving"
     simulation.par.velocity_representation = "supercomoving_peculiar"
@@ -289,8 +301,9 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
     assert velocity_radquantity.field_spec.representation == "supercomoving"
     proper_velocity = velocity_radquantity.to_proper(x_comoving_code=1.0)
     assert proper_velocity.value == pytest.approx(
-        _radarray(np.array([5.0]), "vel_supercomoving_code", code_units, context)
-        .to_proper(x_comoving_code=np.array([1.0]))[0]
+        _radarray(np.array([5.0]), "vel_supercomoving_code", code_units, context).to_proper(
+            x_comoving_code=np.array([1.0])
+        )[0],
     )
 
     writer.box_size = _box_size(2.0, code_units, context)
@@ -301,21 +314,36 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
         context,
     )
     writer.fluid.rho_radarray = _radarray(
-        np.ones(2), "rho_proper_code", code_units, context
+        np.ones(2),
+        "rho_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.vel_radarray = _radarray(
-        np.array([5.0, 5.0]), "vel_proper_code", code_units, context
+        np.array([5.0, 5.0]),
+        "vel_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.temp_radarray = _radarray(
-        np.ones(2), "temp_proper_code", code_units, context
+        np.ones(2),
+        "temp_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.pre_radarray = _radarray(
-        np.ones(2), "pre_proper_code", code_units, context
+        np.ones(2),
+        "pre_proper_code",
+        code_units,
+        context,
     )
 
     writer.prepare()
     expected = _radarray(
-        np.array([5.0, 5.0]), "vel_proper_code", code_units, context
+        np.array([5.0, 5.0]),
+        "vel_proper_code",
+        code_units,
+        context,
     ).to_comoving(x_comoving_code=np.array([1.0, 3.0]))
     np.testing.assert_allclose(
         writer.simulation.fluid.vel_supercomoving_code,
@@ -325,11 +353,13 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
 
 def test_writer_cosmological_prepare_and_hdf5_roundtrip():
     config = deepcopy(load_nested_example_config(CONFIG_FILE))
-    config["par"]["cosmology"].update({
-        "cosmological": True,
-        "cosmological_expansion": True,
-        "supercomoving_coordinates": True,
-    })
+    config["par"]["cosmology"].update(
+        {
+            "cosmological": True,
+            "cosmological_expansion": True,
+            "supercomoving_coordinates": True,
+        }
+    )
     code_units = _code_units(config)
     writer = InitialConditionWriter(
         par_config=config["par"],
@@ -338,13 +368,12 @@ def test_writer_cosmological_prepare_and_hdf5_roundtrip():
     simulation = writer.simulation
     scale_factor = 0.5
     time_cosmic_code = float(
-        simulation.par.cosmology.model.cosmic_time_from_scale_factor(scale_factor)
+        simulation.par.cosmology.model.cosmic_time_from_scale_factor(scale_factor),
     )
     hubble_code = float(simulation.par.cosmology.model.hubble(time_cosmic_code))
-    hubble_unit_km_s_Mpc = (
-        code_units.velocity_unit.to_value("km/s")
-        / code_units.length_unit.to_value("Mpc")
-    )
+    hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
+        "km/s"
+    ) / code_units.length_unit.to_value("Mpc")
     context = CosmologyContext(
         gamma=5.0 / 3.0,
         cosmology=simulation.par.cosmology.model.type_name,
@@ -353,12 +382,10 @@ def test_writer_cosmological_prepare_and_hdf5_roundtrip():
     )
     simulation.par.cosmology_context = context
     tau_supercomoving_code = float(
-        simulation.par.cosmology.model.supercomoving_time(time_cosmic_code)
+        simulation.par.cosmology.model.supercomoving_time(time_cosmic_code),
     )
     simulation.par.tau_supercomoving_code = np.array([tau_supercomoving_code])
-    simulation.par.simulation.tau_supercomoving_code = (
-        simulation.par.tau_supercomoving_code.copy()
-    )
+    simulation.par.simulation.tau_supercomoving_code = simulation.par.tau_supercomoving_code.copy()
     simulation.par.coordinate_frame = "comoving"
     simulation.par.time_coordinate = "supercomoving"
     simulation.par.velocity_representation = "supercomoving_peculiar"
@@ -374,68 +401,117 @@ def test_writer_cosmological_prepare_and_hdf5_roundtrip():
         context,
     )
     writer.fluid.rho_radarray = _radarray(
-        np.array([2.0, 3.0]), "rho_proper_code", code_units, context
+        np.array([2.0, 3.0]),
+        "rho_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.vel_radarray = _radarray(
-        np.array([5.0, 5.0]), "vel_proper_code", code_units, context
+        np.array([5.0, 5.0]),
+        "vel_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.temp_radarray = _radarray(
-        np.array([8.0, 8.0]), "temp_proper_code", code_units, context
+        np.array([8.0, 8.0]),
+        "temp_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.pre_radarray = _radarray(
-        np.array([1.0, 1.0]), "pre_proper_code", code_units, context
+        np.array([1.0, 1.0]),
+        "pre_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.mu = np.array([0.6, 1.2])
     simulation.fluid.specific_angular_momentum_code = np.full(2, 0.25)
 
-    expected_boundary = _radarray(
-        np.array([0.0, 1.0, 2.0]), "boundary_proper_code", code_units, context
-    ).to_comoving().value
-    expected_density = _radarray(
-        np.array([2.0, 3.0]), "rho_proper_code", code_units, context
-    ).to_comoving().value
-    expected_temperature = _radarray(
-        np.array([8.0, 8.0]), "temp_proper_code", code_units, context
-    ).to_comoving().value
-    expected_velocity = _radarray(
-        np.array([5.0, 5.0]), "vel_proper_code", code_units, context
-    ).to_comoving(x_comoving_code=np.array([1.0, 3.0])).value
+    expected_boundary = (
+        _radarray(
+            np.array([0.0, 1.0, 2.0]),
+            "boundary_proper_code",
+            code_units,
+            context,
+        )
+        .to_comoving()
+        .value
+    )
+    expected_density = (
+        _radarray(
+            np.array([2.0, 3.0]),
+            "rho_proper_code",
+            code_units,
+            context,
+        )
+        .to_comoving()
+        .value
+    )
+    expected_temperature = (
+        _radarray(
+            np.array([8.0, 8.0]),
+            "temp_proper_code",
+            code_units,
+            context,
+        )
+        .to_comoving()
+        .value
+    )
+    expected_velocity = (
+        _radarray(
+            np.array([5.0, 5.0]),
+            "vel_proper_code",
+            code_units,
+            context,
+        )
+        .to_comoving(x_comoving_code=np.array([1.0, 3.0]))
+        .value
+    )
 
     with tempfile.NamedTemporaryFile(suffix=".hdf5") as output:
         writer.write(output.name)
         prepared = writer.simulation
         np.testing.assert_allclose(
-            prepared.mesh.boundary_comoving_code, expected_boundary
+            prepared.mesh.boundary_comoving_code,
+            expected_boundary,
         )
         np.testing.assert_allclose(
-            prepared.fluid.rho_comoving_code, expected_density
+            prepared.fluid.rho_comoving_code,
+            expected_density,
         )
         np.testing.assert_allclose(
-            prepared.fluid.temp_supercomoving_code, expected_temperature
+            prepared.fluid.temp_supercomoving_code,
+            expected_temperature,
         )
         np.testing.assert_allclose(
-            prepared.fluid.vel_supercomoving_code, expected_velocity
+            prepared.fluid.vel_supercomoving_code,
+            expected_velocity,
         )
         np.testing.assert_allclose(
-            prepared.fluid.specific_angular_momentum_code, 0.25
+            prepared.fluid.specific_angular_momentum_code,
+            0.25,
         )
         np.testing.assert_allclose(prepared.fluid.mu, [0.6, 1.2])
         assert np.all(np.isfinite(prepared.fluid.Energy_code))
         restored = rio.loadhdf5(config, output.name)
 
     np.testing.assert_allclose(
-        restored.mesh.boundary_comoving_code, expected_boundary
+        restored.mesh.boundary_comoving_code,
+        expected_boundary,
     )
     np.testing.assert_allclose(restored.fluid.rho_comoving_code, expected_density)
     np.testing.assert_allclose(
-        restored.fluid.temp_supercomoving_code, expected_temperature
+        restored.fluid.temp_supercomoving_code,
+        expected_temperature,
     )
     np.testing.assert_allclose(restored.fluid.vel_supercomoving_code, expected_velocity)
     np.testing.assert_allclose(
-        restored.par.tau_supercomoving_code, [tau_supercomoving_code]
+        restored.par.tau_supercomoving_code,
+        [tau_supercomoving_code],
     )
     np.testing.assert_allclose(
-        restored.fluid.specific_angular_momentum_code, 0.25
+        restored.fluid.specific_angular_momentum_code,
+        0.25,
     )
 
 
@@ -451,7 +527,7 @@ def test_writer_rejects_code_unit_mismatch():
                 "UnitCurrent_in_cgs": 1.0,
                 "UnitTemp_in_cgs": 1.0,
             },
-        }
+        },
     )
     with pytest.raises(ValueError, match="code-unit mass_in_cgs"):
         InitialConditionWriter(
@@ -476,16 +552,28 @@ def test_writer_rejects_box_size_mismatch():
         context,
     )
     writer.fluid.rho_radarray = _radarray(
-        np.ones(2), "rho_proper_code", code_units, context
+        np.ones(2),
+        "rho_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.vel_radarray = _radarray(
-        np.zeros(2), "vel_proper_code", code_units, context
+        np.zeros(2),
+        "vel_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.temp_radarray = _radarray(
-        np.ones(2), "temp_proper_code", code_units, context
+        np.ones(2),
+        "temp_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.pre_radarray = _radarray(
-        np.ones(2), "pre_proper_code", code_units, context
+        np.ones(2),
+        "pre_proper_code",
+        code_units,
+        context,
     )
 
     with pytest.raises(ValueError, match="box_size"):
@@ -507,16 +595,28 @@ def test_writer_validates_active_state_after_solver_setup():
         context,
     )
     writer.fluid.rho_radarray = _radarray(
-        np.array([1.0, -1.0]), "rho_proper_code", code_units, context
+        np.array([1.0, -1.0]),
+        "rho_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.vel_radarray = _radarray(
-        np.zeros(2), "vel_proper_code", code_units, context
+        np.zeros(2),
+        "vel_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.temp_radarray = _radarray(
-        np.ones(2), "temp_proper_code", code_units, context
+        np.ones(2),
+        "temp_proper_code",
+        code_units,
+        context,
     )
     writer.fluid.pre_radarray = _radarray(
-        np.ones(2), "pre_proper_code", code_units, context
+        np.ones(2),
+        "pre_proper_code",
+        code_units,
+        context,
     )
 
     writer.prepare()

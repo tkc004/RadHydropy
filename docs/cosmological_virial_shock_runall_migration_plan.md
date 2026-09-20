@@ -94,9 +94,7 @@ def run(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
 
     writer = build_initial_condition(config)
-    writer.write(
-        config["par"]["simulation"]["initial_condition_filename"]
-    )
+    writer.write(config["par"]["simulation"]["initial_condition_filename"])
 
     mainrun = Rsim(config["par"])
     diagnostics = CosmologicalVirialShockDiagnostics(config)
@@ -295,17 +293,13 @@ class CosmologicalVirialShockDiagnostics:
         self.energy_history = []
         self.snapshot_files = []
 
-    def before_step(self, sim):
-        ...
+    def before_step(self, sim): ...
 
-    def on_step(self, sim):
-        ...
+    def on_step(self, sim): ...
 
-    def on_snapshot(self, sim, snapshot_filename, output_index):
-        ...
+    def on_snapshot(self, sim, snapshot_filename, output_index): ...
 
-    def finalize(self, sim):
-        ...
+    def finalize(self, sim): ...
 ```
 
 The component may be split into smaller helpers if the existing file becomes

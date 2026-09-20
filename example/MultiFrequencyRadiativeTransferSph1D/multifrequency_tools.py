@@ -11,7 +11,6 @@ from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.thermo_networks.hydrogen import (
     collisional_equilibrium_neutral_fraction,
 )
-from radhydropy.units import quantity_to_value
 
 
 def build_initial_condition(config):
@@ -23,72 +22,69 @@ def build_initial_condition(config):
     units = config["_code_units"]
     grid_cells = int(par_config["mesh"]["grid_cells"])
     box_size_proper_unyt = initial["box_size_proper"]
-    boundary_proper_unyt = (
-        np.linspace(0.0, 1.0, grid_cells + 1) * box_size_proper_unyt
-    )
+    boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * box_size_proper_unyt
     hydrogen_mass_fraction = float(
-        chemistry.get("hydrogen_mass_fraction", 1.0)
+        chemistry.get("hydrogen_mass_fraction", 1.0),
     )
     rho_proper_unyt = (
-        np.ones(grid_cells)
-        * initial["hydrogen_number_density"]
-        * unyt.mp
-        / hydrogen_mass_fraction
+        np.ones(grid_cells) * initial["hydrogen_number_density"] * unyt.mp / hydrogen_mass_fraction
     ).to(unyt.g / unyt.cm**3)
     temperature_proper_unyt = np.ones(grid_cells) * initial["temperature_proper"]
 
     writer = InitialConditionWriter(
-        par_config=par_config, code_units=units, ic_config=initial,
+        par_config=par_config,
+        code_units=units,
+        ic_config=initial,
     )
     writer.box_size = writer.radquantity(box_size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(
-        np.zeros(grid_cells) * units.velocity_unit
+        np.zeros(grid_cells) * units.velocity_unit,
     )
     writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
 
     hydrogen_xHI_initial = float(chemistry.get("hydrogen_xHI_initial", 1.0))
     if thermochemistry.get("hydrogen_initial_collisional_equilibrium", False):
         hydrogen_xHI_initial = collisional_equilibrium_neutral_fraction(
-            temperature_proper_unyt.to_value(unyt.K)
+            temperature_proper_unyt.to_value(unyt.K),
         )
     writer.simulation.fluid.xHI = as_named_array(
-        np.full(grid_cells, hydrogen_xHI_initial, dtype=float)
+        np.full(grid_cells, hydrogen_xHI_initial, dtype=float),
     )
 
     network_name = thermochemistry.get("thermochemistry_network", "hydrogen")
     if network_name == "hydrogen_helium":
         helium_mass_fraction = float(
-            chemistry.get("helium_mass_fraction", 0.0)
+            chemistry.get("helium_mass_fraction", 0.0),
         )
         writer.fluid.mu = as_named_array(
             np.full(
                 grid_cells,
                 1.0 / (hydrogen_mass_fraction + helium_mass_fraction / 4.0),
-            )
+            ),
         )
         writer.simulation.fluid.xHeI = as_named_array(
             np.full(
                 grid_cells,
                 float(chemistry.get("hydrogen_helium_xHeI_initial", 1.0)),
-            )
+            ),
         )
         writer.simulation.fluid.xHeII = as_named_array(
             np.full(
                 grid_cells,
                 float(chemistry.get("hydrogen_helium_xHeII_initial", 0.0)),
-            )
+            ),
         )
         writer.simulation.fluid.xHeIII = as_named_array(
             np.full(
                 grid_cells,
                 float(chemistry.get("hydrogen_helium_xHeIII_initial", 0.0)),
-            )
+            ),
         )
     else:
         writer.fluid.mu = as_named_array(
-            np.ones(grid_cells, dtype=float)
+            np.ones(grid_cells, dtype=float),
         )
 
     group_count_value = getattr(
@@ -97,9 +93,7 @@ def build_initial_condition(config):
         None,
     )
     group_count = 1 if group_count_value is None else int(group_count_value)
-    photon_number_density_cgs_cm3_unyt = (
-        np.zeros((group_count, grid_cells)) / unyt.cm**3
-    )
+    photon_number_density_cgs_cm3_unyt = np.zeros((group_count, grid_cells)) / unyt.cm**3
     writer.fluid.ngamma_radarray = writer.radarray(
         photon_number_density_cgs_cm3_unyt,
     )
@@ -121,11 +115,11 @@ def active_radarray(values, active_cells, ghost_cells, *, boundary=False):
     expected_ghosted = expected_active + 2 * ghost_cells
     if values_size == expected_ghosted:
         if len(values_shape) > 1:
-            return values[..., ghost_cells:ghost_cells + expected_active]
-        return values[ghost_cells:ghost_cells + expected_active]
+            return values[..., ghost_cells : ghost_cells + expected_active]
+        return values[ghost_cells : ghost_cells + expected_active]
     raise ValueError(
         f"unexpected {'boundary' if boundary else 'fluid'} RadArray size "
-        f"{values_size}; expected {expected_active} or {expected_ghosted}"
+        f"{values_size}; expected {expected_active} or {expected_ghosted}",
     )
 
 

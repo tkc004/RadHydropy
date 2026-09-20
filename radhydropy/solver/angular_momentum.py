@@ -1,22 +1,9 @@
 """Numerical solver subsystem helpers."""
 
 import numpy as np
-from types import SimpleNamespace
 
 import radhydropy.utils as ru
-import radhydropy.chemistry_species.hydrogen as rh
-import radhydropy.radiative_transfer as rrt
-import radhydropy.thermo_chemistry as rtc
-import radhydropy.gravity as rg
-from radhydropy.constants import DEFAULT_SIGMA_GAMMA_CGS_CM2, SPEED_OF_LIGHT_CGS
-from radhydropy.units import (
-    CGS_AREA_UNIT, CGS_MASS_DENSITY_UNIT, CGS_NUMBER_DENSITY_UNIT,
-    CGS_PHOTON_FLUX_UNIT, CGS_RATE_UNIT, CGS_VOLUME_UNIT,
-    code_unit_scales, _as_cgs_float, _code_units, code_quantity_to_cgs,
-    photon_number_density,
-)
 from radhydropy.arrays import as_named_array
-from radhydropy.runtime_fields import PROPER_RUNTIME_FIELDS, SUPERCOMOVING_RUNTIME_FIELDS
 
 
 def _canonical_mesh_geometry(mesh):
@@ -80,20 +67,21 @@ def _canonical_mesh_geometry(mesh):
 def _set_angular_momentum_flux(fluid, order=0):
     """Build a mass-consistent flux for optional gas angular momentum."""
     if not (
-        hasattr(fluid, 'specific_angular_momentum_code')
-        and hasattr(fluid, 'AngularMomentum_code')
+        hasattr(fluid, "specific_angular_momentum_code") and hasattr(fluid, "AngularMomentum_code")
     ):
         return None
     mass_flux = np.asarray(fluid.Mass_code.flux, dtype=float)
     j_left = np.asarray(fluid.specific_angular_momentum_code.L, dtype=float)
     j_right = np.asarray(fluid.specific_angular_momentum_code.R, dtype=float)
     j_donor = np.where(mass_flux >= 0.0, j_left, j_right)
-    if order == 1 and hasattr(fluid.specific_angular_momentum_code.R, 'first'):
+    if order == 1 and hasattr(fluid.specific_angular_momentum_code.R, "first"):
         j_left_high = np.asarray(
-            fluid.specific_angular_momentum_code.L.first, dtype=float
+            fluid.specific_angular_momentum_code.L.first,
+            dtype=float,
         )
         j_right_high = np.asarray(
-            fluid.specific_angular_momentum_code.R.first, dtype=float
+            fluid.specific_angular_momentum_code.R.first,
+            dtype=float,
         )
     else:
         j_left_high, j_right_high = j_left, j_right
@@ -102,13 +90,13 @@ def _set_angular_momentum_flux(fluid, order=0):
     # face-level FCT limiter in AddFluxes decides how much of its
     # antidiffusive correction is admissible for the two cells.
     fluid.angular_momentum_flux_low = as_named_array(
-        mass_flux * j_donor
+        mass_flux * j_donor,
     )
     fluid.angular_momentum_flux_high = as_named_array(
-        mass_flux * j_high
+        mass_flux * j_high,
     )
     fluid.AngularMomentum_code.flux = as_named_array(
-        fluid.angular_momentum_flux_high.copy()
+        fluid.angular_momentum_flux_high.copy(),
     )
     # Rotational energy must use the same donor state as J.  Keep this as
     # a scratch field rather than reconstructing j a second time after
@@ -116,6 +104,7 @@ def _set_angular_momentum_flux(fluid, order=0):
     fluid.angular_momentum_face = as_named_array(j_high)
     fluid.angular_momentum_face_low = as_named_array(j_donor)
     return j_high
+
 
 def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     """Apply a local FCT limiter to the angular-momentum flux.
@@ -126,29 +115,31 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     relation and avoids globally reducing angular-momentum accuracy.
     """
     if not (
-        hasattr(fluid, 'AngularMomentum_code')
-        and hasattr(fluid, 'angular_momentum_flux_low')
-        and hasattr(fluid, 'angular_momentum_flux_high')
+        hasattr(fluid, "AngularMomentum_code")
+        and hasattr(fluid, "angular_momentum_flux_low")
+        and hasattr(fluid, "angular_momentum_flux_high")
     ):
         return
     low = np.asarray(fluid.angular_momentum_flux_low, dtype=float)
     high = np.asarray(fluid.angular_momentum_flux_high, dtype=float)
     correction = high - low
     factors = np.ones_like(low)
-    scheme = str(getattr(par, 'angular_momentum_flux_scheme', 'fct')).lower()
-    if scheme not in ('fct', 'donor'):
+    scheme = str(getattr(par, "angular_momentum_flux_scheme", "fct")).lower()
+    if scheme not in ("fct", "donor"):
         raise ValueError(
-            "Unknown angular_momentum_flux_scheme %r; valid options are fct, donor"
-            % scheme
+            "Unknown angular_momentum_flux_scheme %r; valid options are fct, donor" % scheme,
         )
-    if scheme == 'donor':
+    if scheme == "donor":
         factors[...] = 0.0
     if not np.any(correction):
         fluid.AngularMomentum_code.flux = as_named_array(low.copy())
         fluid.angular_momentum_face = as_named_array(
-            np.divide(low, np.asarray(fluid.Mass_code.flux, dtype=float),
-                      out=np.zeros_like(low),
-                      where=np.asarray(fluid.Mass_code.flux, dtype=float) != 0.0)
+            np.divide(
+                low,
+                np.asarray(fluid.Mass_code.flux, dtype=float),
+                out=np.zeros_like(low),
+                where=np.asarray(fluid.Mass_code.flux, dtype=float) != 0.0,
+            ),
         )
         return
 
@@ -160,24 +151,25 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     physical = np.zeros(len(mass), dtype=bool)
     physical[first:last] = True
     mass_flux_area = np.asarray(fluid.Mass_code.flux, dtype=float) * area
-    mass_new = mass + dt * (
-        mass_flux_area - ru.periodic_roll(mass_flux_area, -1)
-    )
+    mass_new = mass + dt * (mass_flux_area - ru.periodic_roll(mass_flux_area, -1))
     momentum_flux_area = np.asarray(fluid.Mom_code.flux, dtype=float) * area
     mom_new = np.asarray(fluid.Mom_code, dtype=float) + dt * (
         momentum_flux_area - ru.periodic_roll(momentum_flux_area, -1)
     )
     low_area = low * area
-    trial_angular = angular + dt * (
-        low_area - ru.periodic_roll(low_area, -1)
-    )
+    trial_angular = angular + dt * (low_area - ru.periodic_roll(low_area, -1))
     specific = np.divide(
-        angular, mass, out=np.zeros_like(angular), where=mass > 0.0
+        angular,
+        mass,
+        out=np.zeros_like(angular),
+        where=mass > 0.0,
     )
-    lower = np.minimum.reduce((specific, ru.periodic_roll(specific, 1),
-                               ru.periodic_roll(specific, -1)))
-    upper = np.maximum.reduce((specific, ru.periodic_roll(specific, 1),
-                               ru.periodic_roll(specific, -1)))
+    lower = np.minimum.reduce(
+        (specific, ru.periodic_roll(specific, 1), ru.periodic_roll(specific, -1))
+    )
+    upper = np.maximum.reduce(
+        (specific, ru.periodic_roll(specific, 1), ru.periodic_roll(specific, -1))
+    )
     correction_area = correction * area
     radius_face = np.abs(boundary[:-1])
     mass_flux = np.asarray(fluid.Mass_code.flux, dtype=float)
@@ -185,18 +177,20 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     rotational_high_flux = np.zeros_like(mass_flux)
     valid_face_radius = (radius_face > 0.0) & np.isfinite(radius_face)
     rotational_low_flux[valid_face_radius] = (
-        0.5 * np.asarray(fluid.angular_momentum_face_low, dtype=float)[valid_face_radius]**2
-        / radius_face[valid_face_radius]**2 * mass_flux[valid_face_radius]
+        0.5
+        * np.asarray(fluid.angular_momentum_face_low, dtype=float)[valid_face_radius] ** 2
+        / radius_face[valid_face_radius] ** 2
+        * mass_flux[valid_face_radius]
     )
     rotational_high_flux[valid_face_radius] = (
-        0.5 * np.asarray(fluid.angular_momentum_face, dtype=float)[valid_face_radius]**2
-        / radius_face[valid_face_radius]**2 * mass_flux[valid_face_radius]
+        0.5
+        * np.asarray(fluid.angular_momentum_face, dtype=float)[valid_face_radius] ** 2
+        / radius_face[valid_face_radius] ** 2
+        * mass_flux[valid_face_radius]
     )
-    rotational_correction_area = (
-        rotational_high_flux - rotational_low_flux
-    ) * area
+    rotational_correction_area = (rotational_high_flux - rotational_low_flux) * area
     base_energy_flux = np.asarray(fluid.Energy_code.flux, dtype=float)
-    if hasattr(fluid, 'rotational_energy_flux'):
+    if hasattr(fluid, "rotational_energy_flux"):
         base_energy_flux -= np.asarray(fluid.rotational_energy_flux, dtype=float)
     base_energy_area = base_energy_flux * area
     base_energy = np.asarray(fluid.Energy_code, dtype=float) + dt * (
@@ -209,25 +203,34 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     thermal = np.asarray(fluid.Energy_code, dtype=float).copy()
     kinetic = np.zeros_like(mass)
     np.divide(
-        0.5 * np.asarray(fluid.Mom_code, dtype=float)**2,
-        mass, out=kinetic, where=mass > 0.0
+        0.5 * np.asarray(fluid.Mom_code, dtype=float) ** 2,
+        mass,
+        out=kinetic,
+        where=mass > 0.0,
     )
     radius = np.abs(coordinate)
     rotational = np.zeros_like(mass)
     valid_radius = (mass > 0.0) & (radius > 0.0)
     rotational[valid_radius] = (
-        0.5 * angular[valid_radius]**2
-        / (mass[valid_radius] * radius[valid_radius]**2)
+        0.5 * angular[valid_radius] ** 2 / (mass[valid_radius] * radius[valid_radius] ** 2)
     )
     thermal -= kinetic + rotational
     thermal_fraction = np.divide(
-        thermal, np.maximum(np.abs(np.asarray(fluid.Energy_code, dtype=float)), 1.0e-300),
+        thermal,
+        np.maximum(np.abs(np.asarray(fluid.Energy_code, dtype=float)), 1.0e-300),
         out=np.full_like(thermal, -np.inf),
         where=np.isfinite(np.asarray(fluid.Energy_code, dtype=float)),
     )
-    margin = max(0.0, float(getattr(
-        par, 'angular_momentum_energy_margin_fraction', 1.0e-4
-    )))
+    margin = max(
+        0.0,
+        float(
+            getattr(
+                par,
+                "angular_momentum_energy_margin_fraction",
+                1.0e-4,
+            )
+        ),
+    )
     energy_problematic = physical & (thermal_fraction <= margin)
     factors[energy_problematic | np.roll(energy_problematic, -1)] = 0.0
 
@@ -241,11 +244,10 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
             and candidate >= lower[index] - tolerance
             and candidate <= upper[index] + tolerance
         )
-        kinetic_new = 0.5 * mom_new[index]**2 / mass_new[index]
+        kinetic_new = 0.5 * mom_new[index] ** 2 / mass_new[index]
         radius_value = abs(float(coordinate[index]))
         rotational_new = (
-            0.5 * value**2 / (mass_new[index] * radius_value**2)
-            if radius_value > 0.0 else 0.0
+            0.5 * value**2 / (mass_new[index] * radius_value**2) if radius_value > 0.0 else 0.0
         )
         energy_ok = energy_value >= kinetic_new + rotational_new
         return angular_ok and energy_ok
@@ -254,7 +256,7 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     # as each face can support.  Each accepted face changes only its two
     # neighboring cells, so the limiter remains local.
     for face in range(len(factors)):
-        if scheme == 'donor':
+        if scheme == "donor":
             continue
         if factors[face] == 0.0:
             continue
@@ -265,17 +267,14 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
         increment = dt * correction_area[face]
 
         def trial_valid(alpha):
-            return (
-                valid_cell(
-                    left,
-                    trial_angular[left] - alpha * increment,
-                    trial_energy[left] - alpha * dt * rotational_correction_area[face],
-                )
-                and valid_cell(
-                    right,
-                    trial_angular[right] + alpha * increment,
-                    trial_energy[right] + alpha * dt * rotational_correction_area[face],
-                )
+            return valid_cell(
+                left,
+                trial_angular[left] - alpha * increment,
+                trial_energy[left] - alpha * dt * rotational_correction_area[face],
+            ) and valid_cell(
+                right,
+                trial_angular[right] + alpha * increment,
+                trial_energy[right] + alpha * dt * rotational_correction_area[face],
             )
 
         if trial_valid(1.0):
@@ -305,23 +304,23 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     fluid.AngularMomentum_code.flux = as_named_array(limited)
     mass_flux = np.asarray(fluid.Mass_code.flux, dtype=float)
     fluid.angular_momentum_face = as_named_array(
-        np.divide(limited, mass_flux, out=np.zeros_like(limited),
-                  where=mass_flux != 0.0)
+        np.divide(limited, mass_flux, out=np.zeros_like(limited), where=mass_flux != 0.0),
     )
     fluid.angular_momentum_fct_factors = as_named_array(factors)
-    if hasattr(fluid, 'rotational_energy_flux'):
+    if hasattr(fluid, "rotational_energy_flux"):
         _, boundary, _ = _canonical_mesh_geometry(mesh)
         radius = np.abs(boundary[:-1])
         new_rotational = np.zeros_like(mass_flux)
         valid = (radius > 0.0) & np.isfinite(radius)
         new_rotational[valid] = (
-            0.5 * fluid.angular_momentum_face[valid]**2
-            / radius[valid]**2 * mass_flux[valid]
+            0.5 * fluid.angular_momentum_face[valid] ** 2 / radius[valid] ** 2 * mass_flux[valid]
         )
         fluid.Energy_code.flux += new_rotational - np.asarray(
-            fluid.rotational_energy_flux, dtype=float
+            fluid.rotational_energy_flux,
+            dtype=float,
         )
         fluid.rotational_energy_flux = as_named_array(new_rotational)
+
 
 def _set_rotational_energy_flux(solver, mesh, fluid, par, j_face=None):
     """Add the advected rotational-energy flux to the total-energy flux."""
@@ -336,22 +335,29 @@ def _set_rotational_energy_flux(solver, mesh, fluid, par, j_face=None):
     radius = np.abs(boundary[:-1])
     rotational_specific = np.zeros_like(radius)
     valid = np.isfinite(radius) & (radius > 0.0) & np.isfinite(j_face)
-    rotational_specific[valid] = 0.5 * j_face[valid]**2 / radius[valid]**2
+    rotational_specific[valid] = 0.5 * j_face[valid] ** 2 / radius[valid] ** 2
     rotational_flux = mass_flux * rotational_specific
     rotational_flux[~valid] = 0.0
     fluid.rotational_energy_flux = as_named_array(rotational_flux)
     fluid.Energy_code.flux += fluid.rotational_energy_flux
 
+
 def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
     """Use first-order hydro fluxes only near a cold rotating cell."""
     if not (
-        solver._rotational_energy_enabled(par)
-        and hasattr(fluid, 'angular_momentum_mass_flux_low')
+        solver._rotational_energy_enabled(par) and hasattr(fluid, "angular_momentum_mass_flux_low")
     ):
         return
-    threshold = max(0.0, float(getattr(
-        par, 'angular_momentum_energy_margin_fraction', 1.0e-4
-    )))
+    threshold = max(
+        0.0,
+        float(
+            getattr(
+                par,
+                "angular_momentum_energy_margin_fraction",
+                1.0e-4,
+            )
+        ),
+    )
     mass = np.asarray(fluid.Mass_code, dtype=float)
     momentum = np.asarray(fluid.Mom_code, dtype=float)
     energy = np.asarray(fluid.Energy_code, dtype=float)
@@ -363,13 +369,14 @@ def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
     rotational = np.zeros_like(mass)
     valid_radius = (mass > 0.0) & (radius > 0.0)
     rotational[valid_radius] = (
-        0.5 * angular[valid_radius]**2
-        / (mass[valid_radius] * radius[valid_radius]**2)
+        0.5 * angular[valid_radius] ** 2 / (mass[valid_radius] * radius[valid_radius] ** 2)
     )
     thermal = energy - kinetic - rotational
     fraction = np.divide(
-        thermal, np.maximum(np.abs(energy), 1.0e-300),
-        out=np.full_like(thermal, -np.inf), where=np.isfinite(energy)
+        thermal,
+        np.maximum(np.abs(energy), 1.0e-300),
+        out=np.full_like(thermal, -np.inf),
+        where=np.isfinite(energy),
     )
     first = int(par.mesh.ghost_cells)
     last = min(first + int(par.mesh.grid_cells), len(mass))
@@ -380,12 +387,15 @@ def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
     if not np.any(face_mask):
         return
     fluid.Mass_code.flux[face_mask] = np.asarray(
-        fluid.angular_momentum_mass_flux_low, dtype=float
+        fluid.angular_momentum_mass_flux_low,
+        dtype=float,
     )[face_mask]
     fluid.Mom_code.flux[face_mask] = np.asarray(
-        fluid.angular_momentum_mom_flux_low, dtype=float
+        fluid.angular_momentum_mom_flux_low,
+        dtype=float,
     )[face_mask]
     fluid.Energy_code.flux[face_mask] = np.asarray(
-        fluid.angular_momentum_energy_flux_low, dtype=float
+        fluid.angular_momentum_energy_flux_low,
+        dtype=float,
     )[face_mask]
     fluid.angular_momentum_local_fallback = as_named_array(face_mask)

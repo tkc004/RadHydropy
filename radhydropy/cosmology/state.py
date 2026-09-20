@@ -27,7 +27,7 @@ def validate_supercomoving_contract(par, mesh, fluid):
     for name, value in expected.items():
         if getattr(par, name, None) != value:
             raise ValueError(
-                f"cosmological runtime requires par.{name}={value!r}"
+                f"cosmological runtime requires par.{name}={value!r}",
             )
     required_mesh = (
         "x_comoving_code",
@@ -41,20 +41,16 @@ def validate_supercomoving_contract(par, mesh, fluid):
         "temp_supercomoving_code",
         "tau_supercomoving_code",
     )
-    missing = [
-        f"mesh.{name}" for name in required_mesh if not hasattr(mesh, name)
-    ]
+    missing = [f"mesh.{name}" for name in required_mesh if not hasattr(mesh, name)]
+    missing.extend(f"fluid.{name}" for name in required_fluid if not hasattr(fluid, name))
     missing.extend(
-        f"fluid.{name}" for name in required_fluid if not hasattr(fluid, name)
-    )
-    missing.extend(
-        f"par.{name}" for name in ("time_cosmic_code", "tau_supercomoving_code")
+        f"par.{name}"
+        for name in ("time_cosmic_code", "tau_supercomoving_code")
         if not hasattr(par, name)
     )
     if missing:
         raise ValueError(
-            "incomplete supercomoving runtime state; missing "
-            + ", ".join(missing)
+            "incomplete supercomoving runtime state; missing " + ", ".join(missing),
         )
     if hasattr(fluid, "vel_code"):
         raise ValueError("legacy fluid.vel_code is forbidden in cosmological state")
@@ -149,7 +145,7 @@ def supercomoving_to_cosmic_time(cosmology, tau_supercomoving_code):
     """Convert supercomoving code time to cosmic code time."""
     return np.asarray(
         cosmology.cosmic_time_from_supercomoving(
-            np.asarray(tau_supercomoving_code, dtype=float)
+            np.asarray(tau_supercomoving_code, dtype=float),
         ),
         dtype=float,
     )
@@ -174,16 +170,12 @@ def to_proper_state(state, cosmology, code_units, gamma):
     pressure_code = np.asarray(state.pre_supercomoving_code, dtype=float)
     temperature_code = np.asarray(state.temp_supercomoving_code, dtype=float)
     x_proper = scale_factor * x_code * scales["length_cgs_cm"]
-    rho_proper = (
-        rho_comoving_code / scale_factor**3 * scales["density_cgs_g_cm3"]
-    )
+    rho_proper = rho_comoving_code / scale_factor**3 * scales["density_cgs_g_cm3"]
     peculiar_velocity = velocity_code / scale_factor * scales["velocity_cgs_cm_s"]
-    pressure = (
-        pressure_code / scale_factor ** (3.0 * float(gamma))
-        * scales["pressure_cgs_erg_cm3"]
-    )
+    pressure = pressure_code / scale_factor ** (3.0 * float(gamma)) * scales["pressure_cgs_erg_cm3"]
     temperature = (
-        temperature_code / scale_factor ** (3.0 * (float(gamma) - 1.0))
+        temperature_code
+        / scale_factor ** (3.0 * (float(gamma) - 1.0))
         * scales["temperature_cgs_K"]
     )
     return ProperCgsState(
@@ -197,7 +189,11 @@ def to_proper_state(state, cosmology, code_units, gamma):
 
 
 def to_supercomoving_state(
-    state, cosmology, code_units, tau_supercomoving_code, gamma
+    state,
+    cosmology,
+    code_units,
+    tau_supercomoving_code,
+    gamma,
 ):
     """Convert a proper CGS state to a typed supercomoving code state."""
     scales = code_unit_scales(code_units)
@@ -205,16 +201,17 @@ def to_supercomoving_state(
     _, scale_factor, _ = cosmology.background_state_from_supercomoving(tau)
     return SupercomovingState(
         x_comoving_code=(
-            np.asarray(state.x_proper_cgs_cm, dtype=float)
-            / scales["length_cgs_cm"] / scale_factor
+            np.asarray(state.x_proper_cgs_cm, dtype=float) / scales["length_cgs_cm"] / scale_factor
         ),
         rho_comoving_code=(
             np.asarray(state.rho_proper_cgs_g_cm3, dtype=float)
-            / scales["density_cgs_g_cm3"] * scale_factor**3
+            / scales["density_cgs_g_cm3"]
+            * scale_factor**3
         ),
         vel_supercomoving_code=(
             np.asarray(state.vel_peculiar_proper_cgs_cm_s, dtype=float)
-            / scales["velocity_cgs_cm_s"] * scale_factor
+            / scales["velocity_cgs_cm_s"]
+            * scale_factor
         ),
         pre_supercomoving_code=(
             np.asarray(state.pre_proper_cgs_erg_cm3, dtype=float)

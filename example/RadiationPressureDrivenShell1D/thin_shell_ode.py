@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,14 +19,15 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 os.environ.setdefault(
-    "MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
+    "MPLCONFIGDIR",
+    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
 
 import example_utils as eu
+
 import radhydropy.io as rio
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("thin_shell_ode.yaml")
 SPEED_OF_LIGHT = unyt.c.to_value(unyt.cm / unyt.s)
@@ -33,29 +35,28 @@ SPEED_OF_LIGHT = unyt.c.to_value(unyt.cm / unyt.s)
 
 def _build_initial_condition(config):
     """Write a one-cell, fixed-mass shell IC in the normal example format."""
-
-    initial = config['initial_condition']
+    initial = config["initial_condition"]
     code = config["_code_units"]
-    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    grid_cells = int(config["par"]["mesh"]["grid_cells"])
     if grid_cells != 1:
-        raise ValueError('thin-shell IC requires exactly one active grid cell')
+        raise ValueError("thin-shell IC requires exactly one active grid cell")
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code, ic_config=initial,
+        par_config=config["par"],
+        code_units=code,
+        ic_config=initial,
     )
-    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.box_size = writer.radquantity(initial["box_size_proper"])
     writer.mesh.boundary_radarray = writer.radarray(
-        np.array([0.0, 1.0]) * initial['box_size_proper']
+        np.array([0.0, 1.0]) * initial["box_size_proper"],
     )
-    shell_mass_unyt = initial['shell_mass']
-    shell_volume_proper_unyt = (
-        initial['box_size_proper'] * config["par"]['mesh']['area_proper']
-    )
+    shell_mass_unyt = initial["shell_mass"]
+    shell_volume_proper_unyt = initial["box_size_proper"] * config["par"]["mesh"]["area_proper"]
     writer.fluid.rho_radarray = writer.radarray(
-        np.ones(1) * (shell_mass_unyt / shell_volume_proper_unyt)
+        np.ones(1) * (shell_mass_unyt / shell_volume_proper_unyt),
     )
     writer.fluid.vel_radarray = writer.radarray(np.zeros(1) * code.velocity_unit)
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(1) * initial['temperature_proper']
+        np.ones(1) * initial["temperature_proper"],
     )
     writer.fluid.mu = np.ones(1)
     return writer
@@ -63,11 +64,16 @@ def _build_initial_condition(config):
 
 def _write_initial_condition(config):
     writer = _build_initial_condition(config)
-    writer.write(config['par']['simulation']['initial_condition_filename'], validate=True)
+    writer.write(config["par"]["simulation"]["initial_condition_filename"], validate=True)
 
 
 def _source_step(
-    sim, shell_state, luminosity_cgs_erg_s, photon_energy_cgs_erg, dt, **kwargs
+    sim,
+    shell_state,
+    luminosity_cgs_erg_s,
+    photon_energy_cgs_erg,
+    dt,
+    **kwargs,
 ):
     """Advance one source-only RadHydropy timestep.
 
@@ -78,7 +84,9 @@ def _source_step(
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     interior = sim.par.mesh.ghost_cells
-    volume_proper_code = float(np.asarray(sim.mesh.geometry_state.volume_proper_code[interior], dtype=float))
+    volume_proper_code = float(
+        np.asarray(sim.mesh.geometry_state.volume_proper_code[interior], dtype=float)
+    )
     absorbed_rate = luminosity_cgs_erg_s / photon_energy_cgs_erg / volume_proper_code
     source_result = {
         "source_steps": 1,
@@ -87,30 +95,33 @@ def _source_step(
         "direction": 1,
     }
     sim.solver.ApplyRadiationPressure(
-        dt, sim.mesh, sim.fluid, sim.par, source_result
+        dt,
+        sim.mesh,
+        sim.fluid,
+        sim.par,
+        source_result,
     )
     sim._sync_hydro_state()
     sim.fluid.time_proper_code += dt
     interior = sim.par.mesh.ghost_cells
     shell_state["vel_proper_code"] = float(sim.fluid.vel_proper_code[interior])
-    shell_state["radius_proper_code"] += (
-        shell_state["vel_proper_code"] * float(dt)
-    )
+    shell_state["radius_proper_code"] += shell_state["vel_proper_code"] * float(dt)
     return {"dt": dt, "hydro_steps": 0, "source_steps": 1}
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    config['_code_units'] = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    config["_code_units"] = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
-    initial = config['initial_condition']
+    initial = config["initial_condition"]
     eu.clean_previous_outputs(config)
     Path(config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     _write_initial_condition(config)
 
     sim = rio.loadhdf5(
-        config, config["par"]['simulation']['initial_condition_filename']
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
     )
     sim.SetMesh()
     sim.SetFluid()
@@ -118,14 +129,17 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
 
     code = sim.par.units.CodeUnits
-    luminosity_cgs_erg_s = config["par"]["radiation"]["radiation_pressure_source_luminosity"].to_value(
-        unyt.erg / unyt.s
+    luminosity_cgs_erg_s = config["par"]["radiation"][
+        "radiation_pressure_source_luminosity"
+    ].to_value(
+        unyt.erg / unyt.s,
     )
     photon_energy_cgs_erg = (20.0 * unyt.eV).to_value(unyt.erg)
     shell_mass_cgs_g = initial["shell_mass"].to_value(unyt.g)
     shell_state = {
         "radius_proper_code": quantity_to_value(
-            initial["radius_shell_initial_proper"], code.length_unit
+            initial["radius_shell_initial_proper"],
+            code.length_unit,
         ),
         "vel_proper_code": 0.0,
     }
@@ -138,13 +152,13 @@ def main(config_filename=DEFAULT_CONFIG):
     def record(simulation):
         interior = simulation.par.mesh.ghost_cells
         history["time_proper_code"].append(
-            float(simulation.fluid.time_proper_code)
+            float(simulation.fluid.time_proper_code),
         )
         history["radius_proper_code"].append(
-            shell_state["radius_proper_code"]
+            shell_state["radius_proper_code"],
         )
         history["momentum_proper_code"].append(
-            float(simulation.fluid.Mom_code[interior])
+            float(simulation.fluid.Mom_code[interior]),
         )
 
     record(sim)
@@ -168,22 +182,21 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     time_proper_cgs_s = np.asarray(history["time_proper_code"]) * float(
-        (1.0 * sim.par.units.CodeUnits.time_unit).to_value(unyt.s)
+        (1.0 * sim.par.units.CodeUnits.time_unit).to_value(unyt.s),
     )
     radius_proper_cgs_cm = np.asarray(history["radius_proper_code"]) * float(
-        (1.0 * sim.par.units.CodeUnits.length_unit).to_value(unyt.cm)
+        (1.0 * sim.par.units.CodeUnits.length_unit).to_value(unyt.cm),
     )
     momentum_proper_cgs_g_cm_s = np.asarray(
-        history["momentum_proper_code"]
+        history["momentum_proper_code"],
     ) * float(
-        (1.0 * sim.par.units.CodeUnits.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s)
+        (1.0 * sim.par.units.CodeUnits.momentum_unit).to_value(unyt.g * unyt.cm / unyt.s),
     )
     force_cgs_dyn = luminosity_cgs_erg_s / SPEED_OF_LIGHT
     expected_momentum_proper_cgs_g_cm_s = force_cgs_dyn * time_proper_cgs_s
     acceleration_proper_cgs_cm_s2 = force_cgs_dyn / shell_mass_cgs_g
     expected_radius_proper_cgs_cm = (
-        radius_proper_cgs_cm[0]
-        + 0.5 * acceleration_proper_cgs_cm_s2 * time_proper_cgs_s**2
+        radius_proper_cgs_cm[0] + 0.5 * acceleration_proper_cgs_cm_s2 * time_proper_cgs_s**2
     )
     relative_momentum_error_dimensionless = np.divide(
         momentum_proper_cgs_g_cm_s - expected_momentum_proper_cgs_g_cm_s,
@@ -192,12 +205,17 @@ def main(config_filename=DEFAULT_CONFIG):
         where=expected_momentum_proper_cgs_g_cm_s != 0.0,
     )
 
-    figure = Path(config["par"]["output"]["directory"]) / "RadiationPressureDrivenShell1D_ThinShellODE.jpg"
+    figure = (
+        Path(config["par"]["output"]["directory"])
+        / "RadiationPressureDrivenShell1D_ThinShellODE.jpg"
+    )
     time_proper_myr = time_proper_cgs_s / (1.0 * unyt.Myr).to_value(unyt.s)
     pc_cm = (1.0 * unyt.pc).to_value(unyt.cm)
     fig, axes = plt.subplots(3, 1, figsize=(7.5, 9.0), sharex=True)
     axes[0].plot(time_proper_myr, radius_proper_cgs_cm / pc_cm, label="RadHydropy")
-    axes[0].plot(time_proper_myr, expected_radius_proper_cgs_cm / pc_cm, "--", label="exact thin-shell")
+    axes[0].plot(
+        time_proper_myr, expected_radius_proper_cgs_cm / pc_cm, "--", label="exact thin-shell"
+    )
     axes[0].set_ylabel("shell radius [pc]")
     axes[1].plot(time_proper_myr, momentum_proper_cgs_g_cm_s, label="RadHydropy shell momentum")
     axes[1].plot(time_proper_myr, expected_momentum_proper_cgs_g_cm_s, "--", label=r"$Lt/c$")

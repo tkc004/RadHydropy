@@ -79,9 +79,7 @@ import tools as example_tools
 
 config = Path("sodshock1d.yaml")
 config_data = load_nested_example_config(config)
-config_data["_code_units"] = CodeUnits.from_mapping(
-    config_data["par"]["units"]["CodeUnits"]
-)
+config_data["_code_units"] = CodeUnits.from_mapping(config_data["par"]["units"]["CodeUnits"])
 
 writer = example_tools.build_initial_condition(config_data)
 writer.write(

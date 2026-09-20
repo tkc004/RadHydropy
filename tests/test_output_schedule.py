@@ -192,9 +192,7 @@ class Testing(unittest.TestCase):
                 fluid.time_proper_code += dt
                 return {"dt": dt, "hydro_steps": 1, "source_steps": 0}
 
-            sim.GetStepTime = lambda dt=None, final_time=None: (
-                final_time - fluid.time_proper_code
-            )
+            sim.GetStepTime = lambda dt=None, final_time=None: final_time - fluid.time_proper_code
             with mock.patch.object(rio, "write_numbered_hdf5", side_effect=fake_write):
                 rio.run_with_output_times(
                     sim,
@@ -255,9 +253,18 @@ class Testing(unittest.TestCase):
 
             self.assertEqual(
                 events,
-                ["before_step", "write_0", "snapshot_0", "history",
-                 "before_step", "get_step_time", "step", "history",
-                 "write_1", "snapshot_1"],
+                [
+                    "before_step",
+                    "write_0",
+                    "snapshot_0",
+                    "history",
+                    "before_step",
+                    "get_step_time",
+                    "step",
+                    "history",
+                    "write_1",
+                    "snapshot_1",
+                ],
             )
 
     def test_fixed_cadence_snapshot_callback_runs_after_initial_write(self):
@@ -319,15 +326,19 @@ class Testing(unittest.TestCase):
             def fake_evolve(**kwargs):
                 output_callback = kwargs["output_callback"]
                 output_callback(
-                    sim, {"dt": 1.0 * unyt.s, "hydro_steps": 1, "source_steps": 0},
+                    sim,
+                    {"dt": 1.0 * unyt.s, "hydro_steps": 1, "source_steps": 0},
                 )
                 output_callback(
-                    sim, {"dt": 1.0 * unyt.s, "hydro_steps": 1, "source_steps": 0},
+                    sim,
+                    {"dt": 1.0 * unyt.s, "hydro_steps": 1, "source_steps": 0},
                 )
 
             sim.Evolve = fake_evolve
             with mock.patch.object(
-                rio, "write_numbered_hdf5", side_effect=fake_write,
+                rio,
+                "write_numbered_hdf5",
+                side_effect=fake_write,
             ):
                 sim.Run(
                     stop_condition=lambda current_sim: True,
@@ -407,7 +418,7 @@ class Testing(unittest.TestCase):
                 rio.run_with_output_times(
                     sim,
                     mode="sources",
-                stop_condition=lambda runner: runner.fluid.time_proper_code >= 2.5 * unyt.s,
+                    stop_condition=lambda runner: runner.fluid.time_proper_code >= 2.5 * unyt.s,
                 )
 
             self.assertEqual(step_modes, ["sources", "sources", "sources"])
@@ -435,7 +446,11 @@ class Testing(unittest.TestCase):
                     SetTemperature=lambda: None,
                 )
                 sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
-                sim.Step = lambda **kwargs: {"dt": 0.0 * unyt.s, "hydro_steps": 0, "source_steps": 0}
+                sim.Step = lambda **kwargs: {
+                    "dt": 0.0 * unyt.s,
+                    "hydro_steps": 0,
+                    "source_steps": 0,
+                }
                 sim.Evolve = lambda **kwargs: None
 
                 with mock.patch.object(rio, "write_numbered_hdf5", lambda *args, **kwargs: None):
@@ -454,10 +469,12 @@ class Testing(unittest.TestCase):
                 os.chdir(cwd)
 
     def test_used_parameters_preserves_nested_runtime_groups(self):
-        par = Par({
-            "simulation": {"name": "nested-test"},
-            "units": {"CodeUnits": CODE_UNITS},
-        })
+        par = Par(
+            {
+                "simulation": {"name": "nested-test"},
+                "units": {"CodeUnits": CODE_UNITS},
+            }
+        )
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "used_parameters.yaml"
             rio.write_used_parameters(path, par)
@@ -466,9 +483,19 @@ class Testing(unittest.TestCase):
         self.assertEqual(
             list(payload["par"]),
             [
-                "simulation", "mesh", "hydrodynamics", "boundary", "timestep",
-                "output", "diagnostics", "units", "thermochemistry",
-                "chemistry", "gravity", "dark_matter", "radiation",
+                "simulation",
+                "mesh",
+                "hydrodynamics",
+                "boundary",
+                "timestep",
+                "output",
+                "diagnostics",
+                "units",
+                "thermochemistry",
+                "chemistry",
+                "gravity",
+                "dark_matter",
+                "radiation",
             ],
         )
         self.assertEqual(payload["par"]["simulation"]["name"], "nested-test")
@@ -480,11 +507,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(rio.parameter_tree(np.bool_(True)), True)
 
     def test_hydrostatic_example_plots_interior_cells_in_cgs(self):
-        example_dir = (
-            Path(__file__).resolve().parents[1]
-            / "example"
-            / "HydrostaticEquilibrium1D"
-        )
+        example_dir = Path(__file__).resolve().parents[1] / "example" / "HydrostaticEquilibrium1D"
         tools_path = example_dir / "tools.py"
         spec = importlib.util.spec_from_file_location(
             "hydrostatic_equilibrium_tools_test",
@@ -512,10 +535,12 @@ class Testing(unittest.TestCase):
             fluid.rho_radarray = fluid.rho_proper_code * (unyt.g / unyt.cm**3)
             fluid.vel_radarray = fluid.vel_proper_code * (unyt.cm / unyt.s)
 
-        with mock.patch.object(module.rio, "readhdf5", fake_readhdf5), \
-            mock.patch.object(module.plt, "plot", side_effect=fake_plot), \
-            mock.patch.object(module.plt, "subplot", return_value=None), \
-            mock.patch.object(module.plt, "ylabel", return_value=None):
+        with (
+            mock.patch.object(module.rio, "readhdf5", fake_readhdf5),
+            mock.patch.object(module.plt, "plot", side_effect=fake_plot),
+            mock.patch.object(module.plt, "subplot", return_value=None),
+            mock.patch.object(module.plt, "ylabel", return_value=None),
+        ):
             module.plot_snapshot(
                 "unused.hdf5",
                 {
@@ -558,11 +583,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(zero_y.units, unyt.cm / unyt.s)
 
     def test_hydrogen_recombination_helper_uses_source_only_wrapper(self):
-        example_dir = (
-            Path(__file__).resolve().parents[1]
-            / "example"
-            / "HydrogenRecombination1D"
-        )
+        example_dir = Path(__file__).resolve().parents[1] / "example" / "HydrogenRecombination1D"
         tools_path = example_dir / "tools.py"
         spec = importlib.util.spec_from_file_location(
             "hydrogen_recombination_tools_test",
@@ -576,7 +597,7 @@ class Testing(unittest.TestCase):
             sys.path.pop(0)
 
         sim = SimpleNamespace(
-            par = parameter_namespace(noghost=2, nogrid=3),
+            par=parameter_namespace(noghost=2, nogrid=3),
             fluid=SimpleNamespace(
                 xHI=np.array([0.0, 0.0, 0.8, 0.9, 1.0]),
             ),

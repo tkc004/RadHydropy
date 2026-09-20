@@ -12,12 +12,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
-mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
+mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
-os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
+os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -29,20 +29,19 @@ if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-import yaml
 
 import radhydropy.io as rio
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.units import CodeUnits
-import example_utils as eu
 from tools import build_initial_condition
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name('compton_cmb_heating1d.yaml')
+DEFAULT_CONFIG = Path(__file__).resolve().with_name("compton_cmb_heating1d.yaml")
 
 
 def _analytic_temperature(
@@ -60,22 +59,27 @@ def _analytic_temperature(
     electron_density_cgs_cm3 = nH_cgs_cm3 * electron_fraction
     mu = 1.0 / (1.0 + electron_fraction)
     gamma = 5.0 / 3.0
-    slope = float(
-        cmb_compton_rate(
-            np.array([0.0]),
-            np.array([electron_density_cgs_cm3]),
-            enabled=True,
-            redshift=redshift,
-        )[0]
-    ) / cmb_temperature
+    slope = (
+        float(
+            cmb_compton_rate(
+                np.array([0.0]),
+                np.array([electron_density_cgs_cm3]),
+                enabled=True,
+                redshift=redshift,
+            )[0],
+        )
+        / cmb_temperature
+    )
     temperature_rate_coefficient = slope * (
-        (gamma - 1.0) * mu * proton_mass_g
+        (gamma - 1.0)
+        * mu
+        * proton_mass_g
         / float(unyt.kb.to_value(unyt.erg / unyt.K))
         / rho_cgs_g_cm3
     )
-    return cmb_temperature + (
-        temperature_proper_cgs_K - cmb_temperature
-    ) * np.exp(-temperature_rate_coefficient * time_proper_cgs_s)
+    return cmb_temperature + (temperature_proper_cgs_K - cmb_temperature) * np.exp(
+        -temperature_rate_coefficient * time_proper_cgs_s
+    )
 
 
 def _run_case(
@@ -84,26 +88,27 @@ def _run_case(
     temperature_proper_unyt,
     timestep_override=None,
 ):
-    case_params = copy.deepcopy(config['par'])
-    example = copy.deepcopy(config['example'])
+    case_params = copy.deepcopy(config["par"])
+    example = copy.deepcopy(config["example"])
     if timestep_override is not None:
-        example['evolution_timestep'] = timestep_override
-    case_params['simulation']['initial_condition_filename'] = str(
-        Path(config['par']['output']['directory']) / f'ComptonCMBHeating1D_{label}_InitialCondition.hdf5'
+        example["evolution_timestep"] = timestep_override
+    case_params["simulation"]["initial_condition_filename"] = str(
+        Path(config["par"]["output"]["directory"])
+        / f"ComptonCMBHeating1D_{label}_InitialCondition.hdf5",
     )
-    case_initial_condition = dict(config['initial_condition'])
-    case_initial_condition['temperature_proper'] = temperature_proper_unyt
-    case_params.pop('_example', None)
+    case_initial_condition = dict(config["initial_condition"])
+    case_initial_condition["temperature_proper"] = temperature_proper_unyt
+    case_params.pop("_example", None)
 
-    code_units = CodeUnits.from_mapping(case_params['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(case_params["units"]["CodeUnits"])
     case_config = {
-        'par': case_params,
-        'initial_condition': case_initial_condition,
-        'example': example,
-        '_code_units': code_units,
+        "par": case_params,
+        "initial_condition": case_initial_condition,
+        "example": example,
+        "_code_units": code_units,
     }
     ric = build_initial_condition(case_config)
-    ric.write(case_params['simulation']['initial_condition_filename'])
+    ric.write(case_params["simulation"]["initial_condition_filename"])
 
     sim = rio.loadhdf5(
         case_config,
@@ -112,57 +117,65 @@ def _run_case(
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    final_time_s = float(case_params['simulation']['final_time'].to_value(unyt.s))
+    final_time_s = float(case_params["simulation"]["final_time"].to_value(unyt.s))
     source_timestep_s = float(
-        example['evolution_timestep'].to_value(unyt.s)
+        example["evolution_timestep"].to_value(unyt.s),
     )
     code_time_s = float(sim.par.units.CodeUnits.time_unit.to_value(unyt.s))
     time_s = 0.0
     times_s = [time_s]
     temperatures = [
-        float(np.mean(sim.fluid.temp_proper_code[sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells]))
+        float(
+            np.mean(
+                sim.fluid.temp_proper_code[
+                    sim.par.mesh.ghost_cells : sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells
+                ]
+            )
+        ),
     ]
     source_steps = 0
     while time_s < final_time_s - 1.0e-12:
         step_s = min(source_timestep_s, final_time_s - time_s)
         result = sim.Step(
             dt=step_s / code_time_s,
-            mode='sources',
+            mode="sources",
         )
-        source_steps += int(result.get('source_steps', 0))
+        source_steps += int(result.get("source_steps", 0))
         time_s += step_s
         times_s.append(time_s)
         temperatures.append(
-            float(np.mean(
-                sim.fluid.temp_proper_code[
-                    sim.par.mesh.ghost_cells:sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells
-                ]
-            ))
+            float(
+                np.mean(
+                    sim.fluid.temp_proper_code[
+                        sim.par.mesh.ghost_cells : sim.par.mesh.ghost_cells
+                        + sim.par.mesh.grid_cells
+                    ],
+                )
+            ),
         )
     history = {
-        'time_proper_Myr': np.asarray(times_s) / float((1.0 * unyt.Myr).to_value(unyt.s)),
-        'mean_temperature_proper_cgs_K': np.asarray(temperatures),
+        "time_proper_Myr": np.asarray(times_s) / float((1.0 * unyt.Myr).to_value(unyt.s)),
+        "mean_temperature_proper_cgs_K": np.asarray(temperatures),
     }
     print(
-        '%s: outer steps=%d, source steps=%d' %
-        (label, len(times_s) - 1, source_steps)
+        "%s: outer steps=%d, source steps=%d" % (label, len(times_s) - 1, source_steps),
     )
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
-    time_s = np.asarray(history['time_proper_Myr']) * myr_seconds
-    temperature_cgs_K = np.asarray(history['mean_temperature_proper_cgs_K'])
-    if example.get('compare_compton_analytic', True):
+    time_s = np.asarray(history["time_proper_Myr"]) * myr_seconds
+    temperature_cgs_K = np.asarray(history["mean_temperature_proper_cgs_K"])
+    if example.get("compare_compton_analytic", True):
         analytic = _analytic_temperature(
             time_s,
             float(temperature_proper_unyt.to_value(unyt.K)),
-            float(case_params['thermochemistry']['compton_cmb_redshift']),
-            float(case_initial_condition['hydrogen_number_density'].to_value(1.0 / unyt.cm**3)),
-            float(case_initial_condition['xHI']),
+            float(case_params["thermochemistry"]["compton_cmb_redshift"]),
+            float(case_initial_condition["hydrogen_number_density"].to_value(1.0 / unyt.cm**3)),
+            float(case_initial_condition["xHI"]),
         )
         relative_error = np.abs((temperature_cgs_K - analytic) / analytic)
-        print('%s: max relative error=%.6e' % (label, np.max(relative_error)))
+        print("%s: max relative error=%.6e" % (label, np.max(relative_error)))
     else:
         analytic = np.full_like(temperature_cgs_K, np.nan)
-        print('%s: analytic Compton-only comparison disabled' % label)
+        print("%s: analytic Compton-only comparison disabled" % label)
     return time_s, temperature_cgs_K, analytic
 
 
@@ -181,10 +194,10 @@ def _timestep_difference(coarse_history, fine_history):
 
 def _run_converged_case(config, label, temperature_proper_unyt):
     """Refine the implicit source timestep until two runs agree."""
-    timestep = config['example']['evolution_timestep']
-    thermo = config['par']['thermochemistry']
-    tolerance = float(thermo.get('hydrogen_implicit_convergence_tolerance', 1.0e-3))
-    max_refinements = int(thermo.get('hydrogen_implicit_max_refinements', 4))
+    timestep = config["example"]["evolution_timestep"]
+    thermo = config["par"]["thermochemistry"]
+    tolerance = float(thermo.get("hydrogen_implicit_convergence_tolerance", 1.0e-3))
+    max_refinements = int(thermo.get("hydrogen_implicit_max_refinements", 4))
     coarse = _run_case(
         config,
         label,
@@ -201,24 +214,23 @@ def _run_converged_case(config, label, temperature_proper_unyt):
         )
         difference = _timestep_difference(coarse, fine)
         print(
-            '%s: dt=%s, dt/2 difference=%.6e, tolerance=%.6e' %
-            (
+            "%s: dt=%s, dt/2 difference=%.6e, tolerance=%.6e"
+            % (
                 label,
                 timestep,
                 difference,
                 tolerance,
-            )
+            ),
         )
         if difference <= tolerance:
             print(
-                '%s: timestep converged after %d refinement(s)' %
-                (label, refinement)
+                "%s: timestep converged after %d refinement(s)" % (label, refinement),
             )
             return fine
         coarse = fine
     raise RuntimeError(
-        '%s: implicit source timestep failed to converge after %d refinements'
-        % (label, max_refinements)
+        "%s: implicit source timestep failed to converge after %d refinements"
+        % (label, max_refinements),
     )
 
 
@@ -226,12 +238,15 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename)
     config = eu.load_nested_example_config(config_filename)
 
-    cases = config['example']['cases']
+    cases = config["example"]["cases"]
     eu.clean_previous_outputs(config)
 
     histories = {}
     for label, temperature_proper_unyt in cases.items():
-        if str(config["par"]['thermochemistry'].get('hydrogen_source_solver', 'hybrid')).lower() == 'coupled_implicit':
+        if (
+            str(config["par"]["thermochemistry"].get("hydrogen_source_solver", "hybrid")).lower()
+            == "coupled_implicit"
+        ):
             histories[label] = _run_converged_case(
                 config,
                 label,
@@ -245,63 +260,63 @@ def main(config_filename=DEFAULT_CONFIG):
             )
 
     cmb_temperature_0_cgs_K = float(
-        config["par"]['thermochemistry']['cmb_temperature_0'].to_value(unyt.K)
+        config["par"]["thermochemistry"]["cmb_temperature_0"].to_value(unyt.K),
     )
     cmb_temperature = cmb_temperature_0_cgs_K * (
-        1.0 + config["par"]['thermochemistry']['compton_cmb_redshift']
+        1.0 + config["par"]["thermochemistry"]["compton_cmb_redshift"]
     )
-    figure_filename = Path(config["par"]['output']['directory']) / 'ComptonCMBHeating1D.jpg'
+    figure_filename = Path(config["par"]["output"]["directory"]) / "ComptonCMBHeating1D.jpg"
     figure_filename.parent.mkdir(parents=True, exist_ok=True)
     fig, (temperature_axis, error_axis) = plt.subplots(
         2,
         1,
         figsize=(8.0, 7.0),
         sharex=True,
-        gridspec_kw={'height_ratios': (2.0, 1.0)},
+        gridspec_kw={"height_ratios": (2.0, 1.0)},
     )
     for label, (time_s, temperature, analytic) in histories.items():
         time_proper_Myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))
-        temperature_axis.plot(time_proper_Myr, temperature, marker='o', ms=3, lw=0,
-                               label=f'RadHydropy: {label}')
+        temperature_axis.plot(
+            time_proper_Myr, temperature, marker="o", ms=3, lw=0, label=f"RadHydropy: {label}"
+        )
         if np.any(np.isfinite(analytic)):
-            temperature_axis.plot(time_proper_Myr, analytic, lw=1.8,
-                                  label=f'analytic: {label}')
+            temperature_axis.plot(time_proper_Myr, analytic, lw=1.8, label=f"analytic: {label}")
             relative_error = np.abs((temperature - analytic) / analytic)
-            error_axis.plot(time_proper_Myr, relative_error, marker='o', ms=3, lw=0,
-                            label=label)
+            error_axis.plot(time_proper_Myr, relative_error, marker="o", ms=3, lw=0, label=label)
 
-    temperature_axis.axhline(cmb_temperature, color='black', ls='--',
-                             label=fr'$T_{{\rm CMB}}={cmb_temperature:.2f}$ K')
-    temperature_axis.set_yscale('log')
-    temperature_axis.set_ylabel('Temperature [K]')
-    temperature_axis.grid(True, which='both', alpha=0.25)
+    temperature_axis.axhline(
+        cmb_temperature, color="black", ls="--", label=rf"$T_{{\rm CMB}}={cmb_temperature:.2f}$ K"
+    )
+    temperature_axis.set_yscale("log")
+    temperature_axis.set_ylabel("Temperature [K]")
+    temperature_axis.grid(True, which="both", alpha=0.25)
     temperature_axis.legend(frameon=False, fontsize=8, ncol=2)
-    error_axis.set_yscale('log')
-    error_axis.set_xlabel('Time [Myr]')
-    error_axis.set_ylabel('relative error')
-    error_axis.grid(True, which='both', alpha=0.25)
+    error_axis.set_yscale("log")
+    error_axis.set_xlabel("Time [Myr]")
+    error_axis.set_ylabel("relative error")
+    error_axis.grid(True, which="both", alpha=0.25)
     if error_axis.lines:
         error_axis.legend(frameon=False)
     fig.suptitle(
-        'CMB Compton heating and cooling '
-        f'($z={config["par"]["thermochemistry"]["compton_cmb_redshift"]:.1f}$)'
+        "CMB Compton heating and cooling "
+        f"($z={config['par']['thermochemistry']['compton_cmb_redshift']:.1f}$)",
     )
     fig.tight_layout()
-    fig.savefig(figure_filename, dpi=200, bbox_inches='tight')
+    fig.savefig(figure_filename, dpi=200, bbox_inches="tight")
     plt.close(fig)
 
-    print(f'CMB temperature = {cmb_temperature:.6g} K')
-    print(f'figure = {figure_filename}')
+    print(f"CMB temperature = {cmb_temperature:.6g} K")
+    print(f"figure = {figure_filename}")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Run the fixed-density CMB Compton benchmark.',
+        description="Run the fixed-density CMB Compton benchmark.",
     )
-    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

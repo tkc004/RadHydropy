@@ -1,10 +1,11 @@
 """Generate the z=100 correlation-function cosmological initial condition."""
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,15 +16,14 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from example_utils import load_nested_example_config
-from radhydropy.units import CodeUnits, quantity_to_value
 import virial_shock_tools as et
+from example_utils import load_nested_example_config
 
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name(
-    "cosmological_dark_matter_correlation_z100_lambda_cdm.yaml"
+    "cosmological_dark_matter_correlation_z100_lambda_cdm.yaml",
 )
 
 
@@ -37,7 +37,8 @@ def main(config_filename=DEFAULT_CONFIG):
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     if cosmology_config.get("cosmology_type") == "lambda_cdm":
         cosmology = LambdaCDM.from_code_units(
-            units, t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
+            units,
+            t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
             a_ref=float(cosmology_config["cosmology_a_ref"]),
             omega_m=float(cosmology_config["cosmology_omega_m"]),
             omega_lambda=float(cosmology_config["cosmology_omega_lambda"]),
@@ -45,7 +46,8 @@ def main(config_filename=DEFAULT_CONFIG):
         )
     else:
         cosmology = EinsteinDeSitter.from_code_units(
-            units, t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
+            units,
+            t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
             a_ref=float(cosmology_config["cosmology_a_ref"]),
         )
 
@@ -77,7 +79,8 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     scale_factor = float(cosmology.scale_factor(initial_time))
     velocity_peculiar_supercomoving_code = np.asarray(
-        initial.fluid.vel_supercomoving_code, dtype=float
+        initial.fluid.vel_supercomoving_code,
+        dtype=float,
     )
     hubble_velocity = float(cosmology.hubble(initial_time)) * scale_factor * radius_comoving_code
 

@@ -140,7 +140,7 @@ def read_supercomoving_state_hdf5(filename):
             if missing:
                 raise ValueError(
                     f"canonical cosmological HDF5 state is missing {group_name}/"
-                    + ", ".join(missing)
+                    + ", ".join(missing),
                 )
         if "time_code" in header or "vel_code" in data:
             raise ValueError("legacy generic cosmological HDF5 names are forbidden")
@@ -159,6 +159,7 @@ def read_supercomoving_state_hdf5(filename):
                 width_comoving_code=data["width_comoving_code"][()],
             ),
             box_size_comoving_code=np.asarray(
-                header["box_size_comoving_code"][()], dtype=float
+                header["box_size_comoving_code"][()],
+                dtype=float,
             ),
         )

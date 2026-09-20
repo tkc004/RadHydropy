@@ -51,27 +51,20 @@ def build_source_state(
 
     _, _, _, temp_runtime_code, _ = canonical_fluid_primitive_arrays(fluid, par)
     temperature_code = temp_runtime_code[interior]
-    temperature_cgs_K = temperature_code * code_units.unit_conversion[
-        "temperature_cgs_K"
-    ]
+    temperature_cgs_K = temperature_code * code_units.unit_conversion["temperature_cgs_K"]
     specific_energy_cgs_erg_g = (
-        BOLTZMANN_CONSTANT_CGS
-        * temperature_cgs_K
-        / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
+        BOLTZMANN_CONSTANT_CGS * temperature_cgs_K / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
     )
     density_code, velocity_code, _, _, _ = canonical_fluid_primitive_arrays(
-        fluid, par,
+        fluid,
+        par,
     )
-    state_type = (
-        ProperCodeState
-        if fields.time == "time_proper_code"
-        else SupercomovingCodeState
-    )
+    state_type = ProperCodeState if fields.time == "time_proper_code" else SupercomovingCodeState
     state_kwargs = {
-        "specific_energy_proper_code" if state_type is ProperCodeState
+        "specific_energy_proper_code"
+        if state_type is ProperCodeState
         else "specific_energy_supercomoving_code": (
-            specific_energy_cgs_erg_g
-            / code_units.unit_conversion["specific_energy_cgs_erg_g"]
+            specific_energy_cgs_erg_g / code_units.unit_conversion["specific_energy_cgs_erg_g"]
         ),
         "xHI_dimensionless": xHI,
     }
@@ -91,9 +84,7 @@ def build_source_state(
         )
     interior_code = state_type(**state_kwargs)
 
-    _, boundary_runtime_code, _, _, volume_runtime_code = (
-        canonical_mesh_geometry_arrays(mesh, par)
-    )
+    _, boundary_runtime_code, _, _, volume_runtime_code = canonical_mesh_geometry_arrays(mesh, par)
     primitive_cgs = cgs_source_state_from_code(
         code_units=code_units,
         fluid=interior_code,
@@ -105,9 +96,7 @@ def build_source_state(
         volume_cgs_cm3=primitive_cgs.volume_cgs_cm3 * scaling["density_factor"],
         rho_cgs_g_cm3=primitive_cgs.rho_cgs_g_cm3 / scaling["density_factor"],
         velocity_cgs_cm_s=primitive_cgs.velocity_cgs_cm_s,
-        temperature_cgs_K=(
-            primitive_cgs.temperature_cgs_K / scaling["temperature_factor"]
-        ),
+        temperature_cgs_K=(primitive_cgs.temperature_cgs_K / scaling["temperature_factor"]),
         specific_energy_cgs_erg_g=specific_energy_cgs_erg_g,
         xHI_dimensionless=xHI,
     )
@@ -124,7 +113,7 @@ def build_source_state(
     )
     source_rate = optional_numeric_value(
         parameter_value(par, "source_photon_rate"),
-        code_units.time_unit ** -1,
+        code_units.time_unit**-1,
         default=0.0,
     )
     epsilon_parameter = (
@@ -160,11 +149,11 @@ def build_source_state(
         "specific_energy_cgs_erg_g": source.specific_energy_cgs_erg_g,
         "rho_cgs_g_cm3": source.rho_cgs_g_cm3,
         "active": thermochemistry_active_mask(
-            rho_physical, par, scaling["density_factor"],
+            rho_physical,
+            par,
+            scaling["density_factor"],
         ),
-        "nH_cgs_cm3": rho_physical
-        * getattr(par, "hydrogen_mass_fraction", 1.0)
-        / PROTON_MASS_CGS,
+        "nH_cgs_cm3": rho_physical * getattr(par, "hydrogen_mass_fraction", 1.0) / PROTON_MASS_CGS,
         "gamma": gamma,
         "hydrogen_mass_fraction": getattr(par, "hydrogen_mass_fraction", 1.0),
         "sigma_gamma_cgs_cm2": sigma_gamma,
@@ -180,7 +169,9 @@ def build_source_state(
         ),
         "recombination": getattr(par, "hydrogen_recombination", True),
         "collisional_ionization": getattr(
-            par, "hydrogen_collisional_ionization", True,
+            par,
+            "hydrogen_collisional_ionization",
+            True,
         ),
         "thermal_coupling": getattr(par, "hydrogen_thermal_coupling", True),
         "compton_cmb_enabled": getattr(par, "compton_cmb_enabled", False),

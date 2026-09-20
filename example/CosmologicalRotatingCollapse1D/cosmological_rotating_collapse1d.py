@@ -7,9 +7,9 @@ conserved signed specific angular momentum.
 
 import argparse
 import copy
-from pathlib import Path
 import os
 import sys
+from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
 ROOT = Path(__file__).resolve().parent
@@ -18,25 +18,27 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
 import matplotlib
+
 matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
+from cosmological_initial_condition import build_initial_condition
 from scipy.integrate import solve_ivp
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value
-import example_utils as eu
-from cosmological_initial_condition import build_initial_condition
-
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_rotating_collapse1d.yaml")
 
 
 def spherical_centers(boundary_comoving_code):
-    return 0.75 * (
-        boundary_comoving_code[1:]**4 - boundary_comoving_code[:-1]**4
-    ) / (boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3)
+    return (
+        0.75
+        * (boundary_comoving_code[1:] ** 4 - boundary_comoving_code[:-1] ** 4)
+        / (boundary_comoving_code[1:] ** 3 - boundary_comoving_code[:-1] ** 3)
+    )
 
 
 def integrate_shell_reference(initial, config, scale_factors):
@@ -45,14 +47,14 @@ def integrate_shell_reference(initial, config, scale_factors):
     radius_comoving_code = np.asarray(initial.mesh.x_comoving_code, dtype=float)
     mass_comoving_code = np.cumsum(
         np.asarray(initial.fluid.rho_comoving_code, dtype=float)
-        * np.asarray(initial.mesh.volume_comoving_code, dtype=float)
+        * np.asarray(initial.mesh.volume_comoving_code, dtype=float),
     )
     j = np.asarray(initial.fluid.specific_angular_momentum_code, dtype=float)
     initial_tau_supercomoving_code = float(
-        np.asarray(initial.par.tau_supercomoving_code, dtype=float).reshape(-1)[0]
+        np.asarray(initial.par.tau_supercomoving_code, dtype=float).reshape(-1)[0],
     )
     cosmic_time_initial = float(
-        cosmology.cosmic_time_from_supercomoving(initial_tau_supercomoving_code)
+        cosmology.cosmic_time_from_supercomoving(initial_tau_supercomoving_code),
     )
     scale_initial = float(cosmology.scale_factor(cosmic_time_initial))
     hubble_initial = float(cosmology.hubble(cosmic_time_initial))
@@ -61,17 +63,18 @@ def integrate_shell_reference(initial, config, scale_factors):
         hubble_initial * initial_physical_radius
         + np.asarray(initial.fluid.vel_supercomoving_code, dtype=float) / scale_initial
     )
-    requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float)**1.5
+    requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float) ** 1.5
     cosmic_times = np.unique(requested_times)
     reference = np.empty((len(cosmic_times), len(radius_comoving_code)), dtype=float)
     for shell, shell_mass in enumerate(mass_comoving_code):
+
         def rhs(time_cosmic_code, state):
             radius_shell_proper_code, velocity_shell_proper_code = state
             if radius_shell_proper_code <= 0.0:
                 return velocity_shell_proper_code, 0.0
             acceleration = (
                 -cosmology.gravitational_constant * shell_mass / radius_shell_proper_code**2
-                + j[shell]**2 / radius_shell_proper_code**3
+                + j[shell] ** 2 / radius_shell_proper_code**3
             )
             return velocity_shell_proper_code, acceleration
 
@@ -80,21 +83,24 @@ def integrate_shell_reference(initial, config, scale_factors):
             (cosmic_times[0], cosmic_times[-1]),
             (initial_physical_radius[shell], initial_physical_velocity[shell]),
             t_eval=cosmic_times,
-            rtol=1.0e-8, atol=1.0e-10,
+            rtol=1.0e-8,
+            atol=1.0e-10,
             max_step=max((cosmic_times[-1] - cosmic_times[0]) / 32.0, 1.0e-8),
         )
         if not solution.success:
             raise RuntimeError(
-                "shell ODE failed for shell %d: %s" % (shell, solution.message)
+                "shell ODE failed for shell %d: %s" % (shell, solution.message),
             )
         reference[:, shell] = solution.y[0]
     reference /= np.asarray(cosmology.scale_factor(cosmic_times), dtype=float)[:, None]
     if len(cosmic_times) == len(requested_times):
         return reference
-    return np.column_stack([
-        np.interp(requested_times, cosmic_times, reference[:, shell])
-        for shell in range(len(radius_comoving_code))
-    ])
+    return np.column_stack(
+        [
+            np.interp(requested_times, cosmic_times, reference[:, shell])
+            for shell in range(len(radius_comoving_code))
+        ]
+    )
 
 
 def integrate_shell_density_reference(initial, config, scale_factors):
@@ -112,33 +118,36 @@ def integrate_shell_density_reference(initial, config, scale_factors):
         np.concatenate(([0.0], j)),
     )
     initial_tau_supercomoving_code = float(
-        np.asarray(initial.par.tau_supercomoving_code, dtype=float).reshape(-1)[0]
+        np.asarray(initial.par.tau_supercomoving_code, dtype=float).reshape(-1)[0],
     )
     cosmic_time_initial = float(
-        cosmology.cosmic_time_from_supercomoving(initial_tau_supercomoving_code)
+        cosmology.cosmic_time_from_supercomoving(initial_tau_supercomoving_code),
     )
     scale_initial = float(cosmology.scale_factor(cosmic_time_initial))
     hubble_initial = float(cosmology.hubble(cosmic_time_initial))
     initial_physical_boundary = scale_initial * boundary_comoving_code
     initial_edge_velocity = np.interp(
-        boundary_comoving_code, radius_comoving_code, np.asarray(initial.fluid.vel_supercomoving_code, dtype=float),
-        left=0.0, right=float(np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)[-1]),
+        boundary_comoving_code,
+        radius_comoving_code,
+        np.asarray(initial.fluid.vel_supercomoving_code, dtype=float),
+        left=0.0,
+        right=float(np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)[-1]),
     )
     initial_physical_velocity = (
-        hubble_initial * initial_physical_boundary
-        + initial_edge_velocity / scale_initial
+        hubble_initial * initial_physical_boundary + initial_edge_velocity / scale_initial
     )
-    requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float)**1.5
+    requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float) ** 1.5
     cosmic_times = np.unique(requested_times)
     physical_edges = np.empty((len(cosmic_times), len(boundary_comoving_code)), dtype=float)
     for edge, enclosed_mass in enumerate(edge_mass):
+
         def rhs(time_cosmic_code, state):
             radius_shell_proper_code, velocity_shell_proper_code = state
             if radius_shell_proper_code <= 0.0 or enclosed_mass <= 0.0:
                 return velocity_shell_proper_code, 0.0
             acceleration = (
                 -cosmology.gravitational_constant * enclosed_mass / radius_shell_proper_code**2
-                + edge_j[edge]**2 / radius_shell_proper_code**3
+                + edge_j[edge] ** 2 / radius_shell_proper_code**3
             )
             return velocity_shell_proper_code, acceleration
 
@@ -147,13 +156,13 @@ def integrate_shell_density_reference(initial, config, scale_factors):
             (cosmic_times[0], cosmic_times[-1]),
             (initial_physical_boundary[edge], initial_physical_velocity[edge]),
             t_eval=cosmic_times,
-            rtol=1.0e-8, atol=1.0e-10,
+            rtol=1.0e-8,
+            atol=1.0e-10,
             max_step=max((cosmic_times[-1] - cosmic_times[0]) / 32.0, 1.0e-8),
         )
         if not solution.success:
             raise RuntimeError(
-                "density shell ODE failed at edge %d: %s"
-                % (edge, solution.message)
+                "density shell ODE failed at edge %d: %s" % (edge, solution.message),
             )
         physical_edges[:, edge] = solution.y[0]
 
@@ -163,41 +172,44 @@ def integrate_shell_density_reference(initial, config, scale_factors):
         comoving_edges = physical_edges[time_index] / current_scale
         if np.any(np.diff(comoving_edges) <= 0.0):
             raise RuntimeError("pressureless reference shells crossed")
-        shell_volume = 4.0 * np.pi / 3.0 * (
-            comoving_edges[1:]**3 - comoving_edges[:-1]**3
-        )
+        shell_volume = 4.0 * np.pi / 3.0 * (comoving_edges[1:] ** 3 - comoving_edges[:-1] ** 3)
         target_volume = volume_comoving_code
         deposited_mass = np.zeros(len(volume_comoving_code), dtype=float)
         for shell in range(len(shell_mass)):
-            shell_inner, shell_outer = comoving_edges[shell:shell + 2]
+            shell_inner, shell_outer = comoving_edges[shell : shell + 2]
             shell_volume_value = shell_volume[shell]
             for cell in range(len(volume_comoving_code)):
                 overlap_inner = max(shell_inner, boundary_comoving_code[cell])
                 overlap_outer = min(shell_outer, boundary_comoving_code[cell + 1])
                 if overlap_outer > overlap_inner:
-                    overlap_volume = 4.0 * np.pi / 3.0 * (
-                        overlap_outer**3 - overlap_inner**3
-                    )
-                    deposited_mass[cell] += (
-                        shell_mass[shell] * overlap_volume / shell_volume_value
-                    )
+                    overlap_volume = 4.0 * np.pi / 3.0 * (overlap_outer**3 - overlap_inner**3)
+                    deposited_mass[cell] += shell_mass[shell] * overlap_volume / shell_volume_value
         reference_unique[time_index] = deposited_mass / target_volume
     if len(cosmic_times) == len(requested_times):
         return reference_unique
     reference = np.empty((len(requested_times), len(volume_comoving_code)), dtype=float)
     for cell in range(len(volume_comoving_code)):
         reference[:, cell] = np.interp(
-            requested_times, cosmic_times, reference_unique[:, cell]
+            requested_times,
+            cosmic_times,
+            reference_unique[:, cell],
         )
     return reference
 
 
 def enclosed_radii(boundary_comoving_code, mass_density, volume_comoving_code, target_mass):
-    cumulative = np.concatenate(([0.0], np.cumsum(
-        np.asarray(mass_density, dtype=float) * np.asarray(volume_comoving_code, dtype=float)
-    )))
+    cumulative = np.concatenate(
+        (
+            [0.0],
+            np.cumsum(
+                np.asarray(mass_density, dtype=float)
+                * np.asarray(volume_comoving_code, dtype=float),
+            ),
+        )
+    )
     return np.interp(
-        np.asarray(target_mass, dtype=float), cumulative,
+        np.asarray(target_mass, dtype=float),
+        cumulative,
         np.asarray(boundary_comoving_code, dtype=float),
     )
 
@@ -215,7 +227,9 @@ def run_case(config, label, rotation_factor):
     par["output"] = dict(par["output"])
     par["output"].update(directory=str(output_dir), filename_prefix="Output")
     count = int(par["mesh"]["grid_cells"])
-    time_cosmic_code = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
+    time_cosmic_code = quantity_to_value(
+        initial_condition["time_cosmic"], code_unit_system.time_unit
+    )
     scale_factor = float(cosmology.scale_factor(time_cosmic_code))
     hubble = float(cosmology.hubble(time_cosmic_code))
     boundary_comoving_code = np.linspace(
@@ -224,20 +238,20 @@ def run_case(config, label, rotation_factor):
         count + 1,
     )
     x_comoving_code = spherical_centers(boundary_comoving_code)
-    volume_comoving_code = 4.0 * np.pi / 3.0 * (
-        boundary_comoving_code[1:]**3 - boundary_comoving_code[:-1]**3
+    volume_comoving_code = (
+        4.0 * np.pi / 3.0 * (boundary_comoving_code[1:] ** 3 - boundary_comoving_code[:-1] ** 3)
     )
     rho_background = float(cosmology.background_density(time_cosmic_code))
     inside = x_comoving_code < float(
-        initial_condition["radius_perturbation_comoving"].to_value(code_unit_system.length_unit)
+        initial_condition["radius_perturbation_comoving"].to_value(code_unit_system.length_unit),
     )
-    rho_comoving_code = rho_background * (
-        1.0 + float(initial_condition["overdensity"]) * inside
-    ) * scale_factor**3
+    rho_comoving_code = (
+        rho_background * (1.0 + float(initial_condition["overdensity"]) * inside) * scale_factor**3
+    )
     enclosed_mass = np.cumsum(rho_comoving_code * volume_comoving_code)
     physical_radius_code = scale_factor * x_comoving_code
     specific_angular_momentum_code = rotation_factor * np.sqrt(
-        cosmology.gravitational_constant * enclosed_mass * physical_radius_code
+        cosmology.gravitational_constant * enclosed_mass * physical_radius_code,
     )
     case_config = {
         "par": par,
@@ -253,20 +267,20 @@ def run_case(config, label, rotation_factor):
         "_volume_comoving_code": volume_comoving_code,
         "_rho_comoving_code": rho_comoving_code,
         "_vel_supercomoving_code": -(
-            scale_factor**2
-            * hubble
-            * float(initial_condition["overdensity"])
-            / 3.0
-        ) * x_comoving_code,
+            scale_factor**2 * hubble * float(initial_condition["overdensity"]) / 3.0
+        )
+        * x_comoving_code,
         "_temp_supercomoving_code": np.full(
             count,
-            float(initial_condition["temperature_proper"].to_value(code_unit_system.temperature_unit))
+            float(
+                initial_condition["temperature_proper"].to_value(code_unit_system.temperature_unit)
+            )
             * scale_factor**2,
         ),
         "_mu_dimensionless": np.full(count, float(initial_condition["mean_molecular_weight"])),
         "_specific_angular_momentum_code": specific_angular_momentum_code,
         "_initial_tau_supercomoving_code": float(
-            cosmology.supercomoving_time(time_cosmic_code)
+            cosmology.supercomoving_time(time_cosmic_code),
         ),
     }
     initial = build_initial_condition(case_config)
@@ -293,11 +307,15 @@ def run_case(config, label, rotation_factor):
     active = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     target_mass = np.cumsum(
         np.asarray(initial.fluid.rho_comoving_code, dtype=float)
-        * np.asarray(initial.mesh.volume_comoving_code, dtype=float)
+        * np.asarray(initial.mesh.volume_comoving_code, dtype=float),
     )
     history = {
-        "a": [], "maximum_density": [], "support": [],
-        "density_profiles": [], "j_profiles": [], "total_j": [],
+        "a": [],
+        "maximum_density": [],
+        "support": [],
+        "density_profiles": [],
+        "j_profiles": [],
+        "total_j": [],
         "radius_shell_comoving_code": [],
     }
 
@@ -307,48 +325,61 @@ def run_case(config, label, rotation_factor):
         radius_comoving_code = np.abs(np.asarray(state.mesh.x_comoving_code[active], dtype=float))
         j = np.asarray(state.fluid.specific_angular_momentum_code[active], dtype=float)
         enclosed = np.cumsum(
-            np.asarray(state.fluid.Mass_code[active], dtype=float)
+            np.asarray(state.fluid.Mass_code[active], dtype=float),
         )
         gravity = state.par.cosmology.model.gravitational_constant * enclosed
         valid = (radius_comoving_code > 0.0) & (gravity > 0.0)
         support = np.zeros_like(radius_comoving_code)
-        support[valid] = j[valid]**2 / (gravity[valid] * radius_comoving_code[valid])
+        support[valid] = j[valid] ** 2 / (gravity[valid] * radius_comoving_code[valid])
         history["a"].append(a)
         history["maximum_density"].append(
-            float(np.max(np.asarray(state.fluid.rho_comoving_code[active], dtype=float)))
+            float(np.max(np.asarray(state.fluid.rho_comoving_code[active], dtype=float))),
         )
         history["support"].append(float(np.max(support)))
         history["density_profiles"].append(
-            np.asarray(state.fluid.rho_comoving_code[active], dtype=float).copy()
+            np.asarray(state.fluid.rho_comoving_code[active], dtype=float).copy(),
         )
         history["j_profiles"].append(j.copy())
         history["total_j"].append(
-            float(np.sum(np.asarray(state.fluid.AngularMomentum_code[active], dtype=float)))
+            float(np.sum(np.asarray(state.fluid.AngularMomentum_code[active], dtype=float))),
         )
-        history["radius_shell_comoving_code"].append(enclosed_radii(
-            state.mesh.boundary_comoving_code[active.start:active.stop + 1],
-            state.fluid.rho_comoving_code[active], state.mesh.volume_comoving_code[active], target_mass,
-        ))
+        history["radius_shell_comoving_code"].append(
+            enclosed_radii(
+                state.mesh.boundary_comoving_code[active.start : active.stop + 1],
+                state.fluid.rho_comoving_code[active],
+                state.mesh.volume_comoving_code[active],
+                target_mass,
+            )
+        )
 
     record(sim)
-    final_tau = float(cosmology.supercomoving_time(quantity_to_value(
-        base_par["simulation"]["final_time"], code_unit_system.time_unit
-    )))
+    final_tau = float(
+        cosmology.supercomoving_time(
+            quantity_to_value(
+                base_par["simulation"]["final_time"],
+                code_unit_system.time_unit,
+            )
+        )
+    )
     sim.Evolve(final_time=final_tau, mode="hydro", history_callback=record)
     scale_factors = np.asarray(history["a"], dtype=float)
     radius_shell_reference_comoving_code = integrate_shell_reference(
-        initial, case_config, scale_factors
+        initial,
+        case_config,
+        scale_factors,
     )
     reference_density = integrate_shell_density_reference(initial, case_config, scale_factors)
-    enclosed_mass_radius_reference_comoving_code = np.asarray([
-        enclosed_radii(
-            initial.mesh.boundary_comoving_code,
-            reference_density_snapshot,
-            initial.mesh.volume_comoving_code,
-            target_mass,
-        )
-        for reference_density_snapshot in reference_density
-    ])
+    enclosed_mass_radius_reference_comoving_code = np.asarray(
+        [
+            enclosed_radii(
+                initial.mesh.boundary_comoving_code,
+                reference_density_snapshot,
+                initial.mesh.volume_comoving_code,
+                target_mass,
+            )
+            for reference_density_snapshot in reference_density
+        ]
+    )
     final_filename = output_dir / "Output_final.hdf5"
     sim.fluid.SetTemperature()
     rio._writehdf5(sim, final_filename)
@@ -362,20 +393,23 @@ def run_case(config, label, rotation_factor):
         support=np.asarray(history["support"], dtype=float),
         radius_comoving_code=np.asarray(sim.mesh.x_comoving_code[active], dtype=float),
         enclosed_mass_radius_comoving_code=np.asarray(
-            history["radius_shell_comoving_code"], dtype=float
+            history["radius_shell_comoving_code"],
+            dtype=float,
         ),
         radius_shell_reference_comoving_code=radius_shell_reference_comoving_code,
-        enclosed_mass_radius_reference_comoving_code=(
-            enclosed_mass_radius_reference_comoving_code
-        ),
+        enclosed_mass_radius_reference_comoving_code=(enclosed_mass_radius_reference_comoving_code),
         reference_density=reference_density,
     )
     return label, sim, history, output_dir
 
 
-def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
-         output_root_override=None, cfl_override=None,
-         positivity_override=None):
+def main(
+    config_filename=DEFAULT_CONFIG,
+    nogrid_override=None,
+    output_root_override=None,
+    cfl_override=None,
+    positivity_override=None,
+):
     config = eu.load_nested_example_config(config_filename)
 
     config = copy.deepcopy(config)
@@ -383,11 +417,20 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     if nogrid_override is not None:
         config["par"]["mesh"] = {**config["par"]["mesh"], "grid_cells": int(nogrid_override)}
     if output_root_override is not None:
-        config["par"]["output"] = {**config["par"]["output"], "directory": str(output_root_override)}
+        config["par"]["output"] = {
+            **config["par"]["output"],
+            "directory": str(output_root_override),
+        }
     if cfl_override is not None:
-        config["par"]["hydrodynamics"] = {**config["par"]["hydrodynamics"], "CFL": float(cfl_override)}
+        config["par"]["hydrodynamics"] = {
+            **config["par"]["hydrodynamics"],
+            "CFL": float(cfl_override),
+        }
     if positivity_override is not None:
-        config["par"]["hydrodynamics"] = {**config["par"]["hydrodynamics"], "positivity_preserving": bool(positivity_override)}
+        config["par"]["hydrodynamics"] = {
+            **config["par"]["hydrodynamics"],
+            "positivity_preserving": bool(positivity_override),
+        }
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         units,
@@ -404,24 +447,12 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     results = [run_case(config, label, factor) for label, factor in cases]
     by_label = {label: (sim, history, directory) for label, sim, history, directory in results}
     final_density = {
-        label: history["maximum_density"][-1]
-        for label, (_, history, _) in by_label.items()
+        label: history["maximum_density"][-1] for label, (_, history, _) in by_label.items()
     }
-    final_support = {
-        label: history["support"][-1]
-        for label, (_, history, _) in by_label.items()
-    }
-    if not (
-        final_density["nonrotating"]
-        >= final_density["moderate"]
-        >= final_density["high"]
-    ):
+    final_support = {label: history["support"][-1] for label, (_, history, _) in by_label.items()}
+    if not (final_density["nonrotating"] >= final_density["moderate"] >= final_density["high"]):
         raise RuntimeError("rotation did not monotonically suppress collapse")
-    if not (
-        final_support["nonrotating"]
-        <= final_support["moderate"]
-        <= final_support["high"]
-    ):
+    if not (final_support["nonrotating"] <= final_support["moderate"] <= final_support["high"]):
         raise RuntimeError("centrifugal support is not ordered by rotation")
 
     for label, (_, history, _) in by_label.items():
@@ -431,8 +462,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
             raise RuntimeError("total angular momentum is not conserved for %s" % label)
 
     saved_histories = {
-        label: np.load(directory / "history.npz")
-        for label, (_, _, directory) in by_label.items()
+        label: np.load(directory / "history.npz") for label, (_, _, directory) in by_label.items()
     }
     output_root = ROOT / config["par"]["output"]["directory"]
     figure = output_root / "CosmologicalRotatingCollapse1D.jpg"
@@ -447,13 +477,16 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         for fraction, shell in zip(enclosed_mass_fractions, enclosed_mass_indices):
             simulation_radius = data["enclosed_mass_radius_comoving_code"][:, shell]
             ode_radius = data["enclosed_mass_radius_reference_comoving_code"][:, shell]
-            line, = axis.plot(
-                data["a"], simulation_radius,
+            (line,) = axis.plot(
+                data["a"],
+                simulation_radius,
                 label="%.0f%% enclosed mass" % (100.0 * fraction),
             )
             axis.plot(
-                data["a"], ode_radius,
-                "--", color=line.get_color(),
+                data["a"],
+                ode_radius,
+                "--",
+                color=line.get_color(),
             )
         axis.set_title(label)
         axis.set_xlabel("scale factor $a$")
@@ -466,11 +499,14 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     plt.close(fig)
 
     density_comparison_figure = (
-        output_root
-        / "CosmologicalRotatingCollapse1D_density_comparison.jpg"
+        output_root / "CosmologicalRotatingCollapse1D_density_comparison.jpg"
     )
     fig, axes = plt.subplots(
-        2, 3, figsize=(12, 6), sharex="col", sharey="row",
+        2,
+        3,
+        figsize=(12, 6),
+        sharex="col",
+        sharey="row",
         gridspec_kw={"height_ratios": (2.0, 1.0)},
     )
     for column, label in enumerate(("nonrotating", "moderate", "high")):
@@ -478,16 +514,25 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         difference_axis = axes[1, column]
         data = saved_histories[label]
         axis.plot(
-            data["radius_comoving_code"], data["rho_comoving_code"][0],
-            ":", color="black", linewidth=1.5, label="initial",
+            data["radius_comoving_code"],
+            data["rho_comoving_code"][0],
+            ":",
+            color="black",
+            linewidth=1.5,
+            label="initial",
         )
         axis.plot(
-            data["radius_comoving_code"], data["rho_comoving_code"][-1],
-            label="simulation", linewidth=2.0,
+            data["radius_comoving_code"],
+            data["rho_comoving_code"][-1],
+            label="simulation",
+            linewidth=2.0,
         )
         axis.plot(
-            data["radius_comoving_code"], data["reference_density"][-1],
-            "--", label="pressureless ODE", linewidth=1.5,
+            data["radius_comoving_code"],
+            data["reference_density"][-1],
+            "--",
+            label="pressureless ODE",
+            linewidth=1.5,
         )
         axis.set_title(label)
         axis.grid(alpha=0.25)
@@ -495,8 +540,10 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
             data["rho_comoving_code"][-1] - data["reference_density"][-1]
         ) / np.maximum(data["reference_density"][-1], 1.0e-300)
         difference_axis.plot(
-            data["radius_comoving_code"], relative_difference,
-            color="tab:purple", linewidth=1.5,
+            data["radius_comoving_code"],
+            relative_difference,
+            color="tab:purple",
+            linewidth=1.5,
         )
         difference_axis.axhline(0.0, color="black", linewidth=0.8)
         difference_axis.set_xlabel("comoving radius $x$")
@@ -508,10 +555,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     fig.savefig(density_comparison_figure, dpi=200)
     plt.close(fig)
 
-    total_angular_figure = (
-        output_root
-        / "CosmologicalRotatingCollapse1D_total_angular_momentum.jpg"
-    )
+    total_angular_figure = output_root / "CosmologicalRotatingCollapse1D_total_angular_momentum.jpg"
     plt.figure(figsize=(7, 4))
     for label in ("nonrotating", "moderate", "high"):
         data = saved_histories[label]
@@ -524,10 +568,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     plt.savefig(total_angular_figure, dpi=200)
     plt.close()
 
-    shell_figure = (
-        output_root
-        / "CosmologicalRotatingCollapse1D_shell_ode.jpg"
-    )
+    shell_figure = output_root / "CosmologicalRotatingCollapse1D_shell_ode.jpg"
     shell_count = len(saved_histories["high"]["radius_comoving_code"])
     shell_indices = (
         int(0.2 * (shell_count - 1)),
@@ -535,7 +576,10 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         int(0.8 * (shell_count - 1)),
     )
     fig, axes = plt.subplots(
-        2, 3, figsize=(12, 6), sharex="col",
+        2,
+        3,
+        figsize=(12, 6),
+        sharex="col",
         gridspec_kw={"height_ratios": (2.0, 1.0)},
     )
     for column, label in enumerate(("nonrotating", "moderate", "high")):
@@ -545,19 +589,23 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         for shell, fraction in zip(shell_indices, enclosed_mass_fractions):
             simulation_radius = data["enclosed_mass_radius_comoving_code"][:, shell]
             ode_radius = data["enclosed_mass_radius_reference_comoving_code"][:, shell]
-            line, = axis.plot(
-                data["a"], simulation_radius,
+            (line,) = axis.plot(
+                data["a"],
+                simulation_radius,
                 label="%.0f%% enclosed mass" % (100.0 * fraction),
             )
             axis.plot(
-                data["a"], ode_radius,
-                "--", color=line.get_color(),
+                data["a"],
+                ode_radius,
+                "--",
+                color=line.get_color(),
             )
-            relative_error = (
-                simulation_radius - ode_radius
-            ) / np.maximum(np.abs(ode_radius), 1.0e-300)
+            relative_error = (simulation_radius - ode_radius) / np.maximum(
+                np.abs(ode_radius), 1.0e-300
+            )
             error_axis.plot(
-                data["a"], relative_error,
+                data["a"],
+                relative_error,
                 color=line.get_color(),
             )
         axis.set_title(label)
@@ -583,8 +631,14 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         data = saved_histories[label]
         image = axis.imshow(
             np.log10(np.maximum(data["rho_comoving_code"], 1.0e-300)),
-            origin="lower", aspect="auto",
-            extent=(data["radius_comoving_code"][0], data["radius_comoving_code"][-1], data["a"][0], data["a"][-1]),
+            origin="lower",
+            aspect="auto",
+            extent=(
+                data["radius_comoving_code"][0],
+                data["radius_comoving_code"][-1],
+                data["a"][0],
+                data["a"][-1],
+            ),
         )
         axis.set_title(label)
         axis.set_xlabel("comoving radius $x$")
@@ -606,9 +660,17 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
         data = saved_histories[label]
         image = axis.imshow(
             data["specific_angular_momentum"],
-            origin="lower", aspect="auto", cmap="RdBu_r",
-            vmin=-maximum_j, vmax=maximum_j,
-            extent=(data["radius_comoving_code"][0], data["radius_comoving_code"][-1], data["a"][0], data["a"][-1]),
+            origin="lower",
+            aspect="auto",
+            cmap="RdBu_r",
+            vmin=-maximum_j,
+            vmax=maximum_j,
+            extent=(
+                data["radius_comoving_code"][0],
+                data["radius_comoving_code"][-1],
+                data["a"][0],
+                data["a"][-1],
+            ),
         )
         axis.set_title(label)
         axis.set_xlabel("comoving radius $x$")
@@ -620,7 +682,7 @@ def main(config_filename=DEFAULT_CONFIG, nogrid_override=None,
     for label in ("nonrotating", "moderate", "high"):
         print(
             "%s: final max density %.8g, centrifugal support %.8g"
-            % (label, final_density[label], final_support[label])
+            % (label, final_density[label], final_support[label]),
         )
     print("figure = %s" % figure)
     print("density comparison figure = %s" % density_comparison_figure)
@@ -636,8 +698,7 @@ if __name__ == "__main__":
     parser.add_argument("--nogrid", type=int, default=None)
     parser.add_argument("--output-root", default=None)
     parser.add_argument("--cfl", type=float, default=None)
-    parser.add_argument("--positivity-preserving", action="store_true",
-                        default=None)
+    parser.add_argument("--positivity-preserving", action="store_true", default=None)
     args = parser.parse_args()
     main(
         args.config,

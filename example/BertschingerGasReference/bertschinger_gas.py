@@ -13,7 +13,6 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import brentq
 
-
 ALPHA = 8.0 / 9.0
 GAMMA = 5.0 / 3.0
 TURNAROUND_MASS = 9.0 * np.pi**2 / 16.0
@@ -46,48 +45,63 @@ def exterior_solution(lambda_values, theta_points=20000):
     """Solve the cold exterior using the spherical-collapse parameter ``theta``."""
     theta = np.linspace(1.0e-5, 2.0 * np.pi - 1.0e-6, int(theta_points))
     tau, dtau = _collapse_parametric(theta)
-    lam = 0.5 * (1.0 - np.cos(theta)) * tau**(-ALPHA)
+    lam = 0.5 * (1.0 - np.cos(theta)) * tau ** (-ALPHA)
     # v/(r_ta/t), obtained by differentiating r=A(1-cos(theta)).
-    vel_dimensionless = (np.sin(theta) * tau) / (2.0 * dtau) * tau**(-ALPHA)
-    mass_dimensionless = TURNAROUND_MASS * tau**(-2.0 / 3.0)
+    vel_dimensionless = (np.sin(theta) * tau) / (2.0 * dtau) * tau ** (-ALPHA)
+    mass_dimensionless = TURNAROUND_MASS * tau ** (-2.0 / 3.0)
     order = np.argsort(lam)
     lam, mass_dimensionless, vel_dimensionless = (
-        lam[order], mass_dimensionless[order], vel_dimensionless[order]
+        lam[order],
+        mass_dimensionless[order],
+        vel_dimensionless[order],
     )
     density_dimensionless = np.gradient(mass_dimensionless, lam) / (3.0 * lam**2)
     requested = np.asarray(lambda_values, dtype=float)
     if np.any((requested < lam[0]) | (requested > lam[-1])):
-        raise ValueError('requested exterior lambda is outside the tabulated range')
-    return tuple(np.interp(requested, lam, values) for values in (
-        density_dimensionless, vel_dimensionless, mass_dimensionless
-    ))
+        raise ValueError("requested exterior lambda is outside the tabulated range")
+    return tuple(
+        np.interp(requested, lam, values)
+        for values in (
+            density_dimensionless,
+            vel_dimensionless,
+            mass_dimensionless,
+        )
+    )
 
 
 def _gas_rhs(lam, state, gamma=GAMMA):
-    density_dimensionless, velocity_dimensionless, pressure_dimensionless, mass_dimensionless = state
+    density_dimensionless, velocity_dimensionless, pressure_dimensionless, mass_dimensionless = (
+        state
+    )
     if density_dimensionless <= 0.0 or pressure_dimensionless <= 0.0 or lam <= 0.0:
         return np.full(4, np.nan)
     q = velocity_dimensionless - ALPHA * lam
     # The unknowns are (d ln D/d lambda, dV/d lambda,
     # d ln P/d lambda).  Keeping logarithmic derivatives here avoids the
     # density/pressure scale factors leaking into the energy equation.
-    matrix = np.array([
-        [q, 1.0, 0.0],
-        [0.0, q, pressure_dimensionless / density_dimensionless],
-        [0.0, gamma, q],
-    ])
-    rhs = np.array([
-        2.0 - 2.0 * velocity_dimensionless / lam,
-        -(ALPHA - 1.0) * velocity_dimensionless - 2.0 * mass_dimensionless / (9.0 * lam**2),
-        4.0 - 2.0 * ALPHA - 2.0 * gamma * velocity_dimensionless / lam,
-    ])
+    matrix = np.array(
+        [
+            [q, 1.0, 0.0],
+            [0.0, q, pressure_dimensionless / density_dimensionless],
+            [0.0, gamma, q],
+        ]
+    )
+    rhs = np.array(
+        [
+            2.0 - 2.0 * velocity_dimensionless / lam,
+            -(ALPHA - 1.0) * velocity_dimensionless - 2.0 * mass_dimensionless / (9.0 * lam**2),
+            4.0 - 2.0 * ALPHA - 2.0 * gamma * velocity_dimensionless / lam,
+        ]
+    )
     log_density_prime, velocity_prime, log_pressure_prime = np.linalg.solve(matrix, rhs)
-    return np.array([
-        density_dimensionless * log_density_prime,
-        velocity_prime,
-        pressure_dimensionless * log_pressure_prime,
-        3.0 * lam**2 * density_dimensionless,
-    ])
+    return np.array(
+        [
+            density_dimensionless * log_density_prime,
+            velocity_prime,
+            pressure_dimensionless * log_pressure_prime,
+            3.0 * lam**2 * density_dimensionless,
+        ]
+    )
 
 
 def shock_jump(exterior_state, shock_lambda, gamma=GAMMA):
@@ -95,49 +109,63 @@ def shock_jump(exterior_state, shock_lambda, gamma=GAMMA):
     density_dimensionless, velocity_dimensionless, mass_dimensionless = exterior_state
     relative_velocity_dimensionless = velocity_dimensionless - ALPHA * shock_lambda
     density_post_dimensionless = (gamma + 1.0) / (gamma - 1.0) * density_dimensionless
-    velocity_post_dimensionless = ALPHA * shock_lambda + (gamma - 1.0) / (gamma + 1.0) * relative_velocity_dimensionless
-    pressure_post_dimensionless = 2.0 / (gamma + 1.0) * density_dimensionless * relative_velocity_dimensionless**2
-    return np.array([density_post_dimensionless, velocity_post_dimensionless, pressure_post_dimensionless, mass_dimensionless])
+    velocity_post_dimensionless = (
+        ALPHA * shock_lambda + (gamma - 1.0) / (gamma + 1.0) * relative_velocity_dimensionless
+    )
+    pressure_post_dimensionless = (
+        2.0 / (gamma + 1.0) * density_dimensionless * relative_velocity_dimensionless**2
+    )
+    return np.array(
+        [
+            density_post_dimensionless,
+            velocity_post_dimensionless,
+            pressure_post_dimensionless,
+            mass_dimensionless,
+        ]
+    )
 
 
-def _integrate_inside(shock_lambda, lambda_min, gamma,
-                      central_density_limit=1.0e6):
+def _integrate_inside(shock_lambda, lambda_min, gamma, central_density_limit=1.0e6):
     exterior = exterior_solution(np.array([shock_lambda]))
     postshock = shock_jump((exterior[0][0], exterior[1][0], exterior[2][0]), shock_lambda, gamma)
 
     def density_limit(lam, state):
         return state[0] - central_density_limit
+
     density_limit.terminal = True
     density_limit.direction = 1
 
     solution = solve_ivp(
         lambda lam, state: _gas_rhs(lam, state, gamma),
-        (shock_lambda, lambda_min), postshock, rtol=2.0e-9, atol=1.0e-11,
-        events=density_limit, max_step=shock_lambda / 400.0, method='RK45',
+        (shock_lambda, lambda_min),
+        postshock,
+        rtol=2.0e-9,
+        atol=1.0e-11,
+        events=density_limit,
+        max_step=shock_lambda / 400.0,
+        method="RK45",
     )
     if not solution.success and not solution.t_events[0].size:
-        raise RuntimeError('post-shock integration failed')
+        raise RuntimeError("post-shock integration failed")
     if np.any(~np.isfinite(solution.y)):
-        raise RuntimeError('post-shock integration produced non-finite values')
+        raise RuntimeError("post-shock integration produced non-finite values")
     return solution
 
 
-def shoot_shock_lambda(bracket=(0.3388, 0.3391), gamma=GAMMA,
-                       central_density_limit=1.0e6):
+def shoot_shock_lambda(bracket=(0.3388, 0.3391), gamma=GAMMA, central_density_limit=1.0e6):
     """Shoot on ``lambda_s`` for the regular transonic branch."""
+
     def residual(shock_lambda):
-        solution = _integrate_inside(
-            shock_lambda, 1.0e-6, gamma, central_density_limit)
+        solution = _integrate_inside(shock_lambda, 1.0e-6, gamma, central_density_limit)
         if not solution.t_events[0].size:
-            raise RuntimeError('shooting integration did not reach the central asymptote')
+            raise RuntimeError("shooting integration did not reach the central asymptote")
         return float(solution.y[1, -1])
 
     left, right = map(float, bracket)
     return brentq(residual, left, right, xtol=2.0e-10, rtol=2.0e-10)
 
 
-def solve_bertschinger_gas(shock_lambda=None, points=2048,
-                           lambda_min=1.0e-5, gamma=GAMMA):
+def solve_bertschinger_gas(shock_lambda=None, points=2048, lambda_min=1.0e-5, gamma=GAMMA):
     """Return the exterior/interior solution matched at a strong shock.
 
     Bertschinger's ``gamma=5/3`` solution has ``lambda_s ~= 0.339``.  The
@@ -146,7 +174,7 @@ def solve_bertschinger_gas(shock_lambda=None, points=2048,
     if shock_lambda is None:
         shock_lambda = shoot_shock_lambda(gamma=gamma)
     if not 0.0 < shock_lambda < 1.0 or not 0.0 < lambda_min < shock_lambda:
-        raise ValueError('shock_lambda and lambda_min must be positive and ordered')
+        raise ValueError("shock_lambda and lambda_min must be positive and ordered")
     # Keep the cold exterior long enough for finite-domain RadHydro runs to
     # compare against the asymptotic Hubble-flow branch without endpoint
     # clamping in interpolation.
@@ -161,40 +189,45 @@ def solve_bertschinger_gas(shock_lambda=None, points=2048,
     pressure_in = np.interp(lambda_in, interior.t[::-1], interior.y[2, ::-1])
     mass_in = np.interp(lambda_in, interior.t[::-1], interior.y[3, ::-1])
     return GasSimilaritySolution(
-        lambda_out=lambda_out, density_out=density_out,
-        velocity_out=velocity_out, mass_out=mass_out,
-        lambda_in=lambda_in, density_in=density_in,
-        velocity_in=velocity_in, pressure_in=pressure_in,
-        mass_in=mass_in, shock_lambda=float(shock_lambda),
+        lambda_out=lambda_out,
+        density_out=density_out,
+        velocity_out=velocity_out,
+        mass_out=mass_out,
+        lambda_in=lambda_in,
+        density_in=density_in,
+        velocity_in=velocity_in,
+        pressure_in=pressure_in,
+        mass_in=mass_in,
+        shock_lambda=float(shock_lambda),
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     solution = solve_bertschinger_gas()
-    print('shock lambda = %.8f' % solution.shock_lambda)
-    print('interior integration reached lambda = %.8e' % solution.lambda_in[0])
+    print("shock lambda = %.8f" % solution.shock_lambda)
+    print("interior integration reached lambda = %.8e" % solution.lambda_in[0])
     figure, axes = plt.subplots(2, 2, figsize=(10.0, 8.0), squeeze=False)
     axes = axes.ravel()
-    axes[0].loglog(solution.lambda_out, solution.density_out, label='cold exterior')
-    axes[0].loglog(solution.lambda_in, solution.density_in, label='hot interior')
-    axes[0].set(xlabel=r'$\lambda$', ylabel=r'$D=\rho/\rho_b$')
+    axes[0].loglog(solution.lambda_out, solution.density_out, label="cold exterior")
+    axes[0].loglog(solution.lambda_in, solution.density_in, label="hot interior")
+    axes[0].set(xlabel=r"$\lambda$", ylabel=r"$D=\rho/\rho_b$")
     axes[1].semilogx(solution.lambda_out, solution.velocity_out)
     axes[1].semilogx(solution.lambda_in, solution.velocity_in)
-    axes[1].set(xlabel=r'$\lambda$', ylabel=r'$V$')
+    axes[1].set(xlabel=r"$\lambda$", ylabel=r"$V$")
     axes[2].loglog(solution.lambda_in, solution.pressure_in)
-    axes[2].set(xlabel=r'$\lambda$', ylabel=r'$P$')
-    axes[3].loglog(solution.lambda_out, solution.mass_out, label='cold exterior')
-    axes[3].loglog(solution.lambda_in, solution.mass_in, label='hot interior')
-    axes[3].set(xlabel=r'$\lambda$', ylabel=r'$M(<\lambda)$')
+    axes[2].set(xlabel=r"$\lambda$", ylabel=r"$P$")
+    axes[3].loglog(solution.lambda_out, solution.mass_out, label="cold exterior")
+    axes[3].loglog(solution.lambda_in, solution.mass_in, label="hot interior")
+    axes[3].set(xlabel=r"$\lambda$", ylabel=r"$M(<\lambda)$")
     for axis in axes:
-        axis.axvline(solution.shock_lambda, color='k', linestyle=':', alpha=0.5)
+        axis.axvline(solution.shock_lambda, color="k", linestyle=":", alpha=0.5)
         axis.grid(alpha=0.25)
     axes[0].legend()
     axes[3].legend()
     figure.tight_layout()
-    output = Path(__file__).with_name('BertschingerGasReference.jpg')
+    output = Path(__file__).with_name("BertschingerGasReference.jpg")
     figure.savefig(output, dpi=200)
     plt.close(figure)
-    print('figure = %s' % output)
+    print("figure = %s" % output)

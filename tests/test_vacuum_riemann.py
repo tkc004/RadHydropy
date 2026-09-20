@@ -1,13 +1,13 @@
-import numpy as np
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
+
+import numpy as np
 
 from radhydropy.eos import EOS
+from radhydropy.runtime_fields import PROPER_RUNTIME_FIELDS, FluidRuntimeState, MeshGeometryState
 from radhydropy.solver import Solver
 from radhydropy.units import CodeUnits
 from radhydropy.utils import CalFluxFromLR
-from radhydropy.runtime_fields import FluidRuntimeState, MeshGeometryState, PROPER_RUNTIME_FIELDS
-
+from tests.parameter_fixtures import parameter_namespace
 
 CODE_UNITS = CodeUnits.from_mapping(
     {
@@ -19,7 +19,7 @@ CODE_UNITS = CodeUnits.from_mapping(
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
         },
-    }
+    },
 )
 
 
@@ -61,14 +61,18 @@ def test_primitive_reconstruction_stores_active_mask_for_vacuum_cells():
         PROPER_RUNTIME_FIELDS,
         x_proper_code=np.array([0.5, 1.5, 2.5]),
         boundary_proper_code=np.array([0.0, 1.0, 2.0, 3.0]),
-        width_proper_code=np.ones(3), area_proper_code=np.ones(3), volume_proper_code=np.ones(3),
+        width_proper_code=np.ones(3),
+        area_proper_code=np.ones(3),
+        volume_proper_code=np.ones(3),
     )
     fluid = SimpleNamespace(
         Mass_code=np.array([1.0, 0.0, 2.0]),
         Mom_code=np.array([1.0, 5.0, 0.0]),
         Energy_code=np.array([2.0, 7.0, 3.0]),
-        rho_proper_code=np.zeros(3), vel_proper_code=np.zeros(3),
-        pre_proper_code=np.zeros(3), temp_proper_code=np.ones(3),
+        rho_proper_code=np.zeros(3),
+        vel_proper_code=np.zeros(3),
+        pre_proper_code=np.zeros(3),
+        temp_proper_code=np.ones(3),
         eos=EOS("polytropic", gamma=5.0 / 3.0, code_units=CODE_UNITS),
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
@@ -99,8 +103,10 @@ def test_low_density_active_cell_blocks_both_interface_fluxes():
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
         rho_proper_code=fluid.rho_proper_code,
-        vel_proper_code=np.zeros(5), pre_proper_code=np.ones(5),
-        temp_proper_code=np.ones(5), time_proper_code=0.0,
+        vel_proper_code=np.zeros(5),
+        pre_proper_code=np.ones(5),
+        temp_proper_code=np.ones(5),
+        time_proper_code=0.0,
     )
 
     Solver()._apply_low_density_flux_mask(fluid, par)

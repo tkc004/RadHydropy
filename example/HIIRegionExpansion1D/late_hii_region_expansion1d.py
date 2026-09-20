@@ -30,37 +30,36 @@ example_root = Path(__file__).resolve().parents[1]
 if str(example_root) not in sys.path:
     sys.path.insert(0, str(example_root))
 
-cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
-mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
+mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
-os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
+os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
+import example_utils as eu
 import unyt
 
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-import example_utils as eu
 import tools as et
+from radhydropy.rsim import Rsim
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name('late_hii_region_expansion1d.yaml')
+DEFAULT_CONFIG = Path(__file__).resolve().with_name("late_hii_region_expansion1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
-    print('rundir', rundir)
+    print("rundir", rundir)
     loaded_config = eu.load_nested_example_config(config_filename)
-    par = loaded_config['par']
-    initial_condition = loaded_config['initial_condition']
-    exampleparams = loaded_config['example']
+    par = loaded_config["par"]
+    initial_condition = loaded_config["initial_condition"]
+    exampleparams = loaded_config["example"]
     config = loaded_config
-    output = par['output']
+    output = par["output"]
     eu.clean_previous_outputs(config)
 
-    Path(output['directory']).mkdir(parents=True, exist_ok=True)
-    Path(output['directory']).mkdir(parents=True, exist_ok=True)
+    Path(output["directory"]).mkdir(parents=True, exist_ok=True)
+    Path(output["directory"]).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
@@ -72,23 +71,23 @@ def main(config_filename=DEFAULT_CONFIG):
     et.apply_piecewise_isothermal_state(sim, config)
     et.print_startup_diagnostics(sim, config, initial_condition)
 
-    output_specs = exampleparams['output_snapshots']
+    output_specs = exampleparams["output_snapshots"]
     step_backend = et.make_logging_step_backend(sim, config, max_logged_steps=5)
-    print('starting hydro_sources evolution; this may take a while...')
+    print("starting hydro_sources evolution; this may take a while...")
     sim.Run(
         outputtime=0,
-        mode='hydro_sources',
+        mode="hydro_sources",
         step_backend=step_backend,
     )
-    print('finished evolution; loading saved outputs and building plots...')
-    outputfilenames = et.output_files(output['directory'], output['filename_prefix'])
+    print("finished evolution; loading saved outputs and building plots...")
+    outputfilenames = et.output_files(output["directory"], output["filename_prefix"])
 
     history = et.load_history_from_outputs(outputfilenames, config)
 
-    figure_stem = 'LateHIIRegionExpansion1D'
-    if par['radiation'].get('temporal_scheme') == 'c2ray':
-        figure_stem += '_C2Ray'
-    figure_filename = Path(output['directory']) / f'{figure_stem}_IFront.jpg'
+    figure_stem = "LateHIIRegionExpansion1D"
+    if par["radiation"].get("temporal_scheme") == "c2ray":
+        figure_stem += "_C2Ray"
+    figure_filename = Path(output["directory"]) / f"{figure_stem}_IFront.jpg"
     et.save_front_plot(history, config, figure_filename)
 
     density_figure_filenames = []
@@ -97,66 +96,66 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
         output_specs,
     ):
-        density_figure_filename = Path(output['directory']) / (
+        density_figure_filename = Path(output["directory"]) / (
             f"{figure_stem}_Density_{label}Myr.jpg"
         )
         et.save_density_profile_plot(snapshot, config, density_figure_filename)
         density_figure_filenames.append(density_figure_filename)
 
-    comparison_time_myr = initial_condition['comparison_time'].to_value(unyt.Myr)
+    comparison_time_myr = initial_condition["comparison_time"].to_value(unyt.Myr)
     simulation_radius_pc = et.front_radius_at_time(
         history,
-        initial_condition['comparison_time'],
+        initial_condition["comparison_time"],
     ).to_value(unyt.pc)
     spitzer_radius_pc = et.spitzer_radius(
-        initial_condition['comparison_time'],
+        initial_condition["comparison_time"],
         config,
     ).to_value(unyt.pc)
     hosokawa_inutsuka_radius_pc = et.hosokawa_inutsuka_radius(
-        initial_condition['comparison_time'],
+        initial_condition["comparison_time"],
         config,
     ).to_value(unyt.pc)
     stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)
 
-    print('time = %.6e Myr' % et.time_proper_Myr(sim.fluid.time_proper_code, sim.par.units.CodeUnits))
-    print('stromgren radius = %.3e pc' % et.stromgren_radius(config).to_value(unyt.pc))
-    print('stagnation radius = %.3e pc' % stagnation_radius_pc)
-    print('output files = %d' % len(outputfilenames))
     print(
-        'final ionization-front radius = %.3e pc'
-        % history['front_radius_proper_pc'][-1]
+        "time = %.6e Myr" % et.time_proper_Myr(sim.fluid.time_proper_code, sim.par.units.CodeUnits)
+    )
+    print("stromgren radius = %.3e pc" % et.stromgren_radius(config).to_value(unyt.pc))
+    print("stagnation radius = %.3e pc" % stagnation_radius_pc)
+    print("output files = %d" % len(outputfilenames))
+    print(
+        "final ionization-front radius = %.3e pc" % history["front_radius_proper_pc"][-1],
     )
     print(
-        'simulation ionization-front radius at %.2f Myr = %.3e pc'
-        % (comparison_time_myr, simulation_radius_pc)
+        "simulation ionization-front radius at %.2f Myr = %.3e pc"
+        % (comparison_time_myr, simulation_radius_pc),
     )
     print(
-        'Spitzer solution at %.2f Myr = %.3e pc'
-        % (comparison_time_myr, spitzer_radius_pc)
+        "Spitzer solution at %.2f Myr = %.3e pc" % (comparison_time_myr, spitzer_radius_pc),
     )
     print(
-        'Hosokawa-Inutsuka solution at %.2f Myr = %.3e pc'
-        % (comparison_time_myr, hosokawa_inutsuka_radius_pc)
+        "Hosokawa-Inutsuka solution at %.2f Myr = %.3e pc"
+        % (comparison_time_myr, hosokawa_inutsuka_radius_pc),
     )
-    print('figure = %s' % figure_filename)
+    print("figure = %s" % figure_filename)
     for density_figure_filename in density_figure_filenames:
-        print('density figure = %s' % density_figure_filename)
+        print("density figure = %s" % density_figure_filename)
     for outputfilename in outputfilenames:
-        print('output file = %s' % outputfilename)
+        print("output file = %s" % outputfilename)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Run the late HII region expansion example.',
+        description="Run the late HII region expansion example.",
     )
     parser.add_argument(
-        '--config',
+        "--config",
         default=DEFAULT_CONFIG,
-        help='YAML file containing nested par, initial_condition, and example sections.',
+        help="YAML file containing nested par, initial_condition, and example sections.",
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

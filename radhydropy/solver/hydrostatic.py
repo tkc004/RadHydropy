@@ -8,7 +8,9 @@ from radhydropy.runtime_fields import runtime_fields
 
 def hydrostatic_core_enabled(par):
     return str(getattr(par, "gas_core_model", "none")).lower() in (
-        "hydrostatic", "hydrostatic_fixed", "fixed_hydrostatic",
+        "hydrostatic",
+        "hydrostatic_fixed",
+        "fixed_hydrostatic",
     )
 
 
@@ -25,13 +27,13 @@ def initialize_hydrostatic_core(solver, mesh, fluid, par):
     last = first + int(par.mesh.grid_cells)
     geometry = solver._geometry_state(mesh, par)
     coordinate = np.asarray(
-        geometry.coordinate_runtime_code[first:last], dtype=float
+        geometry.coordinate_runtime_code[first:last],
+        dtype=float,
     )
     core_local = coordinate < float(radius)
     if not np.any(core_local) or np.all(core_local):
         raise ValueError(
-            "radius_core_proper must contain at least one, but not all, "
-            "resolved cells"
+            "radius_core_proper must contain at least one, but not all, resolved cells",
         )
     core = np.zeros(len(geometry.coordinate_runtime_code), dtype=bool)
     core[first:last] = core_local
@@ -106,6 +108,7 @@ def apply_hydrostatic_core_flux(solver, fluid, par):
     fluid.Mass_code.flux[face] = 0.0
     fluid.Energy_code.flux[face] = 0.0
     _, _, pressure_runtime_code, _ = solver._active_primitive_arrays(
-        fluid, par
+        fluid,
+        par,
     )
     fluid.Mom_code.flux[face] = pressure_runtime_code[core_last]

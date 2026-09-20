@@ -23,12 +23,16 @@ def write_numbered_hdf5(sim, outindex):
     # snapshots directly to the serializer so the IC preparation boundary
     # does not append a second set of ghost cells.
     from radhydropy.io import write_snapshot_hdf5
+
     write_snapshot_hdf5(sim, filename)
     return filename
 
 
 def hdf5_output_callback(
-    sim, outputtime=0, output_state=None, output_writer=None,
+    sim,
+    outputtime=0,
+    output_state=None,
+    output_writer=None,
     snapshot_callback=None,
 ):
     """Return a callback that writes HDF5 snapshots at fixed cadence."""
@@ -38,9 +42,12 @@ def hdf5_output_callback(
         output_state = {
             "outtime": 0.0 * sim.par.simulation.final_time,
             "outindex": 1,
-            "last_output_time_s": float(np.asarray(
-                getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float,
-            )),
+            "last_output_time_s": float(
+                np.asarray(
+                    getattr(sim.fluid, runtime_fields(sim.par).time),
+                    dtype=float,
+                )
+            ),
         }
     else:
         output_state.setdefault(
@@ -50,9 +57,12 @@ def hdf5_output_callback(
         output_state.setdefault("outindex", 1)
         output_state.setdefault(
             "last_output_time_s",
-            float(np.asarray(
-                getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float,
-            )),
+            float(
+                np.asarray(
+                    getattr(sim.fluid, runtime_fields(sim.par).time),
+                    dtype=float,
+                )
+            ),
         )
 
     def callback(sim, step):
@@ -70,15 +80,19 @@ def hdf5_output_callback(
             )
         if output_state["outtime"] >= sim.par.output.cadence:
             snapshot_filename = output_writer(
-                sim, output_state["outindex"],
+                sim,
+                output_state["outindex"],
             )
             if snapshot_callback is not None:
                 snapshot_callback(
-                    sim, snapshot_filename, output_state["outindex"],
+                    sim,
+                    snapshot_filename,
+                    output_state["outindex"],
                 )
             output_state["last_output_time_s"] = float(
                 np.asarray(
-                    getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float,
+                    getattr(sim.fluid, runtime_fields(sim.par).time),
+                    dtype=float,
                 ),
             )
             output_state["outtime"] = 0.0 * sim.par.simulation.final_time
@@ -116,13 +130,17 @@ def run_with_output_times(
         snapshot_callback(sim, initial_filename, 0)
     if history_callback is not None:
         history_callback(sim)
-    last_output_time_s = float(np.asarray(
-        getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float,
-    ))
+    last_output_time_s = float(
+        np.asarray(
+            getattr(sim.fluid, runtime_fields(sim.par).time),
+            dtype=float,
+        )
+    )
     current_time = getattr(sim.fluid, runtime_fields(sim.par).time)
     final_time = sim.par.simulation.final_time
     time_tol = max(abs(float(np.asarray(final_time, dtype=float))) * 1.0e-12, 1.0e-30)
     from radhydropy.io import load_output_time_list
+
     output_times = load_output_time_list(getattr(sim.par, "outputtimefilename", None))
     if output_times is None:
         output_times = []
@@ -136,7 +154,9 @@ def run_with_output_times(
             code_units = getattr(sim.par, "CodeUnits", None)
             if code_units is None:
                 code_units = getattr(
-                    getattr(sim.par, "units", None), "CodeUnits", None,
+                    getattr(sim.par, "units", None),
+                    "CodeUnits",
+                    None,
                 )
             sorted_values = np.unique(
                 np.asarray(output_times.to_value(unyt.s), dtype=float)
@@ -146,8 +166,7 @@ def run_with_output_times(
             value * final_time.units if hasattr(final_time, "units") else value
             for value in sorted_values
             if (
-                (value * final_time.units if hasattr(final_time, "units") else value)
-                > current_time
+                (value * final_time.units if hasattr(final_time, "units") else value) > current_time
                 and (value * final_time.units if hasattr(final_time, "units") else value)
                 <= final_time
             )
@@ -177,15 +196,24 @@ def run_with_output_times(
         # Euler/source steps can cross a target by a roundoff- or CFL-sized
         # amount.  Treat the first state at or beyond the target as the
         # requested snapshot instead of silently dropping the output.
-        if float(np.asarray(
-            getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float,
-        )) >= target_time_value - time_tol:
+        if (
+            float(
+                np.asarray(
+                    getattr(sim.fluid, runtime_fields(sim.par).time),
+                    dtype=float,
+                )
+            )
+            >= target_time_value - time_tol
+        ):
             snapshot_filename = output_writer(sim, outindex)
             if snapshot_callback is not None:
                 snapshot_callback(sim, snapshot_filename, outindex)
-            last_output_time_s = float(np.asarray(
-                getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float,
-            ))
+            last_output_time_s = float(
+                np.asarray(
+                    getattr(sim.fluid, runtime_fields(sim.par).time),
+                    dtype=float,
+                )
+            )
             outindex += 1
 
     _advance_until(
@@ -201,9 +229,18 @@ def run_with_output_times(
         emit_initial_history=False,
     )
 
-    if abs(float(np.asarray(
-        getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float,
-    )) - last_output_time_s) > time_tol:
+    if (
+        abs(
+            float(
+                np.asarray(
+                    getattr(sim.fluid, runtime_fields(sim.par).time),
+                    dtype=float,
+                )
+            )
+            - last_output_time_s
+        )
+        > time_tol
+    ):
         snapshot_filename = output_writer(sim, outindex)
         if snapshot_callback is not None:
             snapshot_callback(sim, snapshot_filename, outindex)

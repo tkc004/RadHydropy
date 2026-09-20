@@ -1,8 +1,7 @@
 """Contract tests for the direct nested example-configuration API."""
 
-from pathlib import Path
 import sys
-
+from pathlib import Path
 
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / "example"
 if str(EXAMPLE_ROOT) not in sys.path:
@@ -12,7 +11,7 @@ from radhydropy.example_config import load_example_config
 
 def test_example_config_is_consumed_as_nested_mapping():
     config = load_example_config(
-        EXAMPLE_ROOT / "Advection1D" / "advection1d.yaml"
+        EXAMPLE_ROOT / "Advection1D" / "advection1d.yaml",
     )
 
     assert set(config) == {"par", "initial_condition", "example"}

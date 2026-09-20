@@ -4,10 +4,10 @@ import argparse
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "outputs_correlation_gas"
@@ -24,17 +24,17 @@ def _add_redshift_top_axis(axis, times, scale_factors):
     top_axis = axis.twiny()
     top_axis.set_xlim(axis.get_xlim())
     indices = np.flatnonzero(valid)
-    selected = indices[np.unique(np.linspace(0, indices.size - 1,
-                                             min(7, indices.size)).astype(int))]
+    selected = indices[
+        np.unique(np.linspace(0, indices.size - 1, min(7, indices.size)).astype(int))
+    ]
     top_axis.set_xticks(times[selected])
     top_axis.set_xticklabels(
-        ["%.0f" % (1.0 / scale_factors[index] - 1.0) for index in selected]
+        ["%.0f" % (1.0 / scale_factors[index] - 1.0) for index in selected],
     )
     top_axis.set_xlabel("redshift")
 
 
-def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
-         exclude_outer_cells=2):
+def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, exclude_outer_cells=2):
     output = Path(output)
     data = np.load(output / (prefix + ".npz"))
     times = np.asarray(data["time_cosmic_Gyr"], dtype=float)
@@ -44,7 +44,9 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     scale = np.asarray(data["scale_factor"], dtype=float)
     rvir = np.asarray(data["rvir_proper_kpc"], dtype=float)
     rshock = np.asarray(data["rshock_kpc"], dtype=float)
-    entropy = temperature_proper_cgs_K / np.maximum(rho_comoving_code, 1.0e-300) ** (float(gamma) - 1.0)
+    entropy = temperature_proper_cgs_K / np.maximum(rho_comoving_code, 1.0e-300) ** (
+        float(gamma) - 1.0
+    )
     cell_count = max(1, radius_comoving_code.size - max(0, int(exclude_outer_cells)))
     radius_comoving_code = radius_comoving_code[:cell_count]
     entropy = entropy[:, :cell_count]
@@ -52,34 +54,47 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     selected = np.unique(np.linspace(0, len(times) - 1, min(9, len(times))).astype(int))
     colors = plt.get_cmap("plasma")(np.linspace(0.05, 0.95, selected.size))
     fig, axes = plt.subplots(
-        2, 1, figsize=(8.0, 8.0),
+        2,
+        1,
+        figsize=(8.0, 8.0),
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
     for color, index in zip(colors, selected):
         valid = (
-            np.isfinite(radius_comoving_code) & np.isfinite(entropy[index])
-            & (radius_comoving_code > 0.0) & (entropy[index] > 0.0)
+            np.isfinite(radius_comoving_code)
+            & np.isfinite(entropy[index])
+            & (radius_comoving_code > 0.0)
+            & (entropy[index] > 0.0)
         )
         axes[0].loglog(
-            radius_comoving_code[valid], entropy[index, valid], color=color, lw=1.7,
+            radius_comoving_code[valid],
+            entropy[index, valid],
+            color=color,
+            lw=1.7,
             label="t = %.2f Gyr" % times[index],
         )
         if np.isfinite(rvir[index]) and rvir[index] > 0.0:
             axes[0].axvline(
-                rvir[index] / scale[index], color=color, ls="--",
-                lw=0.9, alpha=0.65,
+                rvir[index] / scale[index],
+                color=color,
+                ls="--",
+                lw=0.9,
+                alpha=0.65,
             )
         if np.isfinite(rshock[index]) and rshock[index] > 0.0:
             axes[0].axvline(
-                rshock[index] / scale[index], color=color, ls="-.",
-                lw=0.9, alpha=0.8,
+                rshock[index] / scale[index],
+                color=color,
+                ls="-.",
+                lw=0.9,
+                alpha=0.8,
             )
 
     axes[0].set_xlabel("comoving radius [kpc]")
     axes[0].set_ylabel(r"$T/\rho^{\gamma-1}$ [K / code-density$^{\gamma-1}$]")
     axes[0].set_title(
         r"Gas entropy evolution: $S = T/\rho^{\gamma-1}$"
-        "\nsolid S; dashed $r_{200}$; dash-dot $r_{\\rm shock}$"
+        "\nsolid S; dashed $r_{200}$; dash-dot $r_{\\rm shock}$",
     )
     axes[0].grid(alpha=0.25, which="both")
     axes[0].legend(loc="best", fontsize=8, ncol=3)
@@ -88,20 +103,28 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0,
     finite_shock = np.isfinite(rshock) & (rshock > 0.0)
     if np.any(finite):
         axes[1].plot(
-            times[finite], rvir[finite] / scale[finite], "k.-",
+            times[finite],
+            rvir[finite] / scale[finite],
+            "k.-",
             label=r"$r_{200}$ (comoving)",
         )
     if np.any(finite_shock):
         axes[1].plot(
-            times[finite_shock], rshock[finite_shock] / scale[finite_shock],
-            "r.-", label=r"$r_{\rm shock}$ (comoving)",
+            times[finite_shock],
+            rshock[finite_shock] / scale[finite_shock],
+            "r.-",
+            label=r"$r_{\rm shock}$ (comoving)",
         )
     if np.any(finite) or np.any(finite_shock):
         axes[1].legend(fontsize=8)
     else:
         axes[1].text(
-            0.5, 0.5, "no resolved $r_{200}$ yet",
-            transform=axes[1].transAxes, ha="center", va="center",
+            0.5,
+            0.5,
+            "no resolved $r_{200}$ yet",
+            transform=axes[1].transAxes,
+            ha="center",
+            va="center",
         )
     axes[1].set_xlabel("cosmic time [Gyr]")
     _add_redshift_top_axis(axes[1], times, scale)

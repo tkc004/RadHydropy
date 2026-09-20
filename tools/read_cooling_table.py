@@ -8,7 +8,6 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 DEFAULT_TABLE = (
     Path(__file__).resolve().parents[2]
     / "CHIANTI_11.0.2_database"
@@ -19,7 +18,7 @@ DEFAULT_TABLE = (
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Plot CHIANTI cooling rate versus log10 temperature."
+        description="Plot CHIANTI cooling rate versus log10 temperature.",
     )
     parser.add_argument(
         "table",
@@ -57,7 +56,7 @@ def main():
     args = parse_args()
     table_path = args.table.expanduser().resolve()
     output_path = args.output or table_path.with_name(
-        f"{table_path.stem}_vs_logT.png"
+        f"{table_path.stem}_vs_logT.png",
     )
 
     with h5py.File(table_path, "r") as f:
@@ -80,7 +79,7 @@ def main():
         low_density = electron_density[low_index]
         high_density = electron_density[high_index]
         output_path = args.output or table_path.with_name(
-            f"{table_path.stem}_ratio_ne_{low_density:g}_to_{high_density:g}.png"
+            f"{table_path.stem}_ratio_ne_{low_density:g}_to_{high_density:g}.png",
         )
 
         ratio = cooling[:, :, high_index] / cooling[:, :, low_index]
@@ -90,14 +89,14 @@ def main():
                 curve,
                 color=color,
                 linewidth=1.8,
-                label=fr"$Z/Z_\odot={z:g}$",
+                label=rf"$Z/Z_\odot={z:g}$",
             )
 
         ax.axhline(1.0, color="black", linestyle="--", linewidth=1.0)
         ax.set_xlabel(r"$\log_{10}(T\,[\mathrm{K}])$")
         ax.set_ylabel(
             rf"Cooling-rate ratio "
-            rf"$\Lambda({high_density:g})/\Lambda({low_density:g})$"
+            rf"$\Lambda({high_density:g})/\Lambda({low_density:g})$",
         )
         ax.set_title("Density dependence of CHIANTI cooling")
         ax.grid(True, alpha=0.25)
@@ -106,27 +105,28 @@ def main():
         fig.savefig(output_path, dpi=180)
         print(f"Loaded: {table_path}")
         print(
-            f"Using nearest table densities: {low_density:g} and "
-            f"{high_density:g} cm^-3"
+            f"Using nearest table densities: {low_density:g} and {high_density:g} cm^-3",
         )
         print(f"Wrote: {output_path}")
         return
 
     for color, z, rate in zip(
-        colors, metallicity, cooling[:, :, density_index]
+        colors,
+        metallicity,
+        cooling[:, :, density_index],
     ):
         ax.semilogy(
             log_temperature,
             rate,
             color=color,
             linewidth=1.8,
-            label=fr"$Z/Z_\odot={z:g}$",
+            label=rf"$Z/Z_\odot={z:g}$",
         )
 
     ax.set_xlabel(r"$\log_{10}(T\,[\mathrm{K}])$")
     ax.set_ylabel(r"Cooling coefficient $\Lambda$ [erg cm$^{3}$ s$^{-1}$]")
     ax.set_title(
-        rf"CHIANTI cooling rate at $n_e={selected_density:g}\ \mathrm{{cm}}^{{-3}}$"
+        rf"CHIANTI cooling rate at $n_e={selected_density:g}\ \mathrm{{cm}}^{{-3}}$",
     )
     ax.grid(True, which="both", alpha=0.25)
     ax.legend(title="Metallicity", frameon=False)
@@ -135,7 +135,7 @@ def main():
     print(f"Loaded: {table_path}")
     print(
         f"Requested ne = {args.electron_density:g} cm^-3; "
-        f"using nearest table value ne = {selected_density:g} cm^-3"
+        f"using nearest table value ne = {selected_density:g} cm^-3",
     )
     print(f"Wrote: {output_path}")
 

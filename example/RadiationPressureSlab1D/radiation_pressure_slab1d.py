@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,57 +27,61 @@ if str(example_root) not in sys.path:
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import CodeUnits, quantity_to_value
-import radhydropy.io as rio
 import example_utils as eu
 
+import radhydropy.io as rio
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("radiation_pressure_slab1d.yaml")
 
 
 def build_initial_condition(config):
-    initial = config['initial_condition']
+    initial = config["initial_condition"]
     code_units = config["_code_units"]
-    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    grid_cells = int(config["par"]["mesh"]["grid_cells"])
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code_units, ic_config=initial,
+        par_config=config["par"],
+        code_units=code_units,
+        ic_config=initial,
     )
-    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.box_size = writer.radquantity(initial["box_size_proper"])
     writer.mesh.boundary_radarray = writer.radarray(
-        np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
+        np.linspace(0.0, 1.0, grid_cells + 1) * initial["box_size_proper"],
     )
     writer.fluid.rho_radarray = writer.radarray(
-        np.ones(grid_cells) * initial['rho_proper']
+        np.ones(grid_cells) * initial["rho_proper"],
     )
     writer.fluid.vel_radarray = writer.radarray(
-        np.ones(grid_cells) * initial['vel_proper']
+        np.ones(grid_cells) * initial["vel_proper"],
     )
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial['temperature_proper']
+        np.ones(grid_cells) * initial["temperature_proper"],
     )
     writer.fluid.mu = np.full(
-        grid_cells, initial['mean_molecular_weight']
+        grid_cells,
+        initial["mean_molecular_weight"],
     )
     writer.simulation.fluid.xHI = np.full(
-        grid_cells, config["par"]['chemistry']['hydrogen_xHI_initial']
+        grid_cells,
+        config["par"]["chemistry"]["hydrogen_xHI_initial"],
     )
     return writer
 
 
 def write_initial_condition(config):
     writer = build_initial_condition(config)
-    writer.write(config['par']['simulation']['initial_condition_filename'], validate=True)
+    writer.write(config["par"]["simulation"]["initial_condition_filename"], validate=True)
 
 
 def _total_momentum(fluid, config):
-    par = config['_runtime_par']
+    par = config["_runtime_par"]
     interior = slice(par.mesh.ghost_cells, par.mesh.ghost_cells + par.mesh.grid_cells)
     return float(np.sum(np.asarray(fluid.Mom_code[interior], dtype=float)))
 
 
 def _absorbed_momentum(source_result, mesh, config, dt):
-    par = config['_runtime_par']
+    par = config["_runtime_par"]
     absorbed = source_result.get("absorbed_photon_rate")
     energies = source_result.get("photon_energy_cgs_erg")
     if absorbed is None or energies is None:
@@ -89,25 +94,28 @@ def _absorbed_momentum(source_result, mesh, config, dt):
     volume_proper_code = np.asarray(mesh.geometry_state.volume_proper_code[interior], dtype=float)
     absorbed_energy = np.sum(absorbed * energies[:, None], axis=0)
     direction = float(source_result.get("direction", 1))
-    return direction * float(np.sum(absorbed_energy * volume_proper_code * dt) / unyt.c.to_value(unyt.cm / unyt.s))
+    return direction * float(
+        np.sum(absorbed_energy * volume_proper_code * dt) / unyt.c.to_value(unyt.cm / unyt.s)
+    )
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    config['_code_units'] = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    config["_code_units"] = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
     eu.clean_previous_outputs(config)
     write_initial_condition(config)
 
     sim = rio.loadhdf5(
-        config, config["par"]['simulation']['initial_condition_filename']
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
     )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
-    config['_runtime_par'] = sim.par
+    config["_runtime_par"] = sim.par
 
     time_s = [0.0]
     gas_momentum = [_total_momentum(sim.fluid, config)]
@@ -149,8 +157,17 @@ def main(config_filename=DEFAULT_CONFIG):
     expected = np.asarray(expected_momentum) * (unyt.g * unyt.cm / unyt.s)
     figure = Path(config["par"]["output"]["directory"]) / "RadiationPressureSlab1D_Momentum.jpg"
     plt.figure(figsize=(7.0, 4.5))
-    plt.plot(time_cgs_s_unyt.to_value(unyt.s), gas.to_value(unyt.g * unyt.cm / unyt.s), label="gas momentum")
-    plt.plot(time_cgs_s_unyt.to_value(unyt.s), expected.to_value(unyt.g * unyt.cm / unyt.s), "--", label="absorbed photons / c")
+    plt.plot(
+        time_cgs_s_unyt.to_value(unyt.s),
+        gas.to_value(unyt.g * unyt.cm / unyt.s),
+        label="gas momentum",
+    )
+    plt.plot(
+        time_cgs_s_unyt.to_value(unyt.s),
+        expected.to_value(unyt.g * unyt.cm / unyt.s),
+        "--",
+        label="absorbed photons / c",
+    )
     plt.xlabel("time [s]")
     plt.ylabel(r"total momentum [g cm s$^{-1}$]")
     plt.legend()

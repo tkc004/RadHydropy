@@ -19,25 +19,28 @@ sys.path.insert(0, str(EXAMPLE_DIR.parent))
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
 matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-import example_utils as eu
-
 from tools import build_initial_condition, clean_outputs, load_history
-
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_photoionization_timescale_1d.yaml"
 
 
 def _equilibrium_temperature(
-    table, hydrogen_number_density_cgs_cm3, redshift, metallicity
+    table,
+    hydrogen_number_density_cgs_cm3,
+    redshift,
+    metallicity,
 ):
     temperatures = np.logspace(
-        table.log_temperature[0], table.log_temperature[-1], 4096
+        table.log_temperature[0],
+        table.log_temperature[-1],
+        4096,
     )
     heating, cooling = table.rates(
         temperatures,
@@ -59,8 +62,8 @@ def _equilibrium_temperature(
 
 
 def _write_initial_condition(config, output_dir):
-    code_units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    config['_code_units'] = code_units
+    code_units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    config["_code_units"] = code_units
     ric = build_initial_condition(config)
     ric.write(output_dir / "InitialCondition.hdf5", validate=True)
     return ric
@@ -69,58 +72,88 @@ def _write_initial_condition(config, output_dir):
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']
-    initial_condition = config['initial_condition']
-    thermochemistry = par['thermochemistry']
+    par = config["par"]
+    initial_condition = config["initial_condition"]
+    thermochemistry = par["thermochemistry"]
     output_dir = EXAMPLE_DIR / "outputs"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_figure = output_dir / "PIEUVBGPhotoionizationTimescale1D.jpg"
     if output_figure.exists():
         output_figure.unlink()
-    table_filename = str((config_filename.parent / thermochemistry['metal_pie_table_filename']).resolve())
-    thermochemistry['metal_pie_table_filename'] = table_filename
-    photoionization_timescale = thermochemistry['pie_uvbg_photoionization_timescale']
-    thermochemistry['pie_uvbg_photoionization_timescale'] = float(
+    table_filename = str(
+        (config_filename.parent / thermochemistry["metal_pie_table_filename"]).resolve()
+    )
+    thermochemistry["metal_pie_table_filename"] = table_filename
+    photoionization_timescale = thermochemistry["pie_uvbg_photoionization_timescale"]
+    thermochemistry["pie_uvbg_photoionization_timescale"] = float(
         photoionization_timescale.to_value(unyt.s)
-        if hasattr(photoionization_timescale, 'to_value')
-        else photoionization_timescale
+        if hasattr(photoionization_timescale, "to_value")
+        else photoionization_timescale,
     )
 
     table = MetalPIETable(table_filename)
     redshift = float(thermochemistry["metal_pie_redshift"])
     metallicity = float(thermochemistry["metallicity"])
     photoionization_timescale_yr = float(
-        photoionization_timescale.to_value(unyt.yr)
+        photoionization_timescale.to_value(unyt.yr),
     )
-    timesim_yr = float(par['simulation']['final_time'].to_value(unyt.yr))
+    timesim_yr = float(par["simulation"]["final_time"].to_value(unyt.yr))
     output_times_yr = np.array(
-        [1.0, 3.0, 10.0, 30.0, 100.0, 300.0, 1000.0, 3000.0,
-         10000.0, 20000.0, 30000.0, 50000.0, 70000.0, 100000.0]
+        [
+            1.0,
+            3.0,
+            10.0,
+            30.0,
+            100.0,
+            300.0,
+            1000.0,
+            3000.0,
+            10000.0,
+            20000.0,
+            30000.0,
+            50000.0,
+            70000.0,
+            100000.0,
+        ],
     )
-    output_time_file = EXAMPLE_DIR / (
-        "pie_uvbg_photoionization_timescale_1d_output_times.txt"
-    )
+    output_time_file = EXAMPLE_DIR / ("pie_uvbg_photoionization_timescale_1d_output_times.txt")
 
     temperature_propers = (1.0e3, 1.0e4, 2.0e4, 1.0e5)
     hydrogen_number_densities_cgs_cm3 = (0.1, 1.0, 10.0)
     results = []
     for hydrogen_number_density_cgs_cm3 in hydrogen_number_densities_cgs_cm3:
         temperature_equilibrium_cgs_K = _equilibrium_temperature(
-            table, hydrogen_number_density_cgs_cm3, redshift, metallicity
+            table,
+            hydrogen_number_density_cgs_cm3,
+            redshift,
+            metallicity,
         )
         for temperature_proper in temperature_propers:
             case_name = f"nH_{hydrogen_number_density_cgs_cm3:g}_T_{temperature_proper:g}"
             case_dir = output_dir / case_name
             clean_outputs(case_dir)
-            case_config = {'par': {**par,
-                'simulation': {**par['simulation'], 'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5')},
-                'output': {**par['output'], 'directory': str(case_dir), 'filename_prefix': 'Output'}},
-                'initial_condition': {**initial_condition,
-                                      'hydrogen_number_density': hydrogen_number_density_cgs_cm3 / unyt.cm**3,
-                                      'temperature_proper': temperature_proper * unyt.K},
-                'example': config['example']}
+            case_config = {
+                "par": {
+                    **par,
+                    "simulation": {
+                        **par["simulation"],
+                        "initial_condition_filename": str(case_dir / "InitialCondition.hdf5"),
+                    },
+                    "output": {
+                        **par["output"],
+                        "directory": str(case_dir),
+                        "filename_prefix": "Output",
+                    },
+                },
+                "initial_condition": {
+                    **initial_condition,
+                    "hydrogen_number_density": hydrogen_number_density_cgs_cm3 / unyt.cm**3,
+                    "temperature_proper": temperature_proper * unyt.K,
+                },
+                "example": config["example"],
+            }
             ric = _write_initial_condition(case_config, case_dir)
-            sim = Rsim(case_config['par'])
+            sim = Rsim(case_config["par"])
             sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
             sim.par.metal_pie_table = table
             sim.SetMesh()
@@ -136,8 +169,10 @@ def main(config_filename=DEFAULT_CONFIG):
             # output list is explicit, so reconstruct the physical times of
             # the saved snapshots from that list.
             scheduled_times = np.concatenate(([0.0], output_times_yr, [timesim_yr]))
-            time_yr = scheduled_times[:len(history)]
-            temperature_proper_cgs_K = np.array([item["temperature_proper_cgs_K"] for item in history])
+            time_yr = scheduled_times[: len(history)]
+            temperature_proper_cgs_K = np.array(
+                [item["temperature_proper_cgs_K"] for item in history]
+            )
             time_over_photoionization_timescale_dimensionless = (
                 time_yr / photoionization_timescale_yr
             )
@@ -157,25 +192,28 @@ def main(config_filename=DEFAULT_CONFIG):
                     ),
                     "temperature_proper_cgs_K": temperature_proper_cgs_K,
                     "temperature_error_dimensionless": temperature_error_dimensionless,
-                }
+                },
             )
 
     colors = {
         hydrogen_number_density_cgs_cm3: f"C{index}"
         for index, hydrogen_number_density_cgs_cm3 in enumerate(
-            hydrogen_number_densities_cgs_cm3
+            hydrogen_number_densities_cgs_cm3,
         )
     }
     linestyles = ["-", "--", ":", "-."]
     for hydrogen_number_density_cgs_cm3 in hydrogen_number_densities_cgs_cm3:
         density_results = [
-            result for result in results
-            if result["hydrogen_number_density_cgs_cm3"]
-            == hydrogen_number_density_cgs_cm3
+            result
+            for result in results
+            if result["hydrogen_number_density_cgs_cm3"] == hydrogen_number_density_cgs_cm3
         ]
         temperature_equilibrium_cgs_K = density_results[0]["temperature_equilibrium_cgs_K"]
         fig, (ax_temp, ax_error) = plt.subplots(
-            2, 1, figsize=(8, 7), sharex=True
+            2,
+            1,
+            figsize=(8, 7),
+            sharex=True,
         )
         for result in density_results:
             linestyle = linestyles[
@@ -258,23 +296,36 @@ def main(config_filename=DEFAULT_CONFIG):
         ax_error.grid(alpha=0.25)
         ax_temp.legend(frameon=False, fontsize=8, ncol=2)
         ax_error.legend(frameon=False, fontsize=8, ncol=2)
-        fig.suptitle(rf"HM12 PIE timescale test: $n_H={hydrogen_number_density_cgs_cm3:g}\ {{\rm cm^{{-3}}}}$")
+        fig.suptitle(
+            rf"HM12 PIE timescale test: $n_H={hydrogen_number_density_cgs_cm3:g}\ {{\rm cm^{{-3}}}}$"
+        )
         fig.tight_layout()
-        figure = output_dir / f"PIEUVBGPhotoionizationTimescale1D_nH_{hydrogen_number_density_cgs_cm3:g}.jpg"
+        figure = (
+            output_dir
+            / f"PIEUVBGPhotoionizationTimescale1D_nH_{hydrogen_number_density_cgs_cm3:g}.jpg"
+        )
         fig.savefig(figure, dpi=180)
         plt.close(fig)
 
     for result in results:
-        one_tau = int(np.argmin(np.abs(
-            result["time_over_photoionization_timescale_dimensionless"] - 1.0
-        )))
-        ten_tau = int(np.argmin(np.abs(
-            result["time_over_photoionization_timescale_dimensionless"] - 10.0
-        )))
+        one_tau = int(
+            np.argmin(
+                np.abs(
+                    result["time_over_photoionization_timescale_dimensionless"] - 1.0,
+                )
+            )
+        )
+        ten_tau = int(
+            np.argmin(
+                np.abs(
+                    result["time_over_photoionization_timescale_dimensionless"] - 10.0,
+                )
+            )
+        )
         print(
             f"{result['label']}: T_PIE={result['temperature_equilibrium_cgs_K']:.6e} K, "
             f"error(1 tau)={result['temperature_error_dimensionless'][one_tau]:.6e}, "
-            f"error(10 tau)={result['temperature_error_dimensionless'][ten_tau]:.6e}"
+            f"error(10 tau)={result['temperature_error_dimensionless'][ten_tau]:.6e}",
         )
     print(f"figures = {output_dir}/PIEUVBGPhotoionizationTimescale1D_nH_*.jpg")
 

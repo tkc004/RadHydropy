@@ -1,24 +1,23 @@
 """Helper utilities for the static Stromgren sphere example."""
 
-from pathlib import Path
-
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import stromgren_analytic as sa
 import unyt
 
-import radhydropy.thermo_networks.hydrogen as rth
 import radhydropy.io as rio
+import radhydropy.thermo_networks.hydrogen as rth
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 from radhydropy.runtime_fields import (
+    PROPER_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
-    PROPER_RUNTIME_FIELDS,
 )
-import stromgren_analytic as sa
+from radhydropy.units import CodeUnits, code_quantity_to_cgs, quantity_to_value
 
 
 def _attach_proper_runtime_states(mesh, fluid):
@@ -26,18 +25,16 @@ def _attach_proper_runtime_states(mesh, fluid):
     width_proper_code = np.diff(boundary_proper_code)
     area_proper_code = 4.0 * np.pi * boundary_proper_code[:-1] ** 2
     volume_proper_code = (
-        4.0 * np.pi / 3.0
-        * np.abs(boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
+        4.0 * np.pi / 3.0 * np.abs(boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
     )
-    coordinate_proper_code = 0.5 * (
-        boundary_proper_code[1:] + boundary_proper_code[:-1]
-    )
+    coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
     denominator = boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3
     valid = denominator != 0.0
-    coordinate_proper_code[valid] = 0.75 * (
-        boundary_proper_code[1:][valid] ** 4
-        - boundary_proper_code[:-1][valid] ** 4
-    ) / denominator[valid]
+    coordinate_proper_code[valid] = (
+        0.75
+        * (boundary_proper_code[1:][valid] ** 4 - boundary_proper_code[:-1][valid] ** 4)
+        / denominator[valid]
+    )
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
         x_proper_code=coordinate_proper_code,
@@ -56,35 +53,37 @@ def _attach_proper_runtime_states(mesh, fluid):
         temp_proper_code=fluid.temp_proper_code,
         time_proper_code=fluid.time_proper_code,
         mu_dimensionless=fluid.mu,
-        xHI_dimensionless=fluid.xHI if hasattr(fluid, 'xHI') else None,
+        xHI_dimensionless=fluid.xHI if hasattr(fluid, "xHI") else None,
     )
 
 
 def _build_writer(config):
     """Create the proper-coordinate IC writer for the static benchmark."""
-    initial = config['initial_condition']
-    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    grid_cells = int(config["par"]['mesh']['grid_cells'])
+    initial = config["initial_condition"]
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    grid_cells = int(config["par"]["mesh"]["grid_cells"])
     writer = InitialConditionWriter(
-        par_config=config['par'], code_units=units, ic_config=initial,
+        par_config=config["par"],
+        code_units=units,
+        ic_config=initial,
     )
-    writer.box_size = writer.radquantity(initial['box_size_proper'])
+    writer.box_size = writer.radquantity(initial["box_size_proper"])
     writer.mesh.boundary_radarray = writer.radarray(
-        np.linspace(0.0, 1.0, grid_cells + 1) * initial['box_size_proper']
+        np.linspace(0.0, 1.0, grid_cells + 1) * initial["box_size_proper"],
     )
     writer.fluid.rho_radarray = writer.radarray(
-        np.ones(grid_cells) * initial['hydrogen_number_density'] * unyt.mp
+        np.ones(grid_cells) * initial["hydrogen_number_density"] * unyt.mp,
     )
     writer.fluid.vel_radarray = writer.radarray(
-        np.zeros(grid_cells) * units.velocity_unit
+        np.zeros(grid_cells) * units.velocity_unit,
     )
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * 1.0e4 * unyt.K
+        np.ones(grid_cells) * 1.0e4 * unyt.K,
     )
     writer.fluid.mu = np.ones(grid_cells)
     writer.fluid.xHI = np.ones(grid_cells)
     writer.fluid.ngamma_radarray = writer.radarray(
-        np.ones(grid_cells) * config['par']['thermochemistry']['hydrogen_ngamma_initial']
+        np.ones(grid_cells) * config["par"]["thermochemistry"]["hydrogen_ngamma_initial"],
     )
     return writer
 
@@ -96,31 +95,44 @@ def build_static_problem(config):
 
 
 def _refresh_mesh_geometry(mesh, config):
-    par = config['_output_par']
+    par = config["_output_par"]
     """Recompute derived mesh geometry from an already ghosted boundary."""
     mesh.width_proper_code = mesh.boundary_proper_code[1:] - mesh.boundary_proper_code[:-1]
     mesh.coordinate_inverse_proper_code = 1.0 / mesh.width_proper_code
     code_units = par.units.CodeUnits
-    if par.simulation.coordinate_system == 'cartesian':
+    if par.simulation.coordinate_system == "cartesian":
         mesh.x_proper_code = 0.5 * (mesh.boundary_proper_code[1:] + mesh.boundary_proper_code[:-1])
         mesh.area_proper_code = np.ones(len(mesh.width_proper_code)) * quantity_to_value(
-            par.mesh.area_proper, code_units.area_unit
+            par.mesh.area_proper,
+            code_units.area_unit,
         )
         mesh.volume_proper_code = mesh.width_proper_code * mesh.area_proper_code
-    elif par.simulation.coordinate_system == 'spherical':
+    elif par.simulation.coordinate_system == "spherical":
         mesh.area_proper_code = (mesh.boundary_proper_code[:-1] ** 2) * 4.0 * np.pi
-        mesh.volume_proper_code = np.absolute(
-            mesh.boundary_proper_code[1:] ** 3 - mesh.boundary_proper_code[:-1] ** 3
-        ) * 4.0 * np.pi / 3.0
+        mesh.volume_proper_code = (
+            np.absolute(
+                mesh.boundary_proper_code[1:] ** 3 - mesh.boundary_proper_code[:-1] ** 3,
+            )
+            * 4.0
+            * np.pi
+            / 3.0
+        )
         vol_denom = mesh.boundary_proper_code[1:] ** 3 - mesh.boundary_proper_code[:-1] ** 3
         mesh.x_proper_code = 0.5 * (mesh.boundary_proper_code[1:] + mesh.boundary_proper_code[:-1])
         nonzero_vol_denom = vol_denom != 0.0
-        mesh.x_proper_code[nonzero_vol_denom] = 0.75 * (
-            mesh.boundary_proper_code[1:][nonzero_vol_denom] ** 4 - mesh.boundary_proper_code[:-1][nonzero_vol_denom] ** 4
-        ) / vol_denom[nonzero_vol_denom]
+        mesh.x_proper_code[nonzero_vol_denom] = (
+            0.75
+            * (
+                mesh.boundary_proper_code[1:][nonzero_vol_denom] ** 4
+                - mesh.boundary_proper_code[:-1][nonzero_vol_denom] ** 4
+            )
+            / vol_denom[nonzero_vol_denom]
+        )
         for ig in range(len(mesh.volume_proper_code)):
             if (mesh.boundary_proper_code[ig] < 0.0) and (mesh.boundary_proper_code[ig + 1] > 0.0):
-                mesh.volume_proper_code[ig] = (mesh.boundary_proper_code[ig + 1] ** 3) * 4.0 * np.pi / 3.0
+                mesh.volume_proper_code[ig] = (
+                    (mesh.boundary_proper_code[ig + 1] ** 3) * 4.0 * np.pi / 3.0
+                )
                 mesh.x_proper_code[ig] = 0.75 * mesh.boundary_proper_code[ig + 1]
                 mesh.area_proper_code[ig] = 0.0
     else:
@@ -138,12 +150,12 @@ def _refresh_mesh_geometry(mesh, config):
 def write_initial_condition(config):
     """Build the raw IC state and write it to ``ICfilename``."""
     writer = _build_writer(config)
-    filename = config['par']['simulation']['initial_condition_filename']
+    filename = config["par"]["simulation"]["initial_condition_filename"]
     writer.write(filename, validate=True)
 
 
 def load_output_state(outputfilename, config):
-    snapshot = Rsim(config['par'])
+    snapshot = Rsim(config["par"])
     rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, outputfilename)
     par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
     code_units_obj = par.units.CodeUnits
@@ -154,9 +166,9 @@ def load_output_state(outputfilename, config):
     fluid.vel_proper_code = np.asarray(fluid.vel_proper_code, dtype=float)
     fluid.temp_proper_code = np.asarray(fluid.temp_proper_code, dtype=float)
     fluid.time_proper_code = par.time_proper_code
-    if hasattr(fluid, 'ngamma_code'):
+    if hasattr(fluid, "ngamma_code"):
         fluid.ngamma_code = np.asarray(fluid.ngamma_code, dtype=float)
-    config['_output_par'] = par
+    config["_output_par"] = par
     _refresh_mesh_geometry(mesh, config)
     fluid.SetPressure()
     fluid.runtime_fields = PROPER_RUNTIME_FIELDS
@@ -174,28 +186,30 @@ def load_output_state(outputfilename, config):
 
 
 def interior_slice(config):
-    par = config['_output_par']
+    par = config["_output_par"]
     first = par.mesh.ghost_cells
     return slice(first, first + par.mesh.grid_cells)
 
 
 def _density_cgs_g_cm3(values, config):
-    par = config['_output_par']
-    return code_quantity_to_cgs(values, par.units.CodeUnits, 'density_cgs_g_cm3')
+    par = config["_output_par"]
+    return code_quantity_to_cgs(values, par.units.CodeUnits, "density_cgs_g_cm3")
 
 
 def _volume_cgs_cm3(values, config):
-    par = config['_output_par']
-    return code_quantity_to_cgs(values, par.units.CodeUnits, 'volume_cgs_cm3')
+    par = config["_output_par"]
+    return code_quantity_to_cgs(values, par.units.CodeUnits, "volume_cgs_cm3")
 
 
 def _radius_kpc(values, config):
-    par = config['_output_par']
-    return code_quantity_to_cgs(values, par.units.CodeUnits, 'length_cgs_cm') / (1.0 * unyt.kpc).to_value(unyt.cm)
+    par = config["_output_par"]
+    return code_quantity_to_cgs(values, par.units.CodeUnits, "length_cgs_cm") / (
+        1.0 * unyt.kpc
+    ).to_value(unyt.cm)
 
 
 def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
-    par = config['_output_par']
+    par = config["_output_par"]
     interior = interior_slice(config)
     radius_proper_kpc = _radius_kpc(mesh.x_proper_code[interior], config) * unyt.kpc
     xHI = np.asarray(fluid.xHI[interior])
@@ -219,7 +233,7 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
 
 
 def ionized_hydrogen_atoms(mesh, fluid, config):
-    par = config['_output_par']
+    par = config["_output_par"]
     interior = interior_slice(config)
     nH = rth._cgs_hydrogen_number_density(
         _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
@@ -231,17 +245,19 @@ def ionized_hydrogen_atoms(mesh, fluid, config):
 
 
 def photons_in_volume(mesh, fluid, config):
-    par = config['_output_par']
+    par = config["_output_par"]
     interior = interior_slice(config)
     photon_density_cgs_cm3 = code_quantity_to_cgs(
-        fluid.ngamma_code[interior], par.units.CodeUnits, 'number_density_cgs_cm3'
+        fluid.ngamma_code[interior],
+        par.units.CodeUnits,
+        "number_density_cgs_cm3",
     )
     volume_cgs_cm3 = _volume_cgs_cm3(mesh.volume_proper_code[interior], config)
     return float(np.sum(photon_density_cgs_cm3 * volume_cgs_cm3))
 
 
 def total_recombination_rate(mesh, fluid, config):
-    par = config['_output_par']
+    par = config["_output_par"]
     interior = interior_slice(config)
     nH = rth._cgs_hydrogen_number_density(
         _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
@@ -252,56 +268,58 @@ def total_recombination_rate(mesh, fluid, config):
         par.chemistry.alpha_B
         * ionized_fraction**2
         * nH**2
-        * _volume_cgs_cm3(mesh.volume_proper_code[interior], config)
+        * _volume_cgs_cm3(mesh.volume_proper_code[interior], config),
     )
     return float(rate) / unyt.s
 
 
 def append_history(history, mesh, fluid, config, recombined_photons):
-    par = config['_output_par']
-    radiation = config['par']['radiation']
-    time_proper_Myr = float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr))
-    history['time_proper_Myr'].append(time_proper_Myr)
-    history['front_radius_proper_kpc'].append(
-        ionization_front_position(mesh, fluid, config).to_value(unyt.kpc)
+    par = config["_output_par"]
+    radiation = config["par"]["radiation"]
+    time_proper_Myr = float(
+        fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr)
     )
-    history['injected_photons'].append(
-        (radiation['source_photon_rate'] * time_proper_Myr * unyt.Myr).to_value('')
+    history["time_proper_Myr"].append(time_proper_Myr)
+    history["front_radius_proper_kpc"].append(
+        ionization_front_position(mesh, fluid, config).to_value(unyt.kpc),
     )
-    history['ionized_atoms'].append(ionized_hydrogen_atoms(mesh, fluid, config))
-    history['recombined_photons'].append(recombined_photons)
-    history['volume_photons'].append(photons_in_volume(mesh, fluid, config))
-    history['accounted_photons'].append(
-        history['ionized_atoms'][-1]
-        + history['recombined_photons'][-1]
-        + history['volume_photons'][-1]
+    history["injected_photons"].append(
+        (radiation["source_photon_rate"] * time_proper_Myr * unyt.Myr).to_value(""),
+    )
+    history["ionized_atoms"].append(ionized_hydrogen_atoms(mesh, fluid, config))
+    history["recombined_photons"].append(recombined_photons)
+    history["volume_photons"].append(photons_in_volume(mesh, fluid, config))
+    history["accounted_photons"].append(
+        history["ionized_atoms"][-1]
+        + history["recombined_photons"][-1]
+        + history["volume_photons"][-1],
     )
 
 
 def save_plot(mesh, fluid, config, figure_filename):
-    par = config['_output_par']
-    radiation = config['par']['radiation']
-    initial = config['initial_condition']
-    thermo = config['par']['thermochemistry']
-    example = config.get('example', {})
+    par = config["_output_par"]
+    radiation = config["par"]["radiation"]
+    initial = config["initial_condition"]
+    thermo = config["par"]["thermochemistry"]
+    example = config.get("example", {})
     interior = interior_slice(config)
     radius_proper_kpc = _radius_kpc(mesh.x_proper_code[interior], config) * unyt.kpc
-    plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
+    plot_radius_max = example.get("plot_radius_max", initial["box_size_proper"]).to_value(unyt.kpc)
     xHI = np.asarray(fluid.xHI[interior], dtype=float)
     xHII = 1.0 - xHI
     xHI_analytic = sa.neutral_fraction_profile(
         radius_proper_kpc,
-        initial['hydrogen_number_density'],
-        thermo['hydrogen_sigma_gamma'],
-        thermo['hydrogen_alpha_B'],
-        radiation['source_photon_rate'],
-        inner_radius_proper_unyt=example['analytic_inner_radius'],
+        initial["hydrogen_number_density"],
+        thermo["hydrogen_sigma_gamma"],
+        thermo["hydrogen_alpha_B"],
+        radiation["source_photon_rate"],
+        inner_radius_proper_unyt=example["analytic_inner_radius"],
     )
     xHII_analytic = 1.0 - xHI_analytic
     radius_stromgren = sa.stromgren_radius(
-        radiation['source_photon_rate'],
-        initial['hydrogen_number_density'],
-        thermo['hydrogen_alpha_B'],
+        radiation["source_photon_rate"],
+        initial["hydrogen_number_density"],
+        thermo["hydrogen_alpha_B"],
     ).to(unyt.kpc)
     plot_floor = 1.0e-6
 
@@ -309,113 +327,113 @@ def save_plot(mesh, fluid, config, figure_filename):
     ax.plot(
         radius_proper_kpc,
         np.clip(xHI, plot_floor, 1.0),
-        color='tab:blue',
+        color="tab:blue",
         lw=2.0,
-        label=r'$x_{\rm HI}$ numerical',
+        label=r"$x_{\rm HI}$ numerical",
     )
     ax.plot(
         radius_proper_kpc,
         np.clip(xHII, plot_floor, 1.0),
-        color='tab:red',
+        color="tab:red",
         lw=2.0,
-        label=r'$x_{\rm HII}$ numerical',
+        label=r"$x_{\rm HII}$ numerical",
     )
     ax.plot(
         radius_proper_kpc,
         np.clip(xHI_analytic, plot_floor, 1.0),
-        color='tab:blue',
+        color="tab:blue",
         lw=1.6,
-        ls='--',
-        label=r'$x_{\rm HI}$ analytic',
+        ls="--",
+        label=r"$x_{\rm HI}$ analytic",
     )
     ax.plot(
         radius_proper_kpc,
         np.clip(xHII_analytic, plot_floor, 1.0),
-        color='tab:red',
+        color="tab:red",
         lw=1.6,
-        ls='--',
-        label=r'$x_{\rm HII}$ analytic',
+        ls="--",
+        label=r"$x_{\rm HII}$ analytic",
     )
     ax.axvline(
         radius_stromgren.to_value(unyt.kpc),
-        color='black',
+        color="black",
         lw=2.0,
-        label=r'$R_{\rm S}=%.2f\ {\rm kpc}$' % radius_stromgren.to_value(unyt.kpc),
+        label=r"$R_{\rm S}=%.2f\ {\rm kpc}$" % radius_stromgren.to_value(unyt.kpc),
     )
-    ax.set_xlabel('Radius [kpc]')
-    ax.set_ylabel('Hydrogen fraction')
+    ax.set_xlabel("Radius [kpc]")
+    ax.set_ylabel("Hydrogen fraction")
     ax.set_xlim(0.0, plot_radius_max)
-    ax.set_yscale('log')
+    ax.set_yscale("log")
     ax.set_ylim(plot_floor, 1.2)
-    ax.grid(True, which='both', alpha=0.25)
-    ax.legend(frameon=False, loc='center right')
+    ax.grid(True, which="both", alpha=0.25)
+    ax.legend(frameon=False, loc="center right")
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
 
 
 def save_front_history_plot(history, config, figure_filename):
-    radiation = config['par']['radiation']
-    initial = config['initial_condition']
-    thermo = config['par']['thermochemistry']
-    example = config.get('example', {})
-    time_proper_Myr = np.asarray(history['time_proper_Myr'])
-    front_radius_proper_kpc = np.asarray(history['front_radius_proper_kpc'])
-    plot_radius_max = example.get('plot_radius_max', initial['box_size_proper']).to_value(unyt.kpc)
+    radiation = config["par"]["radiation"]
+    initial = config["initial_condition"]
+    thermo = config["par"]["thermochemistry"]
+    example = config.get("example", {})
+    time_proper_Myr = np.asarray(history["time_proper_Myr"])
+    front_radius_proper_kpc = np.asarray(history["front_radius_proper_kpc"])
+    plot_radius_max = example.get("plot_radius_max", initial["box_size_proper"]).to_value(unyt.kpc)
     time_proper_unyt = time_proper_Myr * unyt.Myr
     analytic_front = sa.ionization_front_radius(
         time_proper_unyt,
-        radiation['source_photon_rate'],
-        initial['hydrogen_number_density'],
-        thermo['hydrogen_alpha_B'],
+        radiation["source_photon_rate"],
+        initial["hydrogen_number_density"],
+        thermo["hydrogen_alpha_B"],
     ).to_value(unyt.kpc)
     radius_stromgren = sa.stromgren_radius(
-        radiation['source_photon_rate'],
-        initial['hydrogen_number_density'],
-        thermo['hydrogen_alpha_B'],
+        radiation["source_photon_rate"],
+        initial["hydrogen_number_density"],
+        thermo["hydrogen_alpha_B"],
     ).to_value(unyt.kpc)
 
     fig, ax = plt.subplots(figsize=(7.2, 4.8))
     ax.plot(
         time_proper_Myr,
         front_radius_proper_kpc,
-        color='tab:blue',
+        color="tab:blue",
         lw=2.0,
-        label=r'$x_{\rm HI}=0.5$ numerical',
+        label=r"$x_{\rm HI}=0.5$ numerical",
     )
     ax.plot(
         time_proper_Myr,
         analytic_front,
-        color='black',
+        color="black",
         lw=1.8,
-        ls='--',
-        label=r'$R_I(t)=R_S[1-\exp(-t/\tau_r)]^{1/3}$',
+        ls="--",
+        label=r"$R_I(t)=R_S[1-\exp(-t/\tau_r)]^{1/3}$",
     )
     ax.axhline(
         radius_stromgren,
-        color='0.25',
+        color="0.25",
         lw=1.2,
-        ls=':',
-        label=r'$R_{\rm S}=%.2f\ {\rm kpc}$' % radius_stromgren,
+        ls=":",
+        label=r"$R_{\rm S}=%.2f\ {\rm kpc}$" % radius_stromgren,
     )
-    ax.set_xlabel('Time [Myr]')
-    ax.set_ylabel('Ionization-front radius [kpc]')
+    ax.set_xlabel("Time [Myr]")
+    ax.set_ylabel("Ionization-front radius [kpc]")
     ax.set_xlim(0.0, time_proper_Myr[-1])
     ax.set_ylim(0.0, plot_radius_max)
     ax.grid(True, alpha=0.25)
-    ax.legend(frameon=False, loc='lower right')
+    ax.legend(frameon=False, loc="lower right")
     fig.subplots_adjust(left=0.14, right=0.98, bottom=0.10, top=0.97, hspace=0.08)
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
 
 
 def save_photon_budget_plot(history, figure_filename):
-    time_proper_Myr = np.asarray(history['time_proper_Myr'])
-    injected = np.asarray(history['injected_photons'])
-    ionized = np.asarray(history['ionized_atoms'])
-    recombined = np.asarray(history['recombined_photons'])
-    volume_photons = np.asarray(history['volume_photons'])
-    accounted = np.asarray(history['accounted_photons'])
+    time_proper_Myr = np.asarray(history["time_proper_Myr"])
+    injected = np.asarray(history["injected_photons"])
+    ionized = np.asarray(history["ionized_atoms"])
+    recombined = np.asarray(history["recombined_photons"])
+    volume_photons = np.asarray(history["volume_photons"])
+    accounted = np.asarray(history["accounted_photons"])
     residual = np.zeros_like(injected)
     valid = injected > 0.0
     residual[valid] = (accounted[valid] - injected[valid]) / injected[valid]
@@ -425,75 +443,75 @@ def save_photon_budget_plot(history, figure_filename):
         1,
         figsize=(7.2, 6.0),
         sharex=True,
-        gridspec_kw={'height_ratios': [2.0, 1.0], 'hspace': 0.08},
+        gridspec_kw={"height_ratios": [2.0, 1.0], "hspace": 0.08},
     )
     ax_budget.plot(
         time_proper_Myr,
         injected,
-        color='black',
+        color="black",
         lw=2.0,
-        label=r'injected photons, $\dot{N}_\gamma t$',
+        label=r"injected photons, $\dot{N}_\gamma t$",
     )
     ax_budget.plot(
         time_proper_Myr,
         accounted,
-        color='tab:blue',
+        color="tab:blue",
         lw=1.8,
-        ls='--',
-        label=r'$N_{\rm HII}+N_{\rm rec}+N_{\gamma,\rm vol}$',
+        ls="--",
+        label=r"$N_{\rm HII}+N_{\rm rec}+N_{\gamma,\rm vol}$",
     )
     ax_budget.plot(
         time_proper_Myr,
         ionized,
-        color='tab:red',
+        color="tab:red",
         lw=1.2,
-        ls=':',
-        label=r'$N_{\rm HII}$',
+        ls=":",
+        label=r"$N_{\rm HII}$",
     )
     ax_budget.plot(
         time_proper_Myr,
         recombined,
-        color='tab:green',
+        color="tab:green",
         lw=1.2,
-        ls='-.',
-        label=r'$N_{\rm rec}$',
+        ls="-.",
+        label=r"$N_{\rm rec}$",
     )
     ax_budget.plot(
         time_proper_Myr,
         volume_photons,
-        color='tab:orange',
+        color="tab:orange",
         lw=1.2,
         ls=(0, (3, 1, 1, 1)),
-        label=r'$N_{\gamma,\rm vol}$',
+        label=r"$N_{\gamma,\rm vol}$",
     )
-    ax_residual.axhline(0.0, color='black', lw=1.0)
+    ax_residual.axhline(0.0, color="black", lw=1.0)
     ax_residual.plot(
         time_proper_Myr,
         residual,
-        color='tab:purple',
+        color="tab:purple",
         lw=1.8,
         label=(
-            r'$(N_{\rm HII}+N_{\rm rec}+N_{\gamma,\rm vol}'
-            r'-\dot{N}_\gamma t)/\dot{N}_\gamma t$'
+            r"$(N_{\rm HII}+N_{\rm rec}+N_{\gamma,\rm vol}"
+            r"-\dot{N}_\gamma t)/\dot{N}_\gamma t$"
         ),
     )
 
-    ax_budget.set_ylabel('Photon count')
-    ax_residual.set_xlabel('Time [Myr]')
-    ax_residual.set_ylabel('Relative error')
-    ax_budget.set_yscale('log')
-    ax_budget.grid(True, which='both', alpha=0.25)
+    ax_budget.set_ylabel("Photon count")
+    ax_residual.set_xlabel("Time [Myr]")
+    ax_residual.set_ylabel("Relative error")
+    ax_budget.set_yscale("log")
+    ax_budget.grid(True, which="both", alpha=0.25)
     ax_residual.grid(True, alpha=0.25)
-    ax_budget.legend(frameon=False, loc='lower right')
-    ax_residual.legend(frameon=False, loc='best')
+    ax_budget.legend(frameon=False, loc="lower right")
+    ax_residual.legend(frameon=False, loc="best")
     fig.subplots_adjust(left=0.14, right=0.98, bottom=0.10, top=0.97, hspace=0.08)
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
     return {
-        'injected_photons': injected[-1],
-        'accounted_photons': accounted[-1],
-        'ionized_atoms': ionized[-1],
-        'recombined_photons': recombined[-1],
-        'volume_photons': volume_photons[-1],
-        'relative_error': residual[-1],
+        "injected_photons": injected[-1],
+        "accounted_photons": accounted[-1],
+        "ionized_atoms": ionized[-1],
+        "recombined_photons": recombined[-1],
+        "volume_photons": volume_photons[-1],
+        "relative_error": residual[-1],
     }

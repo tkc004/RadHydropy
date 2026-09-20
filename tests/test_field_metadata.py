@@ -1,14 +1,13 @@
 import unittest
 
 from radhydropy.field_metadata import (
+    _FIELD_DEFINITIONS,
     FIELD_DIMENSION_BASIS_NAME,
     FieldSpec,
-    _FIELD_DEFINITIONS,
-    hubble_parameter_code,
     field_spec,
+    hubble_parameter_code,
 )
 from radhydropy.units import CodeUnits
-
 
 CODE_UNITS = CodeUnits.from_mapping(
     {
@@ -18,8 +17,8 @@ CODE_UNITS = CodeUnits.from_mapping(
             "UnitVelocity_in_cgs": 1.0e5,
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
-        }
-    }
+        },
+    },
 )
 
 
@@ -32,7 +31,7 @@ class FieldSpecTests(unittest.TestCase):
         self.assertEqual(spec.representation, "proper")
         self.assertAlmostEqual(
             spec.code_unit_cgs,
-            4.92e31 / (3.08567758e21 ** 3),
+            4.92e31 / (3.08567758e21**3),
         )
 
     def test_field_spec_registry_supports_cosmological_snapshot_state(self):
@@ -75,30 +74,44 @@ class FieldSpecTests(unittest.TestCase):
             "vel_supercomoving_code": ("velocity", (0, 0, 1, 0, 0), "supercomoving"),
             "temp_proper_code": ("temperature", (0, 0, 0, 0, 1), "proper"),
             "temp_supercomoving_code": (
-                "temperature", (0, 0, 0, 0, 1), "supercomoving"
+                "temperature",
+                (0, 0, 0, 0, 1),
+                "supercomoving",
             ),
             "pre_proper_code": ("pressure", (1, -3, 2, 0, 0), "proper"),
             "pre_supercomoving_code": (
-                "pressure", (1, -3, 2, 0, 0), "supercomoving"
+                "pressure",
+                (1, -3, 2, 0, 0),
+                "supercomoving",
             ),
             "Mass_code": ("mass", (1, 0, 0, 0, 0), "physical"),
             "dark_matter_mass_code": ("mass", (1, 0, 0, 0, 0), "physical"),
             "Energy_code": ("energy", (1, 0, 2, 0, 0), "physical"),
             "InternalEnergy_code": ("energy", (1, 0, 2, 0, 0), "physical"),
             "GravitationalPotentialEnergy_code": (
-                "energy", (1, 0, 2, 0, 0), "physical"
+                "energy",
+                (1, 0, 2, 0, 0),
+                "physical",
             ),
             "AngularMomentum_code": (
-                "angular_momentum", (1, 1, 1, 0, 0), "physical"
+                "angular_momentum",
+                (1, 1, 1, 0, 0),
+                "physical",
             ),
             "specific_angular_momentum_code": (
-                "specific_angular_momentum", (0, 1, 1, 0, 0), "physical"
+                "specific_angular_momentum",
+                (0, 1, 1, 0, 0),
+                "physical",
             ),
             "specific_angular_momentum_proper_code": (
-                "specific_angular_momentum", (0, 1, 1, 0, 0), "proper"
+                "specific_angular_momentum",
+                (0, 1, 1, 0, 0),
+                "proper",
             ),
             "specific_angular_momentum_supercomoving_code": (
-                "specific_angular_momentum", (0, 1, 1, 0, 0), "supercomoving"
+                "specific_angular_momentum",
+                (0, 1, 1, 0, 0),
+                "supercomoving",
             ),
             "ngamma_code": ("number_density", (0, -3, 0, 0, 0), "physical"),
             "ngamma_proper_code": ("number_density", (0, -3, 0, 0, 0), "proper"),
@@ -120,9 +133,7 @@ class FieldSpecTests(unittest.TestCase):
                 self.assertEqual(spec.representation, representation)
                 self.assertEqual(
                     spec.coordinate_frame,
-                    "comoving"
-                    if representation in {"supercomoving", "comoving"}
-                    else "physical",
+                    "comoving" if representation in {"supercomoving", "comoving"} else "physical",
                 )
                 self.assertGreater(spec.code_unit_cgs, 0.0)
 
@@ -290,9 +301,8 @@ class FieldSpecTests(unittest.TestCase):
             ({"storage_unit": "si"}, ValueError),
         )
         for overrides, exception in invalid_values:
-            with self.subTest(overrides=overrides):
-                with self.assertRaises(exception):
-                    FieldSpec(**{**common, **overrides})
+            with self.subTest(overrides=overrides), self.assertRaises(exception):
+                FieldSpec(**{**common, **overrides})
 
     def test_field_spec_rejects_incomplete_metadata(self):
         with self.assertRaises(ValueError):

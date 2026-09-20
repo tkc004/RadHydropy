@@ -2,50 +2,52 @@
 
 import argparse
 import os
-from pathlib import Path
 import sys
 import tempfile
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
-os.environ.setdefault('MPLCONFIGDIR', os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'))
+os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
+import tools as et
 from radhydropy.gravity import Gravity
 from radhydropy.units import CodeUnits, quantity_to_value
-import example_utils as eu
-import tools as et
 
-
-DEFAULT_CONFIG = Path(__file__).with_name('einstein_de_sitter_top_hat_gravity1d.yaml')
+DEFAULT_CONFIG = Path(__file__).with_name("einstein_de_sitter_top_hat_gravity1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    initial_condition = config['initial_condition']
-    example = config.get('example', {})
+    initial_condition = config["initial_condition"]
+    example = config.get("example", {})
     eu.clean_previous_outputs(config)
-    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = et.EinsteinDeSitter.from_code_units(
-        units, t_ref=quantity_to_value(config['par']['cosmology']['cosmology_t_ref'], units.time_unit),
-        a_ref=float(config['par']['cosmology']['cosmology_a_ref']),
+        units,
+        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], units.time_unit),
+        a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
-    config['_code_units'] = units
-    config['_cosmology'] = cosmology
+    config["_code_units"] = units
+    config["_cosmology"] = cosmology
     initial_writer = et.build_initial_condition(config)
     initial = initial_writer.simulation
-    initial_writer.write(config['par']['simulation']['initial_condition_filename'])
+    initial_writer.write(config["par"]["simulation"]["initial_condition_filename"])
 
     sim = rio.loadhdf5(
-        config, config['par']['simulation']['initial_condition_filename']
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
     )
     sim.SetMesh()
     sim.SetFluid()
@@ -63,16 +65,23 @@ def main(config_filename=DEFAULT_CONFIG):
     if not (
         np.allclose(sim.par.tau_supercomoving_code, initial_tau)
         and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
-        and np.isclose(float(np.asarray(sim.fluid.tau_supercomoving_code)), float(initial_tau.flat[0]))
+        and np.isclose(
+            float(np.asarray(sim.fluid.tau_supercomoving_code)), float(initial_tau.flat[0])
+        )
     ):
         raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
     sim.par.cosmology = cosmology
     sim.par.gravity = Gravity(
-        selfgravity=True, externalgravity=False, cosmological=True,
-        cosmology=sim.par.cosmology, code_units=sim.par.units.CodeUnits,
+        selfgravity=True,
+        externalgravity=False,
+        cosmological=True,
+        cosmology=sim.par.cosmology,
+        code_units=sim.par.units.CodeUnits,
     )
     numerical = sim.par.gravity.acceleration_on_mesh(
-        sim.mesh, sim.fluid.rho_comoving_code, sim.par
+        sim.mesh,
+        sim.fluid.rho_comoving_code,
+        sim.par,
     )
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius_comoving_code = np.asarray(sim.mesh.x_comoving_code[physical], dtype=float)
@@ -82,36 +91,43 @@ def main(config_filename=DEFAULT_CONFIG):
     rho_background = sim.par.cosmology.background_density(time_cosmic_code)
     analytic = et.top_hat_acceleration(
         radius_comoving_code,
-        quantity_to_value(initial_condition['radius_perturbation_comoving'], units.length_unit),
-        float(initial_condition['overdensity']),
-        rho_background * a**3, a, sim.par.cosmology.gravitational_constant,
+        quantity_to_value(initial_condition["radius_perturbation_comoving"], units.length_unit),
+        float(initial_condition["overdensity"]),
+        rho_background * a**3,
+        a,
+        sim.par.cosmology.gravitational_constant,
     )
     comparison = slice(1, None)
-    error = np.abs((numerical[physical][comparison] - analytic[comparison]) /
-                   np.maximum(np.abs(analytic[comparison]), 1.0e-300))
+    error = np.abs(
+        (numerical[physical][comparison] - analytic[comparison])
+        / np.maximum(np.abs(analytic[comparison]), 1.0e-300)
+    )
     max_error = float(np.max(error))
     if not np.isfinite(max_error) or max_error > 5.0e-3:
-        raise RuntimeError('top-hat gravity error %.6g exceeds tolerance' % max_error)
+        raise RuntimeError("top-hat gravity error %.6g exceeds tolerance" % max_error)
 
     filename = os.path.join(
-        config['par']['output']['directory'],
-        'EinsteinDeSitterTopHatGravity1D.jpg',
+        config["par"]["output"]["directory"],
+        "EinsteinDeSitterTopHatGravity1D.jpg",
     )
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    axes[0].plot(radius_comoving_code, numerical[physical], label='numerical')
-    axes[0].plot(radius_comoving_code, analytic, '--', label='analytic')
-    axes[0].set(xlabel='comoving radius [code length]', ylabel='supercomoving acceleration')
-    axes[0].legend(); axes[0].grid(alpha=0.25)
+    axes[0].plot(radius_comoving_code, numerical[physical], label="numerical")
+    axes[0].plot(radius_comoving_code, analytic, "--", label="analytic")
+    axes[0].set(xlabel="comoving radius [code length]", ylabel="supercomoving acceleration")
+    axes[0].legend()
+    axes[0].grid(alpha=0.25)
     axes[1].plot(radius_comoving_code[comparison], error)
-    axes[1].set(xlabel='comoving radius [code length]', ylabel='relative error')
+    axes[1].set(xlabel="comoving radius [code length]", ylabel="relative error")
     axes[1].grid(alpha=0.25)
-    fig.tight_layout(); fig.savefig(filename, dpi=200); plt.close(fig)
-    print('Einstein-De Sitter top-hat gravity passed')
-    print('scale factor = %.8g, maximum relative error = %.6g' % (a, max_error))
-    print('figure = %s' % filename)
+    fig.tight_layout()
+    fig.savefig(filename, dpi=200)
+    plt.close(fig)
+    print("Einstein-De Sitter top-hat gravity passed")
+    print("scale factor = %.8g, maximum relative error = %.6g" % (a, max_error))
+    print("figure = %s" % filename)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
     main(parser.parse_args().config)

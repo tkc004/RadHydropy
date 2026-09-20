@@ -17,7 +17,7 @@ def _required_dataset(group, name):
     if name not in group:
         raise ValueError(
             f"radiation spectrum is missing required dataset {name!r}; "
-            "regenerate the spectrum with the current schema"
+            "regenerate the spectrum with the current schema",
         )
     return group[name]
 
@@ -29,7 +29,9 @@ def load_radiation_spectrum(filename):
             raise ValueError(f"radiation spectrum is missing group {SPECTRUM_GROUP!r}")
         group = handle[SPECTRUM_GROUP]
         edges = np.asarray(_required_dataset(group, SPECTRUM_DATASET_GROUP_EDGES), dtype=float)
-        energies = np.asarray(_required_dataset(group, SPECTRUM_DATASET_IONIZING_ENERGY), dtype=float)
+        energies = np.asarray(
+            _required_dataset(group, SPECTRUM_DATASET_IONIZING_ENERGY), dtype=float
+        )
         rates = np.asarray(_required_dataset(group, SPECTRUM_DATASET_STAR_RATES), dtype=float)
         sigma = np.asarray(_required_dataset(group, SPECTRUM_DATASET_SIGMA), dtype=float)
         epsilon = np.asarray(_required_dataset(group, SPECTRUM_DATASET_EPSILON), dtype=float)
@@ -45,7 +47,7 @@ def load_radiation_spectrum(filename):
             "number_of_radiation_groups": ngroup,
             "stellar_spectrum_type": int(group.attrs["stellar_spectrum_type"]),
             "stellar_spectrum_blackbody_temperature_cgs_K": float(
-                group.attrs["stellar_spectrum_blackbody_temperature_cgs_K"]
+                group.attrs["stellar_spectrum_blackbody_temperature_cgs_K"],
             ),
             "radiation_group_sigma_gamma": sigma,
             "radiation_group_epsilon_gamma": epsilon,
@@ -54,9 +56,13 @@ def load_radiation_spectrum(filename):
             sigma_name = f"group_sigma_gamma_{species}_cgs_cm2"
             epsilon_name = f"group_epsilon_gamma_{species}_cgs_erg"
             if sigma_name in group:
-                result[f"radiation_group_sigma_gamma_{species}"] = np.asarray(group[sigma_name], dtype=float)
+                result[f"radiation_group_sigma_gamma_{species}"] = np.asarray(
+                    group[sigma_name], dtype=float
+                )
             if epsilon_name in group:
-                result[f"radiation_group_epsilon_gamma_{species}"] = np.asarray(group[epsilon_name], dtype=float)
+                result[f"radiation_group_epsilon_gamma_{species}"] = np.asarray(
+                    group[epsilon_name], dtype=float
+                )
         return result
 
 

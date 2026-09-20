@@ -1,12 +1,13 @@
-import numpy as np
-import pytest
-import h5py
 import tempfile
-import unyt
 from pathlib import Path
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
 
+import h5py
+import numpy as np
+import pytest
+import unyt
+
+import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.cosmology.variables import (
     physical_density,
@@ -17,25 +18,27 @@ from radhydropy.cosmology.variables import (
     to_supercomoving_temperature,
     to_supercomoving_velocity,
 )
-from radhydropy.units import CodeUnits
 from radhydropy.params import Par
-from radhydropy.solver import Solver
-import radhydropy.io as rio
 from radhydropy.runtime_fields import (
+    SUPERCOMOVING_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
-    SUPERCOMOVING_RUNTIME_FIELDS,
 )
+from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
+from tests.parameter_fixtures import parameter_namespace
 
 
 def code_units():
-    return CodeUnits.from_mapping({
-        "UnitMass_in_cgs": 1.0e33,
-        "UnitLength_in_cgs": 1.0e18,
-        "UnitVelocity_in_cgs": 1.0e5,
-        "UnitCurrent_in_cgs": 1.0,
-        "UnitTemp_in_cgs": 1.0,
-    })
+    return CodeUnits.from_mapping(
+        {
+            "UnitMass_in_cgs": 1.0e33,
+            "UnitLength_in_cgs": 1.0e18,
+            "UnitVelocity_in_cgs": 1.0e5,
+            "UnitCurrent_in_cgs": 1.0,
+            "UnitTemp_in_cgs": 1.0,
+        }
+    )
 
 
 def test_einstein_de_sitter_background_relations():
@@ -55,13 +58,16 @@ def test_einstein_de_sitter_rejects_zero_time():
 
 def test_lambda_cdm_reference_normalization_and_round_trip():
     cosmology = LambdaCDM.from_code_units(
-        code_units(), t_ref=2.0, a_ref=1.5, omega_m=0.3, omega_lambda=0.7,
+        code_units(),
+        t_ref=2.0,
+        a_ref=1.5,
+        omega_m=0.3,
+        omega_lambda=0.7,
     )
     assert np.isclose(cosmology.scale_factor(2.0), 1.5)
     assert np.isclose(
         cosmology.background_density(2.0),
-        3.0 * cosmology._hubble_ref**2 * 0.3
-        / (8.0 * np.pi * cosmology.gravitational_constant),
+        3.0 * cosmology._hubble_ref**2 * 0.3 / (8.0 * np.pi * cosmology.gravitational_constant),
     )
     for time in (0.5, 2.0, 8.0):
         tau = cosmology.supercomoving_time(time)
@@ -115,7 +121,7 @@ def test_supercomoving_scale_requires_canonical_parameter_state():
             SimpleNamespace(
                 simulation=SimpleNamespace(time_code=1.0),
                 cosmology=SimpleNamespace(model=cosmology),
-            )
+            ),
         )
 
     direct_model_par = SimpleNamespace(
@@ -123,35 +129,35 @@ def test_supercomoving_scale_requires_canonical_parameter_state():
         cosmology=cosmology,
     )
     scale_factor, hubble = supercomoving_scale(direct_model_par)
-    _, expected_scale_factor, expected_hubble = (
-        cosmology.background_state_from_supercomoving(
-            direct_model_par.tau_supercomoving_code
-        )
+    _, expected_scale_factor, expected_hubble = cosmology.background_state_from_supercomoving(
+        direct_model_par.tau_supercomoving_code,
     )
     assert scale_factor == pytest.approx(expected_scale_factor)
     assert hubble == pytest.approx(expected_hubble)
 
 
 def test_supercomoving_scale_uses_real_par_startup_clock():
-    par = Par({
-        "CodeUnits": {
-            "UnitMass_in_cgs": 1.0e33,
-            "UnitLength_in_cgs": 1.0e18,
-            "UnitVelocity_in_cgs": 1.0e5,
-            "UnitCurrent_in_cgs": 1.0,
-            "UnitTemp_in_cgs": 1.0,
-        },
-        "cosmological_expansion": True,
-        "supercomoving_coordinates": True,
-        "cosmology_type": "einstein_de_sitter",
-    })
+    par = Par(
+        {
+            "CodeUnits": {
+                "UnitMass_in_cgs": 1.0e33,
+                "UnitLength_in_cgs": 1.0e18,
+                "UnitVelocity_in_cgs": 1.0e5,
+                "UnitCurrent_in_cgs": 1.0,
+                "UnitTemp_in_cgs": 1.0,
+            },
+            "cosmological_expansion": True,
+            "supercomoving_coordinates": True,
+            "cosmology_type": "einstein_de_sitter",
+        }
+    )
     tau_supercomoving_code = par.cosmology.model.supercomoving_time(2.0)
     par.tau_supercomoving_code = tau_supercomoving_code
 
     scale_factor, hubble = supercomoving_scale(par)
     _, expected_scale_factor, expected_hubble = (
         par.cosmology.model.background_state_from_supercomoving(
-            tau_supercomoving_code
+            tau_supercomoving_code,
         )
     )
 
@@ -195,11 +201,14 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
     rho_sc = to_supercomoving_density(physical_density_value, a)
     j = physical_radius * physical_tangential_velocity
 
-    mesh = SimpleNamespace(coordsys='spherical')
+    mesh = SimpleNamespace(coordsys="spherical")
     mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        x_comoving_code=x, boundary_comoving_code=np.array([0.75, 2.25, 3.75]),
-        width_comoving_code=np.ones(2), area_comoving_code=np.ones(2), volume_comoving_code=np.ones(2),
+        x_comoving_code=x,
+        boundary_comoving_code=np.array([0.75, 2.25, 3.75]),
+        width_comoving_code=np.ones(2),
+        area_comoving_code=np.ones(2),
+        volume_comoving_code=np.ones(2),
     )
     fluid = SimpleNamespace(
         rho_comoving_code=rho_sc,
@@ -207,17 +216,20 @@ def test_supercomoving_rotational_energy_density_scales_as_a5():
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        rho_comoving_code=rho_sc, vel_supercomoving_code=np.zeros(2), pre_supercomoving_code=np.ones(2),
-        temp_supercomoving_code=np.ones(2), tau_supercomoving_code=tau,
+        rho_comoving_code=rho_sc,
+        vel_supercomoving_code=np.zeros(2),
+        pre_supercomoving_code=np.ones(2),
+        temp_supercomoving_code=np.ones(2),
+        tau_supercomoving_code=tau,
     )
     options = SimpleNamespace(
         gas_rotational_energy=True,
         gas_angular_momentum=True,
         supercomoving_coordinates=True,
         cosmological_expansion=True,
-        coordinate_frame='comoving',
-        time_coordinate='supercomoving',
-        velocity_representation='supercomoving_peculiar',
+        coordinate_frame="comoving",
+        time_coordinate="supercomoving",
+        velocity_representation="supercomoving_peculiar",
     )
     energy_sc = Solver()._rotational_energy_density(mesh, fluid, options)
     energy_phys = 0.5 * physical_density_value * physical_tangential_velocity**2
@@ -239,9 +251,9 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
         energy_diagnostics = True
         cosmological_expansion = True
         supercomoving_coordinates = True
-        coordinate_frame = 'comoving'
-        time_coordinate = 'supercomoving'
-        velocity_representation = 'supercomoving_peculiar'
+        coordinate_frame = "comoving"
+        time_coordinate = "supercomoving"
+        velocity_representation = "supercomoving_peculiar"
 
     par = Par()
     par.tau_supercomoving_code = tau
@@ -253,20 +265,29 @@ def test_supercomoving_centrifugal_source_has_expected_scale_factor():
     j = physical_radius * physical_tangential_velocity
     mass = 3.0
     dt = 0.125
-    mesh = SimpleNamespace(coordsys='spherical')
+    mesh = SimpleNamespace(coordsys="spherical")
     mesh.geometry_state = MeshGeometryState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        x_comoving_code=np.array([x]), boundary_comoving_code=np.array([x - 0.5, x + 0.5]),
-        width_comoving_code=np.array([1.0]), area_comoving_code=np.array([1.0]), volume_comoving_code=np.array([1.0]),
+        x_comoving_code=np.array([x]),
+        boundary_comoving_code=np.array([x - 0.5, x + 0.5]),
+        width_comoving_code=np.array([1.0]),
+        area_comoving_code=np.array([1.0]),
+        volume_comoving_code=np.array([1.0]),
     )
     fluid = SimpleNamespace(
-        rho_comoving_code=np.array([mass]), Mass_code=np.array([mass]), Mom_code=np.array([0.0]),
-        Energy_code=np.array([7.0]), AngularMomentum_code=np.array([mass * j]),
+        rho_comoving_code=np.array([mass]),
+        Mass_code=np.array([mass]),
+        Mom_code=np.array([0.0]),
+        Energy_code=np.array([7.0]),
+        AngularMomentum_code=np.array([mass * j]),
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         SUPERCOMOVING_RUNTIME_FIELDS,
-        rho_comoving_code=fluid.rho_comoving_code, vel_supercomoving_code=np.array([0.0]),
-        pre_supercomoving_code=np.ones(1), temp_supercomoving_code=np.ones(1), tau_supercomoving_code=tau,
+        rho_comoving_code=fluid.rho_comoving_code,
+        vel_supercomoving_code=np.array([0.0]),
+        pre_supercomoving_code=np.ones(1),
+        temp_supercomoving_code=np.ones(1),
+        tau_supercomoving_code=tau,
     )
 
     solver = Solver()
@@ -298,10 +319,8 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         physical_density = physical_density_at_a1 / scale_factor**3
         physical_tangential_velocity = j / (scale_factor * x)
         rho_sc = to_supercomoving_density(physical_density, scale_factor)
-        j_from_velocity = x * (
-            scale_factor * physical_tangential_velocity
-        )
-        energy_sc = 0.5 * rho_sc * (j / x)**2
+        j_from_velocity = x * (scale_factor * physical_tangential_velocity)
+        energy_sc = 0.5 * rho_sc * (j / x) ** 2
         energy_phys = 0.5 * physical_density * physical_tangential_velocity**2
 
         np.testing.assert_allclose(j_from_velocity, j)
@@ -311,7 +330,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     for cosmic_time, ratio in zip(cosmic_times, rotational_energy_ratios):
         assert np.allclose(
             ratio,
-            cosmology.scale_factor(cosmic_time)**5,
+            cosmology.scale_factor(cosmic_time) ** 5,
         )
     np.testing.assert_allclose(
         centrifugal_accelerations[0],
@@ -329,29 +348,34 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         physical_density_at_a1 / scale_initial**3,
         scale_initial,
     )
-    volume = (
-        4.0 * np.pi / 3.0
-        * ((x + 0.5)**3 - (x - 0.5)**3)
-    ) * units.volume_unit
+    volume = (4.0 * np.pi / 3.0 * ((x + 0.5) ** 3 - (x - 0.5) ** 3)) * units.volume_unit
     specific_quantity = j * units.length_unit**2 / units.time_unit
     radius_quantity = x * units.length_unit
     rho_quantity = rho_sc * units.density_unit
     angular_quantity = rho_quantity * specific_quantity * volume
-    rotational_specific_energy = (
-        0.5 * (specific_quantity / radius_quantity)**2
-    )
+    rotational_specific_energy = 0.5 * (specific_quantity / radius_quantity) ** 2
     par = parameter_namespace(
-        coordsys='spherical', nogrid=2, noghost=0,
-        CodeUnits=units, tau_supercomoving_code=tau_initial,
+        coordsys="spherical",
+        nogrid=2,
+        noghost=0,
+        CodeUnits=units,
+        tau_supercomoving_code=tau_initial,
         box_size_proper=3.0 * units.length_unit,
-        cosmological_expansion=True, supercomoving_coordinates=True,
-        cosmology=cosmology, cosmology_type='einstein_de_sitter',
-        cosmology_t_ref=1.0, cosmology_a_ref=1.0,
-        coordinate_frame='comoving', time_coordinate='supercomoving',
-        velocity_representation='supercomoving_peculiar',
-        density_representation='comoving', pressure_representation='supercomoving',
-        temperature_representation='supercomoving', gamma=5.0 / 3.0,
-        gas_angular_momentum=True, gas_rotational_energy=True,
+        cosmological_expansion=True,
+        supercomoving_coordinates=True,
+        cosmology=cosmology,
+        cosmology_type="einstein_de_sitter",
+        cosmology_t_ref=1.0,
+        cosmology_a_ref=1.0,
+        coordinate_frame="comoving",
+        time_coordinate="supercomoving",
+        velocity_representation="supercomoving_peculiar",
+        density_representation="comoving",
+        pressure_representation="supercomoving",
+        temperature_representation="supercomoving",
+        gamma=5.0 / 3.0,
+        gas_angular_momentum=True,
+        gas_rotational_energy=True,
     )
     boundary_comoving_code = np.array([0.5, 1.5, 2.5])
     mesh = SimpleNamespace(
@@ -361,7 +385,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
             width_comoving_code=np.diff(boundary_comoving_code),
             area_comoving_code=np.ones(2),
             volume_comoving_code=np.asarray(volume.to_value(units.volume_unit)),
-        )
+        ),
     )
     fluid = SimpleNamespace(
         runtime_state=FluidRuntimeState.from_arrays(
@@ -382,7 +406,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
 
     with tempfile.TemporaryDirectory() as directory:
-        filename = Path(directory) / 'angular_momentum_restart.hdf5'
+        filename = Path(directory) / "angular_momentum_restart.hdf5"
         rio.writehdf5(sim, filename)
         loaded_par = parameter_namespace()
         loaded_mesh = SimpleNamespace()
@@ -390,13 +414,16 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, filename)
 
         np.testing.assert_allclose(
-            loaded_fluid.specific_angular_momentum_code, j
+            loaded_fluid.specific_angular_momentum_code,
+            j,
         )
         np.testing.assert_allclose(
             loaded_fluid.AngularMomentum_code,
-            np.asarray(angular_quantity.to_value(
-                units.mass_unit * units.length_unit**2 / units.time_unit
-            )),
+            np.asarray(
+                angular_quantity.to_value(
+                    units.mass_unit * units.length_unit**2 / units.time_unit,
+                )
+            ),
         )
         assert loaded_par.tau_supercomoving_code == pytest.approx(tau_initial)
         assert loaded_fluid.tau_supercomoving_code == pytest.approx(tau_initial)
@@ -406,13 +433,13 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         loaded_fluid.tau_supercomoving_code = tau_restart
         restart_scale = cosmology.scale_factor(cosmic_times[1])
         restart_rho_comoving_code = np.asarray(
-            loaded_fluid.rho_comoving_code, dtype=float
+            loaded_fluid.rho_comoving_code,
+            dtype=float,
         )
         restart_j = np.asarray(loaded_fluid.specific_angular_momentum_code, dtype=float)
-        restart_energy = 0.5 * restart_rho_comoving_code * (restart_j / x)**2
+        restart_energy = 0.5 * restart_rho_comoving_code * (restart_j / x) ** 2
         physical_restart_energy = (
-            0.5 * (physical_density_at_a1 / restart_scale**3)
-            * (j / (restart_scale * x))**2
+            0.5 * (physical_density_at_a1 / restart_scale**3) * (j / (restart_scale * x)) ** 2
         )
         np.testing.assert_allclose(restart_j, j)
         np.testing.assert_allclose(
@@ -427,16 +454,25 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
     cosmology = EinsteinDeSitter.from_code_units(units)
     tau = cosmology.supercomoving_time(2.0)
     par = parameter_namespace(
-        coordsys='cartesian', nogrid=2, noghost=0,
-        CodeUnits=units, tau_supercomoving_code=tau, box_size_proper=2.0,
-        cosmological_expansion=True, supercomoving_coordinates=True,
-        cosmology=cosmology, cosmology_type='einstein_de_sitter',
-        cosmology_t_ref=1.0, cosmology_a_ref=1.0,
-        coordinate_frame='comoving', time_coordinate='supercomoving',
-        velocity_representation='supercomoving_peculiar',
-        density_representation='comoving',
-        pressure_representation='supercomoving',
-        temperature_representation='supercomoving', gamma=5.0 / 3.0,
+        coordsys="cartesian",
+        nogrid=2,
+        noghost=0,
+        CodeUnits=units,
+        tau_supercomoving_code=tau,
+        box_size_proper=2.0,
+        cosmological_expansion=True,
+        supercomoving_coordinates=True,
+        cosmology=cosmology,
+        cosmology_type="einstein_de_sitter",
+        cosmology_t_ref=1.0,
+        cosmology_a_ref=1.0,
+        coordinate_frame="comoving",
+        time_coordinate="supercomoving",
+        velocity_representation="supercomoving_peculiar",
+        density_representation="comoving",
+        pressure_representation="supercomoving",
+        temperature_representation="supercomoving",
+        gamma=5.0 / 3.0,
     )
     mesh = SimpleNamespace(
         geometry_state=MeshGeometryState(
@@ -445,7 +481,7 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
             width_comoving_code=np.ones(2),
             area_comoving_code=np.ones(2),
             volume_comoving_code=np.ones(2),
-        )
+        ),
     )
     fluid = SimpleNamespace(
         runtime_state=FluidRuntimeState.from_arrays(
@@ -461,37 +497,51 @@ def test_cosmology_header_round_trip_and_supercomoving_input_output():
     )
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
     with tempfile.TemporaryDirectory() as directory:
-        filename = Path(directory) / 'supercomoving.hdf5'
+        filename = Path(directory) / "supercomoving.hdf5"
         rio.writehdf5(sim, filename)
-        with h5py.File(filename, 'r') as handle:
-            header = handle['Header']
-            assert header.attrs['CosmologyType'] == 'einstein_de_sitter'
-            assert header.attrs['TimeCoordinate'] == 'supercomoving'
-            assert header.attrs['ScaleFactor'] == pytest.approx(2.0 ** (2.0 / 3.0))
+        with h5py.File(filename, "r") as handle:
+            header = handle["Header"]
+            assert header.attrs["CosmologyType"] == "einstein_de_sitter"
+            assert header.attrs["TimeCoordinate"] == "supercomoving"
+            assert header.attrs["ScaleFactor"] == pytest.approx(2.0 ** (2.0 / 3.0))
         loaded = parameter_namespace()
         rio.readhdf5(loaded, SimpleNamespace(), SimpleNamespace(), filename)
         assert loaded.cosmological_expansion
         assert loaded.supercomoving_coordinates
-        assert loaded.cosmology.type_name == 'einstein_de_sitter'
+        assert loaded.cosmology.type_name == "einstein_de_sitter"
 
 
 def test_lambda_cdm_header_round_trip():
     units = code_units()
     cosmology = LambdaCDM.from_code_units(
-        units, t_ref=2.0, a_ref=1.0, omega_m=0.3, omega_lambda=0.7,
+        units,
+        t_ref=2.0,
+        a_ref=1.0,
+        omega_m=0.3,
+        omega_lambda=0.7,
         hubble_ref=0.4,
     )
     tau = cosmology.supercomoving_time(2.0)
     par = parameter_namespace(
-        coordsys='cartesian', nogrid=1, noghost=0,
-        CodeUnits=units, tau_supercomoving_code=tau, box_size_proper=1.0,
-        cosmological_expansion=True, supercomoving_coordinates=True,
-        cosmology=cosmology, cosmology_type='lambda_cdm',
-        cosmology_t_ref=2.0, cosmology_a_ref=1.0,
-        coordinate_frame='comoving', time_coordinate='supercomoving',
-        velocity_representation='supercomoving_peculiar',
-        density_representation='comoving', pressure_representation='supercomoving',
-        temperature_representation='supercomoving', gamma=5.0 / 3.0,
+        coordsys="cartesian",
+        nogrid=1,
+        noghost=0,
+        CodeUnits=units,
+        tau_supercomoving_code=tau,
+        box_size_proper=1.0,
+        cosmological_expansion=True,
+        supercomoving_coordinates=True,
+        cosmology=cosmology,
+        cosmology_type="lambda_cdm",
+        cosmology_t_ref=2.0,
+        cosmology_a_ref=1.0,
+        coordinate_frame="comoving",
+        time_coordinate="supercomoving",
+        velocity_representation="supercomoving_peculiar",
+        density_representation="comoving",
+        pressure_representation="supercomoving",
+        temperature_representation="supercomoving",
+        gamma=5.0 / 3.0,
     )
     mesh = SimpleNamespace(
         geometry_state=MeshGeometryState(
@@ -500,23 +550,27 @@ def test_lambda_cdm_header_round_trip():
             width_comoving_code=np.ones(1),
             area_comoving_code=np.ones(1),
             volume_comoving_code=np.ones(1),
-        )
+        ),
     )
     fluid = SimpleNamespace(
         runtime_state=FluidRuntimeState.from_arrays(
             SUPERCOMOVING_RUNTIME_FIELDS,
-            rho_comoving_code=np.ones(1), vel_supercomoving_code=np.zeros(1), pre_supercomoving_code=np.zeros(1),
-            temp_supercomoving_code=np.ones(1), tau_supercomoving_code=tau, mu_dimensionless=np.ones(1),
+            rho_comoving_code=np.ones(1),
+            vel_supercomoving_code=np.zeros(1),
+            pre_supercomoving_code=np.zeros(1),
+            temp_supercomoving_code=np.ones(1),
+            tau_supercomoving_code=tau,
+            mu_dimensionless=np.ones(1),
         ),
         mu=np.ones(1),
     )
     sim = SimpleNamespace(par=par, mesh=mesh, fluid=fluid)
     with tempfile.TemporaryDirectory() as directory:
-        filename = Path(directory) / 'lambda_cdm.hdf5'
+        filename = Path(directory) / "lambda_cdm.hdf5"
         rio.writehdf5(sim, filename)
         loaded = parameter_namespace()
         rio.readhdf5(loaded, SimpleNamespace(), SimpleNamespace(), filename)
-        assert loaded.cosmology.type_name == 'lambda_cdm'
+        assert loaded.cosmology.type_name == "lambda_cdm"
         assert loaded.cosmology.omega_m == pytest.approx(0.3)
         assert loaded.cosmology.omega_lambda == pytest.approx(0.7)
         assert loaded.cosmology._hubble_ref == pytest.approx(0.4)
@@ -533,14 +587,16 @@ def test_par_constructs_lambda_cdm_from_parameters():
             "UnitTemp_in_cgs": 1.0,
         },
     }
-    par = Par({
-        "CodeUnits": units,
-        "cosmological_expansion": True,
-        "cosmology_type": "lambda_cdm",
-        "cosmology_omega_m": 0.3,
-        "cosmology_omega_lambda": 0.7,
-        "cosmology_hubble_ref": 0.4,
-    })
+    par = Par(
+        {
+            "CodeUnits": units,
+            "cosmological_expansion": True,
+            "cosmology_type": "lambda_cdm",
+            "cosmology_omega_m": 0.3,
+            "cosmology_omega_lambda": 0.7,
+            "cosmology_hubble_ref": 0.4,
+        }
+    )
     assert par.cosmology.model.type_name == "lambda_cdm"
     assert par.cosmology.model._hubble_ref == pytest.approx(0.4)
     assert par.cosmology.type == "lambda_cdm"

@@ -7,10 +7,11 @@ convert kinetic energy into thermal energy while conserving total energy.
 """
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,13 +22,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import example_utils as eu
+
 import radhydropy.io as rio
+import tools as et
 from radhydropy.eos import EOS
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-import example_utils as eu
-import tools as et
-
 
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_converging_shock1d.yaml")
 
@@ -46,7 +47,9 @@ def _read_profile(filename, config):
         dtype=float,
     )
     coordinate_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
-    volume_proper_code = 4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
+    volume_proper_code = (
+        4.0 * np.pi / 3.0 * (boundary_proper_code[1:] ** 3 - boundary_proper_code[:-1] ** 3)
+    )
     rho_proper_code = np.asarray(
         fluid.rho_radarray.to_value(code_unit_system.density_unit)[first:last],
         dtype=float,
@@ -66,27 +69,32 @@ def _read_profile(filename, config):
         code_units=code_unit_system,
     )
     pressure_proper_code = eos.pressure(
-        rho_proper_code, temp_proper_code, mu
+        rho_proper_code,
+        temp_proper_code,
+        mu,
     )
     total_mass_code = float(
-        np.sum(np.asarray(fluid.Mass_code[first:first + count], dtype=float))
+        np.sum(np.asarray(fluid.Mass_code[first : first + count], dtype=float))
         if hasattr(fluid, "Mass_code")
-        else np.sum(rho_proper_code * volume_proper_code[first:first + count])
+        else np.sum(rho_proper_code * volume_proper_code[first : first + count]),
     )
     total_energy_proper_code = float(
-        np.sum(np.asarray(fluid.Energy_code[first:first + count], dtype=float))
+        np.sum(np.asarray(fluid.Energy_code[first : first + count], dtype=float))
         if hasattr(fluid, "Energy_code")
         else np.sum(
             eos.total_energy_density(
-                rho_proper_code, velocity_proper_code, pressure_proper_code
-            ) * volume_proper_code[first:first + count]
-        )
+                rho_proper_code,
+                velocity_proper_code,
+                pressure_proper_code,
+            )
+            * volume_proper_code[first : first + count],
+        ),
     )
     thermal = float(
         np.sum(
             eos.thermal_energy_density(pressure_proper_code)
-            * volume_proper_code[first:first + count]
-        )
+            * volume_proper_code[first : first + count],
+        ),
     )
     return (
         coordinate_proper_code[first:last],
@@ -106,10 +114,10 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
         config["par"]["hydrodynamics"]["riemann_solver"] = riemann_solver
     if dual_energy is not None:
         config["par"]["hydrodynamics"]["dual_energy"] = dual_energy
-    output = config["par"]['output']
+    output = config["par"]["output"]
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    config['_code_units'] = units
+    config["_code_units"] = units
     initial = et.build_initial_condition(config)
     initial.write(config["par"]["simulation"]["initial_condition_filename"])
 
@@ -145,7 +153,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     selected = np.unique(np.linspace(0, len(profiles) - 1, min(6, len(profiles))).astype(int))
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
     for index in selected:
-        radius_proper_code, rho_proper_code, velocity_proper_code, temp_proper_code, _, _, _ = profiles[index]
+        radius_proper_code, rho_proper_code, velocity_proper_code, temp_proper_code, _, _, _ = (
+            profiles[index]
+        )
         axes[0].plot(radius_proper_code, rho_proper_code, label=f"output {index:03d}")
         axes[1].plot(radius_proper_code, temp_proper_code, label=f"output {index:03d}")
     axes[0].set_ylabel("density [code units]")
@@ -166,7 +176,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"thermal energy increase = {thermal_energy[-1] / thermal_energy[0]:.6e}")
     print(
         "central temperature amplification = "
-        f"{np.max(final_temperature_proper_code) / np.max(temperature_proper_code):.6e}"
+        f"{np.max(final_temperature_proper_code) / np.max(temperature_proper_code):.6e}",
     )
     return figure
 

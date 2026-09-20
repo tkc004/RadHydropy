@@ -15,27 +15,47 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-
-DEFAULT_DATABASE = (
-    Path(__file__).resolve().parents[2] / "CHIANTI_11.0.2_database"
-)
+DEFAULT_DATABASE = Path(__file__).resolve().parents[2] / "CHIANTI_11.0.2_database"
 DEFAULT_IONEQ = DEFAULT_DATABASE / "ioneq" / "chianti.ioneq"
-DEFAULT_OUTPUT = (
-    DEFAULT_DATABASE
-    / "cooling_tables"
-    / "chianti_cie_ion_fractions.h5"
-)
+DEFAULT_OUTPUT = DEFAULT_DATABASE / "cooling_tables" / "chianti_cie_ion_fractions.h5"
 
 ELEMENT_SYMBOLS = (
-    "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
-    "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca",
-    "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+    "H",
+    "He",
+    "Li",
+    "Be",
+    "B",
+    "C",
+    "N",
+    "O",
+    "F",
+    "Ne",
+    "Na",
+    "Mg",
+    "Al",
+    "Si",
+    "P",
+    "S",
+    "Cl",
+    "Ar",
+    "K",
+    "Ca",
+    "Sc",
+    "Ti",
+    "V",
+    "Cr",
+    "Mn",
+    "Fe",
+    "Co",
+    "Ni",
+    "Cu",
+    "Zn",
 )
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Generate a CHIANTI collisional-ionization-equilibrium table."
+        description="Generate a CHIANTI collisional-ionization-equilibrium table.",
     )
     parser.add_argument(
         "--ioneq-file",
@@ -66,16 +86,16 @@ def read_ioneq_file(filename):
     # and 10 characters for each ion fraction. Fixed-width parsing is needed
     # because adjacent zero-valued fields may have no separating whitespace.
     log_temperature = np.asarray(
-        [float(lines[1][6 * i : 6 * (i + 1)]) for i in range(n_temperature)]
+        [float(lines[1][6 * i : 6 * (i + 1)]) for i in range(n_temperature)],
     )
     if log_temperature.size != n_temperature:
         raise ValueError(
-            f"Expected {n_temperature} temperatures, found "
-            f"{log_temperature.size} in {filename}."
+            f"Expected {n_temperature} temperatures, found {log_temperature.size} in {filename}.",
         )
 
     fractions = np.zeros(
-        (n_elements, n_elements + 1, n_temperature), dtype=np.float64
+        (n_elements, n_elements + 1, n_temperature),
+        dtype=np.float64,
     )
 
     row_count = 0
@@ -85,7 +105,7 @@ def read_ioneq_file(filename):
 
         header = line[:6].split()
         values = np.asarray(
-            [float(line[6 + 10 * i : 6 + 10 * (i + 1)]) for i in range(n_temperature)]
+            [float(line[6 + 10 * i : 6 + 10 * (i + 1)]) for i in range(n_temperature)],
         )
         if len(header) != 2 or values.size != n_temperature:
             raise ValueError(f"Malformed ion-fraction row in {filename}: {line[:40]!r}")
@@ -104,7 +124,7 @@ def read_ioneq_file(filename):
     if row_count == 0:
         raise ValueError(f"No ion-fraction rows found in {filename}.")
 
-    return 10.0 ** log_temperature, fractions, n_elements
+    return 10.0**log_temperature, fractions, n_elements
 
 
 def main():
@@ -116,14 +136,14 @@ def main():
         raise FileNotFoundError(f"CHIANTI .ioneq file not found: {ioneq_file}")
     if output_file.exists() and not args.overwrite:
         raise FileExistsError(
-            f"Output already exists: {output_file}. Use --overwrite to replace it."
+            f"Output already exists: {output_file}. Use --overwrite to replace it.",
         )
 
     temperature, fractions, n_elements = read_ioneq_file(ioneq_file)
     if n_elements > len(ELEMENT_SYMBOLS):
         raise ValueError(
             f"The file contains {n_elements} elements, but only "
-            f"{len(ELEMENT_SYMBOLS)} element symbols are defined."
+            f"{len(ELEMENT_SYMBOLS)} element symbols are defined.",
         )
 
     # Every populated element/stage should sum to unity over its ion stages.
@@ -138,7 +158,8 @@ def main():
         table.create_dataset("temperature_K", data=temperature)
         table.create_dataset("log10_temperature_K", data=np.log10(temperature))
         table.create_dataset(
-            "atomic_number", data=np.arange(1, n_elements + 1, dtype=np.int32)
+            "atomic_number",
+            data=np.arange(1, n_elements + 1, dtype=np.int32),
         )
         table.create_dataset(
             "element_symbol",
@@ -155,16 +176,12 @@ def main():
             compression_opts=4,
         )
 
-        table.attrs["description"] = (
-            "CHIANTI collisional-ionization-equilibrium ion fractions."
-        )
+        table.attrs["description"] = "CHIANTI collisional-ionization-equilibrium ion fractions."
         table.attrs["source_file"] = str(ioneq_file)
         table.attrs["ion_stage_definition"] = (
             "Number of electrons removed: 0=neutral, Z=fully stripped."
         )
-        table.attrs["axis_order"] = (
-            "ion_fraction[element, ion_stage, temperature]"
-        )
+        table.attrs["axis_order"] = "ion_fraction[element, ion_stage, temperature]"
         table.attrs["maximum_ion_fraction_sum_error"] = maximum_sum_error
 
     print(f"Read: {ioneq_file}")

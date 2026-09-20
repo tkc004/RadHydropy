@@ -105,12 +105,26 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
         header = fic.create_group("Header")
         for key, value in sorted(vars(ric.par).items()):
             if key.startswith("_") or key in {
-                "dark_matter", "dark_matter_snapshot", "cosmology",
-                "hydrodynamics", "boundary", "timestep", "thermochemistry",
-                "gravity", "output", "simulation", "diagnostics", "mesh",
-                "chemistry", "angular_momentum", "dark_matter_config",
+                "dark_matter",
+                "dark_matter_snapshot",
+                "cosmology",
+                "hydrodynamics",
+                "boundary",
+                "timestep",
+                "thermochemistry",
+                "gravity",
+                "output",
+                "simulation",
+                "diagnostics",
+                "mesh",
+                "chemistry",
+                "angular_momentum",
+                "dark_matter_config",
                 "dark_matter_radarrays",
-                "dual_energy_config", "positivity", "radiation", "units",
+                "dual_energy_config",
+                "positivity",
+                "radiation",
+                "units",
             }:
                 continue
             if key in {"time_code", "box_size_code"}:
@@ -132,14 +146,15 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
         header.attrs["GridCells"] = int(ric.par.mesh.grid_cells)
         header.attrs["GhostCells"] = int(ric.par.mesh.ghost_cells)
         header.attrs["CoordinateSystem"] = getattr(
-            getattr(ric.par, "simulation", None), "coordinate_system", "cartesian",
+            getattr(ric.par, "simulation", None),
+            "coordinate_system",
+            "cartesian",
         )
         _write_provenance(
             header,
             provenance
             if provenance is not None
-            else getattr(ric, "provenance", None)
-            or getattr(ric.par, "provenance", None),
+            else getattr(ric, "provenance", None) or getattr(ric.par, "provenance", None),
         )
         if hasattr(ric, "cumulative_hydro_boundary_energy"):
             header.attrs["CumulativeHydroBoundaryEnergyCode"] = float(
@@ -171,12 +186,8 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.cm,
             metadata={
                 "quantity": "radius",
-                "coordinate_frame": (
-                    "comoving" if cosmological_schema else "physical"
-                ),
-                "representation": (
-                    "comoving" if cosmological_schema else "proper"
-                ),
+                "coordinate_frame": ("comoving" if cosmological_schema else "physical"),
+                "representation": ("comoving" if cosmological_schema else "proper"),
                 "physical_relation": (
                     "physical = a * stored"
                     if getattr(ric.par, "supercomoving_coordinates", False)
@@ -185,7 +196,7 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
             },
         )
 
-        #second, save mesh and fluid data:
+        # second, save mesh and fluid data:
         gdata = fic.create_group("Data")
         _write_quantity(
             gdata,
@@ -196,12 +207,8 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.cm,
             metadata={
                 "quantity": "radius",
-                "coordinate_frame": (
-                    "comoving" if cosmological_schema else "physical"
-                ),
-                "representation": (
-                    "comoving" if cosmological_schema else "proper"
-                ),
+                "coordinate_frame": ("comoving" if cosmological_schema else "physical"),
+                "representation": ("comoving" if cosmological_schema else "proper"),
                 "physical_relation": (
                     "physical = a * stored"
                     if getattr(ric.par, "supercomoving_coordinates", False)
@@ -224,10 +231,10 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.g / unyt.cm**3,
             metadata={
                 "quantity": "mass_density",
-                "representation": (
-                    "comoving" if cosmological_schema else "proper"
-                ),
-                "scale_factor_power": 3.0 if getattr(ric.par, "supercomoving_coordinates", False) else 0.0,
+                "representation": ("comoving" if cosmological_schema else "proper"),
+                "scale_factor_power": 3.0
+                if getattr(ric.par, "supercomoving_coordinates", False)
+                else 0.0,
                 "physical_relation": (
                     "physical = stored / a**3"
                     if getattr(ric.par, "supercomoving_coordinates", False)
@@ -250,9 +257,7 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.cm / unyt.s,
             metadata={
                 "quantity": "velocity",
-                "representation": (
-                    "supercomoving" if cosmological_schema else "proper"
-                ),
+                "representation": ("supercomoving" if cosmological_schema else "proper"),
                 "physical_relation": (
                     "physical = H*a*x + stored/a"
                     if getattr(ric.par, "supercomoving_coordinates", False)
@@ -275,9 +280,7 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
             default_unit=unyt.K,
             metadata={
                 "quantity": "temperature",
-                "representation": (
-                    "supercomoving" if cosmological_schema else "proper"
-                ),
+                "representation": ("supercomoving" if cosmological_schema else "proper"),
                 "scale_factor_power": (
                     3.0 * (ric.par.hydrodynamics.gamma - 1.0)
                     if getattr(ric.par, "supercomoving_coordinates", False)
@@ -309,8 +312,10 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
         ):
             if hasattr(ric.fluid, attr):
                 scale_key = (
-                    "mass_g" if attr == "Mass_code"
-                    else "angular_momentum" if attr == "AngularMomentum_code"
+                    "mass_g"
+                    if attr == "Mass_code"
+                    else "angular_momentum"
+                    if attr == "AngularMomentum_code"
                     else "energy_cgs_erg"
                 )
                 _write_quantity(
@@ -320,9 +325,11 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
                     code_units=code_units,
                     scale_key=scale_key,
                     default_unit=(
-                        unyt.g if attr == "Mass_code"
+                        unyt.g
+                        if attr == "Mass_code"
                         else unyt.g * unyt.cm**2 / unyt.s
-                        if attr == "AngularMomentum_code" else unyt.erg
+                        if attr == "AngularMomentum_code"
+                        else unyt.erg
                     ),
                 )
         gdata.create_dataset("mu", data=np.asarray(ric.fluid.mu))
@@ -352,8 +359,10 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
                 if not isinstance(dataset, h5py.Dataset):
                     continue
                 if dataset_name in {
-                    "boundary_comoving_code", "rho_comoving_code",
-                    "vel_supercomoving_code", "temp_supercomoving_code",
+                    "boundary_comoving_code",
+                    "rho_comoving_code",
+                    "vel_supercomoving_code",
+                    "temp_supercomoving_code",
                 }:
                     continue
                 dataset.attrs["representation"] = "physical"
@@ -363,63 +372,81 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
             dark_matter = getattr(gravity, "dark_matter", None)
         if dark_matter is not None:
             dmdata = fic.create_group("DarkMatter")
-            dm_radius_name = (
-                "radius_comoving_code"
-                if cosmological_schema
-                else "radius_proper_code"
-            )
+            dm_radius_name = "radius_comoving_code" if cosmological_schema else "radius_proper_code"
             dm_velocity_name = (
-                "vel_supercomoving_code"
-                if cosmological_schema
-                else "vel_proper_code"
+                "vel_supercomoving_code" if cosmological_schema else "vel_proper_code"
             )
             dm_angular_momentum_name = (
                 "specific_angular_momentum_supercomoving_code"
                 if cosmological_schema
                 else "specific_angular_momentum_proper_code"
             )
-            _write_quantity(dmdata, "Radius", dark_matter.radius,
-                            code_units=code_units, scale_key="length_cgs_cm",
-                            default_unit=unyt.cm,
-                            field_spec_obj=_runtime_field_spec(
-                                dm_radius_name, ric.par, code_units, output_time,
-                            ))
-            _write_quantity(dmdata, "RadialVelocity", dark_matter.velocity,
-                            code_units=code_units, scale_key="velocity_cgs_cm_s",
-                            default_unit=unyt.cm / unyt.s,
-                            field_spec_obj=_runtime_field_spec(
-                                dm_velocity_name, ric.par, code_units, output_time,
-                            ))
-            _write_quantity(dmdata, "Mass", dark_matter.mass,
-                            code_units=code_units, scale_key="mass_g",
-                            default_unit=unyt.g,
-                            field_spec_obj=_runtime_field_spec(
-                                "dark_matter_mass_code",
-                                ric.par,
-                                code_units,
-                                output_time,
-                            ))
-            _write_quantity(dmdata, "SpecificAngularMomentum", dark_matter.angular_momentum,
-                            code_units=code_units, scale_key="specific_angular_momentum",
-                            default_unit=unyt.cm**2 / unyt.s,
-                            field_spec_obj=_runtime_field_spec(
-                                dm_angular_momentum_name,
-                                ric.par,
-                                code_units,
-                                output_time,
-                            ))
+            _write_quantity(
+                dmdata,
+                "Radius",
+                dark_matter.radius,
+                code_units=code_units,
+                scale_key="length_cgs_cm",
+                default_unit=unyt.cm,
+                field_spec_obj=_runtime_field_spec(
+                    dm_radius_name,
+                    ric.par,
+                    code_units,
+                    output_time,
+                ),
+            )
+            _write_quantity(
+                dmdata,
+                "RadialVelocity",
+                dark_matter.velocity,
+                code_units=code_units,
+                scale_key="velocity_cgs_cm_s",
+                default_unit=unyt.cm / unyt.s,
+                field_spec_obj=_runtime_field_spec(
+                    dm_velocity_name,
+                    ric.par,
+                    code_units,
+                    output_time,
+                ),
+            )
+            _write_quantity(
+                dmdata,
+                "Mass",
+                dark_matter.mass,
+                code_units=code_units,
+                scale_key="mass_g",
+                default_unit=unyt.g,
+                field_spec_obj=_runtime_field_spec(
+                    "dark_matter_mass_code",
+                    ric.par,
+                    code_units,
+                    output_time,
+                ),
+            )
+            _write_quantity(
+                dmdata,
+                "SpecificAngularMomentum",
+                dark_matter.angular_momentum,
+                code_units=code_units,
+                scale_key="specific_angular_momentum",
+                default_unit=unyt.cm**2 / unyt.s,
+                field_spec_obj=_runtime_field_spec(
+                    dm_angular_momentum_name,
+                    ric.par,
+                    code_units,
+                    output_time,
+                ),
+            )
             dmdata.attrs["Softening"] = _header_attr_value(
                 dark_matter.softening * code_units.length_unit,
             )
 
-    if (
-        not hasattr(ric, "solver")
-        and Path(ICfilename).stem.lower() == "initialcondition"
-    ):
+    if not hasattr(ric, "solver") and Path(ICfilename).stem.lower() == "initialcondition":
         update_used_parameters_yaml(
             Path.cwd() / "used_parameters.yaml",
             initial_condition=vars(ric.par),
         )
+
 
 def writehdf5(ric, ICfilename, *, provenance=None):
     """Prepare and write an initial-condition HDF5 file.
@@ -446,7 +473,9 @@ def readhdf5(par, mesh, fluid, ICfilename):
     with h5py.File(ICfilename, "r") as fic:
         expected_coordsys = par.simulation.coordinate_system
         expected_nogrid = getattr(
-            getattr(par, "mesh", None), "grid_cells", None,
+            getattr(par, "mesh", None),
+            "grid_cells",
+            None,
         )
         # saving initial condition
         # first, save header:
@@ -499,10 +528,9 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 % (grid_cells, expected_nogrid),
             )
         gdata = fic["Data"]
-        generic_header_names = (
-            _GENERIC_HEADER_DATASETS.intersection(header.keys())
-            or _GENERIC_HEADER_DATASETS.intersection(header.attrs.keys())
-        )
+        generic_header_names = _GENERIC_HEADER_DATASETS.intersection(
+            header.keys()
+        ) or _GENERIC_HEADER_DATASETS.intersection(header.attrs.keys())
         if generic_header_names:
             names = ", ".join(sorted(generic_header_names))
             raise ValueError(
@@ -520,35 +548,36 @@ def readhdf5(par, mesh, fluid, ICfilename):
         # datasets.  Parameter attributes may contain stale fields from an
         # input namespace, so they must not decide the restart schema.
         canonical_cosmological_schema = (
-            "tau_supercomoving_code" in header
-            or "box_size_comoving_code" in header
+            "tau_supercomoving_code" in header or "box_size_comoving_code" in header
         )
-        canonical_proper_schema = (
-            "time_proper_code" in header
-            or "box_size_proper_code" in header
-        )
+        canonical_proper_schema = "time_proper_code" in header or "box_size_proper_code" in header
         if canonical_cosmological_schema and canonical_proper_schema:
             raise ValueError("HDF5 header mixes cosmological and proper schemas")
         if not canonical_cosmological_schema and not canonical_proper_schema:
             raise ValueError(
-                "HDF5 header has no canonical representation-specific time and "
-                "box-size datasets",
+                "HDF5 header has no canonical representation-specific time and box-size datasets",
             )
         if canonical_cosmological_schema:
             required_header_names = {
-                "tau_supercomoving_code", "box_size_comoving_code",
+                "tau_supercomoving_code",
+                "box_size_comoving_code",
             }
         else:
             required_header_names = {
-                "time_proper_code", "box_size_proper_code",
+                "time_proper_code",
+                "box_size_proper_code",
             }
         missing_header_names = required_header_names.difference(header.keys())
         if missing_header_names:
             names = ", ".join(sorted(missing_header_names))
             raise ValueError(f"HDF5 header is missing canonical dataset(s): {names}")
         header_scale_map = {
-            "tau_supercomoving_code" if canonical_cosmological_schema else "time_proper_code": "time_s",
-            "box_size_comoving_code" if canonical_cosmological_schema else "box_size_proper_code": "length_cgs_cm",
+            "tau_supercomoving_code"
+            if canonical_cosmological_schema
+            else "time_proper_code": "time_s",
+            "box_size_comoving_code"
+            if canonical_cosmological_schema
+            else "box_size_proper_code": "length_cgs_cm",
         }
         _populate_group_targets(
             header,
@@ -569,7 +598,8 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 setattr(par, parameter_name, _restore_header_attr_value(header.attrs[header_name]))
         if canonical_cosmological_schema:
             par.tau_supercomoving_code = np.asarray(
-                par.tau_supercomoving_code, dtype=float,
+                par.tau_supercomoving_code,
+                dtype=float,
             )
             cosmic_time = header.attrs.get("time_cosmic_code", header.attrs.get("CosmicTime"))
             if cosmic_time is not None:
@@ -584,9 +614,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
             )
         if hasattr(par, "simulation"):
             time_field = (
-                "tau_supercomoving_code"
-                if canonical_cosmological_schema
-                else "time_proper_code"
+                "tau_supercomoving_code" if canonical_cosmological_schema else "time_proper_code"
             )
             box_field = (
                 "box_size_comoving_code"
@@ -613,9 +641,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 fluid.time_proper_code = runtime_time
         else:
             time_field = (
-                "tau_supercomoving_code"
-                if canonical_cosmological_schema
-                else "time_proper_code"
+                "tau_supercomoving_code" if canonical_cosmological_schema else "time_proper_code"
             )
             runtime_time = getattr(par, time_field)
             if hasattr(runtime_time, "to_value"):
@@ -631,7 +657,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
             else:
                 fluid.time_proper_code = runtime_time
 
-        #second, save mesh and fluid data:
+        # second, save mesh and fluid data:
         data_scale_map = {
             "boundary_proper_code": "length_cgs_cm",
             "boundary_comoving_code": "length_cgs_cm",
@@ -700,7 +726,9 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 rho_proper_code=fluid.rho_proper_code,
                 vel_proper_code=fluid.vel_proper_code,
                 pre_proper_code=getattr(
-                    fluid, "pre_proper_code", np.zeros_like(fluid.rho_proper_code),
+                    fluid,
+                    "pre_proper_code",
+                    np.zeros_like(fluid.rho_proper_code),
                 ),
                 temp_proper_code=fluid.temp_proper_code,
                 time_proper_code=getattr(fluid, "time_proper_code", 0.0),
@@ -714,7 +742,9 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 rho_comoving_code=fluid.rho_comoving_code,
                 vel_supercomoving_code=fluid.vel_supercomoving_code,
                 pre_supercomoving_code=getattr(
-                    fluid, "pre_supercomoving_code", np.zeros_like(fluid.rho_comoving_code),
+                    fluid,
+                    "pre_supercomoving_code",
+                    np.zeros_like(fluid.rho_comoving_code),
                 ),
                 temp_supercomoving_code=fluid.temp_supercomoving_code,
                 tau_supercomoving_code=getattr(fluid, "tau_supercomoving_code", 0.0),
@@ -723,7 +753,9 @@ def readhdf5(par, mesh, fluid, ICfilename):
             )
         if canonical_cosmological_schema:
             if "boundary_comoving_code" not in gdata:
-                raise ValueError("canonical cosmological HDF5 file is missing Data/boundary_comoving_code")
+                raise ValueError(
+                    "canonical cosmological HDF5 file is missing Data/boundary_comoving_code"
+                )
             for name in (
                 "rho_comoving_code",
                 "vel_supercomoving_code",
@@ -842,6 +874,8 @@ def loadhdf5(config, ICfilename):
         ICfilename,
     )
     restored.dark_matter = getattr(
-        restored.par, "dark_matter_radarrays", None,
+        restored.par,
+        "dark_matter_radarrays",
+        None,
     )
     return restored

@@ -26,7 +26,8 @@ LEGACY_RUNTIME_NAMES = (
 
 def _production_sources():
     return sorted(
-        path for path in SOURCE_ROOT.rglob("*.py")
+        path
+        for path in SOURCE_ROOT.rglob("*.py")
         if "tests" not in path.parts and "example" not in path.parts
     )
 

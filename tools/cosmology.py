@@ -9,7 +9,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 _cgs_KM_PER_MPC = 3.0856775814913673e19
 _SECONDS_PER_GYR = 365.25 * 24.0 * 3600.0 * 1.0e9
 _G_MPC_cgs_KMS_MSUN = 4.300917270e-9
@@ -106,9 +105,13 @@ class LambdaCDM:
 
     @property
     def age_0(self):
-        return 2.0 * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m)) / (
-            3.0 * self.hubble_0_gyr * np.sqrt(self.omega_lambda)
-        ) if self.omega_lambda > 0.0 else 2.0 / (3.0 * self.hubble_0_gyr)
+        return (
+            2.0
+            * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m))
+            / (3.0 * self.hubble_0_gyr * np.sqrt(self.omega_lambda))
+            if self.omega_lambda > 0.0
+            else 2.0 / (3.0 * self.hubble_0_gyr)
+        )
 
     def scale_factor(self, cosmic_time):
         time = np.asarray(cosmic_time, dtype=float)
@@ -116,10 +119,10 @@ class LambdaCDM:
             raise ValueError("cosmic time must be positive")
         argument = 1.5 * self.hubble_0_gyr * np.sqrt(self.omega_lambda) * time
         return (
-            np.sinh(argument) / np.sqrt(self.omega_lambda / self.omega_m)
-        ) ** (2.0 / 3.0) if self.omega_lambda > 0.0 else (
-            time / self.age_0
-        ) ** (2.0 / 3.0)
+            (np.sinh(argument) / np.sqrt(self.omega_lambda / self.omega_m)) ** (2.0 / 3.0)
+            if self.omega_lambda > 0.0
+            else (time / self.age_0) ** (2.0 / 3.0)
+        )
 
     def cosmic_time_from_scale_factor(self, scale_factor):
         scale_factor = np.asarray(scale_factor, dtype=float)
@@ -127,8 +130,12 @@ class LambdaCDM:
             raise ValueError("scale factor must be positive")
         if self.omega_lambda == 0.0:
             return self.age_0 * scale_factor**1.5
-        return 2.0 / (3.0 * self.hubble_0_gyr * np.sqrt(self.omega_lambda)) * np.arcsinh(
-            np.sqrt(self.omega_lambda / self.omega_m) * scale_factor**1.5
+        return (
+            2.0
+            / (3.0 * self.hubble_0_gyr * np.sqrt(self.omega_lambda))
+            * np.arcsinh(
+                np.sqrt(self.omega_lambda / self.omega_m) * scale_factor**1.5,
+            )
         )
 
     def hubble(self, cosmic_time):
@@ -141,7 +148,9 @@ class LambdaCDM:
 
     def matter_density(self, cosmic_time):
         return (
-            3.0 * self.hubble_0**2 * self.omega_m
+            3.0
+            * self.hubble_0**2
+            * self.omega_m
             / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN)
             / self.scale_factor(cosmic_time) ** 3
         )
@@ -149,8 +158,7 @@ class LambdaCDM:
     def dark_energy_density(self, cosmic_time):
         return np.full_like(
             np.asarray(cosmic_time, dtype=float),
-            3.0 * self.hubble_0**2 * self.omega_lambda
-            / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN),
+            3.0 * self.hubble_0**2 * self.omega_lambda / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN),
         )
 
     def background_density(self, cosmic_time):

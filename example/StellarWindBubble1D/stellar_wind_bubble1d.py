@@ -1,8 +1,8 @@
 import argparse
 import os
 import sys
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -11,35 +11,38 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
+
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-import unyt
 
 os.environ.setdefault(
-    'MPLCONFIGDIR',
-    os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'),
+    "MPLCONFIGDIR",
+    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
 import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import radhydropy.io as rio
+
+matplotlib.use("Agg")
 import example_utils as eu
+import matplotlib.pyplot as plt
+
 import tools as et
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name(
-    'stellar_wind_bubble1d.yaml'
+DEFAULT_CONFIG = (
+    Path(__file__)
+    .resolve()
+    .with_name(
+        "stellar_wind_bubble1d.yaml",
+    )
 )
 
 
 def load_snapshots(config, max_outputs=10, start_index=1):
     """Load example outputs into lightweight snapshot wrappers."""
-
     snapshots = []
     for outindex in range(start_index, max_outputs):
         outfilename = os.path.join(
-            config['par']['output']['directory'],
-            config['par']['output']['filename_prefix'] + '_%03d' % outindex + '.hdf5',
+            config["par"]["output"]["directory"],
+            config["par"]["output"]["filename_prefix"] + "_%03d" % outindex + ".hdf5",
         )
         snapshots.append(et.load_output_state(outfilename, config))
     return snapshots
@@ -48,71 +51,75 @@ def load_snapshots(config, max_outputs=10, start_index=1):
 def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     et.set_plot_style()
     rundir = Path.cwd().resolve()
-    print('rundir', rundir)
+    print("rundir", rundir)
     config = eu.load_nested_example_config(config_filename)
 
-    example_config = config['example']
-    output_config = config["par"]['output']
+    example_config = config["example"]
+    output_config = config["par"]["output"]
     if not plot_only:
         eu.clean_previous_outputs(config)
 
     if not plot_only:
-        code_units_obj = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
-        config['_code_units'] = code_units_obj
+        code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+        config["_code_units"] = code_units_obj
         initial_condition = et.build_initial_condition(config)
         initial_condition.write(
-            config["par"]['simulation']['initial_condition_filename'],
+            config["par"]["simulation"]["initial_condition_filename"],
             validate=True,
         )
         mainrun = Rsim(config["par"])
         mainrun.RunAll(outputtime=0)
 
     snapshots = load_snapshots(config)
-    figure_prefix = example_config.get('figure_prefix', 'StellarWindBubble1D')
+    figure_prefix = example_config.get("figure_prefix", "StellarWindBubble1D")
 
     profile_figure = et.make_profile_figure(snapshots, config)
     profile_figure_filename = os.path.join(
-        output_config['directory'],
-        f'{figure_prefix}_profiles.jpg',
+        output_config["directory"],
+        f"{figure_prefix}_profiles.jpg",
     )
     profile_figure.savefig(profile_figure_filename, dpi=200)
     plt.close(profile_figure)
-    print('figure = %s' % profile_figure_filename)
+    print("figure = %s" % profile_figure_filename)
 
     radius_figure = et.make_radius_figure(snapshots, config)
     radius_figure_filename = os.path.join(
-        output_config['directory'],
-        f'{figure_prefix}_radius.jpg',
+        output_config["directory"],
+        f"{figure_prefix}_radius.jpg",
     )
     radius_figure.savefig(radius_figure_filename, dpi=200)
     plt.close(radius_figure)
-    print('figure = %s' % radius_figure_filename)
+    print("figure = %s" % radius_figure_filename)
 
     velocity_figure = et.make_velocity_figure(snapshots, config)
     if velocity_figure is not None:
         velocity_figure_filename = os.path.join(
-            output_config['directory'],
-            f'{figure_prefix}_velocity.jpg',
+            output_config["directory"],
+            f"{figure_prefix}_velocity.jpg",
         )
         velocity_figure.savefig(velocity_figure_filename, dpi=200)
         plt.close(velocity_figure)
-        print('figure = %s' % velocity_figure_filename)
+        print("figure = %s" % velocity_figure_filename)
 
     pressure_figure = et.make_pressure_figure(snapshots, config)
     if pressure_figure is not None:
         pressure_figure_filename = os.path.join(
-            output_config['directory'],
-            f'{figure_prefix}_pressure.jpg',
+            output_config["directory"],
+            f"{figure_prefix}_pressure.jpg",
         )
         pressure_figure.savefig(pressure_figure_filename, dpi=200)
         plt.close(pressure_figure)
-        print('figure = %s' % pressure_figure_filename)
+        print("figure = %s" % pressure_figure_filename)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Run the spherical stellar-wind bubble example.')
-    parser.add_argument('--config', default=DEFAULT_CONFIG, help='Nested YAML configuration.')
-    parser.add_argument('--plot-only', action='store_true', help='Skip the hydro run and rebuild the figure from existing outputs.')
+    parser = argparse.ArgumentParser(description="Run the spherical stellar-wind bubble example.")
+    parser.add_argument("--config", default=DEFAULT_CONFIG, help="Nested YAML configuration.")
+    parser.add_argument(
+        "--plot-only",
+        action="store_true",
+        help="Skip the hydro run and rebuild the figure from existing outputs.",
+    )
     return parser.parse_args()
 
 

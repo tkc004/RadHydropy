@@ -46,6 +46,5 @@ class CosmologyContextTests(unittest.TestCase):
         )
 
         for values in invalid_contexts:
-            with self.subTest(values=values):
-                with self.assertRaises(ValueError):
-                    CosmologyContext(**values)
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                CosmologyContext(**values)

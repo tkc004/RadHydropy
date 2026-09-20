@@ -1,13 +1,13 @@
 """Few-cell uniform EdS Compton/atomic thermo-chemistry comparison."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import unyt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parent
@@ -15,13 +15,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT.parent))
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
 import copy
-from radhydropy.units import CodeUnits, quantity_to_value
-from tools import build_initial_condition, analytic_compton_temperature
+
 import example_utils as eu
 
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
+from tools import analytic_compton_temperature, build_initial_condition
 
 CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 
@@ -30,7 +31,9 @@ def run_case(config, atomic_cooling):
     code_unit_system = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
         code_unit_system,
-        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], code_unit_system.time_unit),
+        t_ref=quantity_to_value(
+            config["par"]["cosmology"]["cosmology_t_ref"], code_unit_system.time_unit
+        ),
         a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
     case_config = copy.deepcopy(config)
@@ -38,7 +41,9 @@ def run_case(config, atomic_cooling):
     initial_condition = case_config["initial_condition"]
     label = "atomic_compton" if atomic_cooling else "compton_only"
     case_config["par"]["simulation"]["name"] = f"UniformEdSThermochemistry1D_{label}"
-    case_config["par"]["simulation"]["initial_condition_filename"] = str(EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5")
+    case_config["par"]["simulation"]["initial_condition_filename"] = str(
+        EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5"
+    )
     case_config["par"]["output"]["filename_prefix"] = f"{label}_Output"
     case_config["par"]["thermochemistry"]["hydrogen_atomic_cooling"] = atomic_cooling
     case_config["par"]["output"]["directory"] = str(EXAMPLE_ROOT / "outputs")
@@ -64,7 +69,7 @@ def run_case(config, atomic_cooling):
                 case_config["_code_units"].time_unit,
             ),
             dtype=float,
-        ).reshape(-1)[0]
+        ).reshape(-1)[0],
     )
     sim.par.time_proper_code = np.asarray([initial_time_proper_code])
     sim.par.simulation.time_proper_code = initial_time_proper_code
@@ -89,6 +94,7 @@ def run_case(config, atomic_cooling):
         )
     ):
         raise RuntimeError("proper-time startup clocks disagree after SetInitFluid")
+
     # Rsim.Run normally obtains an outer timestep from the hydro CFL
     # estimator.  This is a source-only uniform-cell benchmark, so provide a
     # fixed outer timestep while retaining the Rsim.Run execution path.
@@ -130,21 +136,21 @@ def run_case(config, atomic_cooling):
         time_cosmic_code = float(np.asarray(sim.fluid.time_proper_code).flat[0])
         scale_factor = float(cosmology.scale_factor(time_cosmic_code))
         history["time_cosmic_cgs_s"].append(
-            time_cosmic_code * float(sim.par.units.CodeUnits.time_unit.to_value("s"))
+            time_cosmic_code * float(sim.par.units.CodeUnits.time_unit.to_value("s")),
         )
         history["scale_factor"].append(scale_factor)
         history["temperature_proper_cgs_K"].append(
-            float(np.mean(sim.fluid.temp_proper_code[physical]))
+            float(np.mean(sim.fluid.temp_proper_code[physical])),
         )
         history["source_solver"].append(result.get("source_solver", "explicit"))
         history["relative_change"].append(
-            float(result.get("relative_change", 0.0))
+            float(result.get("relative_change", 0.0)),
         )
         if not np.all(np.isfinite(sim.fluid.temp_proper_code[physical])):
             raise RuntimeError(
                 f"non-finite temperature at cosmic time {time_cosmic_code:.8g}, "
                 f"redshift {sim.par.compton_cmb_redshift:.8g}; "
-                f"temperature={sim.fluid.temp_proper_code[physical]}"
+                f"temperature={sim.fluid.temp_proper_code[physical]}",
             )
         return result
 
@@ -171,7 +177,9 @@ def main():
     initial_time_code = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     initial_time_s = initial_time_code * float(units.time_unit.to_value("s"))
     plot_time_s = np.linspace(
-        initial_time_s, np.max(compton["time_cosmic_cgs_s"]), 200
+        initial_time_s,
+        np.max(compton["time_cosmic_cgs_s"]),
+        200,
     )
     analytic = analytic_compton_temperature(
         compton["time_cosmic_cgs_s"],
@@ -184,7 +192,11 @@ def main():
         float(initial_condition["xHI"]),
         float(config["par"]["hydrodynamics"]["gamma"]),
         float(config["par"]["thermochemistry"]["cmb_temperature_0"].to_value("K")),
-        1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - float(initial_condition["xHI"]))),
+        1.0
+        / (
+            float(initial_condition["hydrogen_mass_fraction"])
+            * (2.0 - float(initial_condition["xHI"]))
+        ),
     )
     analytic_plot = analytic_compton_temperature(
         plot_time_s,
@@ -197,18 +209,21 @@ def main():
         float(initial_condition["xHI"]),
         float(config["par"]["hydrodynamics"]["gamma"]),
         float(config["par"]["thermochemistry"]["cmb_temperature_0"].to_value("K")),
-        1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - float(initial_condition["xHI"]))),
+        1.0
+        / (
+            float(initial_condition["hydrogen_mass_fraction"])
+            * (2.0 - float(initial_condition["xHI"]))
+        ),
     )
-    temperature_relative_error_dimensionless = np.max(np.abs(compton["temperature_proper_cgs_K"] - analytic) / analytic)
+    temperature_relative_error_dimensionless = np.max(
+        np.abs(compton["temperature_proper_cgs_K"] - analytic) / analytic
+    )
     print(
-        "Compton-only maximum relative error: "
-        f"{temperature_relative_error_dimensionless:.6e}"
+        f"Compton-only maximum relative error: {temperature_relative_error_dimensionless:.6e}",
     )
     for label, history in (("Compton-only", compton), ("atomic+Compton", atomic)):
         choices, counts = np.unique(history["source_solver"], return_counts=True)
-        summary = ", ".join(
-            f"{choice}={count}" for choice, count in zip(choices, counts)
-        )
+        summary = ", ".join(f"{choice}={count}" for choice, count in zip(choices, counts))
         print(f"{label} hybrid source choices: {summary}")
     if temperature_relative_error_dimensionless > 2.0e-3:
         raise RuntimeError("Compton-only EdS comparison failed")
@@ -220,9 +235,22 @@ def main():
     figure = Path(config["par"]["output"]["directory"]) / "UniformEdSThermochemistry1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7.0, 4.5))
-    plt.plot(plot_time_s / (1.0e6 * 365.25 * 86400.0), analytic_plot, "k-", label="EdS analytic Compton")
-    plt.plot(compton["time_cosmic_cgs_s"] / (1.0e6 * 365.25 * 86400.0), compton["temperature_proper_cgs_K"], "o", ms=3, label="Rsim Compton")
-    plt.plot(atomic["time_cosmic_cgs_s"] / (1.0e6 * 365.25 * 86400.0), atomic["temperature_proper_cgs_K"], "--", label="Rsim atomic + Compton")
+    plt.plot(
+        plot_time_s / (1.0e6 * 365.25 * 86400.0), analytic_plot, "k-", label="EdS analytic Compton"
+    )
+    plt.plot(
+        compton["time_cosmic_cgs_s"] / (1.0e6 * 365.25 * 86400.0),
+        compton["temperature_proper_cgs_K"],
+        "o",
+        ms=3,
+        label="Rsim Compton",
+    )
+    plt.plot(
+        atomic["time_cosmic_cgs_s"] / (1.0e6 * 365.25 * 86400.0),
+        atomic["temperature_proper_cgs_K"],
+        "--",
+        label="Rsim atomic + Compton",
+    )
     plt.xlabel("cosmic time [Myr]")
     plt.ylabel("physical temperature [K]")
     plt.yscale("log")

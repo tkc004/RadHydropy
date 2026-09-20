@@ -39,14 +39,16 @@ def validate_snapshot_configuration(par, header, header_code_units):
             if not np.isclose(expected, actual, rtol=1e-12, atol=0.0):
                 raise SnapshotConfigurationError(
                     f"snapshot CodeUnits {name} scale ({actual}) does not "
-                    f"match runtime scale ({expected})"
+                    f"match runtime scale ({expected})",
                 )
 
     header_coordsys = _restore_header_attr_value(
-        header.attrs.get("CoordinateSystem", None)
+        header.attrs.get("CoordinateSystem", None),
     )
     expected_coordsys = getattr(
-        getattr(par, "simulation", None), "coordinate_system", None
+        getattr(par, "simulation", None),
+        "coordinate_system",
+        None,
     )
     if (
         header_coordsys is not None
@@ -55,7 +57,7 @@ def validate_snapshot_configuration(par, header, header_code_units):
     ):
         raise SnapshotConfigurationError(
             f"snapshot coordinate system {header_coordsys!r} does not match "
-            f"runtime coordinate system {expected_coordsys!r}"
+            f"runtime coordinate system {expected_coordsys!r}",
         )
 
     header_grid = header.attrs.get("GridCells", None)
@@ -67,20 +69,20 @@ def validate_snapshot_configuration(par, header, header_code_units):
     ):
         raise SnapshotConfigurationError(
             f"snapshot grid size {int(_restore_header_attr_value(header_grid))} "
-            f"does not match runtime grid size {int(expected_grid)}"
+            f"does not match runtime grid size {int(expected_grid)}",
         )
 
     header_cosmology = _restore_header_attr_value(
-        header.attrs.get("CosmologyType", None)
+        header.attrs.get("CosmologyType", None),
     )
     expected_expansion = getattr(par, "cosmological_expansion", None)
     if header_cosmology is not None and expected_expansion is False:
         raise SnapshotConfigurationError(
-            "snapshot is cosmological but runtime has cosmological_expansion=False"
+            "snapshot is cosmological but runtime has cosmological_expansion=False",
         )
     if header_cosmology is None and expected_expansion is True:
         raise SnapshotConfigurationError(
-            "snapshot is non-cosmological but runtime has cosmological_expansion=True"
+            "snapshot is non-cosmological but runtime has cosmological_expansion=True",
         )
     expected_cosmology = getattr(par, "cosmology_type", None)
     if expected_cosmology is None:
@@ -92,7 +94,7 @@ def validate_snapshot_configuration(par, header, header_code_units):
         if header_cosmology != expected_cosmology:
             raise SnapshotConfigurationError(
                 f"snapshot cosmology {header_cosmology!r} does not match "
-                f"runtime cosmology {expected_cosmology!r}"
+                f"runtime cosmology {expected_cosmology!r}",
             )
 
     for header_key, parameter_key in (
@@ -104,7 +106,7 @@ def validate_snapshot_configuration(par, header, header_code_units):
         ("TemperatureRepresentation", "temperature_representation"),
     ):
         header_value = _restore_header_attr_value(
-            header.attrs.get(header_key, None)
+            header.attrs.get(header_key, None),
         )
         expected_value = getattr(par, parameter_key, None)
         if (
@@ -114,5 +116,5 @@ def validate_snapshot_configuration(par, header, header_code_units):
         ):
             raise SnapshotConfigurationError(
                 f"snapshot {parameter_key} {header_value!r} does not match "
-                f"runtime {parameter_key} {expected_value!r}"
+                f"runtime {parameter_key} {expected_value!r}",
             )

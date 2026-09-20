@@ -1,22 +1,21 @@
-import numpy as np
-import h5py
 import tempfile
 from pathlib import Path
-
-from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
-from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.dark_matter import enclosed_gas_mass
-from radhydropy.dark_matter import prepare_enclosed_gas_mass
-from radhydropy.gravity import Gravity
-import radhydropy.io as rio
-from radhydropy.units import CodeUnits
-from radhydropy.cosmology import EinsteinDeSitter
 from types import SimpleNamespace
+
+import h5py
+import numpy as np
+
+import radhydropy.io as rio
+from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.dark_matter import DarkMatterShells, enclosed_gas_mass, prepare_enclosed_gas_mass
+from radhydropy.gravity import Gravity
 from radhydropy.runtime_fields import (
+    PROPER_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
-    PROPER_RUNTIME_FIELDS,
 )
+from radhydropy.units import CodeUnits
 
 
 def code_units():
@@ -27,7 +26,7 @@ def code_units():
             "UnitVelocity_in_cgs": 1.0e5,
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
-        }
+        },
     )
 
 
@@ -122,8 +121,10 @@ def test_acceleration_includes_gravity_and_angular_momentum():
         angular_momentum=[4.0],
         code_units=units,
     )
-    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
-        units.length_in_cgs * units.velocity_in_cgs**2
+    g_code = (
+        GRAVITATIONAL_CONSTANT_CGS
+        * units.mass_in_cgs
+        / (units.length_in_cgs * units.velocity_in_cgs**2)
     )
     expected = -0.5 * g_code * 3.0 / 2.0**2 + 4.0**2 / 2.0**3
     assert np.allclose(shells.acceleration(), expected)
@@ -178,8 +179,10 @@ def test_fixed_enclosed_mass_ignores_test_shell_mass():
         fixed_enclosed_mass=3.0,
         code_units=units,
     )
-    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
-        units.length_in_cgs * units.velocity_in_cgs**2
+    g_code = (
+        GRAVITATIONAL_CONSTANT_CGS
+        * units.mass_in_cgs
+        / (units.length_in_cgs * units.velocity_in_cgs**2)
     )
     assert np.allclose(shells.acceleration(), -g_code * 3.0 / 2.0**2)
 
@@ -194,8 +197,10 @@ def test_callable_fixed_enclosed_mass_supports_analytic_backgrounds():
         fixed_enclosed_mass=lambda radius: 3.0 + np.asarray(radius) ** 3,
         code_units=units,
     )
-    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
-        units.length_in_cgs * units.velocity_in_cgs**2
+    g_code = (
+        GRAVITATIONAL_CONSTANT_CGS
+        * units.mass_in_cgs
+        / (units.length_in_cgs * units.velocity_in_cgs**2)
     )
     assert np.allclose(shells.acceleration(), -g_code * 11.0 / 2.0**2)
 
@@ -286,12 +291,17 @@ def test_prepared_enclosed_gas_mass_matches_direct_evaluation():
 def test_dark_matter_field_is_added_to_gas_gravity():
     units = code_units()
     dm = DarkMatterShells(
-        radius=[1.0], velocity=[0.0], mass=[2.0], code_units=units
+        radius=[1.0],
+        velocity=[0.0],
+        mass=[2.0],
+        code_units=units,
     )
     gravity = Gravity(dark_matter=dm, code_units=units)
     acceleration = gravity.acceleration_on_mesh(Mesh(), rho=np.ones(3), par=Par)
-    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
-        units.length_in_cgs * units.velocity_in_cgs**2
+    g_code = (
+        GRAVITATIONAL_CONSTANT_CGS
+        * units.mass_in_cgs
+        / (units.length_in_cgs * units.velocity_in_cgs**2)
     )
     assert np.allclose(acceleration, [-0.0, -g_code * 2.0 / 1.5**2, -g_code * 2.0 / 2.5**2])
 
@@ -299,15 +309,20 @@ def test_dark_matter_field_is_added_to_gas_gravity():
 def test_dark_matter_shell_force_includes_enclosed_gas_mass():
     units = code_units()
     dm = DarkMatterShells(
-        radius=[2.0], velocity=[0.0], mass=[1.0], code_units=units
+        radius=[2.0],
+        velocity=[0.0],
+        mass=[1.0],
+        code_units=units,
     )
     gravity = Gravity(dark_matter=dm, code_units=units)
     gas_mass = 4.0 * np.pi / 3.0 * 2.0**3
     acceleration = gravity.dark_matter.acceleration(
-        gas_enclosed_mass=np.array([gas_mass])
+        gas_enclosed_mass=np.array([gas_mass]),
     )
-    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
-        units.length_in_cgs * units.velocity_in_cgs**2
+    g_code = (
+        GRAVITATIONAL_CONSTANT_CGS
+        * units.mass_in_cgs
+        / (units.length_in_cgs * units.velocity_in_cgs**2)
     )
     expected = -g_code * (0.5 + gas_mass) / 2.0**2
     assert np.allclose(acceleration, expected)
@@ -317,12 +332,17 @@ def test_cosmological_shell_force_subtracts_background_and_scales_with_a():
     units = code_units()
     cosmology = EinsteinDeSitter.from_code_units(units)
     shells = DarkMatterShells(
-        radius=[2.0], velocity=[0.0], mass=[5.0], code_units=units,
+        radius=[2.0],
+        velocity=[0.0],
+        mass=[5.0],
+        code_units=units,
     )
     gas_mass = 7.0
     background_mass = 3.0
-    g_code = GRAVITATIONAL_CONSTANT_CGS * units.mass_in_cgs / (
-        units.length_in_cgs * units.velocity_in_cgs**2
+    g_code = (
+        GRAVITATIONAL_CONSTANT_CGS
+        * units.mass_in_cgs
+        / (units.length_in_cgs * units.velocity_in_cgs**2)
     )
     acceleration = shells.acceleration(
         gas_enclosed_mass=np.array([gas_mass]),
@@ -337,9 +357,13 @@ def test_cosmological_shell_force_subtracts_background_and_scales_with_a():
 def test_dark_matter_snapshot_group_is_written():
     units = code_units()
     dm = DarkMatterShells(
-        radius=[1.0, 2.0], velocity=[0.0, 0.0], mass=[1.0, 1.0],
-        angular_momentum=[0.1, 0.2], code_units=units,
+        radius=[1.0, 2.0],
+        velocity=[0.0, 0.0],
+        mass=[1.0, 1.0],
+        angular_momentum=[0.1, 0.2],
+        code_units=units,
     )
+
     class Fluid:
         rho_proper_code = np.ones(2)
         vel_proper_code = np.zeros(2)
@@ -356,14 +380,18 @@ def test_dark_matter_snapshot_group_is_written():
             time_proper_code=time_proper_code,
             mu_dimensionless=mu,
         )
+
     class MeshForIO:
         boundary = np.array([0.0, 1.0, 2.0])
         geometry_state = MeshGeometryState.from_arrays(
             PROPER_RUNTIME_FIELDS,
             x_proper_code=np.array([0.5, 1.5]),
             boundary_proper_code=boundary,
-            width_proper_code=np.ones(2), area_proper_code=np.ones(2), volume_proper_code=np.ones(2),
+            width_proper_code=np.ones(2),
+            area_proper_code=np.ones(2),
+            volume_proper_code=np.ones(2),
         )
+
     class ParForIO:
         def __init__(self):
             self.CodeUnits = units
@@ -373,28 +401,38 @@ def test_dark_matter_snapshot_group_is_written():
             self.hydrodynamics = SimpleNamespace(gamma=1.4, eos_type="polytropic")
             self.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
             self.simulation = SimpleNamespace(
-                box_size_proper_code=self.box_size_proper_code, time_code=self.time
+                box_size_proper_code=self.box_size_proper_code,
+                time_code=self.time,
             )
             self.units = SimpleNamespace(CodeUnits=units)
+
     class State:
         par = ParForIO()
         mesh = MeshForIO()
         fluid = Fluid()
+
     with tempfile.TemporaryDirectory() as directory:
         filename = Path(directory) / "snapshot.hdf5"
         rio.writehdf5(State(), filename)
         with h5py.File(filename, "r") as handle:
             assert "DarkMatter" in handle
             assert set(handle["DarkMatter"]) == {
-                "Radius", "RadialVelocity", "Mass", "SpecificAngularMomentum"
+                "Radius",
+                "RadialVelocity",
+                "Mass",
+                "SpecificAngularMomentum",
             }
 
 
 def test_dark_matter_snapshot_reconstructs_live_shells():
     units = code_units()
     dm = DarkMatterShells(
-        radius=[1.0, 2.0], velocity=[0.3, -0.2], mass=[1.0, 2.0],
-        angular_momentum=[0.1, 0.2], softening=0.05, code_units=units,
+        radius=[1.0, 2.0],
+        velocity=[0.3, -0.2],
+        mass=[1.0, 2.0],
+        angular_momentum=[0.1, 0.2],
+        softening=0.05,
+        code_units=units,
     )
 
     class Fluid:
@@ -420,7 +458,9 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
             PROPER_RUNTIME_FIELDS,
             x_proper_code=np.array([0.5, 1.5]),
             boundary_proper_code=boundary,
-            width_proper_code=np.ones(2), area_proper_code=np.ones(2), volume_proper_code=np.ones(2),
+            width_proper_code=np.ones(2),
+            area_proper_code=np.ones(2),
+            volume_proper_code=np.ones(2),
         )
 
     class ParForIO:
@@ -432,7 +472,8 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
             self.hydrodynamics = SimpleNamespace(gamma=1.4, eos_type="polytropic")
             self.mesh = SimpleNamespace(ghost_cells=0, grid_cells=2)
             self.simulation = SimpleNamespace(
-                box_size_proper_code=self.box_size_proper_code, time_code=self.time
+                box_size_proper_code=self.box_size_proper_code,
+                time_code=self.time,
             )
             self.units = SimpleNamespace(CodeUnits=units)
 
@@ -474,8 +515,7 @@ def test_dark_matter_snapshot_reconstructs_live_shells():
     assert typed.radial_velocity_radarray.field_spec.quantity == "velocity"
     assert typed.dark_matter_mass_radarray.field_spec.quantity == "mass"
     assert (
-        typed.specific_angular_momentum_radarray.field_spec.quantity
-        == "specific_angular_momentum"
+        typed.specific_angular_momentum_radarray.field_spec.quantity == "specific_angular_momentum"
     )
     assert np.allclose(typed.radius_radarray.to_value(units.length_unit), dm.radius)
     assert np.isclose(typed.softening_radquantity.to_value(units.length_unit), dm.softening)

@@ -1,7 +1,6 @@
 """HM12 PIE relaxation of a hydrostatic atmosphere in a fixed NFW halo."""
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -15,56 +14,76 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+import example_utils as eu
+
 import radhydropy.io as rio
+from example.PIECoolingNFWHydrostaticRelaxation1D import tools as et
 from radhydropy.gravity import Gravity, nfw_potential
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-import example_utils as eu
 
-from example.PIECoolingNFWHydrostaticRelaxation1D import tools as et
-
-DEFAULT_CONFIG = EXAMPLE_DIR / 'pie_cooling_nfw_hydrostatic_relaxation1d.yaml'
+DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_nfw_hydrostatic_relaxation1d.yaml"
 
 
 def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']
-    initial_mapping = config['initial_condition']
-    thermochemistry = par['thermochemistry']
-    table_filename = str((config_filename.parent / thermochemistry['metal_pie_table_filename']).resolve())
-    thermochemistry['metal_pie_table_filename'] = table_filename
-    eu.clean_previous_outputs(config)
-    Path(par['output']['directory']).mkdir(parents=True, exist_ok=True)
-    code_units = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    halo = et.nfw_halo_parameters(
-        initial_mapping['halo_mass'], initial_mapping['concentration'], initial_mapping['redshift'],
-        initial_mapping['overdensity'], initial_mapping['h0'],
+    par = config["par"]
+    initial_mapping = config["initial_condition"]
+    thermochemistry = par["thermochemistry"]
+    table_filename = str(
+        (config_filename.parent / thermochemistry["metal_pie_table_filename"]).resolve()
     )
-    temperature_virial_unyt = et.virial_temperature(halo, initial_mapping['mu'])
-    config['_code_units'] = code_units
+    thermochemistry["metal_pie_table_filename"] = table_filename
+    eu.clean_previous_outputs(config)
+    Path(par["output"]["directory"]).mkdir(parents=True, exist_ok=True)
+    code_units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    halo = et.nfw_halo_parameters(
+        initial_mapping["halo_mass"],
+        initial_mapping["concentration"],
+        initial_mapping["redshift"],
+        initial_mapping["overdensity"],
+        initial_mapping["h0"],
+    )
+    temperature_virial_unyt = et.virial_temperature(halo, initial_mapping["mu"])
+    config["_code_units"] = code_units
     initial = et.build_initial_condition(config)
-    initial.write(par['simulation']['initial_condition_filename'], validate=True)
+    initial.write(par["simulation"]["initial_condition_filename"], validate=True)
     runtime_only = {
-        'box_size_proper', 'coordinate_system', 'time_proper', 'grid_cells',
-        'number_of_cells', 'radius_inner_proper', 'radius_outer_proper', 'halo_mass',
-        'concentration', 'redshift', 'overdensity', 'h0', 'gas_fraction',
-        'mean_molecular_weight', 'mu', 'rho_reference_proper',
-        'temperature_proper', 'final_time', 'evolution_timestep',
-        'chemistry_timestep', 'runaway_density_factor',
+        "box_size_proper",
+        "coordinate_system",
+        "time_proper",
+        "grid_cells",
+        "number_of_cells",
+        "radius_inner_proper",
+        "radius_outer_proper",
+        "halo_mass",
+        "concentration",
+        "redshift",
+        "overdensity",
+        "h0",
+        "gas_fraction",
+        "mean_molecular_weight",
+        "mu",
+        "rho_reference_proper",
+        "temperature_proper",
+        "final_time",
+        "evolution_timestep",
+        "chemistry_timestep",
+        "runaway_density_factor",
     }
-    sim = rio.loadhdf5(config, par['simulation']['initial_condition_filename'])
+    sim = rio.loadhdf5(config, par["simulation"]["initial_condition_filename"])
     sim.par.metal_pie_table = MetalPIETable(
-        par['thermochemistry']['metal_pie_table_filename']
+        par["thermochemistry"]["metal_pie_table_filename"],
     )
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
-    nghost = int(par['mesh']['ghost_cells'])
+    nghost = int(par["mesh"]["ghost_cells"])
     interior = slice(nghost, -nghost if nghost else None)
     rho_proper_max = float(np.max(np.asarray(sim.fluid.rho_radarray.value[interior])))
-    floor = thermochemistry['cooling_temperature_floor'].to_value(unyt.K)
-    runaway_factor = float(thermochemistry.get('runaway_density_factor', 100.0))
+    floor = thermochemistry["cooling_temperature_floor"].to_value(unyt.K)
+    runaway_factor = float(thermochemistry.get("runaway_density_factor", 100.0))
 
     def stop_on_runaway(runner):
         rho_proper_code = np.asarray(runner.fluid.rho_radarray.value[interior])
@@ -75,50 +94,55 @@ def main(config_filename=DEFAULT_CONFIG):
         ncentral = max(8, int(0.1 * temperature_state.size))
         floor_reached = np.min(temperature_state[:ncentral]) <= 1.01 * floor
         if runaway or floor_reached:
-            reason = 'density runaway' if runaway else 'temperature floor'
-            print('stopping relaxation: %s' % reason)
+            reason = "density runaway" if runaway else "temperature floor"
+            print("stopping relaxation: %s" % reason)
             return True
         return False
 
     sim.par.gravity = Gravity(
         externalgravity=True,
         potential=nfw_potential(
-            sim.mesh.geometry_state.x_proper_code, halo['rho_scale_cgs_g_cm3_unyt'], halo['radius_scale_proper_kpc_unyt'],
+            sim.mesh.geometry_state.x_proper_code,
+            halo["rho_scale_cgs_g_cm3_unyt"],
+            halo["radius_scale_proper_kpc_unyt"],
             code_units=sim.par.units.CodeUnits,
         ),
         coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
         code_units=sim.par.units.CodeUnits,
     )
-    sim.Run(mode='hydro_sources', stop_condition=stop_on_runaway)
+    sim.Run(mode="hydro_sources", stop_condition=stop_on_runaway)
     all_outputs = sorted(
-        Path(par['output']['directory']).glob(f"{par['output']['filename_prefix']}_*.hdf5")
+        Path(par["output"]["directory"]).glob(f"{par['output']['filename_prefix']}_*.hdf5"),
     )
     scheduled_times = [
-        float(value) for value in Path(par['output']['time_list_filename']).read_text().splitlines()[1:]
+        float(value)
+        for value in Path(par["output"]["time_list_filename"]).read_text().splitlines()[1:]
     ]
-    outputs = all_outputs[:len(scheduled_times)]
+    outputs = all_outputs[: len(scheduled_times)]
     if len(outputs) < 2:
-        raise RuntimeError('expected at least two saved snapshots')
-    results = [et.analyze_snapshot(name, config, halo, temperature_virial_unyt)
-               for name in outputs]
+        raise RuntimeError("expected at least two saved snapshots")
+    results = [et.analyze_snapshot(name, config, halo, temperature_virial_unyt) for name in outputs]
     for result, scheduled_time in zip(results, scheduled_times):
-        result['time_proper_Myr'] = scheduled_time
-    result_stem = par['simulation']['name']
-    report = EXAMPLE_DIR / f'{result_stem}_Report.txt'
-    figure = EXAMPLE_DIR / f'{result_stem}.jpg'
+        result["time_proper_Myr"] = scheduled_time
+    result_stem = par["simulation"]["name"]
+    report = EXAMPLE_DIR / f"{result_stem}_Report.txt"
+    figure = EXAMPLE_DIR / f"{result_stem}.jpg"
     et.write_report(results, report, floor)
     et.plot_results(results, halo, figure)
-    print('halo mass = %.6g Msun' % halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun))
-    print('R200 = %.6g kpc' % halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc))
-    print('Tvir = %.6g K' % temperature_virial_unyt.to_value(unyt.K))
-    print('central T final = %.6g K' % results[-1]['central_temperature_proper_cgs_K'])
-    print('central density final = %.6g g/cm^3' % results[-1]['central_rho_proper_cgs_g_cm3'])
-    print('temperature floor reached = %s' % (results[-1]['minimum_temperature_proper_cgs_K'] <= 1.01 * floor))
-    print('figure = %s' % figure)
-    print('report = %s' % report)
+    print("halo mass = %.6g Msun" % halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun))
+    print("R200 = %.6g kpc" % halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc))
+    print("Tvir = %.6g K" % temperature_virial_unyt.to_value(unyt.K))
+    print("central T final = %.6g K" % results[-1]["central_temperature_proper_cgs_K"])
+    print("central density final = %.6g g/cm^3" % results[-1]["central_rho_proper_cgs_g_cm3"])
+    print(
+        "temperature floor reached = %s"
+        % (results[-1]["minimum_temperature_proper_cgs_K"] <= 1.01 * floor)
+    )
+    print("figure = %s" % figure)
+    print("report = %s" % report)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     main(parser.parse_args().config)

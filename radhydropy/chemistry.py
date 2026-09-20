@@ -12,7 +12,6 @@ The actual species microphysics lives in :mod:`radhydropy.chemistry_species`.
 """
 
 from dataclasses import dataclass
-from typing import Tuple
 
 from radhydropy.chemistry_species import helium, hydrogen, metal, molecule
 
@@ -22,7 +21,7 @@ class ChemistryModule:
     """A named chemistry composition preset."""
 
     key: str
-    species: Tuple[str, ...]
+    species: tuple[str, ...]
 
 
 CHEMISTRY_MODULES = {
@@ -50,7 +49,7 @@ def get_chemistry_module(par=None, key=None):
     except KeyError as exc:
         available = ", ".join(available_chemistry_modules())
         raise ValueError(
-            f"Unknown chemistry module {chemistry_key!r}; available modules: {available}"
+            f"Unknown chemistry module {chemistry_key!r}; available modules: {available}",
         ) from exc
 
 

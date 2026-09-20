@@ -6,251 +6,251 @@ from dataclasses import dataclass
 
 import numpy as np
 import unyt
+
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.radiation_spectrum import load_radiation_spectrum, resolve_spectrum_filename
 from radhydropy.thermo_networks.pie import MetalPIETable
-
-from radhydropy.units import CodeUnits, _as_cgs_float, code_quantity_to_cgs
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
+from radhydropy.units import CodeUnits, code_quantity_to_cgs
 
 refparams = {
-    'simname':'advection1d',
-    'ICfilename':'/InitialCondition.hdf5',
-    'outdir':'./',
-    'outfileprefix':'Output', 
-    'outdeltatime':2.0*unyt.s *0.1,
-    'time_interval': None,
-    'outputtimefilename': None,
-    'figure_prefix': None,
-    'final_cosmic_time': None,
-    'gas_profile_cadence': None,
-    'linear_correlation_table_filename': None,
-    'minimum_temperature': None,
-    'plot_exclude_outer_cells': 0,
-    'smooth_dm_force_for_gas': False,
-    'temperature_plot_ymin': None,
-    'dm_density_bins': None,
-    'coordsys':'cartesian', #
-    'selfgravity': False,
-    'externalgravity': False,
-    'dark_matter_crossing_safety_factor': 0.1,
-    'dark_matter_softening': 0.0 * unyt.cm,
+    "simname": "advection1d",
+    "ICfilename": "/InitialCondition.hdf5",
+    "outdir": "./",
+    "outfileprefix": "Output",
+    "outdeltatime": 2.0 * unyt.s * 0.1,
+    "time_interval": None,
+    "outputtimefilename": None,
+    "figure_prefix": None,
+    "final_cosmic_time": None,
+    "gas_profile_cadence": None,
+    "linear_correlation_table_filename": None,
+    "minimum_temperature": None,
+    "plot_exclude_outer_cells": 0,
+    "smooth_dm_force_for_gas": False,
+    "temperature_plot_ymin": None,
+    "dm_density_bins": None,
+    "coordsys": "cartesian",
+    "selfgravity": False,
+    "externalgravity": False,
+    "dark_matter_crossing_safety_factor": 0.1,
+    "dark_matter_softening": 0.0 * unyt.cm,
     # Optional approximate crossing batching.  Zero retains the exact
     # event-driven shell integrator; positive values batch crossings over this
     # fraction of each requested dark-matter interval.
-    'dark_matter_crossing_batch_fraction': 0.0,
-    'dark_matter_global_timestep_limit': True,
-    'gravity': None,
-    'gravity_potential': None,
-    'gravity_coordinate': None,
-    'gravity_acceleration': None,
-    'selfgravity_softening': 0.0 * unyt.cm,
-    'selfgravity_boundary_acceleration': 0.0 * unyt.cm / unyt.s**2,
-    'cosmological_gravity': False,
-    'EOStype':'polytropic', #type of equation of state (EOS): polytropic or isothermal
-    'gamma':1.4, # for polytropic, the polytropic index
-    'temperature_proper':2.7*unyt.K, # default gas/background temperature
-    'hydro_integrator': 'euler',
-    'initial_time': None,
-    'time_proper_code': 0.0 * unyt.s,
-    'timesim':2.0*unyt.s, # final simulation time
-    'box_size_proper': None,
-    'CFL':0.1, # CFL condition for time-step
-    'boundcond':'Periodic',
-    'CodeUnits': None,
-    'area_proper': 1.0 * unyt.cm**2,
-    'vel_inflow_proper':1.0*unyt.cm/unyt.s,
-    'rho_inflow_proper':1.0*unyt.g/unyt.cm**3,
-    'temperature_inflow_proper':0.0*unyt.K,
-    'mu_inflow':1.0,
-    'vel_outflow_proper':1.0*unyt.cm/unyt.s,
-    'rho_outflow_proper':1.0*unyt.g/unyt.cm**3,
-    'temperature_outflow_proper':0.0*unyt.K,
-    'mu_outflow':1.0,    
-    'verbose':0, # speak out details?
+    "dark_matter_crossing_batch_fraction": 0.0,
+    "dark_matter_global_timestep_limit": True,
+    "gravity": None,
+    "gravity_potential": None,
+    "gravity_coordinate": None,
+    "gravity_acceleration": None,
+    "selfgravity_softening": 0.0 * unyt.cm,
+    "selfgravity_boundary_acceleration": 0.0 * unyt.cm / unyt.s**2,
+    "cosmological_gravity": False,
+    "EOStype": "polytropic",  # type of equation of state (EOS): polytropic or isothermal
+    "gamma": 1.4,  # for polytropic, the polytropic index
+    "temperature_proper": 2.7 * unyt.K,  # default gas/background temperature
+    "hydro_integrator": "euler",
+    "initial_time": None,
+    "time_proper_code": 0.0 * unyt.s,
+    "timesim": 2.0 * unyt.s,  # final simulation time
+    "box_size_proper": None,
+    "CFL": 0.1,  # CFL condition for time-step
+    "boundcond": "Periodic",
+    "CodeUnits": None,
+    "area_proper": 1.0 * unyt.cm**2,
+    "vel_inflow_proper": 1.0 * unyt.cm / unyt.s,
+    "rho_inflow_proper": 1.0 * unyt.g / unyt.cm**3,
+    "temperature_inflow_proper": 0.0 * unyt.K,
+    "mu_inflow": 1.0,
+    "vel_outflow_proper": 1.0 * unyt.cm / unyt.s,
+    "rho_outflow_proper": 1.0 * unyt.g / unyt.cm**3,
+    "temperature_outflow_proper": 0.0 * unyt.K,
+    "mu_outflow": 1.0,
+    "verbose": 0,  # speak out details?
     # Abort with a cell/neighborhood diagnostic if a gas cell crosses this
     # physical temperature.  Set to None to disable the guard.
-    'temperature_jump_error_threshold': 1.0e8,
-    'order': 0,  
-    'riemann_solver': 'Rusanov',
+    "temperature_jump_error_threshold": 1.0e8,
+    "order": 0,
+    "riemann_solver": "Rusanov",
     # Minmod is robust near strong discontinuities; MC retains more
     # resolution in smooth rarefaction/contact regions while remaining TVD.
-    'flux_limiter': 'minmod',
-    'dual_energy': False,
-    'boundary_mass_loading_timestep': False,
+    "flux_limiter": "minmod",
+    "dual_energy": False,
+    "boundary_mass_loading_timestep": False,
     # First-stage optional passive gas angular-momentum storage.
-    'gas_angular_momentum': False,
-    'gas_rotational_energy': False,
+    "gas_angular_momentum": False,
+    "gas_rotational_energy": False,
     # Donor upwind plus face-local MUSCL/FCT limiting is the robust default.
-    'angular_momentum_flux_scheme': 'fct',
+    "angular_momentum_flux_scheme": "fct",
     # Local hydro fallback threshold for nearly rotation-supported cells.
-    'angular_momentum_energy_margin_fraction': 1.0e-4,
-    'gravity_potential_energy': False,
-    'gas_specific_angular_momentum': 0.0,
-    'specific_angular_momentum_inflow': 0.0,
-    'specific_angular_momentum_outflow': 0.0,
+    "angular_momentum_energy_margin_fraction": 1.0e-4,
+    "gravity_potential_energy": False,
+    "gas_specific_angular_momentum": 0.0,
+    "specific_angular_momentum_inflow": 0.0,
+    "specific_angular_momentum_outflow": 0.0,
     # Bryan et al. (1995) dual-energy switching thresholds.  eta1 selects
     # the pressure estimate; eta2 controls synchronization to total energy.
-    'dual_energy_eta1': 1.0e-3,
-    'dual_energy_eta2': 1.0e-1,
+    "dual_energy_eta1": 1.0e-3,
+    "dual_energy_eta2": 1.0e-1,
     # If both estimates are admissible, reject a dual estimate that has
     # fallen far below conservative E-K.  This protects entropy in cells
     # where the dual flux update loses thermal energy at an under-resolved
     # shock.
-    'dual_energy_consistency_factor': 1.0e-1,
-    'dual_energy_entropy_limiter': False,
+    "dual_energy_consistency_factor": 1.0e-1,
+    "dual_energy_entropy_limiter": False,
     # Pressure source in dual-energy mode: 'switch' selects between E-K and
     # InternalEnergy; 'internal' always selects the evolved InternalEnergy;
     # 'conservative' always selects admissible E-K.
-    'dual_energy_pressure_selection': 'switch',
+    "dual_energy_pressure_selection": "switch",
     # Code-unit pressure used only when both energy estimates are invalid.
-    'dual_energy_pressure_floor': 1.0e-20,
-    'nogrid': None,
-    'noghost':2,
-    'dtmin': 2.0e-8*unyt.s,
-    'dtmax': 2.0e-1*unyt.s,   
+    "dual_energy_pressure_floor": 1.0e-20,
+    "nogrid": None,
+    "noghost": 2,
+    "dtmin": 2.0e-8 * unyt.s,
+    "dtmax": 2.0e-1 * unyt.s,
     # Numerical density threshold used only for vacuum-safe CFL and face
     # reconstruction.  Cell-centred conserved states are not floored.
-    'cfl_density_floor': 0.0,
-    'hydro_temperature_floor': None,
+    "cfl_density_floor": 0.0,
+    "hydro_temperature_floor": None,
     # Conservative invariant-domain limiter for finite-volume hydro updates.
-    'positivity_preserving': True,
+    "positivity_preserving": True,
     # Face-factor recovery method. The invariant-domain method is the
     # vectorized conservative default; analytical uses the quadratic
     # invariant-domain boundary and bisection remains available explicitly.
-    'positivity_factor_method': 'invariant_domain',
-    'positivity_density_floor': 0.0,
-    'positivity_energy_floor': 0.0,
-    'relaxation_damping_time': None,
-    'thermochemistry_network': 'hydrogen',
-    'cie_cooling': False,
-    'cie_ion_fraction_table': None,
-    'cie_cooling_table': None,
-    'cie_abundance_file': None,
-    'metallicity': 1.0,
-    'cooling_safety_factor': 0.1,
-    'cooling_temperature_floor': 100.0 * unyt.K,
-    'relative_tolerance': 1.0e-3,
-    'absolute_tolerance': 1.0e-10,
-    'explicit_tolerance': 0.1,
-    'hydrogen_initial_collisional_equilibrium': False,
-    'cases': None,
-    'mu': None,
-    'output_count': None,
-    'temperature_floor': None,
-    'isothermal_ionized_fraction_threshold': None,
-    'pie_uvbg_photoionization_timescale': None,
-    'runaway_density_factor': None,
-    'thermochemistry_verbose': None,
-    'pie_uvbg_implicit_tolerance': 1.0e-3,
-    'pie_uvbg_implicit_max_retries': 8,
-    'pie_uvbg_implicit_max_iterations': 64,
-    'pie_uvbg_implicit_step_doubling': True,
-    'chemistry_key': 'H',
-    'hydrogen_chemistry': False,
-    'hydrogen_mass_fraction': 1.0,
-    'helium_mass_fraction': 0.0,
-    'hydrogen_helium_coupled_implicit': True,
-    'hydrogen_helium_xHeI_initial': 1.0,
-    'hydrogen_helium_xHeII_initial': 0.0,
-    'hydrogen_helium_xHeIII_initial': 0.0,
-    'hydrogen_xHI_initial': 1.0,
-    'hydrogen_xHI_inflow': 1.0,
-    'hydrogen_xHI_outflow': 1.0,
-    'hydrogen_source_CFL': 0.1,
-    'chemistry_timestep': None,
-    'evolution_timestep': None,
-    'output_interval': None,
-    'crossing_safety_factor': 0.1,
-    'supercomoving_timestep': None,
-    'hydrogen_source_dtmin': 0.0 * unyt.s,
-    'hydrogen_source_solver': 'hybrid',
-    'hydrogen_source_skip_floor_cells': False,
-    'hydrogen_source_density_floor': None,
-    'hydrogen_source_floor_temperature_tolerance': 1.0e-2,
-    'hydrogen_hybrid_change_tolerance': 0.1,
-    'hydrogen_implicit_tolerance': 1.0e-6,
-    'hydrogen_implicit_absolute_temperature_tolerance': 0.0 * unyt.K,
-    'hydrogen_implicit_absolute_xhi_tolerance': 0.0,
-    'hydrogen_implicit_convergence_tolerance': 1.0e-3,
-    'hydrogen_implicit_max_iterations': 32,
-    'hydrogen_implicit_debug': False,
-    'hydrogen_implicit_fallback': 'explicit',
-    'hydrogen_implicit_max_refinements': 4,
-    'hydrogen_split_implicit_max_subcycles': 100000,
+    "positivity_factor_method": "invariant_domain",
+    "positivity_density_floor": 0.0,
+    "positivity_energy_floor": 0.0,
+    "relaxation_damping_time": None,
+    "thermochemistry_network": "hydrogen",
+    "cie_cooling": False,
+    "cie_ion_fraction_table": None,
+    "cie_cooling_table": None,
+    "cie_abundance_file": None,
+    "metallicity": 1.0,
+    "cooling_safety_factor": 0.1,
+    "cooling_temperature_floor": 100.0 * unyt.K,
+    "relative_tolerance": 1.0e-3,
+    "absolute_tolerance": 1.0e-10,
+    "explicit_tolerance": 0.1,
+    "hydrogen_initial_collisional_equilibrium": False,
+    "cases": None,
+    "mu": None,
+    "output_count": None,
+    "temperature_floor": None,
+    "isothermal_ionized_fraction_threshold": None,
+    "pie_uvbg_photoionization_timescale": None,
+    "runaway_density_factor": None,
+    "thermochemistry_verbose": None,
+    "pie_uvbg_implicit_tolerance": 1.0e-3,
+    "pie_uvbg_implicit_max_retries": 8,
+    "pie_uvbg_implicit_max_iterations": 64,
+    "pie_uvbg_implicit_step_doubling": True,
+    "chemistry_key": "H",
+    "hydrogen_chemistry": False,
+    "hydrogen_mass_fraction": 1.0,
+    "helium_mass_fraction": 0.0,
+    "hydrogen_helium_coupled_implicit": True,
+    "hydrogen_helium_xHeI_initial": 1.0,
+    "hydrogen_helium_xHeII_initial": 0.0,
+    "hydrogen_helium_xHeIII_initial": 0.0,
+    "hydrogen_xHI_initial": 1.0,
+    "hydrogen_xHI_inflow": 1.0,
+    "hydrogen_xHI_outflow": 1.0,
+    "hydrogen_source_CFL": 0.1,
+    "chemistry_timestep": None,
+    "evolution_timestep": None,
+    "output_interval": None,
+    "crossing_safety_factor": 0.1,
+    "supercomoving_timestep": None,
+    "hydrogen_source_dtmin": 0.0 * unyt.s,
+    "hydrogen_source_solver": "hybrid",
+    "hydrogen_source_skip_floor_cells": False,
+    "hydrogen_source_density_floor": None,
+    "hydrogen_source_floor_temperature_tolerance": 1.0e-2,
+    "hydrogen_hybrid_change_tolerance": 0.1,
+    "hydrogen_implicit_tolerance": 1.0e-6,
+    "hydrogen_implicit_absolute_temperature_tolerance": 0.0 * unyt.K,
+    "hydrogen_implicit_absolute_xhi_tolerance": 0.0,
+    "hydrogen_implicit_convergence_tolerance": 1.0e-3,
+    "hydrogen_implicit_max_iterations": 32,
+    "hydrogen_implicit_debug": False,
+    "hydrogen_implicit_fallback": "explicit",
+    "hydrogen_implicit_max_refinements": 4,
+    "hydrogen_split_implicit_max_subcycles": 100000,
     # Optional pressure-supported unresolved central core.  The default keeps
     # the ordinary cell-centred hydro evolution unchanged.
-    'gas_core_model': 'none',
-    'radius_core_proper': None,
-    'hydrogen_update_mu': False,
-    'hydrogen_thermal_coupling': True,
-    'energy_diagnostics': False,
-    'compton_cmb_enabled': False,
-    'compton_cmb_redshift': 0.0,
-    'cmb_temperature_0': 2.7255 * unyt.K,
-    'hydrogen_recombination': True,
-    'hydrogen_collisional_ionization': True,
-    'hydrogen_atomic_cooling': True,
-    'hydrogen_alpha_B': None,
-    'hydrogen_beta': None,
-    'hydrogen_radiation_field': False,
-    'hydrogen_radiation_evolution': True,
-    'hydrogen_ngamma_initial': 0.0 / unyt.cm**3,
-    'hydrogen_ngamma_inflow': 0.0 / unyt.cm**3,
-    'hydrogen_ngamma_outflow': 0.0 / unyt.cm**3,
-    'hydrogen_sigma_gamma': 1.62e-18 * unyt.cm**2,
-    'hydrogen_epsilon_gamma': 0.0 * unyt.erg,
-    'hydrogen_photon_energy': 13.6 * unyt.eV,
-    'radiation_pressure': False,
-    'radiation_pressure_efficiency': 1.0,
-    'radiation_pressure_source_luminosity': None,
-    'radiative_transfer': False,
-    'radiative_transfer_method': 'long_characteristics',
-    'radiative_transfer_temporal_scheme': 'c2ray',
-    'radiative_transfer_c2ray_max_iterations': 32,
-    'radiative_transfer_c2ray_tolerance': 1.0e-6,
-    'radiative_transfer_c2ray_relaxation': 1.0,
-    'radiative_transfer_c2ray_nonconvergence': 'warn',
-    'radiative_transfer_c2ray_ode_max_iterations': 24,
-    'radiative_transfer_c2ray_ode_tolerance': 1.0e-8,
-    'radiative_transfer_boundary_flux': 0.0 / (unyt.cm**2 * unyt.s),
-    'radiative_transfer_boundary_flux_groups': None,
-    'source_photon_rate': 0.0 / unyt.s,
-    'source_photon_rate_groups': None,
-    'radiation_group_edges_eV': None,
-    'radiation_group_sigma_gamma': None,
-    'radiation_group_epsilon_gamma': None,
-    'radiation_group_sigma_gamma_HeI': None,
-    'radiation_group_sigma_gamma_HeII': None,
-    'radiation_group_epsilon_gamma_HeI': None,
-    'radiation_group_epsilon_gamma_HeII': None,
-    'star_emission_rates': None,
-    'stellar_spectrum_type': 1,
-    'stellar_spectrum_blackbody_temperature_cgs_K': 1.0e5,
-    'ionizing_photon_energy_cgs_erg': None,
-    'radiation_spectrum_filename': None,
-    'spectrum_total_photon_rate': None,
-    'metal_pie_enabled': False,
-    'metal_pie_table_filename': None,
-    'metal_pie_table': None,
-    'metal_pie_photoheating_max_density_cgs_cm3': 50.0,
-    'metal_pie_redshift': 0.0,
-    'number_of_radiation_groups': None,
-    'radiative_transfer_direction': 1,
-    'cosmological_expansion': False,
-    'supercomoving_coordinates': False,
-    'coordinate_frame': 'physical',
-    'time_coordinate': 'cosmic',
-    'velocity_representation': 'physical',
-    'density_representation': 'physical',
-    'pressure_representation': 'physical',
-    'temperature_representation': 'physical',
-    'cosmological_background_boundary_reconstruction': False,
-    'cosmology_type': None,
-    'cosmology_t_ref': 1.0,
-    'cosmology_a_ref': 1.0,
-    'cosmology_omega_m': 0.3,
-    'cosmology_omega_lambda': 0.7,
-    'cosmology_hubble_ref': None,
+    "gas_core_model": "none",
+    "radius_core_proper": None,
+    "hydrogen_update_mu": False,
+    "hydrogen_thermal_coupling": True,
+    "energy_diagnostics": False,
+    "compton_cmb_enabled": False,
+    "compton_cmb_redshift": 0.0,
+    "cmb_temperature_0": 2.7255 * unyt.K,
+    "hydrogen_recombination": True,
+    "hydrogen_collisional_ionization": True,
+    "hydrogen_atomic_cooling": True,
+    "hydrogen_alpha_B": None,
+    "hydrogen_beta": None,
+    "hydrogen_radiation_field": False,
+    "hydrogen_radiation_evolution": True,
+    "hydrogen_ngamma_initial": 0.0 / unyt.cm**3,
+    "hydrogen_ngamma_inflow": 0.0 / unyt.cm**3,
+    "hydrogen_ngamma_outflow": 0.0 / unyt.cm**3,
+    "hydrogen_sigma_gamma": 1.62e-18 * unyt.cm**2,
+    "hydrogen_epsilon_gamma": 0.0 * unyt.erg,
+    "hydrogen_photon_energy": 13.6 * unyt.eV,
+    "radiation_pressure": False,
+    "radiation_pressure_efficiency": 1.0,
+    "radiation_pressure_source_luminosity": None,
+    "radiative_transfer": False,
+    "radiative_transfer_method": "long_characteristics",
+    "radiative_transfer_temporal_scheme": "c2ray",
+    "radiative_transfer_c2ray_max_iterations": 32,
+    "radiative_transfer_c2ray_tolerance": 1.0e-6,
+    "radiative_transfer_c2ray_relaxation": 1.0,
+    "radiative_transfer_c2ray_nonconvergence": "warn",
+    "radiative_transfer_c2ray_ode_max_iterations": 24,
+    "radiative_transfer_c2ray_ode_tolerance": 1.0e-8,
+    "radiative_transfer_boundary_flux": 0.0 / (unyt.cm**2 * unyt.s),
+    "radiative_transfer_boundary_flux_groups": None,
+    "source_photon_rate": 0.0 / unyt.s,
+    "source_photon_rate_groups": None,
+    "radiation_group_edges_eV": None,
+    "radiation_group_sigma_gamma": None,
+    "radiation_group_epsilon_gamma": None,
+    "radiation_group_sigma_gamma_HeI": None,
+    "radiation_group_sigma_gamma_HeII": None,
+    "radiation_group_epsilon_gamma_HeI": None,
+    "radiation_group_epsilon_gamma_HeII": None,
+    "star_emission_rates": None,
+    "stellar_spectrum_type": 1,
+    "stellar_spectrum_blackbody_temperature_cgs_K": 1.0e5,
+    "ionizing_photon_energy_cgs_erg": None,
+    "radiation_spectrum_filename": None,
+    "spectrum_total_photon_rate": None,
+    "metal_pie_enabled": False,
+    "metal_pie_table_filename": None,
+    "metal_pie_table": None,
+    "metal_pie_photoheating_max_density_cgs_cm3": 50.0,
+    "metal_pie_redshift": 0.0,
+    "number_of_radiation_groups": None,
+    "radiative_transfer_direction": 1,
+    "cosmological_expansion": False,
+    "supercomoving_coordinates": False,
+    "coordinate_frame": "physical",
+    "time_coordinate": "cosmic",
+    "velocity_representation": "physical",
+    "density_representation": "physical",
+    "pressure_representation": "physical",
+    "temperature_representation": "physical",
+    "cosmological_background_boundary_reconstruction": False,
+    "cosmology_type": None,
+    "cosmology_t_ref": 1.0,
+    "cosmology_a_ref": 1.0,
+    "cosmology_omega_m": 0.3,
+    "cosmology_omega_lambda": 0.7,
+    "cosmology_hubble_ref": None,
 }
 
 
@@ -270,6 +270,7 @@ class CosmologyParameters:
     hubble_ref: object = None
     model: object = None
 
+
 @dataclass
 class UnitsParameters:
     """Structured view of the internal code-unit system."""
@@ -282,31 +283,31 @@ class UnitsParameters:
 class HydrodynamicsParameters:
     """Structured view of the primary gas-dynamics settings."""
 
-    eos_type: str = 'polytropic'
+    eos_type: str = "polytropic"
     gamma: float = 1.4
     temperature_proper: object = None
     CFL: float = 0.1
     order: int = 0
-    riemann_solver: str = 'Rusanov'
-    flux_limiter: str = 'minmod'
+    riemann_solver: str = "Rusanov"
+    flux_limiter: str = "minmod"
     dual_energy: bool = False
     boundary_mass_loading_timestep: bool = False
-    dual_energy_pressure_selection: str = 'switch'
+    dual_energy_pressure_selection: str = "switch"
     dual_energy_entropy_limiter: bool = False
     positivity_preserving: bool = True
-    positivity_factor_method: str = 'invariant_domain'
+    positivity_factor_method: str = "invariant_domain"
     positivity_density_floor: float = 0.0
     positivity_energy_floor: float = 0.0
     gas_angular_momentum: bool = False
     gas_rotational_energy: bool = False
-    angular_momentum_flux_scheme: str = 'fct'
+    angular_momentum_flux_scheme: str = "fct"
 
 
 @dataclass
 class BoundaryParameters:
     """Structured view of boundary-condition and reservoir settings."""
 
-    condition: str = 'Periodic'
+    condition: str = "Periodic"
     vel_inflow_proper: object = None
     rho_inflow_proper: object = None
     temperature_inflow_proper: object = None
@@ -336,7 +337,7 @@ class TimestepParameters:
 class ThermochemistryParameters:
     """Structured view of cooling, chemistry, and thermal source settings."""
 
-    network: str = 'hydrogen'
+    network: str = "hydrogen"
     cie_cooling: bool = False
     cie_ion_fraction_table: object = None
     cie_cooling_table: object = None
@@ -356,7 +357,7 @@ class ThermochemistryParameters:
     pie_uvbg_implicit_max_retries: int = 8
     pie_uvbg_implicit_max_iterations: int = 64
     pie_uvbg_implicit_step_doubling: bool = True
-    hydrogen_source_solver: str = 'hybrid'
+    hydrogen_source_solver: str = "hybrid"
 
 
 @dataclass
@@ -374,12 +375,13 @@ class GravityParameters:
     potential_energy: bool = False
     model: object = None
 
+
 @dataclass
 class OutputParameters:
     """Structured view of snapshot destinations and scheduling settings."""
 
-    directory: str = './'
-    filename_prefix: str = 'Output'
+    directory: str = "./"
+    filename_prefix: str = "Output"
     cadence: object = None
     time_list_filename: object = None
 
@@ -388,21 +390,21 @@ class OutputParameters:
 class SimulationParameters:
     """Structured view of run identity and coordinate representations."""
 
-    name: str = 'advection1d'
+    name: str = "advection1d"
     initial_condition_filename: object = None
-    coordinate_system: str = 'cartesian'
+    coordinate_system: str = "cartesian"
     final_time: object = None
     time_proper_code: object = None
     box_size_proper_code: object = None
     box_size_comoving_code: object = None
     cosmological_expansion: bool = False
     supercomoving_coordinates: bool = False
-    coordinate_frame: str = 'physical'
-    time_coordinate: str = 'cosmic'
-    velocity_representation: str = 'physical'
-    density_representation: str = 'physical'
-    pressure_representation: str = 'physical'
-    temperature_representation: str = 'physical'
+    coordinate_frame: str = "physical"
+    time_coordinate: str = "cosmic"
+    velocity_representation: str = "physical"
+    density_representation: str = "physical"
+    pressure_representation: str = "physical"
+    temperature_representation: str = "physical"
 
 
 @dataclass
@@ -429,7 +431,7 @@ class MeshParameters:
 class ChemistryParameters:
     """Structured view of chemical species and ionization defaults."""
 
-    key: str = 'H'
+    key: str = "H"
     hydrogen_mass_fraction: float = 1.0
     helium_mass_fraction: float = 0.0
     hydrogen_xHI_initial: float = 1.0
@@ -447,7 +449,7 @@ class ChemistryParameters:
     implicit_tolerance: float = 1.0e-6
     implicit_convergence_tolerance: float = 1.0e-3
     implicit_max_iterations: int = 32
-    implicit_fallback: str = 'explicit'
+    implicit_fallback: str = "explicit"
     implicit_max_refinements: int = 4
     split_implicit_max_subcycles: int = 100000
     implicit_absolute_temperature_tolerance: object = None
@@ -463,7 +465,7 @@ class AngularMomentumParameters:
 
     enabled: bool = False
     rotational_energy: bool = False
-    flux_scheme: str = 'fct'
+    flux_scheme: str = "fct"
     energy_margin_fraction: float = 1.0e-4
     specific_angular_momentum: object = 0.0
     inflow: object = 0.0
@@ -490,7 +492,7 @@ class DualEnergyParameters:
     eta2: float = 1.0e-1
     consistency_factor: float = 1.0e-1
     entropy_limiter: bool = False
-    pressure_selection: str = 'switch'
+    pressure_selection: str = "switch"
     pressure_floor: float = 1.0e-20
 
 
@@ -499,7 +501,7 @@ class PositivityParameters:
     """Structured view of invariant-domain limiting controls."""
 
     enabled: bool = True
-    factor_method: str = 'invariant_domain'
+    factor_method: str = "invariant_domain"
     density_floor: float = 0.0
     energy_floor: float = 0.0
 
@@ -523,8 +525,8 @@ class RadiationParameters:
     group_sigma_gamma_HeII: object = None
     group_epsilon_gamma_HeI: object = None
     group_epsilon_gamma_HeII: object = None
-    radiative_transfer_method: str = 'long_characteristics'
-    radiative_transfer_temporal_scheme: str = 'c2ray'
+    radiative_transfer_method: str = "long_characteristics"
+    radiative_transfer_temporal_scheme: str = "c2ray"
     radiative_transfer_direction: int = 1
     boundary_flux: object = None
     source_photon_rate: object = None
@@ -533,7 +535,7 @@ class RadiationParameters:
     c2ray_max_iterations: int = 32
     c2ray_tolerance: float = 1.0e-6
     c2ray_relaxation: float = 1.0
-    c2ray_nonconvergence: str = 'warn'
+    c2ray_nonconvergence: str = "warn"
     c2ray_ode_max_iterations: int = 24
     c2ray_ode_tolerance: float = 1.0e-8
     radiation_pressure_efficiency: float = 1.0
@@ -568,17 +570,32 @@ class Par:
     params : dict
         User supplied run parameters. Missing keys are filled from
         :data:`refparams`.
+
     """
 
     def __init__(self, params) -> None:
         params = self._validate_mapping(params)
         self.nested_par_config = (
             copy.deepcopy(params)
-            if any(isinstance(params.get(group), dict) for group in (
-                'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
-                'units', 'radiation', 'chemistry', 'thermochemistry', 'output',
-                'diagnostics', 'gravity', 'cosmology', 'dark_matter',
-            ))
+            if any(
+                isinstance(params.get(group), dict)
+                for group in (
+                    "simulation",
+                    "mesh",
+                    "hydrodynamics",
+                    "boundary",
+                    "timestep",
+                    "units",
+                    "radiation",
+                    "chemistry",
+                    "thermochemistry",
+                    "output",
+                    "diagnostics",
+                    "gravity",
+                    "cosmology",
+                    "dark_matter",
+                )
+            )
             else None
         )
         params = self._flatten_nested_parameters(params)
@@ -595,243 +612,265 @@ class Par:
 
     @staticmethod
     def _validate_mapping(params):
-        if not hasattr(params, 'items'):
-            raise TypeError('run parameters must be supplied as a mapping')
+        if not hasattr(params, "items"):
+            raise TypeError("run parameters must be supplied as a mapping")
         return params
 
     @staticmethod
     def _flatten_nested_parameters(params):
         """Translate the nested YAML shape into internal input names."""
-        if not any(isinstance(params.get(group), dict) for group in (
-            'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
-            'units', 'radiation', 'chemistry', 'thermochemistry', 'output',
-            'diagnostics', 'gravity', 'cosmology', 'dark_matter',
-        )):
+        if not any(
+            isinstance(params.get(group), dict)
+            for group in (
+                "simulation",
+                "mesh",
+                "hydrodynamics",
+                "boundary",
+                "timestep",
+                "units",
+                "radiation",
+                "chemistry",
+                "thermochemistry",
+                "output",
+                "diagnostics",
+                "gravity",
+                "cosmology",
+                "dark_matter",
+            )
+        ):
             return params
         flattened = dict(params)
         groups = {
-            'simulation': {
-                'name': 'simname',
-                'initial_condition_filename': 'ICfilename',
-                'coordinate_system': 'coordsys',
-                'final_time': 'timesim',
-                'initial_time': 'initial_time',
-                'box_size_proper': 'box_size_proper',
-                'box_size_comoving_cgs_cm': 'box_size_comoving_cgs_cm',
-                'time_proper': 'time_proper_code',
-                'current_time': 'time_proper_code',
+            "simulation": {
+                "name": "simname",
+                "initial_condition_filename": "ICfilename",
+                "coordinate_system": "coordsys",
+                "final_time": "timesim",
+                "initial_time": "initial_time",
+                "box_size_proper": "box_size_proper",
+                "box_size_comoving_cgs_cm": "box_size_comoving_cgs_cm",
+                "time_proper": "time_proper_code",
+                "current_time": "time_proper_code",
             },
-            'mesh': {
-                'grid_cells': 'nogrid', 'ghost_cells': 'noghost',
-                'area_proper': 'area_proper',
+            "mesh": {
+                "grid_cells": "nogrid",
+                "ghost_cells": "noghost",
+                "area_proper": "area_proper",
             },
-            'hydrodynamics': {
-                'eos_type': 'EOStype', 'gamma': 'gamma',
-                'temperature_proper': 'temperature_proper',
-                'CFL': 'CFL', 'order': 'order', 'riemann_solver': 'riemann_solver',
-                'flux_limiter': 'flux_limiter',
-                'positivity_preserving': 'positivity_preserving',
-                'positivity_factor_method': 'positivity_factor_method',
-                'positivity_density_floor': 'positivity_density_floor',
-                'positivity_energy_floor': 'positivity_energy_floor',
-                'dual_energy': 'dual_energy',
-                'boundary_mass_loading_timestep': 'boundary_mass_loading_timestep',
-                'dual_energy_eta1': 'dual_energy_eta1',
-                'dual_energy_eta2': 'dual_energy_eta2',
-                'dual_energy_consistency_factor': 'dual_energy_consistency_factor',
-                'dual_energy_entropy_limiter': 'dual_energy_entropy_limiter',
-                'dual_energy_pressure_floor': 'dual_energy_pressure_floor',
-                'dual_energy_pressure_selection': 'dual_energy_pressure_selection',
-                'gas_angular_momentum': 'gas_angular_momentum',
-                'gas_rotational_energy': 'gas_rotational_energy',
-                'gravity_potential_energy': 'gravity_potential_energy',
-                'source_integrator': 'source_integrator',
-                'angular_momentum_flux_scheme': 'angular_momentum_flux_scheme',
-                'cfl_density_floor': 'cfl_density_floor',
-                'hydro_temperature_floor': 'hydro_temperature_floor',
-                'hydro_integrator': 'hydro_integrator',
-                'energy_diagnostics': 'energy_diagnostics',
-                'temperature_jump_error_threshold': 'temperature_jump_error_threshold',
+            "hydrodynamics": {
+                "eos_type": "EOStype",
+                "gamma": "gamma",
+                "temperature_proper": "temperature_proper",
+                "CFL": "CFL",
+                "order": "order",
+                "riemann_solver": "riemann_solver",
+                "flux_limiter": "flux_limiter",
+                "positivity_preserving": "positivity_preserving",
+                "positivity_factor_method": "positivity_factor_method",
+                "positivity_density_floor": "positivity_density_floor",
+                "positivity_energy_floor": "positivity_energy_floor",
+                "dual_energy": "dual_energy",
+                "boundary_mass_loading_timestep": "boundary_mass_loading_timestep",
+                "dual_energy_eta1": "dual_energy_eta1",
+                "dual_energy_eta2": "dual_energy_eta2",
+                "dual_energy_consistency_factor": "dual_energy_consistency_factor",
+                "dual_energy_entropy_limiter": "dual_energy_entropy_limiter",
+                "dual_energy_pressure_floor": "dual_energy_pressure_floor",
+                "dual_energy_pressure_selection": "dual_energy_pressure_selection",
+                "gas_angular_momentum": "gas_angular_momentum",
+                "gas_rotational_energy": "gas_rotational_energy",
+                "gravity_potential_energy": "gravity_potential_energy",
+                "source_integrator": "source_integrator",
+                "angular_momentum_flux_scheme": "angular_momentum_flux_scheme",
+                "cfl_density_floor": "cfl_density_floor",
+                "hydro_temperature_floor": "hydro_temperature_floor",
+                "hydro_integrator": "hydro_integrator",
+                "energy_diagnostics": "energy_diagnostics",
+                "temperature_jump_error_threshold": "temperature_jump_error_threshold",
             },
-            'boundary': {
-                'condition': 'boundcond', 'vel_inflow_proper': 'vel_inflow_proper',
-                'rho_inflow_proper': 'rho_inflow_proper',
-                'temperature_inflow_proper': 'temperature_inflow_proper',
-                'inflow_mu': 'mu_inflow', 'vel_outflow_proper': 'vel_outflow_proper',
-                'rho_outflow_proper': 'rho_outflow_proper',
-                'temperature_outflow_proper': 'temperature_outflow_proper',
-                'outflow_mu': 'mu_outflow',
+            "boundary": {
+                "condition": "boundcond",
+                "vel_inflow_proper": "vel_inflow_proper",
+                "rho_inflow_proper": "rho_inflow_proper",
+                "temperature_inflow_proper": "temperature_inflow_proper",
+                "inflow_mu": "mu_inflow",
+                "vel_outflow_proper": "vel_outflow_proper",
+                "rho_outflow_proper": "rho_outflow_proper",
+                "temperature_outflow_proper": "temperature_outflow_proper",
+                "outflow_mu": "mu_outflow",
             },
-            'timestep': {
-                'dtmin': 'dtmin', 'dtmax': 'dtmax',
-                'chemistry_timestep': 'chemistry_timestep',
-                'evolution_timestep': 'evolution_timestep',
-                'output_interval': 'output_interval',
-                'crossing_safety_factor': 'crossing_safety_factor',
-                'supercomoving_timestep': 'supercomoving_timestep',
-                'hydrogen_source_CFL': 'hydrogen_source_CFL',
-                'hydrogen_source_dtmin': 'hydrogen_source_dtmin',
+            "timestep": {
+                "dtmin": "dtmin",
+                "dtmax": "dtmax",
+                "chemistry_timestep": "chemistry_timestep",
+                "evolution_timestep": "evolution_timestep",
+                "output_interval": "output_interval",
+                "crossing_safety_factor": "crossing_safety_factor",
+                "supercomoving_timestep": "supercomoving_timestep",
+                "hydrogen_source_CFL": "hydrogen_source_CFL",
+                "hydrogen_source_dtmin": "hydrogen_source_dtmin",
             },
-            'units': {'CodeUnits': 'CodeUnits'},
-            'output': {
-                'directory': 'outdir',
-                'filename_prefix': 'outfileprefix', 'cadence': 'outdeltatime',
-                'time_interval': 'time_interval',
-                'time_list_filename': 'outputtimefilename',
+            "units": {"CodeUnits": "CodeUnits"},
+            "output": {
+                "directory": "outdir",
+                "filename_prefix": "outfileprefix",
+                "cadence": "outdeltatime",
+                "time_interval": "time_interval",
+                "time_list_filename": "outputtimefilename",
             },
-            'diagnostics': {'verbose': 'verbose'},
-            'gravity': {
-                'selfgravity': 'selfgravity',
-                'externalgravity': 'externalgravity',
-                'gas_core_model': 'gas_core_model',
-                'radius_core_proper': 'radius_core_proper',
+            "diagnostics": {"verbose": "verbose"},
+            "gravity": {
+                "selfgravity": "selfgravity",
+                "externalgravity": "externalgravity",
+                "gas_core_model": "gas_core_model",
+                "radius_core_proper": "radius_core_proper",
             },
-            'cosmology': {
-                'cosmological': 'cosmological_gravity',
-                'cosmological_expansion': 'cosmological_expansion',
-                'supercomoving_coordinates': 'supercomoving_coordinates',
-                'cosmological_background_boundary_reconstruction': 'cosmological_background_boundary_reconstruction',
-                'cosmology_type': 'cosmology_type',
-                'cosmology_t_ref': 'cosmology_t_ref',
-                'cosmology_a_ref': 'cosmology_a_ref',
-                'cosmology_hubble_ref': 'cosmology_hubble_ref',
-                'cosmology_omega_m': 'cosmology_omega_m',
-                'cosmology_omega_lambda': 'cosmology_omega_lambda',
+            "cosmology": {
+                "cosmological": "cosmological_gravity",
+                "cosmological_expansion": "cosmological_expansion",
+                "supercomoving_coordinates": "supercomoving_coordinates",
+                "cosmological_background_boundary_reconstruction": "cosmological_background_boundary_reconstruction",
+                "cosmology_type": "cosmology_type",
+                "cosmology_t_ref": "cosmology_t_ref",
+                "cosmology_a_ref": "cosmology_a_ref",
+                "cosmology_hubble_ref": "cosmology_hubble_ref",
+                "cosmology_omega_m": "cosmology_omega_m",
+                "cosmology_omega_lambda": "cosmology_omega_lambda",
             },
-            'dark_matter': {
-                'softening': 'dark_matter_softening',
-                'crossing_safety_factor': 'dark_matter_crossing_safety_factor',
-                'crossing_batch_fraction': 'dark_matter_crossing_batch_fraction',
-                'global_timestep_limit': 'dark_matter_global_timestep_limit',
-                'density_bins': 'dm_density_bins',
+            "dark_matter": {
+                "softening": "dark_matter_softening",
+                "crossing_safety_factor": "dark_matter_crossing_safety_factor",
+                "crossing_batch_fraction": "dark_matter_crossing_batch_fraction",
+                "global_timestep_limit": "dark_matter_global_timestep_limit",
+                "density_bins": "dm_density_bins",
             },
-            'radiation': {
-                'direction': 'radiative_transfer_direction',
-                'radiative_transfer_direction': 'radiative_transfer_direction',
-                'boundary_flux': 'radiative_transfer_boundary_flux',
-                'radiative_transfer_boundary_flux': 'radiative_transfer_boundary_flux',
-                'source_photon_rate': 'source_photon_rate',
-                'radiative_transfer': 'radiative_transfer',
-                'radiation_pressure': 'radiation_pressure',
-                'radiation_pressure_efficiency': 'radiation_pressure_efficiency',
-                'radiation_pressure_source_luminosity': 'radiation_pressure_source_luminosity',
-                'method': 'radiative_transfer_method',
-                'radiative_transfer_method': 'radiative_transfer_method',
-                'temporal_scheme': 'radiative_transfer_temporal_scheme',
-                'radiative_transfer_temporal_scheme': 'radiative_transfer_temporal_scheme',
-                'c2ray_max_iterations': 'radiative_transfer_c2ray_max_iterations',
-                'radiative_transfer_c2ray_max_iterations': 'radiative_transfer_c2ray_max_iterations',
-                'c2ray_tolerance': 'radiative_transfer_c2ray_tolerance',
-                'radiative_transfer_c2ray_tolerance': 'radiative_transfer_c2ray_tolerance',
-                'c2ray_relaxation': 'radiative_transfer_c2ray_relaxation',
-                'radiative_transfer_c2ray_relaxation': 'radiative_transfer_c2ray_relaxation',
-                'c2ray_nonconvergence': 'radiative_transfer_c2ray_nonconvergence',
-                'radiative_transfer_c2ray_nonconvergence': 'radiative_transfer_c2ray_nonconvergence',
-                'radiative_transfer_c2ray_ode_max_iterations': 'radiative_transfer_c2ray_ode_max_iterations',
-                'radiative_transfer_c2ray_ode_tolerance': 'radiative_transfer_c2ray_ode_tolerance',
-                'hydrogen_radiation_field': 'hydrogen_radiation_field',
-                'hydrogen_radiation_evolution': 'hydrogen_radiation_evolution',
-                'hydrogen_ngamma_initial': 'hydrogen_ngamma_initial',
-                'hydrogen_ngamma_inflow': 'hydrogen_ngamma_inflow',
-                'hydrogen_ngamma_outflow': 'hydrogen_ngamma_outflow',
-                'hydrogen_sigma_gamma': 'hydrogen_sigma_gamma',
-                'hydrogen_epsilon_gamma': 'hydrogen_epsilon_gamma',
-                'hydrogen_photon_energy': 'hydrogen_photon_energy',
-                'radiation_spectrum_filename': 'radiation_spectrum_filename',
-                'spectrum_total_photon_rate': 'spectrum_total_photon_rate',
-                'radiative_transfer_boundary_flux_groups': 'radiative_transfer_boundary_flux_groups',
-                'source_photon_rate_groups': 'source_photon_rate_groups',
-                'radiation_group_sigma_gamma': 'radiation_group_sigma_gamma',
-                'radiation_group_epsilon_gamma': 'radiation_group_epsilon_gamma',
-                'radiation_group_sigma_gamma_HeI': 'radiation_group_sigma_gamma_HeI',
-                'radiation_group_sigma_gamma_HeII': 'radiation_group_sigma_gamma_HeII',
-                'radiation_group_epsilon_gamma_HeI': 'radiation_group_epsilon_gamma_HeI',
-                'radiation_group_epsilon_gamma_HeII': 'radiation_group_epsilon_gamma_HeII',
-                'stellar_spectrum_blackbody_temperature_cgs_K': 'stellar_spectrum_blackbody_temperature_cgs_K',
+            "radiation": {
+                "direction": "radiative_transfer_direction",
+                "radiative_transfer_direction": "radiative_transfer_direction",
+                "boundary_flux": "radiative_transfer_boundary_flux",
+                "radiative_transfer_boundary_flux": "radiative_transfer_boundary_flux",
+                "source_photon_rate": "source_photon_rate",
+                "radiative_transfer": "radiative_transfer",
+                "radiation_pressure": "radiation_pressure",
+                "radiation_pressure_efficiency": "radiation_pressure_efficiency",
+                "radiation_pressure_source_luminosity": "radiation_pressure_source_luminosity",
+                "method": "radiative_transfer_method",
+                "radiative_transfer_method": "radiative_transfer_method",
+                "temporal_scheme": "radiative_transfer_temporal_scheme",
+                "radiative_transfer_temporal_scheme": "radiative_transfer_temporal_scheme",
+                "c2ray_max_iterations": "radiative_transfer_c2ray_max_iterations",
+                "radiative_transfer_c2ray_max_iterations": "radiative_transfer_c2ray_max_iterations",
+                "c2ray_tolerance": "radiative_transfer_c2ray_tolerance",
+                "radiative_transfer_c2ray_tolerance": "radiative_transfer_c2ray_tolerance",
+                "c2ray_relaxation": "radiative_transfer_c2ray_relaxation",
+                "radiative_transfer_c2ray_relaxation": "radiative_transfer_c2ray_relaxation",
+                "c2ray_nonconvergence": "radiative_transfer_c2ray_nonconvergence",
+                "radiative_transfer_c2ray_nonconvergence": "radiative_transfer_c2ray_nonconvergence",
+                "radiative_transfer_c2ray_ode_max_iterations": "radiative_transfer_c2ray_ode_max_iterations",
+                "radiative_transfer_c2ray_ode_tolerance": "radiative_transfer_c2ray_ode_tolerance",
+                "hydrogen_radiation_field": "hydrogen_radiation_field",
+                "hydrogen_radiation_evolution": "hydrogen_radiation_evolution",
+                "hydrogen_ngamma_initial": "hydrogen_ngamma_initial",
+                "hydrogen_ngamma_inflow": "hydrogen_ngamma_inflow",
+                "hydrogen_ngamma_outflow": "hydrogen_ngamma_outflow",
+                "hydrogen_sigma_gamma": "hydrogen_sigma_gamma",
+                "hydrogen_epsilon_gamma": "hydrogen_epsilon_gamma",
+                "hydrogen_photon_energy": "hydrogen_photon_energy",
+                "radiation_spectrum_filename": "radiation_spectrum_filename",
+                "spectrum_total_photon_rate": "spectrum_total_photon_rate",
+                "radiative_transfer_boundary_flux_groups": "radiative_transfer_boundary_flux_groups",
+                "source_photon_rate_groups": "source_photon_rate_groups",
+                "radiation_group_sigma_gamma": "radiation_group_sigma_gamma",
+                "radiation_group_epsilon_gamma": "radiation_group_epsilon_gamma",
+                "radiation_group_sigma_gamma_HeI": "radiation_group_sigma_gamma_HeI",
+                "radiation_group_sigma_gamma_HeII": "radiation_group_sigma_gamma_HeII",
+                "radiation_group_epsilon_gamma_HeI": "radiation_group_epsilon_gamma_HeI",
+                "radiation_group_epsilon_gamma_HeII": "radiation_group_epsilon_gamma_HeII",
+                "stellar_spectrum_blackbody_temperature_cgs_K": "stellar_spectrum_blackbody_temperature_cgs_K",
             },
-            'chemistry': {
-                'hydrogen_mass_fraction': 'hydrogen_mass_fraction',
-                'hydrogen_chemistry': 'hydrogen_chemistry',
-                'hydrogen_ngamma_initial': 'hydrogen_ngamma_initial',
-                'hydrogen_source_CFL': 'hydrogen_source_CFL',
-                'hydrogen_recombination': 'hydrogen_recombination',
-                'hydrogen_collisional_ionization': 'hydrogen_collisional_ionization',
-                'hydrogen_thermal_coupling': 'hydrogen_thermal_coupling',
-                'hydrogen_update_mu': 'hydrogen_update_mu',
-                'hydrogen_xHI_initial': 'hydrogen_xHI_initial',
-                'hydrogen_xHI_inflow': 'hydrogen_xHI_inflow',
-                'hydrogen_xHI_outflow': 'hydrogen_xHI_outflow',
-                'metallicity': 'metallicity',
-                'hydrogen_xHI_initial': 'hydrogen_xHI_initial',
-                'hydrogen_xHI_inflow': 'hydrogen_xHI_inflow',
-                'hydrogen_xHI_outflow': 'hydrogen_xHI_outflow',
-                'hydrogen_update_mu': 'hydrogen_update_mu',
-                'hydrogen_thermal_coupling': 'hydrogen_thermal_coupling',
-                'hydrogen_recombination': 'hydrogen_recombination',
-                'hydrogen_collisional_ionization': 'hydrogen_collisional_ionization',
-                'hydrogen_alpha_B': 'hydrogen_alpha_B',
-                'hydrogen_beta': 'hydrogen_beta',
-                'helium_mass_fraction': 'helium_mass_fraction',
-                'hydrogen_helium_xHeIII_initial': 'hydrogen_helium_xHeIII_initial',
-                'hydrogen_helium_xHeII_initial': 'hydrogen_helium_xHeII_initial',
-                'hydrogen_helium_xHeI_initial': 'hydrogen_helium_xHeI_initial',
+            "chemistry": {
+                "hydrogen_mass_fraction": "hydrogen_mass_fraction",
+                "hydrogen_chemistry": "hydrogen_chemistry",
+                "hydrogen_ngamma_initial": "hydrogen_ngamma_initial",
+                "hydrogen_source_CFL": "hydrogen_source_CFL",
+                "hydrogen_recombination": "hydrogen_recombination",
+                "hydrogen_collisional_ionization": "hydrogen_collisional_ionization",
+                "hydrogen_thermal_coupling": "hydrogen_thermal_coupling",
+                "hydrogen_update_mu": "hydrogen_update_mu",
+                "hydrogen_xHI_initial": "hydrogen_xHI_initial",
+                "hydrogen_xHI_inflow": "hydrogen_xHI_inflow",
+                "hydrogen_xHI_outflow": "hydrogen_xHI_outflow",
+                "metallicity": "metallicity",
+                "hydrogen_xHI_initial": "hydrogen_xHI_initial",
+                "hydrogen_xHI_inflow": "hydrogen_xHI_inflow",
+                "hydrogen_xHI_outflow": "hydrogen_xHI_outflow",
+                "hydrogen_update_mu": "hydrogen_update_mu",
+                "hydrogen_thermal_coupling": "hydrogen_thermal_coupling",
+                "hydrogen_recombination": "hydrogen_recombination",
+                "hydrogen_collisional_ionization": "hydrogen_collisional_ionization",
+                "hydrogen_alpha_B": "hydrogen_alpha_B",
+                "hydrogen_beta": "hydrogen_beta",
+                "helium_mass_fraction": "helium_mass_fraction",
+                "hydrogen_helium_xHeIII_initial": "hydrogen_helium_xHeIII_initial",
+                "hydrogen_helium_xHeII_initial": "hydrogen_helium_xHeII_initial",
+                "hydrogen_helium_xHeI_initial": "hydrogen_helium_xHeI_initial",
             },
-            'thermochemistry': {
-                'network': 'thermochemistry_network',
-                'thermochemistry_network': 'thermochemistry_network',
-                'hydrogen_chemistry': 'hydrogen_chemistry',
-                'hydrogen_atomic_cooling': 'hydrogen_atomic_cooling',
-                'hydrogen_photon_energy': 'hydrogen_photon_energy',
-                'hydrogen_radiation_field': 'hydrogen_radiation_field',
-                'hydrogen_radiation_evolution': 'hydrogen_radiation_evolution',
-                'hydrogen_initial_collisional_equilibrium': 'hydrogen_initial_collisional_equilibrium',
-                'absolute_tolerance': 'absolute_tolerance',
-                'relative_tolerance': 'relative_tolerance',
-                'explicit_tolerance': 'explicit_tolerance',
-                'hydrogen_implicit_absolute_temperature_tolerance': 'hydrogen_implicit_absolute_temperature_tolerance',
-                'hydrogen_thermal_coupling': 'hydrogen_thermal_coupling',
-                'hydrogen_recombination': 'hydrogen_recombination',
-                'hydrogen_collisional_ionization': 'hydrogen_collisional_ionization',
-                'cie_cooling': 'cie_cooling',
-                'cooling_safety_factor': 'cooling_safety_factor',
-                'cooling_temperature_floor': 'cooling_temperature_floor',
-                'compton_cmb_enabled': 'compton_cmb_enabled',
-                'compton_cmb_redshift': 'compton_cmb_redshift',
-                'cmb_temperature_0': 'cmb_temperature_0',
-                'hydrogen_source_solver': 'hydrogen_source_solver',
-                'hydrogen_implicit_tolerance': 'hydrogen_implicit_tolerance',
-                'hydrogen_implicit_max_iterations': 'hydrogen_implicit_max_iterations',
-                'hydrogen_implicit_fallback': 'hydrogen_implicit_fallback',
-                'hydrogen_hybrid_change_tolerance': 'hydrogen_hybrid_change_tolerance',
-                'hydrogen_implicit_convergence_tolerance': 'hydrogen_implicit_convergence_tolerance',
-                'hydrogen_implicit_max_refinements': 'hydrogen_implicit_max_refinements',
-                'hydrogen_source_CFL': 'hydrogen_source_CFL',
-                'hydrogen_split_implicit_max_subcycles': 'hydrogen_split_implicit_max_subcycles',
-                'hydrogen_alpha_B': 'hydrogen_alpha_B',
-                'hydrogen_beta': 'hydrogen_beta',
-                'hydrogen_epsilon_gamma': 'hydrogen_epsilon_gamma',
-                'hydrogen_ngamma_initial': 'hydrogen_ngamma_initial',
-                'hydrogen_sigma_gamma': 'hydrogen_sigma_gamma',
-                'hydrogen_source_dtmin': 'hydrogen_source_dtmin',
-                'hydrogen_update_mu': 'hydrogen_update_mu',
-                'hydrogen_mass_fraction': 'hydrogen_mass_fraction',
-                'metallicity': 'metallicity',
-                'metal_pie_enabled': 'metal_pie_enabled',
-                'metal_pie_redshift': 'metal_pie_redshift',
-                'metal_pie_table_filename': 'metal_pie_table_filename',
-                'metal_pie_photoheating_max_density_cgs_cm3': 'metal_pie_photoheating_max_density_cgs_cm3',
-                'pie_uvbg_implicit_tolerance': 'pie_uvbg_implicit_tolerance',
-                'pie_uvbg_implicit_max_retries': 'pie_uvbg_implicit_max_retries',
-                'pie_uvbg_implicit_max_iterations': 'pie_uvbg_implicit_max_iterations',
-                'pie_uvbg_implicit_step_doubling': 'pie_uvbg_implicit_step_doubling',
-                'cases': 'cases',
-                'mu': 'mu',
-                'output_count': 'output_count',
-                'temperature_floor': 'temperature_floor',
-                'isothermal_ionized_fraction_threshold': 'isothermal_ionized_fraction_threshold',
-                'pie_uvbg_photoionization_timescale': 'pie_uvbg_photoionization_timescale',
-                'runaway_density_factor': 'runaway_density_factor',
-                'verbose': 'thermochemistry_verbose',
+            "thermochemistry": {
+                "network": "thermochemistry_network",
+                "thermochemistry_network": "thermochemistry_network",
+                "hydrogen_chemistry": "hydrogen_chemistry",
+                "hydrogen_atomic_cooling": "hydrogen_atomic_cooling",
+                "hydrogen_photon_energy": "hydrogen_photon_energy",
+                "hydrogen_radiation_field": "hydrogen_radiation_field",
+                "hydrogen_radiation_evolution": "hydrogen_radiation_evolution",
+                "hydrogen_initial_collisional_equilibrium": "hydrogen_initial_collisional_equilibrium",
+                "absolute_tolerance": "absolute_tolerance",
+                "relative_tolerance": "relative_tolerance",
+                "explicit_tolerance": "explicit_tolerance",
+                "hydrogen_implicit_absolute_temperature_tolerance": "hydrogen_implicit_absolute_temperature_tolerance",
+                "hydrogen_thermal_coupling": "hydrogen_thermal_coupling",
+                "hydrogen_recombination": "hydrogen_recombination",
+                "hydrogen_collisional_ionization": "hydrogen_collisional_ionization",
+                "cie_cooling": "cie_cooling",
+                "cooling_safety_factor": "cooling_safety_factor",
+                "cooling_temperature_floor": "cooling_temperature_floor",
+                "compton_cmb_enabled": "compton_cmb_enabled",
+                "compton_cmb_redshift": "compton_cmb_redshift",
+                "cmb_temperature_0": "cmb_temperature_0",
+                "hydrogen_source_solver": "hydrogen_source_solver",
+                "hydrogen_implicit_tolerance": "hydrogen_implicit_tolerance",
+                "hydrogen_implicit_max_iterations": "hydrogen_implicit_max_iterations",
+                "hydrogen_implicit_fallback": "hydrogen_implicit_fallback",
+                "hydrogen_hybrid_change_tolerance": "hydrogen_hybrid_change_tolerance",
+                "hydrogen_implicit_convergence_tolerance": "hydrogen_implicit_convergence_tolerance",
+                "hydrogen_implicit_max_refinements": "hydrogen_implicit_max_refinements",
+                "hydrogen_source_CFL": "hydrogen_source_CFL",
+                "hydrogen_split_implicit_max_subcycles": "hydrogen_split_implicit_max_subcycles",
+                "hydrogen_alpha_B": "hydrogen_alpha_B",
+                "hydrogen_beta": "hydrogen_beta",
+                "hydrogen_epsilon_gamma": "hydrogen_epsilon_gamma",
+                "hydrogen_ngamma_initial": "hydrogen_ngamma_initial",
+                "hydrogen_sigma_gamma": "hydrogen_sigma_gamma",
+                "hydrogen_source_dtmin": "hydrogen_source_dtmin",
+                "hydrogen_update_mu": "hydrogen_update_mu",
+                "hydrogen_mass_fraction": "hydrogen_mass_fraction",
+                "metallicity": "metallicity",
+                "metal_pie_enabled": "metal_pie_enabled",
+                "metal_pie_redshift": "metal_pie_redshift",
+                "metal_pie_table_filename": "metal_pie_table_filename",
+                "metal_pie_photoheating_max_density_cgs_cm3": "metal_pie_photoheating_max_density_cgs_cm3",
+                "pie_uvbg_implicit_tolerance": "pie_uvbg_implicit_tolerance",
+                "pie_uvbg_implicit_max_retries": "pie_uvbg_implicit_max_retries",
+                "pie_uvbg_implicit_max_iterations": "pie_uvbg_implicit_max_iterations",
+                "pie_uvbg_implicit_step_doubling": "pie_uvbg_implicit_step_doubling",
+                "cases": "cases",
+                "mu": "mu",
+                "output_count": "output_count",
+                "temperature_floor": "temperature_floor",
+                "isothermal_ionized_fraction_threshold": "isothermal_ionized_fraction_threshold",
+                "pie_uvbg_photoionization_timescale": "pie_uvbg_photoionization_timescale",
+                "runaway_density_factor": "runaway_density_factor",
+                "verbose": "thermochemistry_verbose",
             },
         }
         for group, names in groups.items():
@@ -847,20 +886,33 @@ class Par:
     def _validate_keys(params):
         unknown_keys = sorted(set(params) - set(refparams))
         if unknown_keys:
-            formatted = ', '.join(repr(key) for key in unknown_keys)
-            raise ValueError(f'unknown run parameter(s): {formatted}')
+            formatted = ", ".join(repr(key) for key in unknown_keys)
+            raise ValueError(f"unknown run parameter(s): {formatted}")
 
     def _apply_defaults(self, params):
         missing_keys = []
         nested_keys = {
-            'nogrid', 'noghost', 'coordsys', 'timesim', 'gamma', 'CFL',
-            'boundcond', 'vel_inflow_proper', 'vel_outflow_proper',
-            'rho_inflow_proper', 'rho_outflow_proper',
-            'temperature_inflow_proper', 'temperature_outflow_proper', 'mu_inflow',
-            'mu_outflow', 'dtmin', 'dtmax', 'CodeUnits',
-            'radiative_transfer_boundary_flux',
-            'source_photon_rate',
-            'radiative_transfer_direction',
+            "nogrid",
+            "noghost",
+            "coordsys",
+            "timesim",
+            "gamma",
+            "CFL",
+            "boundcond",
+            "vel_inflow_proper",
+            "vel_outflow_proper",
+            "rho_inflow_proper",
+            "rho_outflow_proper",
+            "temperature_inflow_proper",
+            "temperature_outflow_proper",
+            "mu_inflow",
+            "mu_outflow",
+            "dtmin",
+            "dtmax",
+            "CodeUnits",
+            "radiative_transfer_boundary_flux",
+            "source_photon_rate",
+            "radiative_transfer_direction",
         }
         for key, default in refparams.items():
             value = params.get(key, default)
@@ -907,9 +959,9 @@ class Par:
     def _sync_hydrodynamics_parameters(self):
         self.hydrodynamics = HydrodynamicsParameters(
             eos_type=self.EOStype,
-            gamma=self._parameter('gamma'),
+            gamma=self._parameter("gamma"),
             temperature_proper=self.temperature_proper,
-            CFL=self._parameter('CFL'),
+            CFL=self._parameter("CFL"),
             order=self.order,
             riemann_solver=self.riemann_solver,
             flux_limiter=self.flux_limiter,
@@ -928,15 +980,15 @@ class Par:
 
     def _sync_boundary_parameters(self):
         self.boundary = BoundaryParameters(
-            condition=self._parameter('boundcond'),
-            vel_inflow_proper=self._parameter('vel_inflow_proper'),
-            rho_inflow_proper=self._parameter('rho_inflow_proper'),
-            temperature_inflow_proper=self._parameter('temperature_inflow_proper'),
-            inflow_mu=self._parameter('mu_inflow'),
-            vel_outflow_proper=self._parameter('vel_outflow_proper'),
-            rho_outflow_proper=self._parameter('rho_outflow_proper'),
-            temperature_outflow_proper=self._parameter('temperature_outflow_proper'),
-            outflow_mu=self._parameter('mu_outflow'),
+            condition=self._parameter("boundcond"),
+            vel_inflow_proper=self._parameter("vel_inflow_proper"),
+            rho_inflow_proper=self._parameter("rho_inflow_proper"),
+            temperature_inflow_proper=self._parameter("temperature_inflow_proper"),
+            inflow_mu=self._parameter("mu_inflow"),
+            vel_outflow_proper=self._parameter("vel_outflow_proper"),
+            rho_outflow_proper=self._parameter("rho_outflow_proper"),
+            temperature_outflow_proper=self._parameter("temperature_outflow_proper"),
+            outflow_mu=self._parameter("mu_outflow"),
             cosmological_background_reconstruction=(
                 self.cosmological_background_boundary_reconstruction
             ),
@@ -944,8 +996,8 @@ class Par:
 
     def _sync_timestep_parameters(self):
         self.timestep = TimestepParameters(
-            dtmin=self._parameter('dtmin'),
-            dtmax=self._parameter('dtmax'),
+            dtmin=self._parameter("dtmin"),
+            dtmax=self._parameter("dtmax"),
             cfl_density_floor=self.cfl_density_floor,
             hydro_temperature_floor=self.hydro_temperature_floor,
             cooling_safety_factor=self.cooling_safety_factor,
@@ -1006,10 +1058,10 @@ class Par:
         self.simulation = SimulationParameters(
             name=self.simname,
             initial_condition_filename=self.ICfilename,
-            coordinate_system=self._parameter('coordsys'),
-            final_time=self._parameter('timesim'),
-            time_proper_code=getattr(self, 'time_proper_code', None),
-            box_size_proper_code=getattr(self, 'box_size_proper', None),
+            coordinate_system=self._parameter("coordsys"),
+            final_time=self._parameter("timesim"),
+            time_proper_code=getattr(self, "time_proper_code", None),
+            box_size_proper_code=getattr(self, "box_size_proper", None),
             cosmological_expansion=self.cosmological_expansion,
             supercomoving_coordinates=self.supercomoving_coordinates,
             coordinate_frame=self.coordinate_frame,
@@ -1025,15 +1077,15 @@ class Par:
             verbose=self.verbose,
             energy_diagnostics=self.energy_diagnostics,
             temperature_jump_error_threshold=self.temperature_jump_error_threshold,
-            temperature_plot_ymin=getattr(self, 'temperature_plot_ymin', None),
-            plot_exclude_outer_cells=getattr(self, 'plot_exclude_outer_cells', 0),
+            temperature_plot_ymin=getattr(self, "temperature_plot_ymin", None),
+            plot_exclude_outer_cells=getattr(self, "plot_exclude_outer_cells", 0),
         )
 
     def _sync_mesh_parameters(self):
         self.mesh = MeshParameters(
-            ghost_cells=self._parameter('noghost'),
+            ghost_cells=self._parameter("noghost"),
             area_proper=self.area_proper,
-            grid_cells=self._parameter('nogrid'),
+            grid_cells=self._parameter("nogrid"),
         )
 
     def _sync_chemistry_parameters(self):
@@ -1051,26 +1103,18 @@ class Par:
             helium_coupled_implicit=self.hydrogen_helium_coupled_implicit,
             source_skip_floor_cells=self.hydrogen_source_skip_floor_cells,
             source_density_floor=self.hydrogen_source_density_floor,
-            source_floor_temperature_tolerance=(
-                self.hydrogen_source_floor_temperature_tolerance
-            ),
+            source_floor_temperature_tolerance=(self.hydrogen_source_floor_temperature_tolerance),
             hybrid_change_tolerance=self.hydrogen_hybrid_change_tolerance,
             implicit_tolerance=self.hydrogen_implicit_tolerance,
-            implicit_convergence_tolerance=(
-                self.hydrogen_implicit_convergence_tolerance
-            ),
+            implicit_convergence_tolerance=(self.hydrogen_implicit_convergence_tolerance),
             implicit_max_iterations=self.hydrogen_implicit_max_iterations,
             implicit_fallback=self.hydrogen_implicit_fallback,
             implicit_max_refinements=self.hydrogen_implicit_max_refinements,
-            split_implicit_max_subcycles=(
-                self.hydrogen_split_implicit_max_subcycles
-            ),
+            split_implicit_max_subcycles=(self.hydrogen_split_implicit_max_subcycles),
             implicit_absolute_temperature_tolerance=(
                 self.hydrogen_implicit_absolute_temperature_tolerance
             ),
-            implicit_absolute_xhi_tolerance=(
-                self.hydrogen_implicit_absolute_xhi_tolerance
-            ),
+            implicit_absolute_xhi_tolerance=(self.hydrogen_implicit_absolute_xhi_tolerance),
             implicit_debug=self.hydrogen_implicit_debug,
             alpha_B=self.hydrogen_alpha_B,
             beta=self.hydrogen_beta,
@@ -1092,7 +1136,7 @@ class Par:
             crossing_safety_factor=self.dark_matter_crossing_safety_factor,
             crossing_batch_fraction=self.dark_matter_crossing_batch_fraction,
             global_timestep_limit=self.dark_matter_global_timestep_limit,
-            density_bins=getattr(self, 'dm_density_bins', None),
+            density_bins=getattr(self, "dm_density_bins", None),
             softening=self.dark_matter_softening,
         )
 
@@ -1134,9 +1178,9 @@ class Par:
             group_epsilon_gamma_HeII=self.radiation_group_epsilon_gamma_HeII,
             radiative_transfer_method=self.radiative_transfer_method,
             radiative_transfer_temporal_scheme=self.radiative_transfer_temporal_scheme,
-            radiative_transfer_direction=self._parameter('radiative_transfer_direction'),
-            boundary_flux=self._parameter('radiative_transfer_boundary_flux'),
-            source_photon_rate=self._parameter('source_photon_rate'),
+            radiative_transfer_direction=self._parameter("radiative_transfer_direction"),
+            boundary_flux=self._parameter("radiative_transfer_boundary_flux"),
+            source_photon_rate=self._parameter("source_photon_rate"),
             boundary_flux_groups=self.radiative_transfer_boundary_flux_groups,
             source_photon_rate_groups=self.source_photon_rate_groups,
             c2ray_max_iterations=self.radiative_transfer_c2ray_max_iterations,
@@ -1170,10 +1214,10 @@ class Par:
         )
 
     def _initialize_units(self, params):
-        code_units_value = self._parameter('CodeUnits')
+        code_units_value = self._parameter("CodeUnits")
         if code_units_value is None:
             raise ValueError(
-                'run parameters must define CodeUnits with an internal unit system'
+                "run parameters must define CodeUnits with an internal unit system",
             )
         self.set_code_units(CodeUnits.from_mapping(code_units_value))
 
@@ -1189,38 +1233,41 @@ class Par:
     def _configure_cosmology(self):
         if not self.cosmological_expansion:
             return
-        supported = (None, 'einstein_de_sitter', 'lambda_cdm')
+        supported = (None, "einstein_de_sitter", "lambda_cdm")
         if self.cosmology_type not in supported:
-            raise ValueError(f'unsupported cosmology_type: {self.cosmology_type}')
+            raise ValueError(f"unsupported cosmology_type: {self.cosmology_type}")
 
-        is_eds = self.cosmology_type in (None, 'einstein_de_sitter')
+        is_eds = self.cosmology_type in (None, "einstein_de_sitter")
         cosmology_class = EinsteinDeSitter if is_eds else LambdaCDM
         cosmology_kwargs = {
-            't_ref': self.cosmology_t_ref,
-            'a_ref': self.cosmology_a_ref,
+            "t_ref": self.cosmology_t_ref,
+            "a_ref": self.cosmology_a_ref,
         }
         if cosmology_class is LambdaCDM:
-            cosmology_kwargs.update({
-                'omega_m': self.cosmology_omega_m,
-                'omega_lambda': self.cosmology_omega_lambda,
-                'hubble_ref': self.cosmology_hubble_ref,
-            })
+            cosmology_kwargs.update(
+                {
+                    "omega_m": self.cosmology_omega_m,
+                    "omega_lambda": self.cosmology_omega_lambda,
+                    "hubble_ref": self.cosmology_hubble_ref,
+                }
+            )
         self.cosmology.model = cosmology_class.from_code_units(
-            self.units.CodeUnits, **cosmology_kwargs
+            self.units.CodeUnits,
+            **cosmology_kwargs,
         )
         if self.supercomoving_coordinates:
-            self.coordinate_frame = 'comoving'
-            self.time_coordinate = 'supercomoving'
-            self.velocity_representation = 'supercomoving_peculiar'
-            self.density_representation = 'comoving'
-            self.pressure_representation = 'supercomoving'
-            self.temperature_representation = 'supercomoving'
+            self.coordinate_frame = "comoving"
+            self.time_coordinate = "supercomoving"
+            self.velocity_representation = "supercomoving_peculiar"
+            self.density_representation = "comoving"
+            self.pressure_representation = "supercomoving"
+            self.temperature_representation = "supercomoving"
 
     def _load_optional_physics(self, params):
-        if params.get('radiation_spectrum_filename') is not None:
-            self.load_radiation_spectrum(params.get('outdir'))
-        if params.get('metal_pie_enabled', False) and params.get('metal_pie_table_filename'):
-            self.load_metal_pie_table(params.get('outdir'))
+        if params.get("radiation_spectrum_filename") is not None:
+            self.load_radiation_spectrum(params.get("outdir"))
+        if params.get("metal_pie_enabled", False) and params.get("metal_pie_table_filename"):
+            self.load_metal_pie_table(params.get("outdir"))
         if (
             self.metal_pie_enabled
             and self.metal_pie_table is not None
@@ -1228,8 +1275,8 @@ class Par:
             and self.radiative_transfer
         ):
             raise ValueError(
-                'HM12 PIE UV-background tables require '
-                'radiative_transfer: false in the first implementation'
+                "HM12 PIE UV-background tables require "
+                "radiative_transfer: false in the first implementation",
             )
         self._sync_radiation_parameters()
         self._sync_thermochemistry_parameters()
@@ -1239,64 +1286,65 @@ class Par:
             return
         for key, value in missing_keys:
             warnings.warn(
-                f'run parameter {key!r} was not provided; using default {value!r}',
+                f"run parameter {key!r} was not provided; using default {value!r}",
                 ParameterDefaultWarning,
                 stacklevel=3,
             )
 
     def load_radiation_spectrum(self, base_directory=None):
-            """Load the configured HDF5 spectrum into runtime parameters."""
-            spectrum_filename = getattr(self, 'radiation_spectrum_filename', None)
-            if spectrum_filename is None:
-                return
-            spectrum = load_radiation_spectrum(
-                resolve_spectrum_filename(spectrum_filename, base_directory)
-            )
-            for key, value in spectrum.items():
-                setattr(self, key, value)
-                self.par_config[key] = value
-            if self.radiation_group_sigma_gamma is not None:
-                self.radiation_group_sigma_gamma = self.radiation_group_sigma_gamma * unyt.cm**2
-            if self.radiation_group_epsilon_gamma is not None:
-                self.radiation_group_epsilon_gamma = self.radiation_group_epsilon_gamma * unyt.erg
-            for species in ('HeI', 'HeII'):
-                sigma_name = f'radiation_group_sigma_gamma_{species}'
-                epsilon_name = f'radiation_group_epsilon_gamma_{species}'
-                if getattr(self, sigma_name, None) is not None:
-                    setattr(self, sigma_name, getattr(self, sigma_name) * unyt.cm**2)
-                if getattr(self, epsilon_name, None) is not None:
-                    setattr(self, epsilon_name, getattr(self, epsilon_name) * unyt.erg)
-            power_unit = self.units.CodeUnits.energy_unit / self.units.CodeUnits.time_unit
-            rates = np.asarray(self.star_emission_rates, dtype=float) * power_unit
-            energies = np.asarray(self.ionizing_photon_energy_cgs_erg, dtype=float) * unyt.erg
-            total_rate = getattr(self, 'spectrum_total_photon_rate', None)
-            if total_rate is not None:
-                if hasattr(total_rate, 'to_value'):
-                    target_rate_s = float(total_rate.to_value(1.0 / unyt.s))
-                else:
-                    target_rate_s = code_quantity_to_cgs(
-                        total_rate,
-                        self.units.CodeUnits,
-                        'photon_rate_per_s',
-                    )
-                current_rate_s = float(
-                    np.sum((rates[1:] / energies).to_value(1.0 / unyt.s))
+        """Load the configured HDF5 spectrum into runtime parameters."""
+        spectrum_filename = getattr(self, "radiation_spectrum_filename", None)
+        if spectrum_filename is None:
+            return
+        spectrum = load_radiation_spectrum(
+            resolve_spectrum_filename(spectrum_filename, base_directory),
+        )
+        for key, value in spectrum.items():
+            setattr(self, key, value)
+            self.par_config[key] = value
+        if self.radiation_group_sigma_gamma is not None:
+            self.radiation_group_sigma_gamma = self.radiation_group_sigma_gamma * unyt.cm**2
+        if self.radiation_group_epsilon_gamma is not None:
+            self.radiation_group_epsilon_gamma = self.radiation_group_epsilon_gamma * unyt.erg
+        for species in ("HeI", "HeII"):
+            sigma_name = f"radiation_group_sigma_gamma_{species}"
+            epsilon_name = f"radiation_group_epsilon_gamma_{species}"
+            if getattr(self, sigma_name, None) is not None:
+                setattr(self, sigma_name, getattr(self, sigma_name) * unyt.cm**2)
+            if getattr(self, epsilon_name, None) is not None:
+                setattr(self, epsilon_name, getattr(self, epsilon_name) * unyt.erg)
+        power_unit = self.units.CodeUnits.energy_unit / self.units.CodeUnits.time_unit
+        rates = np.asarray(self.star_emission_rates, dtype=float) * power_unit
+        energies = np.asarray(self.ionizing_photon_energy_cgs_erg, dtype=float) * unyt.erg
+        total_rate = getattr(self, "spectrum_total_photon_rate", None)
+        if total_rate is not None:
+            if hasattr(total_rate, "to_value"):
+                target_rate_s = float(total_rate.to_value(1.0 / unyt.s))
+            else:
+                target_rate_s = code_quantity_to_cgs(
+                    total_rate,
+                    self.units.CodeUnits,
+                    "photon_rate_per_s",
                 )
-                if current_rate_s <= 0.0:
-                    raise ValueError('radiation spectrum has no ionizing injection rate')
-                self.star_emission_rates = np.array(self.star_emission_rates, dtype=float)
-                self.star_emission_rates[1:] *= target_rate_s / current_rate_s
-                self.par_config['star_emission_rates'] = self.star_emission_rates
-                rates = self.star_emission_rates * power_unit
-            self.source_photon_rate_groups = (rates[1:] / energies).to(1.0 / unyt.s)
-            self.radiative_transfer_boundary_flux_groups = np.zeros(
-                self.number_of_radiation_groups
-            ) / (unyt.cm**2 * unyt.s)
-            self._sync_radiation_parameters()
+            current_rate_s = float(
+                np.sum((rates[1:] / energies).to_value(1.0 / unyt.s)),
+            )
+            if current_rate_s <= 0.0:
+                raise ValueError("radiation spectrum has no ionizing injection rate")
+            self.star_emission_rates = np.array(self.star_emission_rates, dtype=float)
+            self.star_emission_rates[1:] *= target_rate_s / current_rate_s
+            self.par_config["star_emission_rates"] = self.star_emission_rates
+            rates = self.star_emission_rates * power_unit
+        self.source_photon_rate_groups = (rates[1:] / energies).to(1.0 / unyt.s)
+        self.radiative_transfer_boundary_flux_groups = np.zeros(
+            self.number_of_radiation_groups,
+        ) / (unyt.cm**2 * unyt.s)
+        self._sync_radiation_parameters()
 
     def load_metal_pie_table(self, base_directory=None):
         filename = resolve_spectrum_filename(
-            self.metal_pie_table_filename, base_directory
+            self.metal_pie_table_filename,
+            base_directory,
         )
         self.metal_pie_table = MetalPIETable(filename)
         self._sync_radiation_parameters()

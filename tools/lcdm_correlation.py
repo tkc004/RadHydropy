@@ -6,8 +6,8 @@ tabulated linear power spectrum.  The built-in spectrum uses the analytic
 Eisenstein--Hu no-wiggle transfer shape.
 """
 
-from pathlib import Path
 import importlib.util
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -19,7 +19,8 @@ except ModuleNotFoundError:
     # ``tools.py`` module shadows the repository-level ``tools`` package.
     _COSMOLOGY_FILE = Path(__file__).with_name("cosmology.py")
     _COSMOLOGY_SPEC = importlib.util.spec_from_file_location(
-        "radhydropy_physical_cosmology", _COSMOLOGY_FILE
+        "radhydropy_physical_cosmology",
+        _COSMOLOGY_FILE,
     )
     _COSMOLOGY_MODULE = importlib.util.module_from_spec(_COSMOLOGY_SPEC)
     _COSMOLOGY_SPEC.loader.exec_module(_COSMOLOGY_MODULE)
@@ -33,8 +34,12 @@ def _validate_lcdm_parameters(omega_m, omega_lambda, omega_b=None):
 
 
 def eisenstein_hu_nowiggle_transfer(
-    k_hmpc, omega_m=0.315, omega_b=0.049, h=0.674,
-    omega_lambda=0.685, theta_cmb=2.7255 / 2.7
+    k_hmpc,
+    omega_m=0.315,
+    omega_b=0.049,
+    h=0.674,
+    omega_lambda=0.685,
+    theta_cmb=2.7255 / 2.7,
 ):
     """Return the Eisenstein--Hu no-wiggle transfer function."""
     k_hmpc = np.asarray(k_hmpc, dtype=float)
@@ -52,43 +57,66 @@ def eisenstein_hu_nowiggle_transfer(
 
 
 def linear_matter_power_spectrum_shape(
-    k_hmpc, omega_m=0.315, omega_b=0.049, h=0.674, n_s=0.965,
+    k_hmpc,
+    omega_m=0.315,
+    omega_b=0.049,
+    h=0.674,
+    n_s=0.965,
     omega_lambda=0.685,
 ):
     """Return the unnormalized ``k**n_s T(k)**2`` power-spectrum shape."""
     transfer = eisenstein_hu_nowiggle_transfer(
-        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
+        k_hmpc,
+        omega_m=omega_m,
+        omega_b=omega_b,
+        h=h,
         omega_lambda=omega_lambda,
     )
     return np.asarray(k_hmpc, dtype=float) ** float(n_s) * transfer**2
 
 
 def linear_matter_power_spectrum(
-    k_hmpc, omega_m=0.315, omega_b=0.049, h=0.674,
-    n_s=0.965, sigma8=0.811, omega_lambda=0.685,
+    k_hmpc,
+    omega_m=0.315,
+    omega_b=0.049,
+    h=0.674,
+    n_s=0.965,
+    sigma8=0.811,
+    omega_lambda=0.685,
 ):
     """Return a sigma8-normalized linear matter power spectrum."""
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     shape = linear_matter_power_spectrum_shape(
-        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h, n_s=n_s,
+        k_hmpc,
+        omega_m=omega_m,
+        omega_b=omega_b,
+        h=h,
+        n_s=n_s,
         omega_lambda=omega_lambda,
     )
     k_norm = np.geomspace(1.0e-5, 1.0e3, 8192)
     shape_norm = linear_matter_power_spectrum_shape(
-        k_norm, omega_m=omega_m, omega_b=omega_b, h=h, n_s=n_s,
+        k_norm,
+        omega_m=omega_m,
+        omega_b=omega_b,
+        h=h,
+        n_s=n_s,
         omega_lambda=omega_lambda,
     )
     kr = 8.0 * k_norm
     window = 3.0 * (np.sin(kr) - kr * np.cos(kr)) / np.maximum(kr**3, 1.0e-30)
     sigma8_shape = np.sqrt(
-        np.trapz(k_norm**3 * shape_norm * window**2, np.log(k_norm))
-        / (2.0 * np.pi**2)
+        np.trapz(k_norm**3 * shape_norm * window**2, np.log(k_norm)) / (2.0 * np.pi**2),
     )
     return shape * (float(sigma8) / max(sigma8_shape, 1.0e-300)) ** 2
 
 
 def plot_lcdm_transfer_function(
-    filename=None, k_hmpc=None, omega_m=0.315, omega_b=0.049, h=0.674,
+    filename=None,
+    k_hmpc=None,
+    omega_m=0.315,
+    omega_b=0.049,
+    h=0.674,
     omega_lambda=0.685,
 ):
     """Plot the dimensionless Eisenstein--Hu transfer function.
@@ -103,7 +131,10 @@ def plot_lcdm_transfer_function(
         k_hmpc = np.geomspace(1.0e-4, 1.0e2, 512)
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     transfer = eisenstein_hu_nowiggle_transfer(
-        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
+        k_hmpc,
+        omega_m=omega_m,
+        omega_b=omega_b,
+        h=h,
         omega_lambda=omega_lambda,
     )
 
@@ -125,8 +156,14 @@ def plot_lcdm_transfer_function(
 
 
 def plot_linear_matter_power_spectrum(
-    filename=None, k_hmpc=None, omega_m=0.315, omega_b=0.049,
-    h=0.674, n_s=0.965, sigma8=0.811, omega_lambda=0.685,
+    filename=None,
+    k_hmpc=None,
+    omega_m=0.315,
+    omega_b=0.049,
+    h=0.674,
+    n_s=0.965,
+    sigma8=0.811,
+    omega_lambda=0.685,
 ):
     """Plot the sigma8-normalized linear matter power spectrum."""
     import matplotlib.pyplot as plt
@@ -135,8 +172,13 @@ def plot_linear_matter_power_spectrum(
         k_hmpc = np.geomspace(1.0e-4, 1.0e2, 512)
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     power = linear_matter_power_spectrum(
-        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
-        n_s=n_s, sigma8=sigma8, omega_lambda=omega_lambda,
+        k_hmpc,
+        omega_m=omega_m,
+        omega_b=omega_b,
+        h=h,
+        n_s=n_s,
+        sigma8=sigma8,
+        omega_lambda=omega_lambda,
     )
 
     figure, axis = plt.subplots(figsize=(7.0, 5.0))
@@ -156,8 +198,15 @@ def plot_linear_matter_power_spectrum(
 
 
 def plot_linear_correlation_from_power_spectrum(
-    filename=None, radius_mpc_h=None, k_hmpc=None, power=None,
-    omega_m=0.315, omega_b=0.049, h=0.674, n_s=0.965, sigma8=0.811,
+    filename=None,
+    radius_mpc_h=None,
+    k_hmpc=None,
+    power=None,
+    omega_m=0.315,
+    omega_b=0.049,
+    h=0.674,
+    n_s=0.965,
+    sigma8=0.811,
     omega_lambda=0.685,
 ):
     """Plot ``xi(r)`` computed from a tabulated or built-in linear ``P(k)``.
@@ -176,12 +225,19 @@ def plot_linear_correlation_from_power_spectrum(
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     if power is None:
         power = linear_matter_power_spectrum(
-            k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
-            n_s=n_s, sigma8=sigma8, omega_lambda=omega_lambda,
+            k_hmpc,
+            omega_m=omega_m,
+            omega_b=omega_b,
+            h=h,
+            n_s=n_s,
+            sigma8=sigma8,
+            omega_lambda=omega_lambda,
         )
     power = np.asarray(power, dtype=float)
     correlation = linear_correlation_from_power_spectrum(
-        radius_mpc_h, k_hmpc, power
+        radius_mpc_h,
+        k_hmpc,
+        power,
     )
 
     figure, axis = plt.subplots(figsize=(7.0, 5.0))
@@ -239,9 +295,16 @@ def load_lcdm_correlation_table(filename):
 
 
 def generate_lcdm_correlation_table(
-    filename=None, radius_mpc_h=None, k_hmpc=None,
-    omega_m=0.315, omega_b=0.049, h=0.674, n_s=0.965, sigma8=0.811,
-    omega_lambda=0.685, k_min_hmpc=None,
+    filename=None,
+    radius_mpc_h=None,
+    k_hmpc=None,
+    omega_m=0.315,
+    omega_b=0.049,
+    h=0.674,
+    n_s=0.965,
+    sigma8=0.811,
+    omega_lambda=0.685,
+    k_min_hmpc=None,
 ):
     """Generate a linear correlation table, optionally with a box cutoff.
 
@@ -262,11 +325,18 @@ def generate_lcdm_correlation_table(
     if k_min_hmpc is not None and np.min(k_hmpc) < float(k_min_hmpc):
         raise ValueError("k_hmpc contains modes below k_min_hmpc")
     power = linear_matter_power_spectrum(
-        k_hmpc, omega_m=omega_m, omega_b=omega_b, h=h,
-        n_s=n_s, sigma8=sigma8, omega_lambda=omega_lambda,
+        k_hmpc,
+        omega_m=omega_m,
+        omega_b=omega_b,
+        h=h,
+        n_s=n_s,
+        sigma8=sigma8,
+        omega_lambda=omega_lambda,
     )
     correlation = linear_correlation_from_power_spectrum(
-        radius_mpc_h, k_hmpc, power
+        radius_mpc_h,
+        k_hmpc,
+        power,
     )
     result = {
         "radius_mpc_h": radius_mpc_h,
@@ -281,8 +351,12 @@ def generate_lcdm_correlation_table(
             for key, values in result.items():
                 handle.create_dataset(key, data=values)
             for key, value in {
-                "omega_m": omega_m, "omega_b": omega_b, "h": h,
-                "omega_lambda": omega_lambda, "n_s": n_s, "sigma8": sigma8,
+                "omega_m": omega_m,
+                "omega_b": omega_b,
+                "h": h,
+                "omega_lambda": omega_lambda,
+                "n_s": n_s,
+                "sigma8": sigma8,
             }.items():
                 handle.attrs[key] = float(value)
             if k_min_hmpc is not None:

@@ -3,10 +3,10 @@
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 HERE = Path(__file__).resolve().parent
 OUTPUT = HERE / "outputs_correlation_gas_compton_atomic"
@@ -27,7 +27,7 @@ def main():
     audit = np.load(OUTPUT / (PREFIX + "_EnergyAudit.npz"))
     audit_time = np.asarray(audit["time_cosmic_Gyr"], dtype=float)
     cumulative_gravity_work = np.cumsum(
-        np.asarray(audit["gravitational_work"], dtype=float)
+        np.asarray(audit["gravitational_work"], dtype=float),
     )
     gravity_work = np.interp(time_cosmic_code, audit_time, cumulative_gravity_work)
     total_with_gravity_work = total_energy_code + gravity_work
@@ -39,7 +39,9 @@ def main():
     axis.plot(time_cosmic_code, kinetic_energy_code, "o-", label="kinetic energy")
     axis.plot(time_cosmic_code, gravity_work, "o-", label="cumulative gravitational work")
     axis.plot(
-        time_cosmic_code, total_with_gravity_work, "o--",
+        time_cosmic_code,
+        total_with_gravity_work,
+        "o--",
         label="hydrodynamic total + gravitational work",
         linewidth=2.0,
     )
@@ -53,9 +55,14 @@ def main():
     plt.close(fig)
 
     print("total gas energy figure = %s" % figure)
-    print("final total, thermal, kinetic = %.8g, %.8g, %.8g" % (
-        total_energy_code[-1], thermal_energy_code[-1], kinetic_energy_code[-1]
-    ))
+    print(
+        "final total, thermal, kinetic = %.8g, %.8g, %.8g"
+        % (
+            total_energy_code[-1],
+            thermal_energy_code[-1],
+            kinetic_energy_code[-1],
+        )
+    )
     print("final cumulative gravitational work = %.8g" % gravity_work[-1])
     print("final total including gravity work = %.8g" % total_with_gravity_work[-1])
 

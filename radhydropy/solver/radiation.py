@@ -28,13 +28,8 @@ def apply_radiation_pressure(solver, dt, mesh, fluid, par, source_result):
     if absorbed.shape[1] != grid_cells:
         raise ValueError("absorbed photon rate must contain physical cells only")
 
-    density_runtime_code, velocity_runtime_code, _, _ = (
-        solver._active_primitive_arrays(fluid, par)
-    )
-    rho_cgs = (
-        np.asarray(density_runtime_code[interior], dtype=float)
-        * scales["density_cgs_g_cm3"]
-    )
+    density_runtime_code, velocity_runtime_code, _, _ = solver._active_primitive_arrays(fluid, par)
+    rho_cgs = np.asarray(density_runtime_code[interior], dtype=float) * scales["density_cgs_g_cm3"]
     momentum_rate_density = (
         float(source_result.get("direction", 1))
         * np.sum(absorbed * energies[:, None], axis=0)
@@ -45,9 +40,7 @@ def apply_radiation_pressure(solver, dt, mesh, fluid, par, source_result):
     if not np.any(valid):
         return 0
     acceleration_cgs = np.zeros_like(momentum_rate_density)
-    acceleration_cgs[valid] = (
-        efficiency * momentum_rate_density[valid] / rho_cgs[valid]
-    )
+    acceleration_cgs[valid] = efficiency * momentum_rate_density[valid] / rho_cgs[valid]
     acceleration = acceleration_cgs / scales["acceleration_cgs_cm_s2"]
     volume = np.asarray(
         solver._geometry_state(mesh, par).volume_runtime_code[interior],
@@ -57,17 +50,8 @@ def apply_radiation_pressure(solver, dt, mesh, fluid, par, source_result):
     energy = fluid.Energy_code[interior]
     density_runtime_code = density_runtime_code[interior]
     velocity = velocity_runtime_code[interior]
-    momentum[valid] += (
-        density_runtime_code[valid]
-        * acceleration[valid]
-        * volume[valid]
-        * dt
-    )
+    momentum[valid] += density_runtime_code[valid] * acceleration[valid] * volume[valid] * dt
     energy[valid] += (
-        density_runtime_code[valid]
-        * velocity[valid]
-        * acceleration[valid]
-        * volume[valid]
-        * dt
+        density_runtime_code[valid] * velocity[valid] * acceleration[valid] * volume[valid] * dt
     )
     return 1

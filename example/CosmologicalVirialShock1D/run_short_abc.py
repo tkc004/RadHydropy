@@ -1,23 +1,24 @@
 """Run short central-boundary wall/origin comparisons in isolated directories."""
 
 import argparse
-from copy import deepcopy
-from collections.abc import Mapping
 import os
-from pathlib import Path
 import tempfile
+from collections.abc import Mapping
+from copy import deepcopy
+from pathlib import Path
 
-import yaml
 import unyt
+import yaml
+
 from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
-    "MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib")
+    "MPLCONFIGDIR",
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 
 import cosmological_gas_correlation_z100 as experiment
 import example_utils as eu
-
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
 DEFAULT_CONFIG = EXAMPLE_DIR / "cosmological_gas_correlation_z100.yaml"
@@ -62,27 +63,25 @@ def _case_config(base_config, case_name, final_time):
 
     initial_condition = config["initial_condition"]
 
-    output_dir = EXAMPLE_DIR / (
-        "outputs_short_%s_%s" % (case_name, case["label"])
-    )
+    output_dir = EXAMPLE_DIR / ("outputs_short_%s_%s" % (case_name, case["label"]))
     figure_prefix = "CosmologicalGasCorrelationShort%s" % case_name
     config["par"]["simulation"]["name"] = figure_prefix
     config["par"]["simulation"]["initial_condition_filename"] = str(
-        output_dir / "InitialCondition.hdf5"
+        output_dir / "InitialCondition.hdf5",
     )
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     config["par"]["simulation"]["final_time"] = float(final_time) * units.time_unit
-    config["par"]["output"].update({
-        "directory": str(output_dir),
-        # Keep the shared correlation table resolvable after placing the
-        # effective YAML inside the case output directory.
-    })
-    config["example"]["linear_correlation_table_filename"] = str(
-        EXAMPLE_DIR / "outputs_correlation" / "lcdm_linear_correlation.h5"
+    config["par"]["output"].update(
+        {
+            "directory": str(output_dir),
+            # Keep the shared correlation table resolvable after placing the
+            # effective YAML inside the case output directory.
+        }
     )
-    initial_condition["inner_wall_radius_comoving"] = case[
-        "inner_wall_radius_comoving"
-    ]
+    config["example"]["linear_correlation_table_filename"] = str(
+        EXAMPLE_DIR / "outputs_correlation" / "lcdm_linear_correlation.h5",
+    )
+    initial_condition["inner_wall_radius_comoving"] = case["inner_wall_radius_comoving"]
     return config, output_dir
 
 
@@ -119,15 +118,20 @@ def main(config_filename=DEFAULT_CONFIG, cases=None, final_time=1.0):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run isolated short A/B/C cosmological shock comparisons."
+        description="Run isolated short A/B/C cosmological shock comparisons.",
     )
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     parser.add_argument(
-        "--case", action="append", choices=tuple(CASES), dest="cases",
+        "--case",
+        action="append",
+        choices=tuple(CASES),
+        dest="cases",
         help="run only the selected case; repeat to select multiple cases",
     )
     parser.add_argument(
-        "--final-time", type=float, default=1.0,
+        "--final-time",
+        type=float,
+        default=1.0,
         help="final cosmic time in code time units (default: 1.0)",
     )
     args = parser.parse_args()

@@ -1,7 +1,7 @@
 """Phase 1 Einstein--de Sitter homogeneous expansion diagnostic."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -10,26 +10,28 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
+import example_utils as eu
 import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-import example_utils as eu
 
 
 def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")):
     config = eu.load_nested_example_config(config_filename)
 
-    units = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(units)
     t0 = quantity_to_value(
-        config['initial_condition']['time_cosmic'], units.time_unit
+        config["initial_condition"]["time_cosmic"],
+        units.time_unit,
     )
     t1 = quantity_to_value(
-        config["par"]['simulation']['final_time'], units.time_unit
+        config["par"]["simulation"]["final_time"],
+        units.time_unit,
     )
-    initial_condition = config['initial_condition']
+    initial_condition = config["initial_condition"]
     tau0 = cosmology.supercomoving_time(t0)
     par = config["par"]
     par.setdefault("mesh", {}).update(grid_cells=1, ghost_cells=0)
@@ -55,20 +57,28 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     sim.par.tau_supercomoving_code = tau0
     sim.par.simulation.tau_supercomoving_code = tau0
     sim.fluid.tau_supercomoving_code = tau0
-    rho_comoving_code = np.array([
-        quantity_to_value(initial_condition['rho_proper'], units.density_unit)
-    ])
-    vel_supercomoving_code = np.array([
-        quantity_to_value(initial_condition['vel_proper'], units.velocity_unit)
-    ])
-    pre_supercomoving_code = np.array([
-        quantity_to_value(
-            initial_condition['pressure_initial_proper'], units.pressure_unit
-        )
-    ])
+    rho_comoving_code = np.array(
+        [
+            quantity_to_value(initial_condition["rho_proper"], units.density_unit),
+        ]
+    )
+    vel_supercomoving_code = np.array(
+        [
+            quantity_to_value(initial_condition["vel_proper"], units.velocity_unit),
+        ]
+    )
+    pre_supercomoving_code = np.array(
+        [
+            quantity_to_value(
+                initial_condition["pressure_initial_proper"],
+                units.pressure_unit,
+            ),
+        ]
+    )
     temp_supercomoving_code = pre_supercomoving_code / rho_comoving_code
     writer.fluid.rho_radarray = writer.radarray(
-        rho_comoving_code * units.density_unit, representation="comoving"
+        rho_comoving_code * units.density_unit,
+        representation="comoving",
     )
     writer.fluid.vel_radarray = writer.radarray(
         vel_supercomoving_code * units.velocity_unit,
@@ -94,7 +104,7 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     assert np.allclose(fluid.vel_supercomoving_code, initial[1])
     assert np.allclose(fluid.pre_supercomoving_code, initial[2])
     a_ratio = cosmology.scale_factor(t1) / cosmology.scale_factor(t0)
-    assert np.isclose(a_ratio, 2.0**(2.0 / 3.0))
+    assert np.isclose(a_ratio, 2.0 ** (2.0 / 3.0))
     print("Einstein-De Sitter homogeneous expansion passed")
     print("a(t=2)/a(t=1) = %.8g" % a_ratio)
     print("supercomoving density/velocity/pressure remain constant")
@@ -104,6 +114,9 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default=Path(__file__).with_name('einstein_de_sitter_homogeneous1d.yaml'))
+    parser.add_argument(
+        "--config", default=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")
+    )
     main(parser.parse_args().config)

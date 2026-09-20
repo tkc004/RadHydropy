@@ -9,16 +9,11 @@ from radhydropy.params import Par
 from radhydropy.thermo_networks.hydrogen_helium import _closure, _rates
 from radhydropy.thermo_networks.pie import MetalPIETable, PIEUVBGCoolingNetwork
 
-
 TABLE_FILENAME = (
-    Path(__file__).resolve().parents[2]
-    / "metal_pie_table"
-    / "metal_pie_table_Z1_metals.h5"
+    Path(__file__).resolve().parents[2] / "metal_pie_table" / "metal_pie_table_Z1_metals.h5"
 )
 HM12_TOTAL_FILENAME = (
-    Path(__file__).resolve().parents[2]
-    / "metal_pie_table"
-    / "metal_pie_hm12_total.h5"
+    Path(__file__).resolve().parents[2] / "metal_pie_table" / "metal_pie_hm12_total.h5"
 )
 
 
@@ -30,7 +25,7 @@ def _code_units_mapping():
             "UnitVelocity_in_cgs": 1.0,
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
-        }
+        },
     }
 
 
@@ -164,8 +159,8 @@ def test_pie_rates_use_sum_of_multigroup_photon_density(tmp_path):
     no_pie_rate = _rates(state_without_pie, ngamma_cgs_cm3)[3]
     pie_rate = _rates(state_with_pie, ngamma_cgs_cm3)[3]
     n_h = state_with_pie["rho_cgs_g_cm3"] * 0.75 / PROTON_MASS_CGS
-    expected_metal_heating = (1.0e4 * n_h**2 * (3.0e-4 / n_h) ** 3)
-    expected_metal_cooling = (1.0e8 * n_h * (3.0e-4 / n_h) ** 0.5)
+    expected_metal_heating = 1.0e4 * n_h**2 * (3.0e-4 / n_h) ** 3
+    expected_metal_cooling = 1.0e8 * n_h * (3.0e-4 / n_h) ** 0.5
     np.testing.assert_allclose(
         pie_rate - no_pie_rate,
         expected_metal_heating - expected_metal_cooling,
@@ -190,9 +185,7 @@ def test_pie_self_shielding_disables_heating_but_keeps_cooling(tmp_path):
     filename = tmp_path / "power_law.h5"
     _write_power_law_table(filename)
     with h5py.File(filename, "a") as handle:
-        handle["MetalPIE"].attrs["spectrum_type"] = (
-            "Haardt-Madau 2012 UV background"
-        )
+        handle["MetalPIE"].attrs["spectrum_type"] = "Haardt-Madau 2012 UV background"
         axes = handle["MetalPIE/axes"]
         del axes["log10_ionization_parameter"]
         axes.create_dataset("redshift", data=[0.0, 1.0, 2.0])
@@ -206,10 +199,14 @@ def test_pie_self_shielding_disables_heating_but_keeps_cooling(tmp_path):
     rate_without_pie = _rates({**state, "metal_pie_table": None}, ngamma_cgs_cm3)[3]
     n_h = state["rho_cgs_g_cm3"] * 0.75 / PROTON_MASS_CGS
     _, expected_metal_cooling = state["metal_pie_table"].rates(
-        state["temperature_cgs_K"], n_h, metallicity=1.0, redshift=0.0
+        state["temperature_cgs_K"],
+        n_h,
+        metallicity=1.0,
+        redshift=0.0,
     )
     np.testing.assert_allclose(
-        rate_with_pie - rate_without_pie, -expected_metal_cooling
+        rate_with_pie - rate_without_pie,
+        -expected_metal_cooling,
     )
 
 
@@ -227,7 +224,9 @@ def test_non_hm12_pie_keeps_heating_above_density_cutoff(tmp_path):
     n_h = state["rho_cgs_g_cm3"] * 0.75 / PROTON_MASS_CGS
     ionization_parameter = np.sum(ngamma_cgs_cm3, axis=0) / n_h
     expected_heating, expected_cooling = state["metal_pie_table"].rates(
-        state["temperature_cgs_K"], n_h, ionization_parameter
+        state["temperature_cgs_K"],
+        n_h,
+        ionization_parameter,
     )
     np.testing.assert_allclose(
         rate_with_pie - rate_without_pie,
@@ -243,7 +242,7 @@ def test_hm12_pie_rejects_radiative_transfer():
                 "metal_pie_enabled": True,
                 "metal_pie_table_filename": str(HM12_TOTAL_FILENAME),
                 "radiative_transfer": True,
-            }
+            },
         )
 
 
@@ -270,14 +269,17 @@ def test_pie_uvbg_implicit_step_converges_against_half_steps():
         "rho_cgs_g_cm3": np.array([PROTON_MASS_CGS / 0.7]),
         "temperature_cgs_K": np.array([temperature]),
         "specific_energy_cgs_erg_g": np.array(
-            [BOLTZMANN_CONSTANT_CGS * temperature / ((gamma - 1.0) * mu[0] * PROTON_MASS_CGS)]
+            [BOLTZMANN_CONSTANT_CGS * temperature / ((gamma - 1.0) * mu[0] * PROTON_MASS_CGS)],
         ),
         "gamma": gamma,
         "mu": mu,
     }
     old_energy = state["specific_energy_cgs_erg_g"].copy()
     new_energy, converged = network._implicit_converged_step(
-        state, old_energy, 1.0e10, 100.0
+        state,
+        old_energy,
+        1.0e10,
+        100.0,
     )
 
     assert np.all(converged)

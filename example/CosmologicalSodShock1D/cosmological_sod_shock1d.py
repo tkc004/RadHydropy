@@ -2,10 +2,11 @@
 
 import argparse
 import copy
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,13 +18,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
+import example_utils as eu
+
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-import example_utils as eu
-from tools import shocktubecal, shocktubeanalyticgraph
-
+from tools import shocktubeanalyticgraph, shocktubecal
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
 
@@ -56,17 +57,17 @@ def _read_profile(filename, config):
     )
     temp_supercomoving_code = np.asarray(
         temp_supercomoving_radarray.to(
-            config["_code_units"].temperature_unit
+            config["_code_units"].temperature_unit,
         ).value,
         dtype=float,
     )
     return (
-        0.5 * boundary_comoving_code[first:first + count + 1][:-1]
-        + 0.5 * boundary_comoving_code[first:first + count + 1][1:],
-        rho_comoving_code[first:first + count],
-        temp_supercomoving_code[first:first + count],
-        float(np.sum(np.asarray(sim.fluid.Mass_code[first:first + count], dtype=float))),
-        float(np.sum(np.asarray(sim.fluid.Energy_code[first:first + count], dtype=float))),
+        0.5 * boundary_comoving_code[first : first + count + 1][:-1]
+        + 0.5 * boundary_comoving_code[first : first + count + 1][1:],
+        rho_comoving_code[first : first + count],
+        temp_supercomoving_code[first : first + count],
+        float(np.sum(np.asarray(sim.fluid.Mass_code[first : first + count], dtype=float))),
+        float(np.sum(np.asarray(sim.fluid.Energy_code[first : first + count], dtype=float))),
     )
 
 
@@ -76,14 +77,15 @@ def _build_initial_condition(config, units):
     initial_condition = config["initial_condition"]
     grid_cells = int(par_config["mesh"]["grid_cells"])
     box_size_comoving_unyt = initial_condition["box_size_comoving"]
-    boundary_comoving_unyt = np.linspace(
-        0.0,
-        float(box_size_comoving_unyt.to_value(units.length_unit)),
-        grid_cells + 1,
-    ) * units.length_unit
-    cell_centers_comoving_unyt = 0.5 * (
-        boundary_comoving_unyt[:-1] + boundary_comoving_unyt[1:]
+    boundary_comoving_unyt = (
+        np.linspace(
+            0.0,
+            float(box_size_comoving_unyt.to_value(units.length_unit)),
+            grid_cells + 1,
+        )
+        * units.length_unit
     )
+    cell_centers_comoving_unyt = 0.5 * (boundary_comoving_unyt[:-1] + boundary_comoving_unyt[1:])
     left = cell_centers_comoving_unyt < 0.5 * box_size_comoving_unyt
 
     writer = InitialConditionWriter(
@@ -93,7 +95,8 @@ def _build_initial_condition(config, units):
     )
     writer.box_size = writer.radquantity(box_size_comoving_unyt)
     writer.mesh.boundary_radarray = writer.radarray(
-        boundary_comoving_unyt, representation="comoving"
+        boundary_comoving_unyt,
+        representation="comoving",
     )
     writer.fluid.rho_radarray = writer.radarray(
         np.where(
@@ -116,7 +119,8 @@ def _build_initial_condition(config, units):
         representation="supercomoving",
     )
     writer.fluid.mu = np.full(
-        grid_cells, float(initial_condition["mu"])
+        grid_cells,
+        float(initial_condition["mu"]),
     )
     return writer
 
@@ -127,17 +131,25 @@ def _analytic_solution(config, units, radius_comoving_code, final_tau):
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     pressure_factor = unyt.kb.to_value(unyt.erg / unyt.K) / unyt.mp.to_value(unyt.g)
     rho_left_proper_code = float(
-        initial_condition["rho_left_proper"].to_value(units.density_unit)
+        initial_condition["rho_left_proper"].to_value(units.density_unit),
     )
     rho_right_proper_code = float(
-        initial_condition["rho_right_proper"].to_value(units.density_unit)
+        initial_condition["rho_right_proper"].to_value(units.density_unit),
     )
-    pressure_left = rho_left_proper_code * float(
-        initial_condition["temperature_left_proper"].to_value("K")
-    ) * pressure_factor
-    pressure_right = rho_right_proper_code * float(
-        initial_condition["temperature_right_proper"].to_value("K")
-    ) * pressure_factor
+    pressure_left = (
+        rho_left_proper_code
+        * float(
+            initial_condition["temperature_left_proper"].to_value("K"),
+        )
+        * pressure_factor
+    )
+    pressure_right = (
+        rho_right_proper_code
+        * float(
+            initial_condition["temperature_right_proper"].to_value("K"),
+        )
+        * pressure_factor
+    )
     rho2, rho3, pressure2, velocity2, velocity_tail, velocity_shock, _ = shocktubecal(
         gamma,
         rho_right_proper_code,
@@ -159,12 +171,13 @@ def _analytic_solution(config, units, radius_comoving_code, final_tau):
         velocity_shock,
         final_tau,
         radius_comoving_code,
-        0.5 * float(
-            initial_condition["box_size_comoving"].to_value(units.length_unit)
+        0.5
+        * float(
+            initial_condition["box_size_comoving"].to_value(units.length_unit),
         ),
     )
     interface = 0.5 * float(
-        initial_condition["box_size_comoving"].to_value(units.length_unit)
+        initial_condition["box_size_comoving"].to_value(units.length_unit),
     )
     return rho_exact, pressure_exact, pressure_factor, interface
 
@@ -195,7 +208,10 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     else:
         code_cosmology = EinsteinDeSitter.from_code_units(
             units,
-            t_ref=quantity_to_value(cosmology_config.get("cosmology_t_ref", {"value": 1.0, "unit": "s"}), units.time_unit),
+            t_ref=quantity_to_value(
+                cosmology_config.get("cosmology_t_ref", {"value": 1.0, "unit": "s"}),
+                units.time_unit,
+            ),
             a_ref=float(cosmology_config.get("cosmology_a_ref", 1.0)),
         )
     case_config["_code_units"] = units
@@ -251,7 +267,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     density_l1 = float(np.mean(np.abs(rho_comoving_code[central] - rho_exact[central])))
     if density_l1 > 0.04:
         raise RuntimeError(
-            f"cosmological Sod density profile misses exact solution: L1={density_l1:.6g}"
+            f"cosmological Sod density profile misses exact solution: L1={density_l1:.6g}",
         )
 
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
@@ -266,7 +282,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     axes[0].grid(alpha=0.25)
     axes[1].grid(alpha=0.25)
     exact_temperature = pressure_exact / np.maximum(rho_exact, 1.0e-30) / pressure_factor
-    axes[0].plot(radius_comoving_code[central], rho_exact[central], "k--", lw=1.2, label="exact final")
+    axes[0].plot(
+        radius_comoving_code[central], rho_exact[central], "k--", lw=1.2, label="exact final"
+    )
     axes[1].plot(radius_comoving_code[central], exact_temperature[central], "k--", lw=1.2)
     axes[0].set_xlim(interface - 2.0, interface + 2.0)
     fig.suptitle("Cosmological Sod shock tube")
@@ -277,7 +295,9 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")
     print(f"energy relative error = {(final_energy - initial_energy) / initial_energy:.6e}")
     print(f"final density L1 error = {density_l1:.6e}")
-    print(f"scale factor at final time = {sim.par.cosmology.model.scale_factor_from_supercomoving(float(sim.fluid.tau_supercomoving_code)):.8g}")
+    print(
+        f"scale factor at final time = {sim.par.cosmology.model.scale_factor_from_supercomoving(float(sim.fluid.tau_supercomoving_code)):.8g}"
+    )
     print(f"figure = {figure}")
     return figure
 

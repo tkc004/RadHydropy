@@ -1,9 +1,9 @@
 """Write and read only initial-condition HDF5 files under several contracts."""
 
+import sys
+import tempfile
 from copy import deepcopy
 from pathlib import Path
-import tempfile
-import sys
 
 import numpy as np
 
@@ -12,14 +12,14 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
+import example_utils as eu
+
 import radhydropy.io as rio
 from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import field_spec
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.units import CodeUnits
-import example_utils as eu
-
 
 CONFIG_FILE = Path(__file__).with_name("hdf5_unit_cosmology_roundtrip1d.yaml")
 
@@ -50,13 +50,13 @@ def _case_config(config, case_name, case):
     case_par["simulation"]["name"] = case_name
     case_par["units"]["CodeUnits"] = deepcopy(case["CodeUnits"])
     case_par["cosmology"]["cosmological_expansion"] = bool(
-        case["cosmological_expansion"]
+        case["cosmological_expansion"],
     )
     case_par["cosmology"]["cosmological"] = bool(
-        case["supercomoving_coordinates"]
+        case["supercomoving_coordinates"],
     )
     case_par["cosmology"]["supercomoving_coordinates"] = bool(
-        case["supercomoving_coordinates"]
+        case["supercomoving_coordinates"],
     )
     case_par["cosmology"]["cosmology_type"] = case["cosmology_type"]
     return case_config
@@ -64,7 +64,7 @@ def _case_config(config, case_name, case):
 
 def _build_initial_condition(case_config):
     code_units = CodeUnits.from_mapping(
-        case_config["par"]["units"]["CodeUnits"]
+        case_config["par"]["units"]["CodeUnits"],
     )
     writer = InitialConditionWriter(
         ic_config=case_config["initial_condition"],
@@ -77,20 +77,22 @@ def _build_initial_condition(case_config):
     gamma = float(sim.par.hydrodynamics.gamma)
     grid_cells = int(sim.par.mesh.grid_cells)
     box_size_proper_code = float(
-        initial_condition["box_size_proper"].to_value(code_units.length_unit)
+        initial_condition["box_size_proper"].to_value(code_units.length_unit),
     )
     density_proper_code = float(
-        initial_condition["density_proper"].to_value(code_units.density_unit)
+        initial_condition["density_proper"].to_value(code_units.density_unit),
     )
     temperature_proper_code = float(
-        initial_condition["temperature_proper"].to_value(code_units.temperature_unit)
+        initial_condition["temperature_proper"].to_value(code_units.temperature_unit),
     )
     velocity_proper_code = float(
-        initial_condition["velocity_proper"].to_value(code_units.velocity_unit)
+        initial_condition["velocity_proper"].to_value(code_units.velocity_unit),
     )
     mu_dimensionless = float(initial_condition["mean_molecular_weight"])
     boundary_proper_code = np.linspace(
-        0.0, box_size_proper_code, grid_cells + 1
+        0.0,
+        box_size_proper_code,
+        grid_cells + 1,
     )
     rho_proper_code = np.full(grid_cells, density_proper_code)
     vel_proper_code = np.full(grid_cells, velocity_proper_code)
@@ -100,22 +102,19 @@ def _build_initial_condition(case_config):
 
     if case_config["par"]["cosmology"]["cosmological_expansion"]:
         time_cosmic_code = float(
-            initial_condition["time_cosmic"].to_value(code_units.time_unit)
+            initial_condition["time_cosmic"].to_value(code_units.time_unit),
         )
         cosmology = sim.par.cosmology.model
         scale_factor = float(cosmology.scale_factor(time_cosmic_code))
         hubble_parameter_code = float(cosmology.hubble(time_cosmic_code))
-        hubble_unit_km_s_Mpc = (
-            code_units.velocity_unit.to_value("km/s")
-            / code_units.length_unit.to_value("Mpc")
-        )
+        hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
+            "km/s"
+        ) / code_units.length_unit.to_value("Mpc")
         cosmology_context = CosmologyContext(
             gamma=gamma,
             cosmology=cosmology.type_name,
             scale_factor=scale_factor,
-            hubble_parameter_km_s_Mpc=(
-                hubble_parameter_code * hubble_unit_km_s_Mpc
-            ),
+            hubble_parameter_km_s_Mpc=(hubble_parameter_code * hubble_unit_km_s_Mpc),
         )
     else:
         cosmology_context = CosmologyContext(
@@ -150,7 +149,9 @@ def _build_initial_condition(case_config):
         cosmology_context,
     )
     pressure_proper_code = sim.fluid.eos.pressure(
-        rho_proper_code, temp_proper_code, mu_dimensionless_array
+        rho_proper_code,
+        temp_proper_code,
+        mu_dimensionless_array,
     )
     pressure_proper_code_radarray = _radarray(
         pressure_proper_code,
@@ -162,12 +163,10 @@ def _build_initial_condition(case_config):
 
     if case_config["par"]["cosmology"]["cosmological_expansion"]:
         tau_supercomoving_code = float(
-            cosmology.supercomoving_time(time_cosmic_code)
+            cosmology.supercomoving_time(time_cosmic_code),
         )
         sim.par.tau_supercomoving_code = np.asarray([tau_supercomoving_code])
-        sim.par.simulation.tau_supercomoving_code = (
-            sim.par.tau_supercomoving_code.copy()
-        )
+        sim.par.simulation.tau_supercomoving_code = sim.par.tau_supercomoving_code.copy()
         sim.par.coordinate_frame = "comoving"
         sim.par.time_coordinate = "supercomoving"
         sim.par.velocity_representation = "supercomoving_peculiar"
@@ -200,15 +199,19 @@ def _assert_roundtrip(case_config, output_filename):
     initial_writer = _build_initial_condition(case_config)
     initial_writer.write(output_filename)
     target_fields = (
-        "boundary_comoving_code",
-        "rho_comoving_code",
-        "vel_supercomoving_code",
-        "temp_supercomoving_code",
-        ) if case_config["par"]["cosmology"]["cosmological_expansion"] else (
-        "boundary_proper_code",
-        "rho_proper_code",
-        "vel_proper_code",
-        "temp_proper_code",
+        (
+            "boundary_comoving_code",
+            "rho_comoving_code",
+            "vel_supercomoving_code",
+            "temp_supercomoving_code",
+        )
+        if case_config["par"]["cosmology"]["cosmological_expansion"]
+        else (
+            "boundary_proper_code",
+            "rho_proper_code",
+            "vel_proper_code",
+            "temp_proper_code",
+        )
     )
     expected = {
         field_name: np.asarray(

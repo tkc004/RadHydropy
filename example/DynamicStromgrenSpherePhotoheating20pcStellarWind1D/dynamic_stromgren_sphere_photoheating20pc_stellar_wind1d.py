@@ -7,42 +7,47 @@ import tempfile
 from pathlib import Path
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-EXAMPLE_ROOT = REPO_ROOT / 'example'
+EXAMPLE_ROOT = REPO_ROOT / "example"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
+import example_utils as eu
+
+import tools as et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-import example_utils as eu
-import tools as et
 
-
-cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
-mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
+mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
-os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
+os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
 
 def _pressure_diagnostic(snapshot, config):
     """Return shell wind pressure, photoheated gas pressure, and shell radius."""
     par, mesh, fluid = et.load_output_state(snapshot, config)
     interior = et.interior_slice(config)
-    radius_proper_pc = et._to_kpc(
-        0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
-        config,
-    ) * 1000.0
+    radius_proper_pc = (
+        et._to_kpc(
+            0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
+            config,
+        )
+        * 1000.0
+    )
     hydrogen_number_density_cgs_cm3 = et._to_number_density(
-        fluid.rho_radarray[interior], config
+        fluid.rho_radarray[interior],
+        config,
     )
     pressure_proper_cgs_erg_cm3 = et._pressure_from_radarrays(fluid, config)[interior]
     xhi = np.asarray(fluid.xHI[interior], dtype=float)
@@ -53,17 +58,18 @@ def _pressure_diagnostic(snapshot, config):
     if radius_shell_proper_pc <= 0.0:
         wind_pressure_proper_cgs_dyn_cm2 = 0.0
     else:
-        example = config['example']
-        mdot = example['wind_mass_loss_rate_proper'].to_value(unyt.g / unyt.s)
-        wind_velocity_proper_cgs_cm_s = example['wind_velocity_proper'].to_value(unyt.cm / unyt.s)
+        example = config["example"]
+        mdot = example["wind_mass_loss_rate_proper"].to_value(unyt.g / unyt.s)
+        wind_velocity_proper_cgs_cm_s = example["wind_velocity_proper"].to_value(unyt.cm / unyt.s)
         radius_shell_proper_cgs_cm = radius_shell_proper_pc * (1.0 * unyt.pc).to_value(unyt.cm)
-        wind_pressure_proper_cgs_dyn_cm2 = mdot * wind_velocity_proper_cgs_cm_s / (
-            4.0 * np.pi * radius_shell_proper_cgs_cm**2
+        wind_pressure_proper_cgs_dyn_cm2 = (
+            mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * radius_shell_proper_cgs_cm**2)
         )
 
     code = CodeUnits.from_mapping(par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(
-        mesh.volume_radarray[interior].to_value(unyt.cm**3), dtype=float
+        mesh.volume_radarray[interior].to_value(unyt.cm**3),
+        dtype=float,
     )
     # The photoheated ambient gas lies between the wind cavity and the shell.
     # Exclude the shocked wind interior and the dense shell itself.
@@ -74,76 +80,111 @@ def _pressure_diagnostic(snapshot, config):
     pressure_gas_proper_cgs_dyn_cm2 = (
         float(
             np.sum(
-                pressure_proper_cgs_erg_cm3[ambient_ionized]
-                * volume_cgs_cm3[ambient_ionized]
-            ) / weighted_volume
+                pressure_proper_cgs_erg_cm3[ambient_ionized] * volume_cgs_cm3[ambient_ionized],
+            )
+            / weighted_volume,
         )
         if weighted_volume > 0.0
         else 0.0
     )
     time_proper_Myr = float(np.asarray(et._to_myr(fluid.time_proper_code, config)))
-    return time_proper_Myr, wind_pressure_proper_cgs_dyn_cm2, pressure_gas_proper_cgs_dyn_cm2, radius_shell_proper_pc
+    return (
+        time_proper_Myr,
+        wind_pressure_proper_cgs_dyn_cm2,
+        pressure_gas_proper_cgs_dyn_cm2,
+        radius_shell_proper_pc,
+    )
 
 
 def pressure_diagnostic_from_profile(profile, config):
     """Estimate the same pressures from a saved radial-profile CSV."""
-    fields = np.genfromtxt(profile, delimiter=',', names=True)
-    radius_proper_pc = np.asarray(fields['RADIUS_PC'], dtype=float)
-    hydrogen_number_density_cgs_cm3 = np.asarray(fields['DENSITY_CM3'], dtype=float)
-    temperature_proper_cgs_K = np.asarray(fields['TEMP_cgs_K'], dtype=float)
+    fields = np.genfromtxt(profile, delimiter=",", names=True)
+    radius_proper_pc = np.asarray(fields["RADIUS_PC"], dtype=float)
+    hydrogen_number_density_cgs_cm3 = np.asarray(fields["DENSITY_CM3"], dtype=float)
+    temperature_proper_cgs_K = np.asarray(fields["TEMP_cgs_K"], dtype=float)
     shell_index = 2 + int(np.argmax(hydrogen_number_density_cgs_cm3[2:]))
     radius_shell_proper_pc = float(radius_proper_pc[shell_index])
-    example = config['example']
-    mdot = example['wind_mass_loss_rate_proper'].to_value(unyt.g / unyt.s)
-    wind_velocity_proper_cgs_cm_s = example['wind_velocity_proper'].to_value(unyt.cm / unyt.s)
+    example = config["example"]
+    mdot = example["wind_mass_loss_rate_proper"].to_value(unyt.g / unyt.s)
+    wind_velocity_proper_cgs_cm_s = example["wind_velocity_proper"].to_value(unyt.cm / unyt.s)
     radius_shell_proper_cgs_cm = radius_shell_proper_pc * (1.0 * unyt.pc).to_value(unyt.cm)
-    wind_pressure_proper_cgs_dyn_cm2 = mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * radius_shell_proper_cgs_cm**2)
-    photoheated = (np.arange(radius_proper_pc.size) >= 2) & (
-        np.arange(radius_proper_pc.size) < shell_index
-    ) & (temperature_proper_cgs_K > 500.0)
-    pressure_gas_proper_cgs_dyn_cm2 = float(
-        np.mean(
-            hydrogen_number_density_cgs_cm3[photoheated]
-            * unyt.kb.to_value(unyt.erg / unyt.K)
-            * temperature_proper_cgs_K[photoheated]
+    wind_pressure_proper_cgs_dyn_cm2 = (
+        mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * radius_shell_proper_cgs_cm**2)
+    )
+    photoheated = (
+        (np.arange(radius_proper_pc.size) >= 2)
+        & (np.arange(radius_proper_pc.size) < shell_index)
+        & (temperature_proper_cgs_K > 500.0)
+    )
+    pressure_gas_proper_cgs_dyn_cm2 = (
+        float(
+            np.mean(
+                hydrogen_number_density_cgs_cm3[photoheated]
+                * unyt.kb.to_value(unyt.erg / unyt.K)
+                * temperature_proper_cgs_K[photoheated],
+            ),
         )
-    ) if np.any(photoheated) else 0.0
-    time_proper_Myr = float(Path(profile).stem.rsplit('_', 1)[-1].replace('Myr', ''))
-    return time_proper_Myr, wind_pressure_proper_cgs_dyn_cm2, pressure_gas_proper_cgs_dyn_cm2, radius_shell_proper_pc
+        if np.any(photoheated)
+        else 0.0
+    )
+    time_proper_Myr = float(Path(profile).stem.rsplit("_", 1)[-1].replace("Myr", ""))
+    return (
+        time_proper_Myr,
+        wind_pressure_proper_cgs_dyn_cm2,
+        pressure_gas_proper_cgs_dyn_cm2,
+        radius_shell_proper_pc,
+    )
 
 
 def save_pressure_ratio_plot(diagnostics, output_dir):
     """Save pressure curves and their ratio from diagnostic rows."""
     diagnostics = np.asarray(diagnostics, dtype=float)
     diagnostics = diagnostics[np.argsort(diagnostics[:, 0])]
-    time_proper_Myr, pressure_wind_proper_dyn_cm2, pressure_gas_proper_dyn_cm2, radius_shell_proper_pc = diagnostics.T
+    (
+        time_proper_Myr,
+        pressure_wind_proper_dyn_cm2,
+        pressure_gas_proper_dyn_cm2,
+        radius_shell_proper_pc,
+    ) = diagnostics.T
     pressure_ratio = np.zeros_like(pressure_wind_proper_dyn_cm2)
     nonzero = pressure_gas_proper_dyn_cm2 > 0.0
-    pressure_ratio[nonzero] = pressure_wind_proper_dyn_cm2[nonzero] / pressure_gas_proper_dyn_cm2[nonzero]
-    figure_stem = 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D'
-    pressure_figure = Path(output_dir) / f'{figure_stem}_PressureRatio.jpg'
+    pressure_ratio[nonzero] = (
+        pressure_wind_proper_dyn_cm2[nonzero] / pressure_gas_proper_dyn_cm2[nonzero]
+    )
+    figure_stem = "DynamicStromgrenSpherePhotoheating20pcStellarWind1D"
+    pressure_figure = Path(output_dir) / f"{figure_stem}_PressureRatio.jpg"
     fig, axes = plt.subplots(2, 1, figsize=(7.0, 6.5), sharex=True)
-    axes[0].plot(time_proper_Myr, pressure_wind_proper_dyn_cm2, label='wind ram pressure at shell')
-    axes[0].plot(time_proper_Myr, pressure_gas_proper_dyn_cm2, label='photoheated-gas thermal pressure')
-    axes[0].set_yscale('log')
-    axes[0].set_ylabel(r'pressure [dyn cm$^{-2}$]')
+    axes[0].plot(time_proper_Myr, pressure_wind_proper_dyn_cm2, label="wind ram pressure at shell")
+    axes[0].plot(
+        time_proper_Myr, pressure_gas_proper_dyn_cm2, label="photoheated-gas thermal pressure"
+    )
+    axes[0].set_yscale("log")
+    axes[0].set_ylabel(r"pressure [dyn cm$^{-2}$]")
     axes[0].legend(frameon=False)
-    axes[1].plot(time_proper_Myr, pressure_ratio, color='tab:purple', marker='o')
-    axes[1].set_yscale('log')
-    axes[1].set_xlabel('time [Myr]')
-    axes[1].set_ylabel(r'$P_{\rm wind}/P_{\rm gas}$')
+    axes[1].plot(time_proper_Myr, pressure_ratio, color="tab:purple", marker="o")
+    axes[1].set_yscale("log")
+    axes[1].set_xlabel("time [Myr]")
+    axes[1].set_ylabel(r"$P_{\rm wind}/P_{\rm gas}$")
     for axis in axes:
-        axis.grid(True, which='both', alpha=0.25)
+        axis.grid(True, which="both", alpha=0.25)
     fig.tight_layout()
     fig.savefig(pressure_figure, dpi=180)
     plt.close(fig)
-    pressure_csv = Path(output_dir) / f'{figure_stem}_PressureRatio.csv'
+    pressure_csv = Path(output_dir) / f"{figure_stem}_PressureRatio.csv"
     np.savetxt(
         pressure_csv,
-        np.column_stack((time_proper_Myr, radius_shell_proper_pc, pressure_wind_proper_dyn_cm2, pressure_gas_proper_dyn_cm2, pressure_ratio)),
-        delimiter=',',
-        header='time_proper_Myr,shell_radius_proper_pc,wind_pressure_proper_cgs_dyn_cm2,gas_pressure_proper_cgs_dyn_cm2,pressure_ratio',
-        comments='',
+        np.column_stack(
+            (
+                time_proper_Myr,
+                radius_shell_proper_pc,
+                pressure_wind_proper_dyn_cm2,
+                pressure_gas_proper_dyn_cm2,
+                pressure_ratio,
+            )
+        ),
+        delimiter=",",
+        header="time_proper_Myr,shell_radius_proper_pc,wind_pressure_proper_cgs_dyn_cm2,gas_pressure_proper_cgs_dyn_cm2,pressure_ratio",
+        comments="",
     )
     return pressure_figure, pressure_csv, pressure_ratio
 
@@ -152,41 +193,45 @@ def main(config_filename=None):
     if config_filename is None:
         config_filename = DEFAULT_CONFIG
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']
-    output = par['output']
-    config['_code_units'] = CodeUnits.from_mapping(par['units']['CodeUnits'])
-    output_dir = Path(output['directory'])
+    par = config["par"]
+    output = par["output"]
+    config["_code_units"] = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    output_dir = Path(output["directory"])
     eu.clean_previous_outputs(config)
     output_dir.mkdir(parents=True, exist_ok=True)
-    Path(output['directory']).mkdir(parents=True, exist_ok=True)
+    Path(output["directory"]).mkdir(parents=True, exist_ok=True)
     et.write_initial_condition(config)
     sim = Rsim(config["par"])
     sim.RunAll(outputtime=0)
 
-    output_files = et.output_files(output['directory'], output['filename_prefix'])
+    output_files = et.output_files(output["directory"], output["filename_prefix"])
     history = et.load_history_from_outputs(output_files, config)
     out_par, out_mesh, out_fluid = et.load_output_state(output_files[-1], config)
-    config['_output_par'] = out_par
-    figure_stem = 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D'
-    if par['radiation'].get('radiative_transfer_temporal_scheme') == 'c2ray':
-        figure_stem += '_C2Ray'
+    config["_output_par"] = out_par
+    figure_stem = "DynamicStromgrenSpherePhotoheating20pcStellarWind1D"
+    if par["radiation"].get("radiative_transfer_temporal_scheme") == "c2ray":
+        figure_stem += "_C2Ray"
     et.save_plot(
-        out_mesh, out_fluid, config,
-        Path(output['directory']) / f'{figure_stem}.jpg',
+        out_mesh,
+        out_fluid,
+        config,
+        Path(output["directory"]) / f"{figure_stem}.jpg",
     )
     et.save_front_plot(
-        history, config,
-        Path(output['directory']) / f'{figure_stem}_IFront.jpg',
+        history,
+        config,
+        Path(output["directory"]) / f"{figure_stem}_IFront.jpg",
     )
 
-    old_csv = output_dir / 'radial_profile_rhd.csv'
-    wind_csv = output_dir / 'radial_profile_rhd_wind.csv'
+    old_csv = output_dir / "radial_profile_rhd.csv"
+    wind_csv = output_dir / "radial_profile_rhd_wind.csv"
     if old_csv.exists():
         old_csv.replace(wind_csv)
-    print('RHD wind profile CSV = %s' % wind_csv)
+    print("RHD wind profile CSV = %s" % wind_csv)
 
     output_files = et.output_files(
-        output['directory'], output.get('filename_prefix', 'Output')
+        output["directory"],
+        output.get("filename_prefix", "Output"),
     )
     snapshots = [_pressure_diagnostic(filename, config) for filename in output_files]
     diagnostics = np.asarray(snapshots, dtype=float)
@@ -196,53 +241,67 @@ def main(config_filename=None):
     radius_shell_proper_pc = diagnostics[:, 3]
     pressure_ratio = np.zeros_like(pressure_wind_proper_dyn_cm2)
     nonzero = pressure_gas_proper_dyn_cm2 > 0.0
-    pressure_ratio[nonzero] = pressure_wind_proper_dyn_cm2[nonzero] / pressure_gas_proper_dyn_cm2[nonzero]
+    pressure_ratio[nonzero] = (
+        pressure_wind_proper_dyn_cm2[nonzero] / pressure_gas_proper_dyn_cm2[nonzero]
+    )
 
-    figure_stem = 'DynamicStromgrenSpherePhotoheating20pcStellarWind1D'
-    pressure_figure = output_dir / f'{figure_stem}_PressureRatio.jpg'
+    figure_stem = "DynamicStromgrenSpherePhotoheating20pcStellarWind1D"
+    pressure_figure = output_dir / f"{figure_stem}_PressureRatio.jpg"
     fig, axes = plt.subplots(2, 1, figsize=(7.0, 6.5), sharex=True)
-    axes[0].plot(time_proper_Myr, pressure_wind_proper_dyn_cm2, label='wind ram pressure at shell')
-    axes[0].plot(time_proper_Myr, pressure_gas_proper_dyn_cm2, label='photoheated-gas thermal pressure')
-    axes[0].set_yscale('log')
-    axes[0].set_ylabel(r'pressure [dyn cm$^{-2}$]')
+    axes[0].plot(time_proper_Myr, pressure_wind_proper_dyn_cm2, label="wind ram pressure at shell")
+    axes[0].plot(
+        time_proper_Myr, pressure_gas_proper_dyn_cm2, label="photoheated-gas thermal pressure"
+    )
+    axes[0].set_yscale("log")
+    axes[0].set_ylabel(r"pressure [dyn cm$^{-2}$]")
     axes[0].legend(frameon=False)
-    axes[1].plot(time_proper_Myr, pressure_ratio, color='tab:purple')
-    axes[1].set_yscale('log')
-    axes[1].set_xlabel('time [Myr]')
-    axes[1].set_ylabel(r'$P_{\rm wind}/P_{\rm gas}$')
+    axes[1].plot(time_proper_Myr, pressure_ratio, color="tab:purple")
+    axes[1].set_yscale("log")
+    axes[1].set_xlabel("time [Myr]")
+    axes[1].set_ylabel(r"$P_{\rm wind}/P_{\rm gas}$")
     for axis in axes:
-        axis.grid(True, which='both', alpha=0.25)
+        axis.grid(True, which="both", alpha=0.25)
     fig.tight_layout()
     fig.savefig(pressure_figure, dpi=180)
     plt.close(fig)
 
-    pressure_csv = output_dir / f'{figure_stem}_PressureRatio.csv'
+    pressure_csv = output_dir / f"{figure_stem}_PressureRatio.csv"
     np.savetxt(
         pressure_csv,
-        np.column_stack((time_proper_Myr, radius_shell_proper_pc, pressure_wind_proper_dyn_cm2, pressure_gas_proper_dyn_cm2, pressure_ratio)),
-        delimiter=',',
-        header='time_proper_Myr,shell_radius_proper_pc,wind_pressure_proper_cgs_dyn_cm2,gas_pressure_proper_cgs_dyn_cm2,pressure_ratio',
-        comments='',
+        np.column_stack(
+            (
+                time_proper_Myr,
+                radius_shell_proper_pc,
+                pressure_wind_proper_dyn_cm2,
+                pressure_gas_proper_dyn_cm2,
+                pressure_ratio,
+            )
+        ),
+        delimiter=",",
+        header="time_proper_Myr,shell_radius_proper_pc,wind_pressure_proper_cgs_dyn_cm2,gas_pressure_proper_cgs_dyn_cm2,pressure_ratio",
+        comments="",
     )
-    print('final wind/gas pressure ratio = %.6e' % pressure_ratio[-1])
-    print('pressure ratio figure = %s' % pressure_figure)
-    print('pressure ratio data = %s' % pressure_csv)
+    print("final wind/gas pressure ratio = %.6e" % pressure_ratio[-1])
+    print("pressure ratio figure = %s" % pressure_figure)
+    print("pressure ratio data = %s" % pressure_csv)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Run a photoheated Stromgren sphere with a stellar wind.',
+        description="Run a photoheated Stromgren sphere with a stellar wind.",
     )
     parser.add_argument(
-        '--config',
-        default=Path(__file__).resolve().with_name(
-            'dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml'
+        "--config",
+        default=Path(__file__)
+        .resolve()
+        .with_name(
+            "dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml",
         ),
-        help='YAML file containing par_config and initial_condition.',
+        help="YAML file containing par_config and initial_condition.",
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

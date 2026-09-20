@@ -1,11 +1,12 @@
 """Analytic pressure-supported central-core hydrostatic test."""
 
 import argparse
-from pathlib import Path
 import sys
 import time
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,12 +16,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import radhydropy.io as rio
 from example_utils import load_nested_example_config
+
+import radhydropy.io as rio
+import tools as et
 from radhydropy.gravity import Gravity, point_mass_potential
 from radhydropy.units import CodeUnits, quantity_to_value
-import tools as et
-
 
 DEFAULT_CONFIG = Path(__file__).with_name("hydrostatic_core_spherical1d.yaml")
 
@@ -39,7 +40,8 @@ def run(config_filename=DEFAULT_CONFIG):
         "initial_condition_filename": str(output_dir / "InitialCondition.hdf5"),
     }
     config["par"]["output"] = {
-        **config["par"]["output"], "directory": str(output_dir),
+        **config["par"]["output"],
+        "directory": str(output_dir),
     }
     sim = rio.loadhdf5(config, config["par"]["simulation"]["initial_condition_filename"])
     sim.SetMesh()
@@ -48,11 +50,11 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.par.gravity = Gravity(
         externalgravity=True,
         potential=point_mass_potential(
-        sim.mesh.geometry_state.x_proper_code,
+            sim.mesh.geometry_state.x_proper_code,
             initial_condition["point_mass"],
             code_units=units,
         ),
-            coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
+        coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
         code_units=units,
     )
 
@@ -86,15 +88,17 @@ def run(config_filename=DEFAULT_CONFIG):
     )
     analytic_rho_proper_code = et.analytic_density_code(radius_proper_code, config)
     core_radius_proper_code = quantity_to_value(
-        config["par"]["gravity"]["radius_core_proper"], units.length_unit
+        config["par"]["gravity"]["radius_core_proper"],
+        units.length_unit,
     )
     halo = radius_proper_code >= core_radius_proper_code
-    relative_error = np.abs(rho_proper_code - analytic_rho_proper_code) / np.maximum(analytic_rho_proper_code, 1.0e-300)
+    relative_error = np.abs(rho_proper_code - analytic_rho_proper_code) / np.maximum(
+        analytic_rho_proper_code, 1.0e-300
+    )
     core_cells = radius_proper_code < core_radius_proper_code
     core_last = np.flatnonzero(core_cells)[-1]
     pressure_mismatch = abs(
-        float(pressure_proper_code[core_last])
-        - float(pressure_proper_code[core_last + 1])
+        float(pressure_proper_code[core_last]) - float(pressure_proper_code[core_last + 1]),
     ) / max(float(pressure_proper_code[core_last + 1]), 1.0e-300)
     max_halo_error = float(np.max(relative_error[halo]))
     mean_step = float(np.mean([item[0] for item in step_times]))
@@ -108,8 +112,12 @@ def run(config_filename=DEFAULT_CONFIG):
     plt.figure(figsize=(7.0, 5.0))
     plt.loglog(radius_proper_pc, rho_proper_code, label="simulation")
     plt.loglog(radius_proper_pc, analytic_rho_proper_code, "--", label="analytic")
-    plt.axvline(core_radius_proper_code * float(units.length_in_cgs) / 3.085677581e18,
-                color="0.4", ls=":", label="core radius")
+    plt.axvline(
+        core_radius_proper_code * float(units.length_in_cgs) / 3.085677581e18,
+        color="0.4",
+        ls=":",
+        label="core radius",
+    )
     plt.xlabel("radius [pc]")
     plt.ylabel("density [code units]")
     plt.title("Pressure-supported core: spherical point-mass atmosphere")

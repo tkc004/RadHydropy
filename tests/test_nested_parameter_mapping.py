@@ -1,14 +1,14 @@
 """Regression tests for nested YAML settings reaching the runtime parameter object."""
 
+from types import SimpleNamespace
+
+import numpy as np
 import pytest
 import unyt
-import numpy as np
-from types import SimpleNamespace
 
 from radhydropy.params import Par
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
-
 
 CODE_UNITS = {
     "name": "nested_mapping_test_units",
@@ -23,37 +23,39 @@ CODE_UNITS = {
 
 
 def test_nested_runtime_settings_are_copied_to_par():
-    par = Par({
-        "simulation": {"initial_time": 1.25},
-        "hydrodynamics": {"hydro_integrator": "ssprk2"},
-        "timestep": {
-            "chemistry_timestep": 0.2,
-            "evolution_timestep": 0.3,
-            "output_interval": 0.4,
-            "crossing_safety_factor": 0.5,
-            "supercomoving_timestep": 0.6,
-        },
-        "output": {"time_interval": 0.7},
-        "radiation": {
-            "radiation_pressure": True,
-            "radiation_pressure_efficiency": 0.8,
-            "radiation_pressure_source_luminosity": 9.0,
-            "radiative_transfer_c2ray_ode_max_iterations": 19,
-            "radiative_transfer_c2ray_ode_tolerance": 2.0e-7,
-        },
-        "thermochemistry": {
-            "absolute_tolerance": 2.0e-11,
-            "relative_tolerance": 2.0e-4,
-            "explicit_tolerance": 0.2,
-            "hydrogen_initial_collisional_equilibrium": True,
-            "hydrogen_photon_energy": 21.0,
-            "pie_uvbg_implicit_max_iterations": 17,
-            "pie_uvbg_implicit_max_retries": 3,
-            "pie_uvbg_implicit_step_doubling": False,
-            "pie_uvbg_implicit_tolerance": 4.0e-4,
-        },
-        "units": {"CodeUnits": CODE_UNITS},
-    })
+    par = Par(
+        {
+            "simulation": {"initial_time": 1.25},
+            "hydrodynamics": {"hydro_integrator": "ssprk2"},
+            "timestep": {
+                "chemistry_timestep": 0.2,
+                "evolution_timestep": 0.3,
+                "output_interval": 0.4,
+                "crossing_safety_factor": 0.5,
+                "supercomoving_timestep": 0.6,
+            },
+            "output": {"time_interval": 0.7},
+            "radiation": {
+                "radiation_pressure": True,
+                "radiation_pressure_efficiency": 0.8,
+                "radiation_pressure_source_luminosity": 9.0,
+                "radiative_transfer_c2ray_ode_max_iterations": 19,
+                "radiative_transfer_c2ray_ode_tolerance": 2.0e-7,
+            },
+            "thermochemistry": {
+                "absolute_tolerance": 2.0e-11,
+                "relative_tolerance": 2.0e-4,
+                "explicit_tolerance": 0.2,
+                "hydrogen_initial_collisional_equilibrium": True,
+                "hydrogen_photon_energy": 21.0,
+                "pie_uvbg_implicit_max_iterations": 17,
+                "pie_uvbg_implicit_max_retries": 3,
+                "pie_uvbg_implicit_step_doubling": False,
+                "pie_uvbg_implicit_tolerance": 4.0e-4,
+            },
+            "units": {"CodeUnits": CODE_UNITS},
+        }
+    )
 
     assert par.initial_time == pytest.approx(1.25)
     assert par.hydro_integrator == "ssprk2"
@@ -80,23 +82,25 @@ def test_nested_runtime_settings_are_copied_to_par():
 
 
 def test_nested_group_aliases_are_not_dropped():
-    par = Par({
-        "chemistry": {
-            "hydrogen_chemistry": True,
-            "hydrogen_recombination": False,
-            "hydrogen_collisional_ionization": False,
-            "hydrogen_thermal_coupling": False,
-            "hydrogen_update_mu": True,
-            "hydrogen_xHI_initial": 0.25,
-            "hydrogen_ngamma_initial": 3.0,
-            "hydrogen_source_CFL": 11.0,
-        },
-        "thermochemistry": {
-            "hydrogen_radiation_field": True,
-            "hydrogen_radiation_evolution": False,
-        },
-        "units": {"CodeUnits": CODE_UNITS},
-    })
+    par = Par(
+        {
+            "chemistry": {
+                "hydrogen_chemistry": True,
+                "hydrogen_recombination": False,
+                "hydrogen_collisional_ionization": False,
+                "hydrogen_thermal_coupling": False,
+                "hydrogen_update_mu": True,
+                "hydrogen_xHI_initial": 0.25,
+                "hydrogen_ngamma_initial": 3.0,
+                "hydrogen_source_CFL": 11.0,
+            },
+            "thermochemistry": {
+                "hydrogen_radiation_field": True,
+                "hydrogen_radiation_evolution": False,
+            },
+            "units": {"CodeUnits": CODE_UNITS},
+        }
+    )
 
     assert par.hydrogen_chemistry is True
     assert par.hydrogen_recombination is False
@@ -150,21 +154,17 @@ def test_nested_unitful_settings_are_converted_to_code_units():
             "cosmology_hubble_ref": 2.0e-13 / unyt.s,
         },
         "radiation": {
-            "radiative_transfer_boundary_flux":
-                5.0 / (unyt.cm**2 * unyt.s),
+            "radiative_transfer_boundary_flux": 5.0 / (unyt.cm**2 * unyt.s),
             "source_photon_rate": 7.0e-13 / unyt.s,
             "spectrum_total_photon_rate": 8.0e-13 / unyt.s,
-            "radiative_transfer_boundary_flux_groups":
-                np.array([1.0e-13, 2.0e-13]) / (unyt.cm**2 * unyt.s),
-            "source_photon_rate_groups":
-                np.array([3.0e-13, 4.0e-13]) / unyt.s,
+            "radiative_transfer_boundary_flux_groups": np.array([1.0e-13, 2.0e-13])
+            / (unyt.cm**2 * unyt.s),
+            "source_photon_rate_groups": np.array([3.0e-13, 4.0e-13]) / unyt.s,
             "hydrogen_ngamma_initial": 9.0e-18 / unyt.cm**3,
             "hydrogen_ngamma_inflow": 1.0e-17 / unyt.cm**3,
             "hydrogen_ngamma_outflow": 1.1e-17 / unyt.cm**3,
-            "radiation_group_sigma_gamma":
-                np.array([4.0e-18, 5.0e-18]) * unyt.cm**2,
-            "radiation_group_epsilon_gamma":
-                np.array([6.0, 7.0]) * unyt.eV,
+            "radiation_group_sigma_gamma": np.array([4.0e-18, 5.0e-18]) * unyt.cm**2,
+            "radiation_group_epsilon_gamma": np.array([6.0, 7.0]) * unyt.eV,
             "hydrogen_sigma_gamma": 4.0e-18 * unyt.cm**2,
             "hydrogen_epsilon_gamma": 8.0 * unyt.eV,
         },
@@ -224,7 +224,7 @@ def test_nested_unitful_settings_are_converted_to_code_units():
     )
     assert sim.par.radiation.hydrogen_sigma_gamma == pytest.approx(4.0e-54)
     assert sim.par.radiation.hydrogen_epsilon_gamma == pytest.approx(
-        (8.0 * unyt.eV).to_value(unyt.erg) / 1.0e43
+        (8.0 * unyt.eV).to_value(unyt.erg) / 1.0e43,
     )
     assert sim.par.hydrogen_alpha_B == pytest.approx(2.0e-54)
     assert sim.par.hydrogen_beta == pytest.approx(3.0e-54)

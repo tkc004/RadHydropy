@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,8 +29,6 @@ os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
 import example_utils as eu
 from example_utils import load_nested_example_config
-import radhydropy.io as rio
-from radhydropy.units import CodeUnits
 from multifrequency_tools import (
     active_radarray,
     build_initial_condition,
@@ -37,13 +36,16 @@ from multifrequency_tools import (
     load_snapshot,
 )
 
+import radhydropy.io as rio
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).with_name(
-    "multifrequency_radiative_transfer_sph1d.yaml"
+    "multifrequency_radiative_transfer_sph1d.yaml",
 )
 
+
 def _resolve_reference(config, config_filename, key):
-    example = config['example']
+    example = config["example"]
     filename = example.get(key)
     if filename is None:
         return None
@@ -65,9 +67,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
         ghost_cells,
         boundary=True,
     )
-    radius_proper_radarray = 0.5 * (
-        boundary_proper_radarray[:-1] + boundary_proper_radarray[1:]
-    )
+    radius_proper_radarray = 0.5 * (boundary_proper_radarray[:-1] + boundary_proper_radarray[1:])
     radius_proper_kpc = radius_proper_radarray.to("kpc").value
     xHI = np.asarray(
         active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
@@ -90,15 +90,22 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     ngamma_cgs_cm3 = ngamma_radarray.to("1/cm**3").value
 
     xhi_reference = _resolve_reference(
-        config, config_filename, "neutral_fraction_reference_filename"
+        config,
+        config_filename,
+        "neutral_fraction_reference_filename",
     )
     temperature_reference = _resolve_reference(
-        config, config_filename, "temperature_reference_filename"
+        config,
+        config_filename,
+        "temperature_reference_filename",
     )
 
     fig, axes = plt.subplots(3, 1, figsize=(7.0, 8.5), sharex=True)
-    neutral_line, = axes[0].plot(
-        radius_proper_kpc, xHI, color="tab:blue", label=r"$x_{\rm HI}$"
+    (neutral_line,) = axes[0].plot(
+        radius_proper_kpc,
+        xHI,
+        color="tab:blue",
+        label=r"$x_{\rm HI}$",
     )
     if xhi_reference is not None:
         axes[0].scatter(
@@ -114,7 +121,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     axes[0].set_ylim(1.0e-6, 1.1)
     axes[0].grid(True, which="both", alpha=0.25)
     ionized_axis = axes[0].twinx()
-    ionized_line, = ionized_axis.plot(
+    (ionized_line,) = ionized_axis.plot(
         radius_proper_kpc,
         xHII,
         color="tab:orange",
@@ -154,18 +161,23 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     photon_axis.set_ylabel(r"$n_\gamma$ [cm$^{-3}$]")
     photon_axis.grid(True, which="both", alpha=0.25)
     photon_axis.legend(frameon=False)
-    network_name = config["par"].get("thermochemistry", {}).get("thermochemistry_network", "hydrogen")
+    network_name = (
+        config["par"].get("thermochemistry", {}).get("thermochemistry_network", "hydrogen")
+    )
     title = "H/He" if network_name == "hydrogen_helium" else "Pure-H"
     if config["par"].get("radiation", {}).get("metal_pie_enabled", False):
         title += " + metal PIE"
     radiation_temperature = float(
-        config["example"].get(
-            "stellar_spectrum_blackbody_temperature", 1.0e5 * unyt.K
-        ).to_value(unyt.K)
+        config["example"]
+        .get(
+            "stellar_spectrum_blackbody_temperature",
+            1.0e5 * unyt.K,
+        )
+        .to_value(unyt.K),
     )
     fig.suptitle(
         rf"{title} multifrequency radiation "
-        rf"($T_{{\rm rad}}={radiation_temperature:.0f}$ K)"
+        rf"($T_{{\rm rad}}={radiation_temperature:.0f}$ K)",
     )
     fig.savefig(figure_filename, dpi=180, bbox_inches="tight")
     plt.close(fig)
@@ -173,16 +185,16 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
-    par = config['par']
-    output = par['output']
-    output_dir = Path(output['directory'])
-    ic_filename = Path(par['simulation']['initial_condition_filename'])
+    par = config["par"]
+    output = par["output"]
+    output_dir = Path(output["directory"])
+    ic_filename = Path(par["simulation"]["initial_condition_filename"])
     if not ic_filename.is_absolute():
         ic_filename = output_dir / ic_filename
     output_dir.mkdir(parents=True, exist_ok=True)
-    output['directory'] = str(output_dir)
-    output['directory'] = str(output_dir)
-    par['simulation']['initial_condition_filename'] = str(ic_filename)
+    output["directory"] = str(output_dir)
+    output["directory"] = str(output_dir)
+    par["simulation"]["initial_condition_filename"] = str(ic_filename)
     eu.clean_previous_outputs(config)
     code = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     config["_code_units"] = code
@@ -194,14 +206,13 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.SetInitFluid()
     sim.EvolveStaticThermochemistry(
         sim.par.simulation.final_time,
-        par['timestep']['evolution_timestep'],
+        par["timestep"]["evolution_timestep"],
     )
-    output_filename = output_dir / (
-        f"{output.get('filename_prefix', 'Output')}_000.hdf5"
-    )
+    output_filename = output_dir / (f"{output.get('filename_prefix', 'Output')}_000.hdf5")
     rio.writehdf5(sim, output_filename)
-    figure_filename = Path(output["directory"]) / config['example'].get(
-        "figure_filename", "MultiFrequencyRadiativeTransferSph1D.jpg"
+    figure_filename = Path(output["directory"]) / config["example"].get(
+        "figure_filename",
+        "MultiFrequencyRadiativeTransferSph1D.jpg",
     )
     _save_plot(output_filename, config, figure_filename, config_filename)
     print(f"output file = {output_filename}")

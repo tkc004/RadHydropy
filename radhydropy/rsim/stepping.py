@@ -18,10 +18,7 @@ def GetStepTime(sim, dt=None, final_time=None):
         dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
     gravity = getattr(sim.par, "gravity", None)
     dark_matter = getattr(gravity, "dark_matter", None)
-    if (
-        dark_matter is not None
-        and getattr(sim.par, "dark_matter_global_timestep_limit", True)
-    ):
+    if dark_matter is not None and getattr(sim.par, "dark_matter_global_timestep_limit", True):
         dm_dt = dark_matter.crossing_timestep(safety_factor=1.0)
         if np.isfinite(dm_dt):
             if dm_dt <= 0.0:
@@ -47,6 +44,7 @@ def GetStepTime(sim, dt=None, final_time=None):
         dt = final_time - current_time
     return dt
 
+
 def PrepareConservedStep(sim, fluid=None):
     """Apply boundaries and refresh conserved variables before a step."""
     if fluid is None:
@@ -54,8 +52,10 @@ def PrepareConservedStep(sim, fluid=None):
     sim.solver.SetBoundary(sim.mesh, fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, fluid, verbose=getattr(sim.par, "verbose", 0))
     diagnostics.check_conserved_energy_admissibility(
-        sim, stage="pre-hydro SetConserved synchronization",
+        sim,
+        stage="pre-hydro SetConserved synchronization",
     )
+
 
 def AdvanceHydroFluxes(sim, dt, fluid=None):
     """Advance the Euler flux update and return mass data for scalar advection."""
@@ -70,11 +70,11 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     )
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    rho_field, velocity_field, pressure_field, _, _ = (
-        select_fluid_primitive_arrays(fluid_state, sim.par)
+    rho_field, velocity_field, pressure_field, _, _ = select_fluid_primitive_arrays(
+        fluid_state, sim.par
     )
-    coordinate_field, boundary_field, _, area_field, volume_field = (
-        select_mesh_geometry_arrays(mesh_state, sim.par)
+    coordinate_field, boundary_field, _, area_field, volume_field = select_mesh_geometry_arrays(
+        mesh_state, sim.par
     )
     rho_runtime_code = np.asarray(rho_field[first:last], dtype=float)
     pressure_runtime_code = np.asarray(pressure_field[first:last], dtype=float)
@@ -87,20 +87,28 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     old_energy = np.asarray(fluid.Energy_code[first:last], dtype=float).copy()
     if getattr(sim.mesh, "coordsys", None) == "spherical":
         radius_runtime_code = np.maximum(
-            np.abs(coordinate_runtime_code), np.finfo(float).tiny,
+            np.abs(coordinate_runtime_code),
+            np.finfo(float).tiny,
         )
-        divergence = np.gradient(
-            radius_runtime_code**2 * velocity_runtime_code,
-            coordinate_runtime_code,
-        ) / radius_runtime_code**2
+        divergence = (
+            np.gradient(
+                radius_runtime_code**2 * velocity_runtime_code,
+                coordinate_runtime_code,
+            )
+            / radius_runtime_code**2
+        )
     else:
         divergence = np.gradient(velocity_runtime_code, coordinate_runtime_code)
     sim.last_compression_work_by_cell = (
-        -pressure_runtime_code * divergence * np.asarray(
-            volume_runtime_code, dtype=float,
+        -pressure_runtime_code
+        * divergence
+        * np.asarray(
+            volume_runtime_code,
+            dtype=float,
         )
         * float(np.asarray(dt, dtype=float))
-        if sim.energy_diagnostics_enabled else None
+        if sim.energy_diagnostics_enabled
+        else None
     )
     old_mass = fluid.Mass_code.copy()
     gravity = getattr(sim.par, "gravity", None)
@@ -109,13 +117,11 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     if (
         gravity is not None
         and hasattr(gravity, "potential_on")
-        and (
-            not hasattr(gravity, "potential")
-            or gravity.potential is not None
-        )
+        and (not hasattr(gravity, "potential") or gravity.potential is not None)
     ):
         potential_cell = np.asarray(
-            gravity.potential_on(coordinate_all_runtime_code), dtype=float,
+            gravity.potential_on(coordinate_all_runtime_code),
+            dtype=float,
         )
         potential_face = np.asarray(
             gravity.potential_on(boundary_all_runtime_code[:-1]),
@@ -144,14 +150,16 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     # AddFluxes uses inner-face minus outer-face fluxes.  This is the
     # net energy entering the physical domain through its boundaries.
     sim.last_hydro_boundary_energy_flux = float(
-            dt * (
-                energy_flux[first] * area_runtime_code[first]
+        dt
+        * (
+            energy_flux[first] * area_runtime_code[first]
             - energy_flux[last] * area_runtime_code[last]
-            ),
+        ),
     )
     sim.cumulative_hydro_boundary_energy += sim.last_hydro_boundary_energy_flux
     diagnostics.check_conserved_energy_admissibility(
-        sim, stage="hydro face reconstruction",
+        sim,
+        stage="hydro face reconstruction",
     )
     sim.solver.AddFluxes(
         dt,
@@ -166,9 +174,7 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
         sim.last_hydro_potential_change = float(
             np.sum((new_mass_active - old_mass_active) * phi_active),
         )
-        sim.cumulative_gravity_potential_change += (
-            sim.last_hydro_potential_change
-        )
+        sim.cumulative_gravity_potential_change += sim.last_hydro_potential_change
         sim.cumulative_gravity_potential_flux += sim.last_hydro_potential_flux
     else:
         sim.last_hydro_potential_change = 0.0
@@ -176,10 +182,9 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
         sim.last_hydro_energy_change_by_cell = (
             np.asarray(fluid.Energy_code[first:last], dtype=float) - old_energy
         )
-        sim.cumulative_hydro_energy_change_by_cell += (
-            sim.last_hydro_energy_change_by_cell
-        )
+        sim.cumulative_hydro_energy_change_by_cell += sim.last_hydro_energy_change_by_cell
     return old_mass, mass_flux
+
 
 def _sync_hydro_state(sim, fluid=None):
     """Refresh primitive and conserved variables after a hydro update."""
@@ -202,8 +207,13 @@ def _sync_hydro_state(sim, fluid=None):
         fluid.SetTemperature()
     sim.solver.SetConserved(sim.mesh, fluid, verbose=getattr(sim.par, "verbose", 0))
 
+
 def _hydro_step_once(
-    sim, dt, fluid=None, advect_chemistry=True, apply_gravity=True,
+    sim,
+    dt,
+    fluid=None,
+    advect_chemistry=True,
+    apply_gravity=True,
 ):
     """Advance one explicit hydro step on the supplied fluid state."""
     if fluid is None:
@@ -224,8 +234,12 @@ def _hydro_step_once(
         "source_steps": 0,
     }
 
+
 def _hydro_step_ssprk2(
-    sim, dt, advect_chemistry=True, apply_gravity=True,
+    sim,
+    dt,
+    advect_chemistry=True,
+    apply_gravity=True,
 ):
     """Advance hydro variables with the SSPRK2 strong-stability-preserving scheme."""
     initial_state = sim._clone_fluid()
@@ -247,9 +261,8 @@ def _hydro_step_ssprk2(
     conserved_fields = ["Mass_code", "Mom_code", "Energy_code"]
     if hasattr(initial_state, "AngularMomentum_code") and hasattr(stage2, "AngularMomentum_code"):
         conserved_fields.append("AngularMomentum_code")
-    if (
-        hasattr(initial_state, "GravitationalPotentialEnergy_code")
-        and hasattr(stage2, "GravitationalPotentialEnergy_code")
+    if hasattr(initial_state, "GravitationalPotentialEnergy_code") and hasattr(
+        stage2, "GravitationalPotentialEnergy_code"
     ):
         conserved_fields.append("GravitationalPotentialEnergy_code")
     if hasattr(initial_state, "InternalEnergy_code") and hasattr(stage2, "InternalEnergy_code"):
@@ -272,6 +285,7 @@ def _hydro_step_ssprk2(
         "source_steps": 0,
     }
 
+
 def Step(
     sim,
     dt=None,
@@ -283,8 +297,7 @@ def Step(
     valid_modes = ("hydro", "hydro_sources", "sources")
     if mode not in valid_modes:
         raise ValueError(
-            "Unknown step mode %r; valid modes are %s"
-            % (mode, ", ".join(valid_modes)),
+            "Unknown step mode %r; valid modes are %s" % (mode, ", ".join(valid_modes)),
         )
     valid_hydro_integrators = ("euler", "ssprk2")
     if hydro_integrator not in valid_hydro_integrators:
@@ -295,8 +308,7 @@ def Step(
     source_integrator = str(getattr(sim.par, "source_integrator", "lie")).lower()
     if source_integrator not in ("lie", "strang"):
         raise ValueError(
-            "Unknown source integrator %r; valid options are lie, strang"
-            % source_integrator,
+            "Unknown source integrator %r; valid options are lie, strang" % source_integrator,
         )
     if source_integrator == "strang" and mode != "hydro":
         raise ValueError("source_integrator='strang' requires mode='hydro'")
@@ -361,24 +373,33 @@ def Step(
             if source_enabled:
                 source_dt = 0.5 * dt if source_integrator == "strang" else dt
                 sim.solver.ApplyGravity(
-                    source_dt, sim.mesh, sim.fluid, sim.par,
+                    source_dt,
+                    sim.mesh,
+                    sim.fluid,
+                    sim.par,
                 )
                 sim._accumulate_gravity_work()
                 diagnostics.check_conserved_energy_admissibility(
-                    sim, stage="gravity update",
+                    sim,
+                    stage="gravity update",
                 )
                 diagnostics.check_temperature_jump(
-                    sim, temperature_before, stage="gravity update",
+                    sim,
+                    temperature_before,
+                    stage="gravity update",
                 )
                 sim._sync_hydro_state()
         else:
             sim.PrepareConservedStep()
             old_mass, mass_flux = sim.AdvanceHydroFluxes(dt)
             diagnostics.check_conserved_energy_admissibility(
-                sim, stage="hydro flux update",
+                sim,
+                stage="hydro flux update",
             )
             diagnostics.check_temperature_jump(
-                sim, temperature_before, stage="hydro flux update",
+                sim,
+                temperature_before,
+                stage="hydro flux update",
             )
             sim.FinalizeHydroStep(
                 dt,
@@ -403,23 +424,22 @@ def Step(
             )
             thermal_after_hydro = energy - kinetic
             thermal_before_hydro = getattr(
-                sim, "_thermal_energy_before_hydro", thermal_after_hydro,
+                sim,
+                "_thermal_energy_before_hydro",
+                thermal_after_hydro,
             )
             if sim.energy_diagnostics_enabled:
                 sim.last_shock_work_by_cell = (
-                    thermal_after_hydro - thermal_before_hydro
+                    thermal_after_hydro
+                    - thermal_before_hydro
                     - np.asarray(sim.last_compression_work_by_cell, dtype=float)
                 )
-                sim.cumulative_compression_work_by_cell += (
-                    sim.last_compression_work_by_cell
-                )
+                sim.cumulative_compression_work_by_cell += sim.last_compression_work_by_cell
                 sim.cumulative_shock_work_by_cell += sim.last_shock_work_by_cell
             sim.last_dark_matter_substeps = int(
                 getattr(sim.solver, "last_dark_matter_substeps", 0),
             )
-            sim.cumulative_dark_matter_substeps += (
-                sim.last_dark_matter_substeps
-            )
+            sim.cumulative_dark_matter_substeps += sim.last_dark_matter_substeps
             sim.dark_matter_substep_history.append(
                 sim.last_dark_matter_substeps,
             )
@@ -433,13 +453,15 @@ def Step(
 
     if mode == "hydro" and hydro_integrator == "ssprk2":
         diagnostics.check_conserved_energy_admissibility(
-            sim, stage="hydro flux update",
+            sim,
+            stage="hydro flux update",
         )
         diagnostics.check_temperature_jump(sim, temperature_before, stage="hydro")
 
     if mode == "hydro_sources":
         energy_before_sources_by_cell = np.asarray(
-            sim.fluid.Energy_code[first:last], dtype=float,
+            sim.fluid.Energy_code[first:last],
+            dtype=float,
         ).copy()
         energy_before_sources = float(np.sum(energy_before_sources_by_cell))
 
@@ -448,7 +470,8 @@ def Step(
             dt,
         )
         diagnostics.check_conserved_energy_admissibility(
-            sim, stage="thermochemistry update",
+            sim,
+            stage="thermochemistry update",
         )
         sim.last_source_result = source_result
         sim.last_source_dt = dt
@@ -463,7 +486,8 @@ def Step(
         sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
         sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, "verbose", 0))
         diagnostics.check_conserved_energy_admissibility(
-            sim, stage="thermochemistry SetConserved synchronization",
+            sim,
+            stage="thermochemistry SetConserved synchronization",
         )
         pressure_applied = sim.solver.ApplyRadiationPressure(
             dt,
@@ -478,9 +502,7 @@ def Step(
             energy_after_sources = float(
                 np.sum(np.asarray(sim.fluid.Energy_code[first:last], dtype=float)),
             )
-            sim.last_thermochemistry_energy_change = (
-                energy_after_sources - energy_before_sources
-            )
+            sim.last_thermochemistry_energy_change = energy_after_sources - energy_before_sources
             if sim.energy_diagnostics_enabled:
                 sim.last_thermochemistry_energy_change_by_cell = (
                     np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
@@ -497,27 +519,29 @@ def Step(
         )
         result["source_steps"] = int(source_result.get("source_steps", 0))
 
-    result.update({
-        "dual_energy_pressure_fallback_count": int(
-            getattr(sim.solver, "dual_energy_pressure_fallback_count", 0),
-        ),
-        "dual_energy_synchronization_count": int(
-            getattr(sim.solver, "dual_energy_synchronization_count", 0),
-        ),
-        "dual_energy_floor_count": int(
-            getattr(sim.solver, "dual_energy_floor_count", 0),
-        ),
-        "dual_energy_floor_injected_energy": float(
-            getattr(sim.solver, "dual_energy_floor_injected_energy", 0.0),
-        ),
-        "dual_energy_entropy_limiter_count": int(
-            getattr(sim.solver, "dual_energy_entropy_limiter_count", 0),
-        ),
-        "gravity_potential_flux": float(
-            getattr(sim, "last_hydro_potential_flux", 0.0),
-        ),
-        "gravity_potential_change": float(
-            getattr(sim, "last_hydro_potential_change", 0.0),
-        ),
-    })
+    result.update(
+        {
+            "dual_energy_pressure_fallback_count": int(
+                getattr(sim.solver, "dual_energy_pressure_fallback_count", 0),
+            ),
+            "dual_energy_synchronization_count": int(
+                getattr(sim.solver, "dual_energy_synchronization_count", 0),
+            ),
+            "dual_energy_floor_count": int(
+                getattr(sim.solver, "dual_energy_floor_count", 0),
+            ),
+            "dual_energy_floor_injected_energy": float(
+                getattr(sim.solver, "dual_energy_floor_injected_energy", 0.0),
+            ),
+            "dual_energy_entropy_limiter_count": int(
+                getattr(sim.solver, "dual_energy_entropy_limiter_count", 0),
+            ),
+            "gravity_potential_flux": float(
+                getattr(sim, "last_hydro_potential_flux", 0.0),
+            ),
+            "gravity_potential_change": float(
+                getattr(sim, "last_hydro_potential_change", 0.0),
+            ),
+        }
+    )
     return result

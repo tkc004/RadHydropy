@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
-import astropy.units as units
 import h5py
 import numpy as np
+from astropy import units
 from astropy.modeling.models import BlackBody
 
 package_root = Path(__file__).resolve().parents[2]
@@ -23,7 +23,6 @@ from radhydropy.radiation_spectrum import (
     SPECTRUM_DATASET_STAR_RATES,
     SPECTRUM_GROUP,
 )
-
 
 EV_TO_ERG = 1.602176634e-12
 DEFAULT_EDGES_EV = (13.6, 24.6, 54.4, 10_000.0)
@@ -48,9 +47,13 @@ def verner96_sigma(energy_ev: np.ndarray, parameters: np.ndarray) -> np.ndarray:
     e0, sigma0, ya, power, yw, y0, y1 = parameters[2:9]
     x = energy_ev / e0 - y0
     y = np.sqrt(x * x + y1 * y1)
-    return sigma0 * 1.0e-18 * ((x - 1.0) ** 2 + yw**2) * y ** (
-        0.5 * power - 5.5
-    ) * (1.0 + np.sqrt(y / ya)) ** (-power)
+    return (
+        sigma0
+        * 1.0e-18
+        * ((x - 1.0) ** 2 + yw**2)
+        * y ** (0.5 * power - 5.5)
+        * (1.0 + np.sqrt(y / ya)) ** (-power)
+    )
 
 
 def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
@@ -90,7 +93,10 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
 
     norms = np.asarray(norms)
     ionizing_energy = np.divide(
-        np.asarray(norm_energies), norms, out=np.zeros_like(norms), where=norms > 0.0
+        np.asarray(norm_energies),
+        norms,
+        out=np.zeros_like(norms),
+        where=norms > 0.0,
     )
     return {
         "ionizing_photon_energy_cgs_erg": ionizing_energy * EV_TO_ERG,
@@ -100,21 +106,30 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
     }
 
 
-def write_spectrum(output, edges_ev, temperature_k, injected_photons,
-                   parameters_by_species, samples, include_helium=False):
+def write_spectrum(
+    output,
+    edges_ev,
+    temperature_k,
+    injected_photons,
+    parameters_by_species,
+    samples,
+    include_helium=False,
+):
     values = {
         species: calculate_groups(edges_ev, temperature_k, parameters, samples)
         for species, parameters in parameters_by_species.items()
     }
     hydrogen = values["HI"]
     unit_energy_per_time = (
-        1.98841586e33 * units.g * (1.0e5 * units.cm / units.s) ** 3
-        / (3.08567758e21 * units.cm)
+        1.98841586e33 * units.g * (1.0e5 * units.cm / units.s) ** 3 / (3.08567758e21 * units.cm)
     )
     unit_cgs_erg_per_second = (unit_energy_per_time / (units.erg / units.s)).value
     rates = (
-        injected_photons * hydrogen["ionizing_photon_energy_cgs_erg"]
-        * hydrogen["norm"] / hydrogen["norm"].sum() / unit_cgs_erg_per_second
+        injected_photons
+        * hydrogen["ionizing_photon_energy_cgs_erg"]
+        * hydrogen["norm"]
+        / hydrogen["norm"].sum()
+        / unit_cgs_erg_per_second
     )
     star_emission_rates = np.concatenate(([1.0e-32], rates))
 
@@ -122,17 +137,20 @@ def write_spectrum(output, edges_ev, temperature_k, injected_photons,
     with h5py.File(output, "w") as handle:
         group = handle.create_group(SPECTRUM_GROUP)
         group.create_dataset(SPECTRUM_DATASET_GROUP_EDGES, data=edges_ev).attrs["units"] = "eV"
-        group.create_dataset(SPECTRUM_DATASET_IONIZING_ENERGY, data=hydrogen[
-            "ionizing_photon_energy_cgs_erg"]
+        group.create_dataset(
+            SPECTRUM_DATASET_IONIZING_ENERGY,
+            data=hydrogen["ionizing_photon_energy_cgs_erg"],
         ).attrs["units"] = "erg"
         group.create_dataset(SPECTRUM_DATASET_STAR_RATES, data=star_emission_rates).attrs[
             "units"
         ] = "internal_energy/time"
-        group.create_dataset(SPECTRUM_DATASET_SIGMA, data=hydrogen[
-            "group_sigma_gamma_cgs_cm2"]
+        group.create_dataset(
+            SPECTRUM_DATASET_SIGMA,
+            data=hydrogen["group_sigma_gamma_cgs_cm2"],
         ).attrs["units"] = "cm**2"
-        group.create_dataset(SPECTRUM_DATASET_EPSILON, data=hydrogen[
-            "group_epsilon_gamma_cgs_erg"]
+        group.create_dataset(
+            SPECTRUM_DATASET_EPSILON,
+            data=hydrogen["group_epsilon_gamma_cgs_erg"],
         ).attrs["units"] = "erg"
         if include_helium:
             for species in ("HeI", "HeII"):
@@ -165,23 +183,22 @@ def main():
         "--output",
         type=Path,
         default=directory / DEFAULT_OUTPUT_NAME,
-        help=(
-            "output HDF5 file (default: "
-            "radiation_spectrum_BB100000K_3groups_HI.h5)"
-        ),
+        help=("output HDF5 file (default: radiation_spectrum_BB100000K_3groups_HI.h5)"),
     )
     parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE_cgs_K)
     parser.add_argument("--edges", type=float, nargs="+", default=DEFAULT_EDGES_EV)
-    parser.add_argument("--injected-photons-per-second", type=float,
-                        default=DEFAULT_INJECTED_PHOTONS_PER_SECOND)
+    parser.add_argument(
+        "--injected-photons-per-second", type=float, default=DEFAULT_INJECTED_PHOTONS_PER_SECOND
+    )
     parser.add_argument("--samples-per-group", type=int, default=4000)
     parser.add_argument(
         "--include-helium",
         action="store_true",
         help="include He I and He II cross-section/heating datasets",
     )
-    parser.add_argument("--verner-file", type=Path, default=directory / "data" /
-                        "cross_section_fits_verner96.dat")
+    parser.add_argument(
+        "--verner-file", type=Path, default=directory / "data" / "cross_section_fits_verner96.dat"
+    )
     args = parser.parse_args()
     edges = np.asarray(args.edges, dtype=float)
     parameters = {
@@ -189,9 +206,15 @@ def main():
         "HeI": read_verner96(args.verner_file, atomic_number=2, ion=2),
         "HeII": read_verner96(args.verner_file, atomic_number=2, ion=1),
     }
-    write_spectrum(args.output, edges, args.temperature,
-                   args.injected_photons_per_second, parameters,
-                   args.samples_per_group, include_helium=args.include_helium)
+    write_spectrum(
+        args.output,
+        edges,
+        args.temperature,
+        args.injected_photons_per_second,
+        parameters,
+        args.samples_per_group,
+        include_helium=args.include_helium,
+    )
     print(f"Wrote generated radiation spectrum to {args.output}")
 
 

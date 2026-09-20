@@ -1,27 +1,28 @@
-import numpy as np
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
 
-from radhydropy.eos import EOS
-from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits
+import numpy as np
+
 from radhydropy.runtime_fields import (
+    PROPER_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
-    PROPER_RUNTIME_FIELDS,
 )
+from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
+from tests.parameter_fixtures import parameter_namespace
 
-
-CODE_UNITS = CodeUnits.from_mapping({
-    "name": "hydrostatic_core_test_units",
-    "InternalUnitSystem": {
-        "UnitMass_in_cgs": 1.0,
-        "UnitLength_in_cgs": 1.0,
-        "UnitVelocity_in_cgs": 1.0,
-        "UnitCurrent_in_cgs": 1.0,
-        "UnitTemp_in_cgs": 1.0,
-    },
-})
+CODE_UNITS = CodeUnits.from_mapping(
+    {
+        "name": "hydrostatic_core_test_units",
+        "InternalUnitSystem": {
+            "UnitMass_in_cgs": 1.0,
+            "UnitLength_in_cgs": 1.0,
+            "UnitVelocity_in_cgs": 1.0,
+            "UnitCurrent_in_cgs": 1.0,
+            "UnitTemp_in_cgs": 1.0,
+        },
+    }
+)
 
 
 def _core_problem(model="hydrostatic_fixed"):
@@ -32,7 +33,9 @@ def _core_problem(model="hydrostatic_fixed"):
         PROPER_RUNTIME_FIELDS,
         x_proper_code=np.array([1.0, 2.0, 4.0, 8.0, 16.0, 32.0]),
         boundary_proper_code=np.array([0.5, 1.5, 3.0, 6.0, 12.0, 24.0, 40.0]),
-        width_proper_code=np.ones(6), area_proper_code=np.ones(6), volume_proper_code=np.ones(6),
+        width_proper_code=np.ones(6),
+        area_proper_code=np.ones(6),
+        volume_proper_code=np.ones(6),
     )
     fluid = SimpleNamespace(
         rho_code=np.ones(6),
@@ -43,8 +46,11 @@ def _core_problem(model="hydrostatic_fixed"):
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         PROPER_RUNTIME_FIELDS,
-        rho_proper_code=fluid.rho_code, vel_proper_code=fluid.vel_code,
-        pre_proper_code=fluid.pre_code, temp_proper_code=fluid.temp_code, time_proper_code=0.0,
+        rho_proper_code=fluid.rho_code,
+        vel_proper_code=fluid.vel_code,
+        pre_proper_code=fluid.pre_code,
+        temp_proper_code=fluid.temp_code,
+        time_proper_code=0.0,
         mu_dimensionless=fluid.mu,
     )
     fluid.rho_proper_code = fluid.rho_code

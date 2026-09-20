@@ -1,14 +1,14 @@
 """Analytic background cosmologies used by cosmological test problems."""
 
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache, lru_cache
 
 import numpy as np
 
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 
 
-@lru_cache(maxsize=None)
+@cache
 def _legendre_quadrature(order):
     return np.polynomial.legendre.leggauss(order)
 
@@ -70,9 +70,7 @@ class EinsteinDeSitter:
         for simulations, which must always start at positive cosmic time.
         """
         time = self._validate_time(time)
-        return 3.0 * self.t_ref / self.a_ref**2 * (
-            1.0 - (time / self.t_ref) ** (-1.0 / 3.0)
-        )
+        return 3.0 * self.t_ref / self.a_ref**2 * (1.0 - (time / self.t_ref) ** (-1.0 / 3.0))
 
     def cosmic_time_from_supercomoving(self, tau):
         """Invert :meth:`supercomoving_time`."""
@@ -108,7 +106,7 @@ class EinsteinDeSitter:
     def physical_pressure(self, pressure, tau, gamma):
         """Convert supercomoving pressure to proper pressure."""
         a = self.scale_factor_from_supercomoving(tau)
-        return np.asarray(pressure, dtype=float) / a**(3.0 * gamma)
+        return np.asarray(pressure, dtype=float) / a ** (3.0 * gamma)
 
     def physical_velocity(self, x, velocity, tau):
         """Convert supercomoving velocity to proper velocity."""
@@ -144,16 +142,24 @@ class LambdaCDM:
 
     @classmethod
     def from_code_units(
-        cls, code_units, t_ref=1.0, a_ref=1.0, omega_m=0.3,
-        omega_lambda=0.7, hubble_ref=None,
+        cls,
+        code_units,
+        t_ref=1.0,
+        a_ref=1.0,
+        omega_m=0.3,
+        omega_lambda=0.7,
+        hubble_ref=None,
     ):
         g_code = (
-            GRAVITATIONAL_CONSTANT_CGS * code_units.mass_in_cgs
+            GRAVITATIONAL_CONSTANT_CGS
+            * code_units.mass_in_cgs
             / (code_units.length_in_cgs * code_units.velocity_in_cgs**2)
         )
         return cls(
-            t_ref=float(t_ref), a_ref=float(a_ref),
-            omega_m=float(omega_m), omega_lambda=float(omega_lambda),
+            t_ref=float(t_ref),
+            a_ref=float(a_ref),
+            omega_m=float(omega_m),
+            omega_lambda=float(omega_lambda),
             hubble_ref=None if hubble_ref is None else float(hubble_ref),
             gravitational_constant=float(g_code),
         )
@@ -174,8 +180,10 @@ class LambdaCDM:
             return self.hubble_ref
         if self.omega_lambda == 0.0:
             return 2.0 / (3.0 * self.t_ref)
-        return 2.0 * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m)) / (
-            3.0 * self.t_ref * np.sqrt(self.omega_lambda)
+        return (
+            2.0
+            * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m))
+            / (3.0 * self.t_ref * np.sqrt(self.omega_lambda))
         )
 
     def _validate_time(self, time):
@@ -188,8 +196,10 @@ class LambdaCDM:
     def _age_ref(self):
         if self.omega_lambda == 0.0:
             return 2.0 / (3.0 * self._hubble_ref)
-        return 2.0 * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m)) / (
-            3.0 * self._hubble_ref * np.sqrt(self.omega_lambda)
+        return (
+            2.0
+            * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m))
+            / (3.0 * self._hubble_ref * np.sqrt(self.omega_lambda))
         )
 
     @property
@@ -201,9 +211,9 @@ class LambdaCDM:
         if self.omega_lambda == 0.0:
             return self.a_ref * (age / self._age_ref) ** (2.0 / 3.0)
         argument = 1.5 * self._hubble_ref * np.sqrt(self.omega_lambda) * age
-        return self.a_ref * (
-            np.sinh(argument) / np.sqrt(self.omega_lambda / self.omega_m)
-        ) ** (2.0 / 3.0)
+        return self.a_ref * (np.sinh(argument) / np.sqrt(self.omega_lambda / self.omega_m)) ** (
+            2.0 / 3.0
+        )
 
     def hubble(self, time):
         a = self.scale_factor(time)
@@ -220,9 +230,13 @@ class LambdaCDM:
 
     def background_density(self, time):
         a = self.scale_factor(time)
-        return 3.0 * self._hubble_ref**2 * self.omega_m / (
-            8.0 * np.pi * self.gravitational_constant
-        ) * (self.a_ref / a) ** 3
+        return (
+            3.0
+            * self._hubble_ref**2
+            * self.omega_m
+            / (8.0 * np.pi * self.gravitational_constant)
+            * (self.a_ref / a) ** 3
+        )
 
     def supercomoving_time(self, time):
         """Return ``tau`` with ``d tau = d t / a(t)**2`` and ``tau(t_ref)=0``."""
@@ -262,16 +276,20 @@ class LambdaCDM:
         values = mid + half * nodes
         # d tau = d t / a^2 and d t = d a / (a H), hence
         # d tau / d u = 1 / [u^(3/2) H_ref sqrt(omega_m + omega_lambda u^3)].
-        integral = half * np.sum(weights / (values**1.5 * np.sqrt(
-            self.omega_m + self.omega_lambda * values**3)))
-        return (-integral if u < 1.0 else integral)
+        integral = half * np.sum(
+            weights / (values**1.5 * np.sqrt(self.omega_m + self.omega_lambda * values**3))
+        )
+        return -integral if u < 1.0 else integral
 
     def _time_from_u(self, u):
         if self.omega_lambda == 0.0:
             age = self._age_ref * u**1.5
         else:
-            age = 2.0 / (3.0 * self._hubble_ref * np.sqrt(self.omega_lambda)) * np.arcsinh(
-                np.sqrt(self.omega_lambda / self.omega_m) * u**1.5)
+            age = (
+                2.0
+                / (3.0 * self._hubble_ref * np.sqrt(self.omega_lambda))
+                * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m) * u**1.5)
+            )
         return self._big_bang_time + age
 
     def scale_factor_from_supercomoving(self, tau):
@@ -297,11 +315,14 @@ class LambdaCDM:
 
     def physical_pressure(self, pressure, tau, gamma):
         a = self.scale_factor_from_supercomoving(tau)
-        return np.asarray(pressure, dtype=float) / a**(3.0 * gamma)
+        return np.asarray(pressure, dtype=float) / a ** (3.0 * gamma)
 
     def physical_velocity(self, x, velocity, tau):
         a = self.scale_factor_from_supercomoving(tau)
-        return self.hubble_from_supercomoving(tau) * a * np.asarray(x, dtype=float) + np.asarray(velocity, dtype=float) / a
+        return (
+            self.hubble_from_supercomoving(tau) * a * np.asarray(x, dtype=float)
+            + np.asarray(velocity, dtype=float) / a
+        )
 
     @property
     def type_name(self):

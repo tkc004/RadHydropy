@@ -2,29 +2,31 @@
 
 import numpy as np
 import unyt
+
 import radhydropy.chemistry_species.hydrogen as rh
-from radhydropy.units import _code_units, _to_code_quantity, photon_number_density, quantity_to_value
-import radhydropy.utils as ru
-from radhydropy.eos import EOS
-from radhydropy.mesh import Mesh
 from radhydropy.arrays import as_named_array
+from radhydropy.runtime_fields import (
+    PROPER_RUNTIME_FIELDS,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+    FluidRuntimeState,
+    require_runtime_fields,
+    runtime_fields,
+)
 from radhydropy.state_boundaries import (
     ProperCodeState,
     SupercomovingCodeState,
     UnitBoundaryError,
 )
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    PROPER_RUNTIME_FIELDS,
-    SUPERCOMOVING_RUNTIME_FIELDS,
-    require_runtime_fields,
-    runtime_fields,
+from radhydropy.units import (
+    _code_units,
+    photon_number_density,
+    quantity_to_value,
 )
-
 
 # set up fluid properties
 
-class Fluid():
+
+class Fluid:
     """Store primitive and conserved fluid quantities.
 
     Runtime fluid quantities are unitless numeric code-unit arrays. Physical
@@ -71,7 +73,13 @@ class Fluid():
             raise ValueError("unknown runtime field representation")
         self.runtime_state = FluidRuntimeState.from_arrays(
             self.runtime_fields,
-            **{self.runtime_fields.density: density, self.runtime_fields.velocity: velocity, self.runtime_fields.pressure: pressure, self.runtime_fields.temperature: temperature, self.runtime_fields.time: time},
+            **{
+                self.runtime_fields.density: density,
+                self.runtime_fields.velocity: velocity,
+                self.runtime_fields.pressure: pressure,
+                self.runtime_fields.temperature: temperature,
+                self.runtime_fields.time: time,
+            },
             mu_dimensionless=getattr(self, "mu", None),
             xHI_dimensionless=getattr(self, "xHI", None),
         )
@@ -86,7 +94,7 @@ class Fluid():
         if self.runtime_state is not None:
             if self.runtime_fields is None:
                 raise UnitBoundaryError(
-                    "typed runtime state requires configured representation fields"
+                    "typed runtime state requires configured representation fields",
                 )
             if self.runtime_fields.time == "time_proper_code":
                 density_code = self.runtime_state.rho_proper_code
@@ -115,7 +123,8 @@ class Fluid():
                 else SupercomovingCodeState
             )
             state_kwargs = {
-                "specific_energy_proper_code" if self.runtime_fields is PROPER_RUNTIME_FIELDS
+                "specific_energy_proper_code"
+                if self.runtime_fields is PROPER_RUNTIME_FIELDS
                 else "specific_energy_supercomoving_code": specific_energy_code,
                 "Mass_code": getattr(self, "Mass_code", None),
                 "Mom_code": getattr(self, "Mom_code", None),
@@ -142,7 +151,7 @@ class Fluid():
                 )
             return state_type(**state_kwargs)
         raise UnitBoundaryError(
-            "fluid must have a representation-specific typed runtime state"
+            "fluid must have a representation-specific typed runtime state",
         )
 
     def SetPressure(self):
@@ -150,8 +159,10 @@ class Fluid():
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             self.pre_proper_code = as_named_array(
                 self.eos.pressure(
-                    self.rho_proper_code, self.temp_proper_code, self.mu
-                )
+                    self.rho_proper_code,
+                    self.temp_proper_code,
+                    self.mu,
+                ),
             )
         elif self.runtime_fields is SUPERCOMOVING_RUNTIME_FIELDS:
             self.pre_supercomoving_code = as_named_array(
@@ -159,14 +170,14 @@ class Fluid():
                     self.rho_comoving_code,
                     self.temp_supercomoving_code,
                     self.mu,
-                )
+                ),
             )
         else:
             raise UnitBoundaryError(
-                "SetPressure requires configured representation-specific runtime fields"
+                "SetPressure requires configured representation-specific runtime fields",
             )
         self._refresh_runtime_state()
-        
+
     def SetEnergyDensity(self):
         """Set thermal energy density from pressure and the fluid EOS."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
@@ -175,10 +186,10 @@ class Fluid():
             pressure = self.pre_supercomoving_code
         else:
             raise UnitBoundaryError(
-                "SetEnergyDensity requires configured representation-specific runtime fields"
+                "SetEnergyDensity requires configured representation-specific runtime fields",
             )
         self.eth_code = self.eos.thermal_energy_density(pressure)
-        
+
     def SetSoundSpeed(self):
         """Set adiabatic sound speed from pressure, density, and the fluid EOS."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
@@ -191,7 +202,7 @@ class Fluid():
             temperature = self.temp_supercomoving_code
         else:
             raise UnitBoundaryError(
-                "SetSoundSpeed requires configured representation-specific runtime fields"
+                "SetSoundSpeed requires configured representation-specific runtime fields",
             )
         self.cs_code = self.eos.sound_speed(
             density,
@@ -218,15 +229,20 @@ class Fluid():
             density = self.rho_comoving_code
         else:
             raise UnitBoundaryError(
-                "SetHydrogenHeliumMu requires configured "
-                "representation-specific runtime fields"
+                "SetHydrogenHeliumMu requires configured representation-specific runtime fields",
             )
         nH = hydrogen_mass_fraction * np.asarray(density, dtype=float) / unyt.mp.to_value(unyt.g)
-        nHe = helium_mass_fraction * np.asarray(density, dtype=float) / (4.0 * unyt.mp.to_value(unyt.g))
+        nHe = (
+            helium_mass_fraction
+            * np.asarray(density, dtype=float)
+            / (4.0 * unyt.mp.to_value(unyt.g))
+        )
         ne = nH * (1.0 - xHI) + nHe * (xHeII + 2.0 * xHeIII)
         nt = nH + nHe + ne
-        self.mu = as_named_array(np.asarray(density, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99)))
-        
+        self.mu = as_named_array(
+            np.asarray(density, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99))
+        )
+
     def SetUpFluid(self, par, mesh=None):
         """Normalize primitive quantities into code units, append ghost cells, and
         initialize pressure.
@@ -240,6 +256,7 @@ class Fluid():
         ------
         Exception
             If any required primitive quantity is missing.
+
         """
         code_units = _code_units(par)
         if code_units is None:
@@ -259,22 +276,22 @@ class Fluid():
         missing = [name for name in required if not hasattr(self, name)]
         if missing:
             raise AttributeError(
-                "supercomoving fluid setup requires: " + ", ".join(missing)
+                "supercomoving fluid setup requires: " + ", ".join(missing),
             )
         self.CodeUnits = code_units
         self.supercomoving = True
         self.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
         self.tau_supercomoving_code = float(
-            np.asarray(getattr(self, "tau_supercomoving_code", 0.0), dtype=float)
+            np.asarray(getattr(self, "tau_supercomoving_code", 0.0), dtype=float),
         )
         self.rho_comoving_code = as_named_array(
-            quantity_to_value(self.rho_comoving_code, code_units.density_unit)
+            quantity_to_value(self.rho_comoving_code, code_units.density_unit),
         )
         self.temp_supercomoving_code = as_named_array(
-            quantity_to_value(self.temp_supercomoving_code, code_units.temperature_unit)
+            quantity_to_value(self.temp_supercomoving_code, code_units.temperature_unit),
         )
         self.vel_supercomoving_code = as_named_array(
-            quantity_to_value(self.vel_supercomoving_code, code_units.velocity_unit)
+            quantity_to_value(self.vel_supercomoving_code, code_units.velocity_unit),
         )
         self.mu = as_named_array(np.asarray(self.mu, dtype=float))
         noghost = int(par.mesh.ghost_cells)
@@ -289,30 +306,37 @@ class Fluid():
                 self,
                 attr,
                 as_named_array(
-                    np.concatenate((np.full(noghost, default), values, np.full(noghost, default)))
+                    np.concatenate((np.full(noghost, default), values, np.full(noghost, default))),
                 ),
             )
         if hasattr(self, "specific_angular_momentum_code"):
             values = np.asarray(self.specific_angular_momentum_code, dtype=float)
             self.specific_angular_momentum_code = as_named_array(
-                np.concatenate((np.zeros(noghost), values, np.zeros(noghost)))
+                np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
             )
         if getattr(par, "hydrogen_chemistry", False) and not hasattr(self, "xHI"):
             self.xHI = as_named_array(
-                np.full(np.shape(self.rho_comoving_code), getattr(par, "hydrogen_xHI_initial", 1.0))
+                np.full(
+                    np.shape(self.rho_comoving_code), getattr(par, "hydrogen_xHI_initial", 1.0)
+                ),
             )
         if hasattr(self, "xHI"):
             values = rh.clip_neutral_fraction(np.asarray(self.xHI, dtype=float))
             self.xHI = as_named_array(
-                np.concatenate((np.full(noghost, getattr(par, "hydrogen_xHI_initial", 1.0)), values, np.full(noghost, getattr(par, "hydrogen_xHI_initial", 1.0))))
+                np.concatenate(
+                    (
+                        np.full(noghost, getattr(par, "hydrogen_xHI_initial", 1.0)),
+                        values,
+                        np.full(noghost, getattr(par, "hydrogen_xHI_initial", 1.0)),
+                    )
+                ),
             )
         if hasattr(self, "ngamma_code"):
             values = np.asarray(self.ngamma_code, dtype=float)
             self.ngamma_code = as_named_array(
-                np.concatenate((np.zeros(noghost), values, np.zeros(noghost)))
+                np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
             )
         self.SetPressure()
-        return None
 
     def _set_up_proper_fluid(self, par, code_units):
         """Initialize a non-cosmological fluid using canonical proper fields.
@@ -329,42 +353,43 @@ class Fluid():
         missing = [name for name in required if not hasattr(self, name)]
         if missing:
             raise AttributeError(
-                "proper-code fluid setup requires: " + ", ".join(missing)
+                "proper-code fluid setup requires: " + ", ".join(missing),
             )
 
         self.CodeUnits = code_units
         self.supercomoving = False
         self.runtime_fields = PROPER_RUNTIME_FIELDS
         self.time_proper_code = float(
-            np.asarray(getattr(self, "time_proper_code", 0.0), dtype=float)
+            np.asarray(getattr(self, "time_proper_code", 0.0), dtype=float),
         )
         self.rho_proper_code = as_named_array(
-            quantity_to_value(self.rho_proper_code, code_units.density_unit)
+            quantity_to_value(self.rho_proper_code, code_units.density_unit),
         )
         self.temp_proper_code = as_named_array(
-            quantity_to_value(self.temp_proper_code, code_units.temperature_unit)
+            quantity_to_value(self.temp_proper_code, code_units.temperature_unit),
         )
         self.vel_proper_code = as_named_array(
-            quantity_to_value(self.vel_proper_code, code_units.velocity_unit)
+            quantity_to_value(self.vel_proper_code, code_units.velocity_unit),
         )
         self.mu = as_named_array(np.asarray(self.mu, dtype=float))
 
         if getattr(par, "gas_angular_momentum", False) or hasattr(
-            self, "specific_angular_momentum_code"
+            self,
+            "specific_angular_momentum_code",
         ):
             if not hasattr(self, "specific_angular_momentum_code"):
                 self.specific_angular_momentum_code = as_named_array(
                     np.full(
                         np.shape(self.rho_proper_code),
                         float(getattr(par, "gas_specific_angular_momentum", 0.0)),
-                    )
+                    ),
                 )
             else:
                 self.specific_angular_momentum_code = as_named_array(
                     quantity_to_value(
                         self.specific_angular_momentum_code,
                         code_units.length_unit * code_units.velocity_unit,
-                    )
+                    ),
                 )
 
         if getattr(par, "hydrogen_chemistry", False) and not hasattr(self, "xHI"):
@@ -372,11 +397,11 @@ class Fluid():
                 np.full(
                     np.shape(self.rho_proper_code),
                     float(getattr(par, "hydrogen_xHI_initial", 1.0)),
-                )
+                ),
             )
         if hasattr(self, "xHI"):
             self.xHI = rh.clip_neutral_fraction(
-                as_named_array(np.asarray(self.xHI, dtype=float))
+                as_named_array(np.asarray(self.xHI, dtype=float)),
             )
 
         if getattr(par, "thermochemistry_network", "hydrogen") == "hydrogen_helium":
@@ -392,7 +417,9 @@ class Fluid():
                         as_named_array(np.full(np.shape(self.rho_proper_code), default)),
                     )
                 else:
-                    setattr(self, attr, as_named_array(np.asarray(getattr(self, attr), dtype=float)))
+                    setattr(
+                        self, attr, as_named_array(np.asarray(getattr(self, attr), dtype=float))
+                    )
 
         noghost = int(par.mesh.ghost_cells)
         for attr, default in (
@@ -416,14 +443,14 @@ class Fluid():
                                 np.full(noghost, default, dtype=float),
                                 values,
                                 np.full(noghost, default, dtype=float),
-                            )
-                        )
+                            ),
+                        ),
                     ),
                 )
         if hasattr(self, "specific_angular_momentum_code"):
             values = np.asarray(self.specific_angular_momentum_code, dtype=float)
             self.specific_angular_momentum_code = as_named_array(
-                np.concatenate((np.zeros(noghost), values, np.zeros(noghost)))
+                np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
             )
 
         if (
@@ -435,11 +462,11 @@ class Fluid():
                     np.shape(self.rho_proper_code),
                     quantity_to_value(
                         photon_number_density(
-                            getattr(par, "hydrogen_ngamma_initial", 0.0)
+                            getattr(par, "hydrogen_ngamma_initial", 0.0),
                         ),
                         code_units.number_density_unit,
                     ),
-                )
+                ),
             )
         if hasattr(self, "ngamma_code"):
             values = np.asarray(self.ngamma_code, dtype=float)
@@ -447,11 +474,11 @@ class Fluid():
                 np.asarray(
                     quantity_to_value(
                         photon_number_density(
-                            getattr(par, "hydrogen_ngamma_initial", 0.0)
+                            getattr(par, "hydrogen_ngamma_initial", 0.0),
                         ),
                         code_units.number_density_unit,
-                    )
-                )
+                    ),
+                ),
             )
             if values.ndim == 2:
                 ghost = np.full(
@@ -460,7 +487,7 @@ class Fluid():
                     dtype=float,
                 )
                 self.ngamma_code = as_named_array(
-                    np.concatenate((ghost, values, ghost), axis=1)
+                    np.concatenate((ghost, values, ghost), axis=1),
                 )
             else:
                 self.ngamma_code = as_named_array(
@@ -469,26 +496,24 @@ class Fluid():
                             np.full(noghost, initial),
                             values,
                             np.full(noghost, initial),
-                        )
-                    )
+                        ),
+                    ),
                 )
 
         if getattr(par, "gravity_potential_energy", False) and not hasattr(
-            self, "GravitationalPotentialEnergy_code"
+            self,
+            "GravitationalPotentialEnergy_code",
         ):
             self.GravitationalPotentialEnergy_code = as_named_array(
-                np.zeros(np.shape(self.rho_proper_code), dtype=float)
+                np.zeros(np.shape(self.rho_proper_code), dtype=float),
             )
         if hasattr(self, "GravitationalPotentialEnergy_code"):
             values = np.asarray(self.GravitationalPotentialEnergy_code, dtype=float)
             self.GravitationalPotentialEnergy_code = as_named_array(
-                np.concatenate((np.zeros(noghost), values, np.zeros(noghost)))
+                np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
             )
 
-        if (
-            getattr(par, "hydrogen_chemistry", False)
-            and getattr(par, "hydrogen_update_mu", False)
-        ):
+        if getattr(par, "hydrogen_chemistry", False) and getattr(par, "hydrogen_update_mu", False):
             if getattr(par, "thermochemistry_network", "hydrogen") == "hydrogen_helium":
                 self.SetHydrogenHeliumMu(
                     hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 0.75),
@@ -496,7 +521,7 @@ class Fluid():
                 )
             else:
                 self.SetHydrogenMu(
-                    hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0)
+                    hydrogen_mass_fraction=getattr(par, "hydrogen_mass_fraction", 1.0),
                 )
         self.SetPressure()
 
@@ -505,8 +530,10 @@ class Fluid():
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             self.temp_proper_code = as_named_array(
                 self.eos.temperature(
-                    self.rho_proper_code, self.pre_proper_code, self.mu
-                )
+                    self.rho_proper_code,
+                    self.pre_proper_code,
+                    self.mu,
+                ),
             )
         elif self.runtime_fields is SUPERCOMOVING_RUNTIME_FIELDS:
             self.temp_supercomoving_code = as_named_array(
@@ -514,11 +541,11 @@ class Fluid():
                     self.rho_comoving_code,
                     self.pre_supercomoving_code,
                     self.mu,
-                )
+                ),
             )
         else:
             raise UnitBoundaryError(
-                "SetTemperature requires configured representation-specific runtime fields"
+                "SetTemperature requires configured representation-specific runtime fields",
             )
         self._refresh_runtime_state()
 
@@ -536,10 +563,10 @@ class Fluid():
                 code_units = getattr(self, "code_units", None)
             if code_units is None:
                 raise ValueError(
-                    "unit-bearing fluid time requires EOS code units"
+                    "unit-bearing fluid time requires EOS code units",
                 )
             time_proper_code = float(
-                np.asarray(time_proper_code.to_value(code_units.time_unit))
+                np.asarray(time_proper_code.to_value(code_units.time_unit)),
             )
         else:
             time_proper_code = float(np.asarray(time_proper_code, dtype=float))

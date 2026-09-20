@@ -1,11 +1,11 @@
 """RadHydropy power-law H II region versus the analytic solution."""
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,63 +18,73 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+import example_utils as eu
+import power_law_hii_region_analytic as analytic
+
 import radhydropy.io as rio
 from radhydropy.arrays import as_named_array
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-import example_utils as eu
-
-import power_law_hii_region_analytic as analytic
-
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "power_law_hii_region_radhydropy.yaml"
 
 
-def density_profile(radius_proper_cgs_cm, core_number_density_cgs_cm3,
-                    radius_core_proper_cgs_cm, density_power_law_exponent):
+def density_profile(
+    radius_proper_cgs_cm,
+    core_number_density_cgs_cm3,
+    radius_core_proper_cgs_cm,
+    density_power_law_exponent,
+):
     radius_proper_cgs_cm = np.asarray(radius_proper_cgs_cm, dtype=float)
     return core_number_density_cgs_cm3 * np.where(
         radius_proper_cgs_cm < radius_core_proper_cgs_cm,
         1.0,
-        (radius_proper_cgs_cm / radius_core_proper_cgs_cm)
-        ** (-density_power_law_exponent),
+        (radius_proper_cgs_cm / radius_core_proper_cgs_cm) ** (-density_power_law_exponent),
     )
 
 
 def build_initial_condition(config):
     """Build the proper-coordinate IC through the shared writer boundary."""
-
-    initial = config['initial_condition']
-    code = CodeUnits.from_mapping(config["par"]['units']['CodeUnits'])
-    ncell = int(initial['number_of_cells'])
-    boundary_proper_unyt = np.linspace(
-        0.0, 1.0, ncell + 1
-    ) * initial['box_size_proper']
+    initial = config["initial_condition"]
+    code = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    ncell = int(initial["number_of_cells"])
+    boundary_proper_unyt = (
+        np.linspace(
+            0.0,
+            1.0,
+            ncell + 1,
+        )
+        * initial["box_size_proper"]
+    )
     boundary_proper_code = quantity_to_value(
-        boundary_proper_unyt, code.length_unit
+        boundary_proper_unyt,
+        code.length_unit,
     )
-    radius_proper_code = 0.5 * (
-        boundary_proper_code[1:] + boundary_proper_code[:-1]
+    radius_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
+    n_h = (
+        density_profile(
+            radius_proper_code * code.length_unit.to_value(unyt.cm),
+            initial["core_number_density"].to_value(1.0 / unyt.cm**3),
+            initial["radius_core_proper"].to_value(unyt.cm),
+            initial["density_power_law_exponent"],
+        )
+        / unyt.cm**3
     )
-    n_h = density_profile(
-        radius_proper_code * code.length_unit.to_value(unyt.cm),
-        initial['core_number_density'].to_value(1.0 / unyt.cm**3),
-        initial['radius_core_proper'].to_value(unyt.cm),
-        initial['density_power_law_exponent'],
-    ) / unyt.cm**3
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code, ic_config=initial,
+        par_config=config["par"],
+        code_units=code,
+        ic_config=initial,
     )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(
-        radius_proper_code * code.length_unit
+        radius_proper_code * code.length_unit,
     )
     writer.fluid.rho_radarray = writer.radarray(n_h * unyt.mp)
     writer.fluid.vel_radarray = writer.radarray(
-        np.zeros(ncell) * code.velocity_unit
+        np.zeros(ncell) * code.velocity_unit,
     )
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(ncell) * initial['temperature_proper']
+        np.ones(ncell) * initial["temperature_proper"],
     )
     writer.fluid.ngamma_radarray = writer.radarray(
         np.zeros(ncell) / unyt.cm**3,
@@ -101,21 +111,31 @@ def active_radarray(radarray, active_cells, ghost_cells, *, boundary=False):
     if len(radarray) == expected:
         return radarray
     first = ghost_cells
-    return radarray[first:first + expected]
+    return radarray[first : first + expected]
 
 
 def front_radius_cgs_cm(snapshot, config, neutral_fraction=0.5):
     active_cells = int(snapshot.par.mesh.grid_cells)
     ghost_cells = int(snapshot.par.mesh.ghost_cells)
-    boundary_proper_cgs_cm = active_radarray(
-        snapshot.mesh.boundary_radarray, active_cells, ghost_cells, boundary=True
-    ).to(unyt.cm).value
-    radius_proper_cgs_cm = 0.5 * (
-        boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:]
+    boundary_proper_cgs_cm = (
+        active_radarray(
+            snapshot.mesh.boundary_radarray,
+            active_cells,
+            ghost_cells,
+            boundary=True,
+        )
+        .to(unyt.cm)
+        .value
     )
-    xhi = np.asarray(active_radarray(
-        snapshot.fluid.xHI, active_cells, ghost_cells
-    ), dtype=float)
+    radius_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:])
+    xhi = np.asarray(
+        active_radarray(
+            snapshot.fluid.xHI,
+            active_cells,
+            ghost_cells,
+        ),
+        dtype=float,
+    )
     crossings = np.where((xhi[:-1] <= neutral_fraction) & (xhi[1:] > neutral_fraction))[0]
     if crossings.size == 0:
         return np.nan
@@ -144,18 +164,34 @@ def shock_radius_cgs_cm(
     """
     active_cells = int(snapshot.par.mesh.grid_cells)
     ghost_cells = int(snapshot.par.mesh.ghost_cells)
-    boundary_proper_cgs_cm = active_radarray(
-        snapshot.mesh.boundary_radarray, active_cells, ghost_cells, boundary=True
-    ).to(unyt.cm).value
-    radius_proper_cgs_cm = 0.5 * (
-        boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:]
+    boundary_proper_cgs_cm = (
+        active_radarray(
+            snapshot.mesh.boundary_radarray,
+            active_cells,
+            ghost_cells,
+            boundary=True,
+        )
+        .to(unyt.cm)
+        .value
     )
-    rho_proper_cgs_g_cm3 = active_radarray(
-        snapshot.fluid.rho_radarray, active_cells, ghost_cells
-    ).to(unyt.g / unyt.cm**3).value
-    xhi = np.asarray(active_radarray(
-        snapshot.fluid.xHI, active_cells, ghost_cells
-    ), dtype=float)
+    radius_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:])
+    rho_proper_cgs_g_cm3 = (
+        active_radarray(
+            snapshot.fluid.rho_radarray,
+            active_cells,
+            ghost_cells,
+        )
+        .to(unyt.g / unyt.cm**3)
+        .value
+    )
+    xhi = np.asarray(
+        active_radarray(
+            snapshot.fluid.xHI,
+            active_cells,
+            ghost_cells,
+        ),
+        dtype=float,
+    )
     front = front_radius_cgs_cm(snapshot, config)
     if not np.isfinite(front):
         return np.nan
@@ -166,9 +202,7 @@ def shock_radius_cgs_cm(
         radius_core_proper_cgs_cm,
         density_power_law_exponent,
     )
-    compression = rho_proper_cgs_g_cm3 / (
-        initial_nh * (1.0 * unyt.mp).to_value(unyt.g)
-    )
+    compression = rho_proper_cgs_g_cm3 / (initial_nh * (1.0 * unyt.mp).to_value(unyt.g))
     neutral = (radius_proper_cgs_cm > front) & (xhi > 0.5)
     candidates = np.where(neutral & (compression > 1.05))[0]
     if candidates.size == 0:
@@ -176,7 +210,7 @@ def shock_radius_cgs_cm(
 
     peak = candidates[np.argmax(compression[candidates])]
     shell = np.where(
-        neutral & (np.arange(radius_proper_cgs_cm.size) >= peak) & (compression > 1.05)
+        neutral & (np.arange(radius_proper_cgs_cm.size) >= peak) & (compression > 1.05),
     )[0]
     if shell.size == 0:
         return np.nan
@@ -192,9 +226,9 @@ def apply_piecewise_isothermal_state(sim, config):
     sim.fluid.eos.apply_piecewise_isothermal_state(
         sim.fluid,
         sim.par,
-        config['initial_condition']["temperature_neutral_proper"],
-        config['initial_condition']["temperature_ionized_proper"],
-        config['initial_condition'].get("isothermal_ionized_fraction_threshold"),
+        config["initial_condition"]["temperature_neutral_proper"],
+        config["initial_condition"]["temperature_ionized_proper"],
+        config["initial_condition"].get("isothermal_ionized_fraction_threshold"),
     )
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, "verbose", 0))
@@ -223,22 +257,36 @@ def save_profile_plot(snapshots, output, exponent):
     for index, (time_proper_yr, snapshot) in enumerate(snapshots):
         active_cells = int(snapshot.par.mesh.grid_cells)
         ghost_cells = int(snapshot.par.mesh.ghost_cells)
-        boundary_proper_cgs_cm = active_radarray(
-            snapshot.mesh.boundary_radarray,
-            active_cells,
-            ghost_cells,
-            boundary=True,
-        ).to(unyt.cm).value
-        radius_proper_cgs_cm = 0.5 * (
-            boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:]
+        boundary_proper_cgs_cm = (
+            active_radarray(
+                snapshot.mesh.boundary_radarray,
+                active_cells,
+                ghost_cells,
+                boundary=True,
+            )
+            .to(unyt.cm)
+            .value
         )
+        radius_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:])
         radius_proper_pc = radius_proper_cgs_cm / (1.0 * unyt.pc).to_value(unyt.cm)
-        rho_proper_cgs_g_cm3 = active_radarray(
-            snapshot.fluid.rho_radarray, active_cells, ghost_cells
-        ).to(unyt.g / unyt.cm**3).value
-        velocity_proper_cgs_cm_s = active_radarray(
-            snapshot.fluid.vel_radarray, active_cells, ghost_cells
-        ).to(unyt.cm / unyt.s).value
+        rho_proper_cgs_g_cm3 = (
+            active_radarray(
+                snapshot.fluid.rho_radarray,
+                active_cells,
+                ghost_cells,
+            )
+            .to(unyt.g / unyt.cm**3)
+            .value
+        )
+        velocity_proper_cgs_cm_s = (
+            active_radarray(
+                snapshot.fluid.vel_radarray,
+                active_cells,
+                ghost_cells,
+            )
+            .to(unyt.cm / unyt.s)
+            .value
+        )
         style = line_styles[index % len(line_styles)]
         color = colors[index % len(colors)]
         label = f"{time_proper_yr:.0f} yr"
@@ -273,20 +321,22 @@ def save_profile_plot(snapshots, output, exponent):
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    initial = config['initial_condition']
-    example = config['example']
-    output_config = config['par']['output']
-    output_directory = Path(output_config['directory'])
+    initial = config["initial_condition"]
+    example = config["example"]
+    output_config = config["par"]["output"]
+    output_directory = Path(output_config["directory"])
     output_directory.mkdir(parents=True, exist_ok=True)
-    Path(output_config['directory']).mkdir(parents=True, exist_ok=True)
-    for filename in output_files(output_directory, output_config['filename_prefix']):
+    Path(output_config["directory"]).mkdir(parents=True, exist_ok=True)
+    for filename in output_files(output_directory, output_config["filename_prefix"]):
         filename.unlink()
     write_initial_condition(
-        config, config['par']['simulation']['initial_condition_filename']
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
     )
 
     sim = rio.loadhdf5(
-        config, config['par']['simulation']['initial_condition_filename']
+        config,
+        config["par"]["simulation"]["initial_condition_filename"],
     )
     sim.SetMesh()
     sim.SetFluid()
@@ -302,14 +352,17 @@ def main(config_filename=DEFAULT_CONFIG):
     radii_cm = []
     shock_radii_cm = []
     snapshots = []
-    core_number_density_cgs_cm3 = initial['core_number_density'].to_value(1.0 / unyt.cm**3)
-    radius_core_proper_cgs_cm = initial['radius_core_proper'].to_value(unyt.cm)
-    exponent = float(initial['density_power_law_exponent'])
-    for filename in output_files(output_directory, output_config['filename_prefix']):
+    core_number_density_cgs_cm3 = initial["core_number_density"].to_value(1.0 / unyt.cm**3)
+    radius_core_proper_cgs_cm = initial["radius_core_proper"].to_value(unyt.cm)
+    exponent = float(initial["density_power_law_exponent"])
+    for filename in output_files(output_directory, output_config["filename_prefix"]):
         snapshot = load_output_state(filename, config)
-        time_proper_code = float(np.asarray(
-            snapshot.fluid.time_proper_code, dtype=float
-        ).flat[0])
+        time_proper_code = float(
+            np.asarray(
+                snapshot.fluid.time_proper_code,
+                dtype=float,
+            ).flat[0]
+        )
         time_proper_yr = (
             time_proper_code
             * float(snapshot.par.units.CodeUnits.time_unit.to_value(unyt.s))
@@ -324,7 +377,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 core_number_density=core_number_density_cgs_cm3,
                 radius_core_proper_cgs_cm=radius_core_proper_cgs_cm,
                 density_power_law_exponent=exponent,
-            )
+            ),
         )
         snapshots.append((time_proper_yr, snapshot))
 
@@ -332,11 +385,9 @@ def main(config_filename=DEFAULT_CONFIG):
     radii_cm = np.asarray(radii_cm)
     shock_radii_cm = np.asarray(shock_radii_cm)
     end_time_yr = float(
-        config['par']['simulation']['final_time'].to_value(unyt.yr)
+        config["par"]["simulation"]["final_time"].to_value(unyt.yr),
     )
-    source_rate_s = config['par']['radiation'][
-        'source_photon_rate'
-    ].to_value(1.0 / unyt.s)
+    source_rate_s = config["par"]["radiation"]["source_photon_rate"].to_value(1.0 / unyt.s)
     analytic_time_s, analytic_radius_cgs_cm, _ = analytic.calculate_front(
         source_rate_s,
         core_number_density_cgs_cm3,

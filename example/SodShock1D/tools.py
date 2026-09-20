@@ -1,12 +1,15 @@
 """Initial conditions and plotting for the Sod shock tube."""
+
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import fsolve
 import unyt
-from radhydropy.initial_condition_writer import InitialConditionWriter
+from scipy.optimize import fsolve
+
 import radhydropy.io as rio
+from radhydropy.initial_condition_writer import InitialConditionWriter
 
 
 def shocktubecal(gamma, rho1, rho5, p1, p5):
@@ -17,28 +20,34 @@ def shocktubecal(gamma, rho1, rho5, p1, p5):
     c5 = np.sqrt(gamma * p5 / rho5)
 
     def pressure_residual(p2):
-        return (
-            (p2 / p1 - 1.0)
-            * np.sqrt((1.0 - mu2) / gamma / (p2 / p1 + mu2))
-            - 2.0 / (gamma - 1.0)
-            * c5 / c1
-            * (1.0 - np.power(p2 / p5, (gamma - 1.0) / (2.0 * gamma)))
-        )
+        return (p2 / p1 - 1.0) * np.sqrt((1.0 - mu2) / gamma / (p2 / p1 + mu2)) - 2.0 / (
+            gamma - 1.0
+        ) * c5 / c1 * (1.0 - np.power(p2 / p5, (gamma - 1.0) / (2.0 * gamma)))
 
     p2 = fsolve(pressure_residual, 0.4)[0]
     rho3 = rho5 * np.power(p2 / p5, 1.0 / gamma)
     rho2 = rho1 * (p2 + mu2 * p1) / (p1 + mu2 * p2)
-    v2 = 2.0 * c5 / (gamma - 1.0) * (
-        1.0 - np.power(p2 / p5, (gamma - 1.0) / (2.0 * gamma))
-    )
+    v2 = 2.0 * c5 / (gamma - 1.0) * (1.0 - np.power(p2 / p5, (gamma - 1.0) / (2.0 * gamma)))
     vt = c5 - v2 / (1.0 - mu2)
     vs = v2 / (1.0 - rho1 / rho2)
     return rho2, rho3, p2, v2, vt, vs, vs / c1
 
 
 def shocktubeanalyticgraph(
-    gamma, rho1, rho2, rho3, rho5, p1, p2, p5, v2, vt, vs,
-    time_proper_code, xcor, xint,
+    gamma,
+    rho1,
+    rho2,
+    rho3,
+    rho5,
+    p1,
+    p2,
+    p5,
+    v2,
+    vt,
+    vs,
+    time_proper_code,
+    xcor,
+    xint,
 ):
     """Evaluate the analytic Sod solution at the supplied coordinates."""
     mu2 = (gamma - 1.0) / (gamma + 1.0)
@@ -91,9 +100,7 @@ def build_initial_condition(config):
     grid_cells = int(ic["grid_cells"])
     size_proper_unyt = ic["box_size_proper"]
     boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * size_proper_unyt
-    x_proper_unyt = 0.5 * (
-        boundary_proper_unyt[:-1] + boundary_proper_unyt[1:]
-    )
+    x_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
     shocked_cells = (x_proper_unyt > 0.25 * size_proper_unyt) & (
         x_proper_unyt < 0.75 * size_proper_unyt
     )
@@ -111,52 +118,51 @@ def build_initial_condition(config):
     writer.box_size = writer.radquantity(size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(
-        np.ones(grid_cells)
-        * ic["rho_proper"]
-        * np.where(shocked_cells, ic["density_ratio"], 1.0)
+        np.ones(grid_cells) * ic["rho_proper"] * np.where(shocked_cells, ic["density_ratio"], 1.0),
     )
     writer.fluid.vel_radarray = writer.radarray(
-        np.ones(grid_cells) * ic["vel_proper"]
+        np.ones(grid_cells) * ic["vel_proper"],
     )
     writer.fluid.temp_radarray = writer.radarray(
         np.ones(grid_cells)
         * ic["temperature_proper"]
-        * np.where(shocked_cells, ic["temperature_ratio"], 1.0)
+        * np.where(shocked_cells, ic["temperature_ratio"], 1.0),
     )
     writer.fluid.mu = mu_dimensionless
     return writer
+
 
 def analytic_density_profile(config, state):
     ic = config["initial_condition"]
     units = config["_code_units"]
     rho_high_proper_cgs_g_cm3 = float(
-        ic["rho_proper"].to_value(unyt.g / unyt.cm**3)
+        ic["rho_proper"].to_value(unyt.g / unyt.cm**3),
     )
-    rho_low_proper_cgs_g_cm3 = (
-        rho_high_proper_cgs_g_cm3 * ic["density_ratio"]
-    )
+    rho_low_proper_cgs_g_cm3 = rho_high_proper_cgs_g_cm3 * ic["density_ratio"]
     temp_high_cgs_K = float(ic["temperature_proper"].to_value(unyt.K))
     temp_low_cgs_K = temp_high_cgs_K * ic["temperature_ratio"]
     mu_dimensionless = float(ic["mean_molecular_weight"])
     pressure_low_proper_cgs_erg_cm3 = float(
         (
             rho_low_proper_cgs_g_cm3
-            * unyt.g / unyt.cm**3
+            * unyt.g
+            / unyt.cm**3
             / (mu_dimensionless * unyt.mp)
             * unyt.kb
             * temp_low_cgs_K
             * unyt.K
-        ).to_value(unyt.erg / unyt.cm**3)
+        ).to_value(unyt.erg / unyt.cm**3),
     )
     pressure_high_proper_cgs_erg_cm3 = float(
         (
             rho_high_proper_cgs_g_cm3
-            * unyt.g / unyt.cm**3
+            * unyt.g
+            / unyt.cm**3
             / (mu_dimensionless * unyt.mp)
             * unyt.kb
             * temp_high_cgs_K
             * unyt.K
-        ).to_value(unyt.erg / unyt.cm**3)
+        ).to_value(unyt.erg / unyt.cm**3),
     )
     rho2, rho3, p2, v2, vt, vs, _ = shocktubecal(
         config["par"]["hydrodynamics"]["gamma"],
@@ -166,10 +172,9 @@ def analytic_density_profile(config, state):
         pressure_high_proper_cgs_erg_cm3,
     )
     time_proper_cgs_s = float(
-        (
-            float(np.asarray(state.fluid.time_proper_code).flat[0])
-            * units.time_unit
-        ).to_value(unyt.s)
+        (float(np.asarray(state.fluid.time_proper_code).flat[0]) * units.time_unit).to_value(
+            unyt.s
+        ),
     )
     if time_proper_cgs_s <= 0.0:
         return None
@@ -177,9 +182,7 @@ def analytic_density_profile(config, state):
         state.mesh.boundary_radarray.to_cgs().to_value(unyt.cm),
         dtype=float,
     )
-    centers_proper_cgs_cm = 0.5 * (
-        boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:]
-    )
+    centers_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:])
     box_proper_cgs_cm = float(ic["box_size_proper"].to_value(unyt.cm))
     interface_proper_cgs_cm = 0.25 * box_proper_cgs_cm
     left, _, _ = shocktubeanalyticgraph(
@@ -220,6 +223,7 @@ def analytic_density_profile(config, state):
         mirrored,
     )
 
+
 def plot_snapshot(filename, config, **kwargs):
     sim = rio.loadhdf5(config, filename)
     first = int(sim.par.mesh.ghost_cells)
@@ -233,9 +237,7 @@ def plot_snapshot(filename, config, **kwargs):
         sim.fluid.rho_radarray.to_cgs().to_value(unyt.g / unyt.cm**3),
         dtype=float,
     )
-    x_proper_cgs_cm = 0.5 * (
-        boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:]
-    )
+    x_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:])
     plt.plot(
         x_proper_cgs_cm[first:last],
         rho_proper_cgs_g_cm3[first:last],

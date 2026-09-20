@@ -5,6 +5,14 @@ import numpy as np
 import pytest
 import unyt
 
+from radhydropy.arrays import NamedArray
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.fluid import Fluid
+from radhydropy.runtime_fields import (
+    PROPER_RUNTIME_FIELDS,
+    FluidRuntimeState,
+    MeshGeometryState,
+)
 from radhydropy.state_boundaries import (
     CgsSourceState,
     ProperCodeState,
@@ -13,17 +21,8 @@ from radhydropy.state_boundaries import (
     cgs_source_state_to_code,
     proper_code_state_from_physical,
 )
-from radhydropy.arrays import NamedArray
-from radhydropy.fluid import Fluid
-from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.thermo_networks.hydrogen import source_state as hydrogen_source_state
-from radhydropy.units import CodeUnits
-from radhydropy.units import code_unit_scales
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    PROPER_RUNTIME_FIELDS,
-)
+from radhydropy.units import CodeUnits, code_unit_scales
 
 
 @pytest.fixture
@@ -36,7 +35,7 @@ def code_units():
             "UnitVelocity_in_cgs": 4.0,
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 5.0,
-        }
+        },
     )
 
 
@@ -63,7 +62,7 @@ def test_physical_to_cgs_to_code_round_trip(code_units):
     )
     assert isinstance(source, CgsSourceState)
     assert source.rho_cgs_g_cm3[0] == pytest.approx(
-        2.0 * code_unit_scales(code_units)["density_cgs_g_cm3"]
+        2.0 * code_unit_scales(code_units)["density_cgs_g_cm3"],
     )
     assert source.time_cgs_s == pytest.approx(13.0 * code_units.time_in_cgs)
 
@@ -72,7 +71,8 @@ def test_physical_to_cgs_to_code_round_trip(code_units):
     np.testing.assert_allclose(restored.vel_proper_code, physical.vel_proper_code)
     np.testing.assert_allclose(restored.temp_proper_code, physical.temp_proper_code)
     np.testing.assert_allclose(
-        restored.specific_energy_proper_code, physical.specific_energy_proper_code
+        restored.specific_energy_proper_code,
+        physical.specific_energy_proper_code,
     )
     np.testing.assert_allclose(restored.ngamma_code, physical.ngamma_code)
 
@@ -208,7 +208,9 @@ def test_hydrogen_source_state_uses_typed_cgs_boundary(code_units):
         PROPER_RUNTIME_FIELDS,
         x_proper_code=mesh.coordinate,
         boundary_proper_code=mesh.boundary,
-        width_proper_code=np.ones(1), area_proper_code=np.ones(1), volume_proper_code=mesh.vol,
+        width_proper_code=np.ones(1),
+        area_proper_code=np.ones(1),
+        volume_proper_code=mesh.vol,
     )
     par = SimpleNamespace(
         units=SimpleNamespace(CodeUnits=code_units),
@@ -233,9 +235,9 @@ def test_hydrogen_source_state_uses_typed_cgs_boundary(code_units):
         [100.0 * code_unit_scales(code_units)["temperature_cgs_K"]],
     )
     expected_specific_energy = (
-        BOLTZMANN_CONSTANT_CGS * state["temperature_cgs_K"]
-        / ((5.0 / 3.0 - 1.0) * PROTON_MASS_CGS)
+        BOLTZMANN_CONSTANT_CGS * state["temperature_cgs_K"] / ((5.0 / 3.0 - 1.0) * PROTON_MASS_CGS)
     )
     np.testing.assert_allclose(
-        state["specific_energy_cgs_erg_g"], expected_specific_energy
+        state["specific_energy_cgs_erg_g"],
+        expected_specific_energy,
     )

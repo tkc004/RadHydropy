@@ -1,4 +1,3 @@
-from pathlib import Path
 import tempfile
 
 import h5py
@@ -21,7 +20,12 @@ def test_hdf5_unit_cosmology_roundtrip_example():
                 data = handle["Data"]
                 assert "CodeUnits" in header.attrs
                 assert "Gamma" in header.attrs
-                assert "storage_unit" in data["rho_comoving_code" if "cosmological" in case_name else "rho_proper_code"].attrs
+                assert (
+                    "storage_unit"
+                    in data[
+                        "rho_comoving_code" if "cosmological" in case_name else "rho_proper_code"
+                    ].attrs
+                )
                 if case_name == "cosmological_astrophysical":
                     assert "CosmologyType" in header.attrs
                     assert "ScaleFactor" in header.attrs

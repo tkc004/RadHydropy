@@ -7,10 +7,11 @@ gas density profile at regular cosmic-time intervals.
 """
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,16 +21,16 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
+import virial_shock_tools as et
+from example_utils import load_nested_example_config
+
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
-from example_utils import load_nested_example_config
 from radhydropy.gravity import Gravity
 from radhydropy.units import CodeUnits, quantity_to_value
-import virial_shock_tools as et
-
 
 DEFAULT_CONFIG = Path(__file__).with_name(
-    "cosmological_adiabatic_gas_correlation_z100.yaml"
+    "cosmological_adiabatic_gas_correlation_z100.yaml",
 )
 
 
@@ -77,36 +78,55 @@ def run(config_filename=DEFAULT_CONFIG):
     # check is intentionally printed for this experiment because using the
     # full matter density in both components would double-count gravity.
     baryon_fraction = float(initial_condition["baryon_fraction"])
-    gas_mass_comoving_code = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
+    gas_mass_comoving_code = float(
+        np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code)
+    )
     dm_mass_comoving_code = float(np.sum(dm.mass))
-    measured_fraction = gas_mass_comoving_code / max(gas_mass_comoving_code + dm_mass_comoving_code, 1.0e-30)
+    measured_fraction = gas_mass_comoving_code / max(
+        gas_mass_comoving_code + dm_mass_comoving_code, 1.0e-30
+    )
     print("initial gas mass = %.8g code masses" % gas_mass_comoving_code)
     print("initial dark-matter mass = %.8g code masses" % dm_mass_comoving_code)
-    print("initial gas fraction = %.8g (configured %.8g)" % (
-        measured_fraction, baryon_fraction,
-    ))
+    print(
+        "initial gas fraction = %.8g (configured %.8g)"
+        % (
+            measured_fraction,
+            baryon_fraction,
+        )
+    )
     if hasattr(initial.fluid, "xHI"):
-        print("initial CMB temperature = %.8g K" % float(np.median(
-            np.asarray(initial.fluid.temp_supercomoving_code) /
-            float(cosmology.scale_factor(initial_time))**2
-        )))
-        print("initial electron fraction = %.8g" % float(np.median(
-            1.0 - np.asarray(initial.fluid.xHI)
-        )))
+        print(
+            "initial CMB temperature = %.8g K"
+            % float(
+                np.median(
+                    np.asarray(initial.fluid.temp_supercomoving_code)
+                    / float(cosmology.scale_factor(initial_time)) ** 2,
+                )
+            )
+        )
+        print(
+            "initial electron fraction = %.8g"
+            % float(
+                np.median(
+                    1.0 - np.asarray(initial.fluid.xHI),
+                )
+            )
+        )
     if not np.isclose(measured_fraction, baryon_fraction, rtol=0.02):
         raise RuntimeError(
-            "gas/total initial mass fraction does not match the configured "
-            "cosmic baryon fraction"
+            "gas/total initial mass fraction does not match the configured cosmic baryon fraction",
         )
 
     par["simulation"]["initial_condition_filename"] = str(ic_filename)
     par["output"]["directory"] = str(output_dir)
     par["output"]["directory"] = str(output_dir)
-    par.setdefault("thermochemistry", {}).update({
-        "metal_pie_enabled": False,
-        "cie_cooling": False,
-        "thermochemistry_network": "hydrogen",
-    })
+    par.setdefault("thermochemistry", {}).update(
+        {
+            "metal_pie_enabled": False,
+            "cie_cooling": False,
+            "thermochemistry_network": "hydrogen",
+        }
+    )
     sim = rio.loadhdf5(
         config,
         config["par"]["simulation"]["initial_condition_filename"],
@@ -127,7 +147,7 @@ def run(config_filename=DEFAULT_CONFIG):
         )
     ):
         raise RuntimeError(
-            "cosmological startup clocks disagree after SetInitFluid"
+            "cosmological startup clocks disagree after SetInitFluid",
         )
     sim.par.gravity = Gravity(
         selfgravity=True,
@@ -145,7 +165,8 @@ def run(config_filename=DEFAULT_CONFIG):
     sim.par.gas_background_fraction = baryon_fraction
 
     final_cosmic_time_code = quantity_to_value(
-        par["simulation"]["final_time"], sim.par.units.CodeUnits.time_unit
+        par["simulation"]["final_time"],
+        sim.par.units.CodeUnits.time_unit,
     )
     target_tau = float(cosmology.supercomoving_time(final_cosmic_time_code))
     cadence = float(par.get("gas_profile_cadence", 0.10))
@@ -163,7 +184,7 @@ def run(config_filename=DEFAULT_CONFIG):
     steps = 0
     while float(sim.fluid.tau_supercomoving_code) < target_tau - 1.0e-12:
         cosmic_start = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code)),
         )
         scale_start = float(cosmology.scale_factor(cosmic_start))
         sim.par.compton_cmb_redshift = 1.0 / scale_start - 1.0
@@ -174,7 +195,7 @@ def run(config_filename=DEFAULT_CONFIG):
         sim.Step(dt=dt, mode="hydro_sources")
         steps += 1
         time_cosmic_code = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code)),
         )
         if steps == 1 or steps % 500 == 0:
             print(
@@ -182,7 +203,10 @@ def run(config_filename=DEFAULT_CONFIG):
                 % (steps, time_cosmic_code, dt, dm.crossing_timestep()),
                 flush=True,
             )
-        if time_cosmic_code >= next_snapshot or time_cosmic_code >= final_cosmic_time_code - 1.0e-10:
+        if (
+            time_cosmic_code >= next_snapshot
+            or time_cosmic_code >= final_cosmic_time_code - 1.0e-10
+        ):
             save_snapshot(time_cosmic_code)
             while next_snapshot <= time_cosmic_code + 1.0e-12:
                 next_snapshot += cadence
@@ -190,7 +214,7 @@ def run(config_filename=DEFAULT_CONFIG):
     times = np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles])
     radius_comoving = np.asarray(gas_profiles[0]["radius_comoving_kpc"])
     density_proper = np.asarray(
-        [item["rho_proper_code"] for item in gas_profiles]
+        [item["rho_proper_code"] for item in gas_profiles],
     )
     scale_factors = np.asarray([item["scale_factor"] for item in gas_profiles])
     rvir_proper = np.asarray([item["rvir_kpc"] for item in radius_history])
@@ -207,12 +231,21 @@ def run(config_filename=DEFAULT_CONFIG):
         gas_fraction=np.full(times.size, baryon_fraction),
     )
     figure = plot_gas_density_evolution(
-        times, radius_comoving, density_proper, rvir_proper,
-        scale_factors, output_dir / "AdiabaticGasDensityProfiles.jpg",
+        times,
+        radius_comoving,
+        density_proper,
+        rvir_proper,
+        scale_factors,
+        output_dir / "AdiabaticGasDensityProfiles.jpg",
     )
-    print("steps = %d, dark-matter shells = %d, gas cells = %d" % (
-        steps, dm.number_of_shells, int(par["mesh"]["grid_cells"]),
-    ))
+    print(
+        "steps = %d, dark-matter shells = %d, gas cells = %d"
+        % (
+            steps,
+            dm.number_of_shells,
+            int(par["mesh"]["grid_cells"]),
+        )
+    )
     print("final cosmic time = %.8g Gyr" % times[-1])
     print("profile data = %s" % (output_dir / "AdiabaticGasDensityProfiles.npz"))
     print("figure = %s" % figure)
@@ -220,7 +253,11 @@ def run(config_filename=DEFAULT_CONFIG):
 
 
 def plot_gas_density_evolution(
-    times, radius_comoving, density_proper, rvir_proper, scale_factors,
+    times,
+    radius_comoving,
+    density_proper,
+    rvir_proper,
+    scale_factors,
     filename,
 ):
     """Plot selected gas profiles and the virial radius at matching times."""
@@ -230,14 +267,16 @@ def plot_gas_density_evolution(
     rvir_proper = np.asarray(rvir_proper, dtype=float)
     scale_factors = np.asarray(scale_factors, dtype=float)
     selected = np.unique(
-        np.linspace(0, times.size - 1, min(9, times.size)).astype(int)
+        np.linspace(0, times.size - 1, min(9, times.size)).astype(int),
     )
     colors = plt.get_cmap("viridis")(
-        np.linspace(0.05, 0.95, selected.size)
+        np.linspace(0.05, 0.95, selected.size),
     )
 
     fig, axes = plt.subplots(
-        2, 1, figsize=(8.0, 8.0),
+        2,
+        1,
+        figsize=(8.0, 8.0),
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
     axis = axes[0]
@@ -248,12 +287,15 @@ def plot_gas_density_evolution(
         if np.isfinite(rvir_proper[index]) and rvir_proper[index] > 0.0:
             axis.axvline(
                 rvir_proper[index] / scale_factors[index],
-                color=color, ls="--", lw=0.9, alpha=0.65,
+                color=color,
+                ls="--",
+                lw=0.9,
+                alpha=0.65,
             )
     axis.set_ylabel(r"proper gas density [code mass / kpc$^3$]")
     axis.set_title(
         "Adiabatic gas collapse from the z=100 LCDM correlation IC\n"
-        "solid: gas density; dashed: corresponding virial radius"
+        "solid: gas density; dashed: corresponding virial radius",
     )
     axis.grid(alpha=0.25, which="both")
     axis.legend(loc="best", fontsize=8, ncol=3)

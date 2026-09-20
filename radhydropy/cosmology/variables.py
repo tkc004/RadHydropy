@@ -9,7 +9,7 @@ def supercomoving_scale(par, tau_supercomoving_code=None):
         tau_supercomoving_code = par.tau_supercomoving_code
     tau = float(np.asarray(tau_supercomoving_code, dtype=float))
     cosmology_parameters = par.cosmology
-    cosmology = getattr(cosmology_parameters, 'model', cosmology_parameters)
+    cosmology = getattr(cosmology_parameters, "model", cosmology_parameters)
     _, scale_factor, hubble = cosmology.background_state_from_supercomoving(tau)
     return float(scale_factor), float(hubble)
 
@@ -25,9 +25,7 @@ def to_supercomoving_temperature(temperature, scale_factor, gamma):
 def to_supercomoving_velocity(velocity, radius, scale_factor, hubble):
     """Convert proper velocity at comoving radius ``x`` to ``v``."""
     proper_radius = scale_factor * np.asarray(radius, dtype=float)
-    return scale_factor * (
-        np.asarray(velocity, dtype=float) - hubble * proper_radius
-    )
+    return scale_factor * (np.asarray(velocity, dtype=float) - hubble * proper_radius)
 
 
 def physical_density(density, scale_factor):

@@ -6,14 +6,14 @@ and atomic cooling enabled.  There is deliberately no radiation field or
 photoionization/reionization source.
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-import unyt
 from scipy.integrate import solve_ivp
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -26,14 +26,12 @@ from radhydropy.thermo_networks.hydrogen import (
     thermal_rate,
 )
 
-
 CONFIG = EXAMPLE_ROOT / "cosmological_residual_ionization1d.yaml"
 SECONDS_PER_GYR = 1.0e9 * 365.25 * 86400.0
 
 
 def evolve(config):
     """Integrate xHI and temperature with the RadHydropy source equations."""
-
     initial_condition = config["initial_condition"]
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     hydrogen_fraction = float(config["par"]["chemistry"]["hydrogen_mass_fraction"])
@@ -52,7 +50,7 @@ def evolve(config):
         temperature_proper_cgs_K = max(float(values[1]), 1.0e-6)
         scale_factor = (time_cosmic_cgs_s / t_ref_s) ** (2.0 / 3.0)
         redshift = 1.0 / scale_factor - 1.0
-        nH = nH0 * scale_factor ** -3
+        nH = nH0 * scale_factor**-3
         rho_proper_cgs_g_cm3 = nH * PROTON_MASS_CGS / hydrogen_fraction
         state = {
             "rho_cgs_g_cm3": np.asarray([rho_proper_cgs_g_cm3]),
@@ -77,8 +75,12 @@ def evolve(config):
         mu = 1.0 / (hydrogen_fraction * (2.0 - xHI))
         hubble = 2.0 / (3.0 * time_cosmic_cgs_s)
         adiabatic = -2.0 * hubble * temperature_proper_cgs_K
-        source = (gamma - 1.0) * mu * PROTON_MASS_CGS * q / (
-            rho_proper_cgs_g_cm3 * BOLTZMANN_CONSTANT_CGS
+        source = (
+            (gamma - 1.0)
+            * mu
+            * PROTON_MASS_CGS
+            * q
+            / (rho_proper_cgs_g_cm3 * BOLTZMANN_CONSTANT_CGS)
         )
         return [dxhi_dt, adiabatic + source]
 
@@ -103,19 +105,25 @@ def evolve(config):
 
 def main():
     from example import example_utils as eu
+
     config = eu.load_nested_example_config(CONFIG)
     redshift, xe, temperature_proper_cgs_K = evolve(config)
     # The integration proceeds from high to low redshift; retain that order
     # so the horizontal axis also reads forward in cosmic time.
     order = np.argsort(-redshift)
     redshift, xe, temperature_proper_cgs_K = (
-        redshift[order], xe[order], temperature_proper_cgs_K[order]
+        redshift[order],
+        xe[order],
+        temperature_proper_cgs_K[order],
     )
     output = Path(config["par"]["output"]["directory"])
     output.mkdir(parents=True, exist_ok=True)
-    np.savez(output / "CosmologicalResidualIonization1D_History.npz",
-             redshift=redshift, xe=xe,
-             temperature_proper_cgs_K=temperature_proper_cgs_K)
+    np.savez(
+        output / "CosmologicalResidualIonization1D_History.npz",
+        redshift=redshift,
+        xe=xe,
+        temperature_proper_cgs_K=temperature_proper_cgs_K,
+    )
 
     figure = output / "CosmologicalResidualIonization1D_xe_temperature.jpg"
     fig, axes = plt.subplots(1, 2, figsize=(10.0, 4.2))

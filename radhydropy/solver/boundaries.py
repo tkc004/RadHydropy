@@ -22,35 +22,75 @@ def set_boundary(solver, mesh, fluid, par):
 
     if boundary_type == "Periodic":
         solver._apply_periodic_boundary(
-            fluid, interior, left_ghost, right_ghost, ghost_cells,
+            fluid,
+            interior,
+            left_ghost,
+            right_ghost,
+            ghost_cells,
         )
     elif boundary_type == "Open":
         solver._apply_open_boundary(
-            fluid, first_cell, last_cell, left_ghost, right_ghost,
+            fluid,
+            first_cell,
+            last_cell,
+            left_ghost,
+            right_ghost,
         )
     elif boundary_type == "Reflecting":
         solver._apply_reflecting_boundary(
-            fluid, interior, left_ghost, right_ghost, ghost_cells,
+            fluid,
+            interior,
+            left_ghost,
+            right_ghost,
+            ghost_cells,
         )
     elif boundary_type == "OpenSph":
         solver._apply_open_spherical_boundary(
-            mesh, fluid, par, scales, first_cell, last_cell,
-            left_ghost, right_ghost, ghost_cells,
+            mesh,
+            fluid,
+            par,
+            scales,
+            first_cell,
+            last_cell,
+            left_ghost,
+            right_ghost,
+            ghost_cells,
         )
     elif boundary_type == "InflowSph":
         solver._apply_inflow_spherical_boundary(
-            mesh, fluid, par, scales, first_cell, last_cell,
-            left_ghost, right_ghost, ghost_cells,
+            mesh,
+            fluid,
+            par,
+            scales,
+            first_cell,
+            last_cell,
+            left_ghost,
+            right_ghost,
+            ghost_cells,
         )
     elif boundary_type == "OutflowSph":
         solver._apply_outflow_spherical_boundary(
-            mesh, fluid, par, scales, first_cell, last_cell,
-            left_ghost, right_ghost, ghost_cells,
+            mesh,
+            fluid,
+            par,
+            scales,
+            first_cell,
+            last_cell,
+            left_ghost,
+            right_ghost,
+            ghost_cells,
         )
     elif boundary_type == "WindSph":
         solver._apply_wind_spherical_boundary(
-            mesh, fluid, par, scales, first_cell, last_cell,
-            left_ghost, right_ghost, ghost_cells,
+            mesh,
+            fluid,
+            par,
+            scales,
+            first_cell,
+            last_cell,
+            left_ghost,
+            right_ghost,
+            ghost_cells,
         )
     else:
         raise ValueError("Boundary condition unknown: %s" % boundary_type)

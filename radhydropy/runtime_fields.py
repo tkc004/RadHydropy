@@ -16,7 +16,9 @@ RuntimeArray = np.ndarray[Any, np.dtype[np.float64]]
 
 
 def _validated_runtime_array(
-    name: str, value: Any, kind: str = "runtime",
+    name: str,
+    value: Any,
+    kind: str = "runtime",
 ) -> RuntimeArray:
     """Return a finite, one-dimensional, unitless runtime array."""
     if hasattr(value, "units") or hasattr(value, "to_value"):
@@ -37,7 +39,9 @@ def _validated_runtime_array(
 
 
 def _validated_runtime_scalar(
-    name: str, value: Any, kind: str = "runtime",
+    name: str,
+    value: Any,
+    kind: str = "runtime",
 ) -> float:
     """Return a finite, unitless scalar runtime value."""
     if hasattr(value, "units") or hasattr(value, "to_value"):
@@ -56,7 +60,9 @@ def _validated_runtime_scalar(
 
 
 def _named_runtime_array(
-    name: str, value: Any, kind: str = "runtime",
+    name: str,
+    value: Any,
+    kind: str = "runtime",
 ) -> RuntimeArray:
     """Validate and preserve a mutable named array at the solver boundary."""
     return cast(
@@ -121,8 +127,7 @@ class MeshGeometryState:
                 "missing canonical mesh runtime arrays: " + ", ".join(missing),
             )
         values: dict[str, Any] = {
-            name: _named_runtime_array(name, arrays[name], kind="mesh")
-            for name in required
+            name: _named_runtime_array(name, arrays[name], kind="mesh") for name in required
         }
         return cls(
             **values,
@@ -186,8 +191,7 @@ class FluidRuntimeState:
         uninitialized = [name for name in required if arrays[name] is None]
         if uninitialized:
             raise ValueError(
-                "canonical fluid runtime fields are uninitialized: "
-                + ", ".join(uninitialized),
+                "canonical fluid runtime fields are uninitialized: " + ", ".join(uninitialized),
             )
         values = {
             name: _named_runtime_array(name, arrays[name], kind="fluid")
@@ -205,14 +209,17 @@ class FluidRuntimeState:
 def _validate_mesh_state_lengths(state: MeshGeometryState) -> None:
     """Validate lengths for the mesh fields that are present."""
     cell_arrays = (
-        "x_comoving_code", "width_comoving_code", "area_comoving_code",
-        "volume_comoving_code", "x_proper_code", "width_proper_code",
-        "area_proper_code", "volume_proper_code",
+        "x_comoving_code",
+        "width_comoving_code",
+        "area_comoving_code",
+        "volume_comoving_code",
+        "x_proper_code",
+        "width_proper_code",
+        "area_proper_code",
+        "volume_proper_code",
     )
     lengths = {
-        name: len(getattr(state, name))
-        for name in cell_arrays
-        if getattr(state, name) is not None
+        name: len(getattr(state, name)) for name in cell_arrays if getattr(state, name) is not None
     }
     if len(set(lengths.values())) > 1:
         raise ValueError(
@@ -232,15 +239,17 @@ def _validate_mesh_state_lengths(state: MeshGeometryState) -> None:
 def _validate_fluid_state_lengths(state: FluidRuntimeState) -> None:
     """Validate lengths for fluid primitive and auxiliary fields."""
     array_names = (
-        "rho_comoving_code", "vel_supercomoving_code",
-        "pre_supercomoving_code", "temp_supercomoving_code",
-        "rho_proper_code", "vel_proper_code", "pre_proper_code",
+        "rho_comoving_code",
+        "vel_supercomoving_code",
+        "pre_supercomoving_code",
+        "temp_supercomoving_code",
+        "rho_proper_code",
+        "vel_proper_code",
+        "pre_proper_code",
         "temp_proper_code",
     )
     lengths = {
-        name: len(getattr(state, name))
-        for name in array_names
-        if getattr(state, name) is not None
+        name: len(getattr(state, name)) for name in array_names if getattr(state, name) is not None
     }
     if len(set(lengths.values())) > 1:
         raise ValueError(
@@ -268,14 +277,8 @@ def validate_runtime_state_shapes(
         fields.pressure,
         fields.temperature,
     )
-    missing_mesh = [
-        name for name in required_mesh
-        if getattr(mesh_state, name, None) is None
-    ]
-    missing_fluid = [
-        name for name in required_fluid
-        if getattr(fluid_state, name, None) is None
-    ]
+    missing_mesh = [name for name in required_mesh if getattr(mesh_state, name, None) is None]
+    missing_fluid = [name for name in required_fluid if getattr(fluid_state, name, None) is None]
     if missing_mesh or missing_fluid:
         details = []
         if missing_mesh:
@@ -344,7 +347,8 @@ SUPERCOMOVING_RUNTIME_FIELDS = RuntimeFieldNames(
 
 
 def select_fluid_primitive_arrays(
-    runtime_state: FluidRuntimeState, par: Any,
+    runtime_state: FluidRuntimeState,
+    par: Any,
 ) -> tuple[Any, ...]:
     """Return primitive arrays for the configured runtime representation."""
     fields = runtime_fields(par)
@@ -368,7 +372,8 @@ def select_fluid_primitive_arrays(
 
 
 def select_mesh_geometry_arrays(
-    geometry: MeshGeometryState, par: Any,
+    geometry: MeshGeometryState,
+    par: Any,
 ) -> tuple[Any, ...]:
     """Return mesh geometry arrays for the configured representation."""
     fields = runtime_fields(par)
@@ -412,15 +417,16 @@ def runtime_fields(par: Any) -> RuntimeFieldNames:
             )
         if getattr(par, "velocity_representation", None) != "supercomoving_peculiar":
             raise ValueError(
-                "cosmological runtime requires velocity_representation="
-                "'supercomoving_peculiar'",
+                "cosmological runtime requires velocity_representation='supercomoving_peculiar'",
             )
         return SUPERCOMOVING_RUNTIME_FIELDS
     return PROPER_RUNTIME_FIELDS
 
 
 def require_runtime_fields(
-    owner: Any, fields: RuntimeFieldNames, owner_name: str,
+    owner: Any,
+    fields: RuntimeFieldNames,
+    owner_name: str,
 ) -> None:
     """Reject an object that has not been initialized with canonical fields."""
     missing = [
@@ -430,6 +436,5 @@ def require_runtime_fields(
     ]
     if missing:
         raise ValueError(
-            f"{owner_name} is missing canonical runtime fields: "
-            + ", ".join(missing),
+            f"{owner_name} is missing canonical runtime fields: " + ", ".join(missing),
         )

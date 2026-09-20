@@ -4,7 +4,6 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "lcdm_correlation.py"
 _SPEC = importlib.util.spec_from_file_location("lcdm_correlation_test_module", _MODULE_PATH)
 _LCDM = importlib.util.module_from_spec(_SPEC)
@@ -47,8 +46,7 @@ def test_sigma8_normalization():
     kr = 8.0 * k
     window = 3.0 * (np.sin(kr) - kr * np.cos(kr)) / kr**3
     sigma8 = np.sqrt(
-        np.trapz(k**3 * power * window**2, np.log(k))
-        / (2.0 * np.pi**2)
+        np.trapz(k**3 * power * window**2, np.log(k)) / (2.0 * np.pi**2),
     )
 
     assert np.isclose(sigma8, 0.811, rtol=1.0e-4)
@@ -62,10 +60,7 @@ def test_gaussian_power_spectrum_integral():
     power = amplitude * np.exp(-alpha * k**2)
 
     measured = linear_correlation_from_power_spectrum(radius, k, power)
-    expected = (
-        amplitude / (8.0 * np.pi**1.5 * alpha**1.5)
-        * np.exp(-radius**2 / (4.0 * alpha))
-    )
+    expected = amplitude / (8.0 * np.pi**1.5 * alpha**1.5) * np.exp(-(radius**2) / (4.0 * alpha))
 
     assert np.allclose(measured, expected, rtol=2.0e-4, atol=1.0e-7)
 

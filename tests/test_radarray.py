@@ -11,7 +11,6 @@ from radhydropy.radarray import (
 )
 from radhydropy.units import CodeUnits
 
-
 CODE_UNITS = CodeUnits.from_mapping(
     {
         "InternalUnitSystem": {
@@ -20,8 +19,8 @@ CODE_UNITS = CodeUnits.from_mapping(
             "UnitVelocity_in_cgs": 1.0e5,
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
-        }
-    }
+        },
+    },
 )
 CONTEXT = CosmologyContext(
     gamma=5.0 / 3.0,
@@ -91,7 +90,8 @@ class RadArrayTests(unittest.TestCase):
                 )
                 self.assertAlmostEqual(float(proper_radquantity.value), target_value)
                 self.assertAlmostEqual(
-                    float(proper_radquantity.to_comoving().value), source_value
+                    float(proper_radquantity.to_comoving().value),
+                    source_value,
                 )
 
     def test_scalar_velocity_requires_position_and_round_trips(self):
@@ -137,15 +137,18 @@ class RadArrayTests(unittest.TestCase):
                 array = _array([1.0, 2.0], field_name)
 
                 self.assertIsInstance(array, RadArray)
-                self.assertEqual(array.field_spec, field_spec(
-                    field_name,
-                    CODE_UNITS,
-                    hubble_parameter_km_s_Mpc=(
-                        CONTEXT.hubble_parameter_km_s_Mpc
-                        if field_name == "vel_supercomoving_code"
-                        else None
+                self.assertEqual(
+                    array.field_spec,
+                    field_spec(
+                        field_name,
+                        CODE_UNITS,
+                        hubble_parameter_km_s_Mpc=(
+                            CONTEXT.hubble_parameter_km_s_Mpc
+                            if field_name == "vel_supercomoving_code"
+                            else None
+                        ),
                     ),
-                ))
+                )
                 self.assertTrue(np.all(np.isfinite(array.to_cgs().value)))
 
     def test_density_round_trip(self):
@@ -179,7 +182,7 @@ class RadArrayTests(unittest.TestCase):
             velocity_supercomoving_radarray.to_proper()
 
         velocity_proper_radarray = velocity_supercomoving_radarray.to_proper(
-            x_comoving_code=np.array([4.0])
+            x_comoving_code=np.array([4.0]),
         )
         np.testing.assert_allclose(velocity_proper_radarray.value, [4.14])
         np.testing.assert_allclose(

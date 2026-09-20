@@ -1,12 +1,12 @@
 import unittest
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 import unyt
 
 import radhydropy.radiative_transfer as rrt
 from radhydropy.units import CodeUnits, code_unit_scales
+from tests.parameter_fixtures import parameter_namespace
 
 
 class Testing(unittest.TestCase):
@@ -50,7 +50,9 @@ class Testing(unittest.TestCase):
             rtol=1.0e-5,
         )
         np.testing.assert_allclose(
-            result.optical_depth, np.ones((1, 3)), rtol=1.0e-5
+            result.optical_depth,
+            np.ones((1, 3)),
+            rtol=1.0e-5,
         )
 
     def test_single_group_uses_canonical_grouped_shape(self):
@@ -125,8 +127,12 @@ class Testing(unittest.TestCase):
         rates = rrt.species_photoionization_rates(ngamma_cgs_cm3, sigma)
         c_light = rrt.SPEED_OF_LIGHT_CGS
 
-        np.testing.assert_allclose(rates["HI"], c_light * (1.0 * ngamma_cgs_cm3[0] + 2.0 * ngamma_cgs_cm3[1]))
-        np.testing.assert_allclose(rates["HeI"], c_light * (3.0 * ngamma_cgs_cm3[0] + 4.0 * ngamma_cgs_cm3[1]))
+        np.testing.assert_allclose(
+            rates["HI"], c_light * (1.0 * ngamma_cgs_cm3[0] + 2.0 * ngamma_cgs_cm3[1])
+        )
+        np.testing.assert_allclose(
+            rates["HeI"], c_light * (3.0 * ngamma_cgs_cm3[0] + 4.0 * ngamma_cgs_cm3[1])
+        )
 
     def test_multigroup_photoheating_uses_excess_energy_per_group(self):
         ngamma_cgs_cm3 = np.array([[2.0], [5.0]], dtype=float)
@@ -167,11 +173,15 @@ class Testing(unittest.TestCase):
         result = rrt.trace_photon_density(state, par)
         expected = np.array(
             [
-                [10.0 * (1.0 - np.exp(-1.0)) / 1.0,
-                 10.0 * np.exp(-1.0) * (1.0 - np.exp(-1.0)) / 1.0],
-                [20.0 * (1.0 - np.exp(-2.0)) / 2.0,
-                 20.0 * np.exp(-2.0) * (1.0 - np.exp(-2.0)) / 2.0],
-            ]
+                [
+                    10.0 * (1.0 - np.exp(-1.0)) / 1.0,
+                    10.0 * np.exp(-1.0) * (1.0 - np.exp(-1.0)) / 1.0,
+                ],
+                [
+                    20.0 * (1.0 - np.exp(-2.0)) / 2.0,
+                    20.0 * np.exp(-2.0) * (1.0 - np.exp(-2.0)) / 2.0,
+                ],
+            ],
         ) / unyt.c.to_value(unyt.cm / unyt.s)
         np.testing.assert_allclose(result, expected)
 
@@ -241,7 +251,7 @@ class Testing(unittest.TestCase):
                     "UnitCurrent_in_cgs": 1.0,
                     "UnitTemp_in_cgs": 1.0,
                 },
-            }
+            },
         )
         scales = code_unit_scales(code_units)
         state = {
@@ -273,14 +283,12 @@ class Testing(unittest.TestCase):
                 volume_cgs_cm3=state["volume_cgs_cm3"],
             ),
             absorber_densities={
-                "HI": state["rho_cgs_g_cm3"] / unyt.mp.to_value(unyt.g)
+                "HI": state["rho_cgs_g_cm3"] / unyt.mp.to_value(unyt.g),
             },
             cross_sections_cgs_cm2={
-                "HI": [0.5 * scales["area_cgs_cm2"] * unyt.cm**2]
+                "HI": [0.5 * scales["area_cgs_cm2"] * unyt.cm**2],
             },
-            boundary_flux=0.0 * scales["photon_flux_per_cgs_cm2_s"] / (
-                unyt.cm**2 * unyt.s
-            ),
+            boundary_flux=0.0 * scales["photon_flux_per_cgs_cm2_s"] / (unyt.cm**2 * unyt.s),
             source_photon_rate=3.0 * scales["photon_rate_per_s"] / unyt.s,
             direction=1,
             coordsys="spherical",

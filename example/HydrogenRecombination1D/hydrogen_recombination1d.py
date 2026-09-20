@@ -9,16 +9,16 @@ the ionized fraction against the analytic case-B expectation.
 import argparse
 import os
 import sys
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
-cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
-mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
+mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
+os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault(
-    'MPLCONFIGDIR',
+    "MPLCONFIGDIR",
     mplconfig_dir,
 )
 
@@ -29,69 +29,71 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import unyt
-from radhydropy.units import CodeUnits
-import radhydropy.io as rio
 import example_utils as eu
+import unyt
+
+import radhydropy.io as rio
 import tools as et
 
-DEFAULT_CONFIG = Path(__file__).resolve().with_name('hydrogen_recombination1d.yaml')
+DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_recombination1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
-    print('rundir', rundir)
+    print("rundir", rundir)
     config = eu.load_nested_example_config(config_filename)
 
-    initial_condition = config['initial_condition']
-    exampleparams = config['example']
-    output = config["par"]['output']
+    initial_condition = config["initial_condition"]
+    exampleparams = config["example"]
+    output = config["par"]["output"]
     eu.clean_previous_outputs(config)
     ric = et.build_initial_condition(config)
-    ic_filename = config["par"]['simulation']['initial_condition_filename']
+    ic_filename = config["par"]["simulation"]["initial_condition_filename"]
     ric.write(ic_filename)
     sim = rio.loadhdf5(config, ic_filename)
     et.run_hydrogen_recombination(
-        sim, exampleparams['target_neutral_fraction'], outputtime=0
+        sim,
+        exampleparams["target_neutral_fraction"],
+        outputtime=0,
     )
 
     outputfiles = et.output_files(
-        output['directory'],
-        output['filename_prefix'],
+        output["directory"],
+        output["filename_prefix"],
     )
     history = et.load_history_from_outputs(
         outputfiles,
         config,
     )
 
-    figure_filename = Path(output['directory']) / exampleparams['plot_filename']
+    figure_filename = Path(output["directory"]) / exampleparams["plot_filename"]
     et.save_history_plot(
         history,
         str(figure_filename),
         config,
-        exampleparams['target_neutral_fraction'],
+        exampleparams["target_neutral_fraction"],
     )
 
-    print('Hydrogen recombination example finished')
-    print('time = %.3e yr' % et.time_value(sim, unyt.yr))
-    print('mean temperature = %.3e K' % et.mean_temperature(sim).to_value(unyt.K))
-    print('mean neutral fraction = %.3e' % et.mean_neutral_fraction(sim))
-    print('mean ionized fraction = %.3e' % et.mean_ionized_fraction(sim))
-    print('figure = %s' % figure_filename)
+    print("Hydrogen recombination example finished")
+    print("time = %.3e yr" % et.time_value(sim, unyt.yr))
+    print("mean temperature = %.3e K" % et.mean_temperature(sim).to_value(unyt.K))
+    print("mean neutral fraction = %.3e" % et.mean_neutral_fraction(sim))
+    print("mean ionized fraction = %.3e" % et.mean_ionized_fraction(sim))
+    print("figure = %s" % figure_filename)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Run the 1D hydrogen recombination example.',
+        description="Run the 1D hydrogen recombination example.",
     )
     parser.add_argument(
-        '--config',
+        "--config",
         default=DEFAULT_CONFIG,
-        help='YAML file containing nested par, initial_condition, and example sections.',
+        help="YAML file containing nested par, initial_condition, and example sections.",
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

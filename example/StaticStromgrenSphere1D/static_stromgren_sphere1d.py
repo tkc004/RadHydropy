@@ -20,60 +20,66 @@ example_root = Path(__file__).resolve().parents[1]
 if str(example_root) not in sys.path:
     sys.path.insert(0, str(example_root))
 
-cache_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-cache')
-mplconfig_dir = os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib')
+cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
+mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault('XDG_CACHE_HOME', cache_dir)
-os.environ.setdefault('MPLCONFIGDIR', mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
+os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
+import example_utils as eu
+import stromgren_analytic as sa
 import unyt
 
-from radhydropy.rsim import Rsim
 import radhydropy.io as rio
-import stromgren_analytic as sa
-import example_utils as eu
 import tools as et
+from radhydropy.rsim import Rsim
 
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name('static_stromgren_sphere1d.yaml')
+DEFAULT_CONFIG = Path(__file__).resolve().with_name("static_stromgren_sphere1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
     rundir = Path.cwd().resolve()
-    print('rundir', rundir)
+    print("rundir", rundir)
     nested = eu.load_nested_example_config(config_filename)
     config = nested
-    initial = config['initial_condition']
-    example = config.get('example', {})
+    initial = config["initial_condition"]
+    example = config.get("example", {})
     eu.clean_previous_outputs(config)
-    Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
-    Path(nested['par']['output']['directory']).mkdir(parents=True, exist_ok=True)
+    Path(nested["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
+    Path(nested["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
 
     et.write_initial_condition(config)
 
-    sim = Rsim(nested['par'])
+    sim = Rsim(nested["par"])
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, sim.par.simulation.initial_condition_filename)
     sim.SetMesh()
     sim.SetFluid()
     sim.SetInitFluid()
 
     front_history = sim.EvolveStaticThermochemistry(
-        nested['par']['simulation']['final_time'],
-        nested['par']['timestep']['chemistry_timestep'],
+        nested["par"]["simulation"]["final_time"],
+        nested["par"]["timestep"]["chemistry_timestep"],
     )
     front_history = dict(front_history)
-    front_history['time_proper_Myr'] = front_history.pop('time_Myr')
-    front_history['front_radius_proper_kpc'] = front_history.pop('front_radius_kpc')
+    front_history["time_proper_Myr"] = front_history.pop("time_Myr")
+    front_history["front_radius_proper_kpc"] = front_history.pop("front_radius_kpc")
 
-    output_filename = Path(nested['par']['output']['directory']) / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
+    output_filename = (
+        Path(nested["par"]["output"]["directory"])
+        / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
+    )
     rio.writehdf5(sim, output_filename)
 
     out_par, out_mesh, out_fluid = et.load_output_state(output_filename, config)
-    config['_output_par'] = out_par
-    figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D.jpg'
-    front_figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D_IFront.jpg'
-    budget_figure_filename = Path(nested['par']['output']['directory']) / 'StaticStromgrenSphere1D_PhotonBudget.jpg'
+    config["_output_par"] = out_par
+    figure_filename = Path(nested["par"]["output"]["directory"]) / "StaticStromgrenSphere1D.jpg"
+    front_figure_filename = (
+        Path(nested["par"]["output"]["directory"]) / "StaticStromgrenSphere1D_IFront.jpg"
+    )
+    budget_figure_filename = (
+        Path(nested["par"]["output"]["directory"]) / "StaticStromgrenSphere1D_PhotonBudget.jpg"
+    )
 
     et.save_plot(out_mesh, out_fluid, config, figure_filename)
     et.save_front_history_plot(front_history, config, front_figure_filename)
@@ -82,76 +88,75 @@ def main(config_filename=DEFAULT_CONFIG):
         budget_figure_filename,
     )
 
-    print('time = %s' % out_fluid.time_proper_code)
+    print("time = %s" % out_fluid.time_proper_code)
     print(
-        'recombination time = %s'
+        "recombination time = %s"
         % sa.recombination_time(
-            initial['hydrogen_number_density'],
-            nested['par']['thermochemistry']['hydrogen_alpha_B'],
-        )
+            initial["hydrogen_number_density"],
+            nested["par"]["thermochemistry"]["hydrogen_alpha_B"],
+        ),
     )
     print(
-        'stromgren radius = %s'
+        "stromgren radius = %s"
         % sa.stromgren_radius(
-            nested['par']['radiation']['source_photon_rate'],
-            initial['hydrogen_number_density'],
-            nested['par']['thermochemistry']['hydrogen_alpha_B'],
-        ).to(unyt.kpc)
+            nested["par"]["radiation"]["source_photon_rate"],
+            initial["hydrogen_number_density"],
+            nested["par"]["thermochemistry"]["hydrogen_alpha_B"],
+        ).to(unyt.kpc),
     )
     print(
-        'analytic front radius = %s'
+        "analytic front radius = %s"
         % sa.ionization_front_radius(
-            nested['par']['simulation']['final_time'],
-            nested['par']['radiation']['source_photon_rate'],
-            initial['hydrogen_number_density'],
-            nested['par']['thermochemistry']['hydrogen_alpha_B'],
-        ).to(unyt.kpc)
+            nested["par"]["simulation"]["final_time"],
+            nested["par"]["radiation"]["source_photon_rate"],
+            initial["hydrogen_number_density"],
+            nested["par"]["thermochemistry"]["hydrogen_alpha_B"],
+        ).to(unyt.kpc),
     )
     print(
-        'injected photons = %.6e, accounted photons = %.6e'
+        "injected photons = %.6e, accounted photons = %.6e"
         % (
-            photon_budget['injected_photons'],
-            photon_budget['accounted_photons'],
-        )
+            photon_budget["injected_photons"],
+            photon_budget["accounted_photons"],
+        ),
     )
     print(
-        'ionized H = %.6e, recombinations = %.6e, photons in volume = %.6e'
+        "ionized H = %.6e, recombinations = %.6e, photons in volume = %.6e"
         % (
-            photon_budget['ionized_atoms'],
-            photon_budget['recombined_photons'],
-            photon_budget['volume_photons'],
-        )
+            photon_budget["ionized_atoms"],
+            photon_budget["recombined_photons"],
+            photon_budget["volume_photons"],
+        ),
     )
     print(
-        'photon budget relative error = %.6e'
-        % photon_budget['relative_error']
+        "photon budget relative error = %.6e" % photon_budget["relative_error"],
     )
     print(
-        'chemistry steps = %d, radiative-transfer updates = %d'
+        "chemistry steps = %d, radiative-transfer updates = %d"
         % (
-            front_history['chemistry_steps'],
-            front_history['radiative_transfer_updates'],
-        )
+            front_history["chemistry_steps"],
+            front_history["radiative_transfer_updates"],
+        ),
     )
-    print('IC file = %s' % nested['par']['simulation']['initial_condition_filename'])
-    print('output file = %s' % output_filename)
-    print('figure = %s' % figure_filename)
-    print('front figure = %s' % front_figure_filename)
-    print('photon budget figure = %s' % budget_figure_filename)
+    print("IC file = %s" % nested["par"]["simulation"]["initial_condition_filename"])
+    print("output file = %s" % output_filename)
+    print("figure = %s" % figure_filename)
+    print("front figure = %s" % front_figure_filename)
+    print("photon budget figure = %s" % budget_figure_filename)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description='Run the static Stromgren sphere example.',
+        description="Run the static Stromgren sphere example.",
     )
     parser.add_argument(
-        '--config',
+        "--config",
         default=DEFAULT_CONFIG,
-        help='YAML file containing nested runtime and initial-condition settings.',
+        help="YAML file containing nested runtime and initial-condition settings.",
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

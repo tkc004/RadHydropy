@@ -11,120 +11,151 @@ PROJECT_ROOT = EXAMPLE_DIR.parents[1]
 for path in (PROJECT_ROOT, EXAMPLE_DIR.parent, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
-os.environ.setdefault('XDG_CACHE_HOME', str(Path(tempfile.gettempdir()) / 'radhydropy-cache'))
-os.environ.setdefault('MPLCONFIGDIR', str(Path(tempfile.gettempdir()) / 'radhydropy-matplotlib'))
+os.environ.setdefault("XDG_CACHE_HOME", str(Path(tempfile.gettempdir()) / "radhydropy-cache"))
+os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
-import example_utils as eu
+from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER
 from radhydropy.io import load_output_time_list
 from radhydropy.thermo_networks.pie import MetalPIETable
 from tools import (
-    GAMMA_CRITICAL, locate_shock, load_output_state, nfw_halo_parameters,
+    GAMMA_CRITICAL,
+    load_output_state,
+    locate_shock,
+    nfw_halo_parameters,
     pie_stability_diagnostics,
 )
 
-from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER
-
 CONFIGS = (
-    EXAMPLE_DIR / 'nfw_boundary_driven_virial_shock1d.yaml',
-    EXAMPLE_DIR / 'nfw_boundary_driven_virial_shock_3e11.yaml',
-    EXAMPLE_DIR / 'nfw_boundary_driven_virial_shock_1e11.yaml',
+    EXAMPLE_DIR / "nfw_boundary_driven_virial_shock1d.yaml",
+    EXAMPLE_DIR / "nfw_boundary_driven_virial_shock_3e11.yaml",
+    EXAMPLE_DIR / "nfw_boundary_driven_virial_shock_1e11.yaml",
 )
 
 
 def _case_diagnostics(config_filename):
     config = eu.load_nested_example_config(config_filename)
 
-    initial_condition = config['initial_condition']
-    exampleparams = config['example']
+    initial_condition = config["initial_condition"]
+    exampleparams = config["example"]
     pie_table_filename = (
-        config_filename.parent
-        / config["par"]['thermochemistry']['metal_pie_table_filename']
+        config_filename.parent / config["par"]["thermochemistry"]["metal_pie_table_filename"]
     ).resolve()
-    pie_output_directory = (config_filename.parent / exampleparams['pie_output_directory']).resolve()
-    pie_schedule = (
-        config_filename.parent / exampleparams['pie_time_list_filename']
-    )
-    files = sorted(pie_output_directory.glob('Output_*.hdf5'))
+    pie_output_directory = (
+        config_filename.parent / exampleparams["pie_output_directory"]
+    ).resolve()
+    pie_schedule = config_filename.parent / exampleparams["pie_time_list_filename"]
+    files = sorted(pie_output_directory.glob("Output_*.hdf5"))
     relative_times = load_output_time_list(pie_schedule).to_value(unyt.Myr)
-    offset = exampleparams['adiabatic_final_time'].to_value(unyt.Myr)
+    offset = exampleparams["adiabatic_final_time"].to_value(unyt.Myr)
     times = relative_times + offset
     if len(files) != len(times):
-        raise RuntimeError(f'{config_filename.name}: output count does not match schedule')
+        raise RuntimeError(f"{config_filename.name}: output count does not match schedule")
     halo = nfw_halo_parameters(
-        initial_condition['halo_mass'], initial_condition['concentration'], initial_condition['redshift'],
-        initial_condition['overdensity'], initial_condition['h0'],
+        initial_condition["halo_mass"],
+        initial_condition["concentration"],
+        initial_condition["redshift"],
+        initial_condition["overdensity"],
+        initial_condition["h0"],
     )
     table = MetalPIETable(pie_table_filename)
     stability = pie_stability_diagnostics(
-        files, times, halo, table, config, initial_condition['mu']
+        files,
+        times,
+        halo,
+        table,
+        config,
+        initial_condition["mu"],
     )
-    stability_by_time = {row['time_proper_Myr']: row for row in stability}
+    stability_by_time = {row["time_proper_Myr"]: row for row in stability}
     shock_radius_over_R200_dimensionless = []
     gamma_eff_dimensionless = []
     for filename, time in zip(files, times):
         snapshot = load_output_state(filename, config)
         index = locate_shock(
-            snapshot, halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
+            snapshot,
+            halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc),
         )
         shock_radius_over_R200_dimensionless.append(
-            np.nan if index is None else snapshot['radius_proper_kpc'][index]
-            / halo['radius_virial_proper_kpc_unyt'].to_value(unyt.kpc)
+            np.nan
+            if index is None
+            else snapshot["radius_proper_kpc"][index]
+            / halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc),
         )
         row = stability_by_time.get(float(time))
-        gamma_eff_dimensionless.append(np.nan if row is None else row['gamma_eff_dimensionless'])
+        gamma_eff_dimensionless.append(np.nan if row is None else row["gamma_eff_dimensionless"])
     return {
-        'mass_proper_Msun': halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun),
-        'label': r'$10^{12}\,M_\odot$' if halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun) > 5e11
-        else (r'$3\times10^{11}\,M_\odot$' if halo['mass_halo_proper_g_unyt'].to_value(unyt.Msun) > 2e11
-              else r'$10^{11}\,M_\odot$'),
-        'times_proper_Myr': np.asarray(times),
-        'shock_radius_over_R200_dimensionless': np.asarray(shock_radius_over_R200_dimensionless),
-        'gamma_eff_dimensionless': np.asarray(gamma_eff_dimensionless),
+        "mass_proper_Msun": halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun),
+        "label": r"$10^{12}\,M_\odot$"
+        if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 5e11
+        else (
+            r"$3\times10^{11}\,M_\odot$"
+            if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 2e11
+            else r"$10^{11}\,M_\odot$"
+        ),
+        "times_proper_Myr": np.asarray(times),
+        "shock_radius_over_R200_dimensionless": np.asarray(shock_radius_over_R200_dimensionless),
+        "gamma_eff_dimensionless": np.asarray(gamma_eff_dimensionless),
     }
 
 
 def _write_summary(cases, filename):
-    with Path(filename).open('w', encoding='utf-8') as stream:
-        stream.write('halo_mass_proper_Msun time_proper_Myr shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n')
+    with Path(filename).open("w", encoding="utf-8") as stream:
+        stream.write(
+            "halo_mass_proper_Msun time_proper_Myr shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n"
+        )
         for case in cases:
             for time_proper_Myr, radius_dimensionless, gamma_eff_dimensionless in zip(
-                case['times_proper_Myr'], case['shock_radius_over_R200_dimensionless'], case['gamma_eff_dimensionless']
+                case["times_proper_Myr"],
+                case["shock_radius_over_R200_dimensionless"],
+                case["gamma_eff_dimensionless"],
             ):
                 if not np.isfinite(radius_dimensionless):
-                    status = 'no_resolved_virial_shock'
-                elif np.isfinite(gamma_eff_dimensionless) and gamma_eff_dimensionless < GAMMA_CRITICAL:
-                    status = 'unstable'
+                    status = "no_resolved_virial_shock"
+                elif (
+                    np.isfinite(gamma_eff_dimensionless)
+                    and gamma_eff_dimensionless < GAMMA_CRITICAL
+                ):
+                    status = "unstable"
                 else:
-                    status = 'supported'
+                    status = "supported"
                 stream.write(
                     f"{case['mass_proper_Msun']:.8g} {time_proper_Myr:.8g} {radius_dimensionless:.8g} "
-                    f"{gamma_eff_dimensionless:.8g} {status}\n"
+                    f"{gamma_eff_dimensionless:.8g} {status}\n",
                 )
 
 
 def _plot(cases, filename):
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.8), sharex=True)
     for case in cases:
-        axes[0].plot(case['times_proper_Myr'], case['shock_radius_over_R200_dimensionless'], 'o-', label=case['label'])
-        axes[1].plot(case['times_proper_Myr'], case['gamma_eff_dimensionless'], 'o-', label=case['label'])
-    axes[0].axhspan(0.5, 1.2, color='tab:green', alpha=0.08)
-    axes[0].set_ylabel(r'$r_{\rm shock}/R_{200}$')
-    axes[1].axhline(5.0 / 3.0, color='black', ls=':', label=r'$5/3$')
-    axes[1].axhline(GAMMA_CRITICAL, color='red', ls='--', label=r'$10/7$')
-    axes[1].set_ylabel(r'$\gamma_{\rm eff}$')
+        axes[0].plot(
+            case["times_proper_Myr"],
+            case["shock_radius_over_R200_dimensionless"],
+            "o-",
+            label=case["label"],
+        )
+        axes[1].plot(
+            case["times_proper_Myr"], case["gamma_eff_dimensionless"], "o-", label=case["label"]
+        )
+    axes[0].axhspan(0.5, 1.2, color="tab:green", alpha=0.08)
+    axes[0].set_ylabel(r"$r_{\rm shock}/R_{200}$")
+    axes[1].axhline(5.0 / 3.0, color="black", ls=":", label=r"$5/3$")
+    axes[1].axhline(GAMMA_CRITICAL, color="red", ls="--", label=r"$10/7$")
+    axes[1].set_ylabel(r"$\gamma_{\rm eff}$")
     for axis in axes:
-        axis.set_xlabel('total time [Myr]')
+        axis.set_xlabel("total time [Myr]")
         axis.grid(alpha=0.25)
         axis.legend(frameon=False, fontsize=8)
-    axes[0].set_title('Resolved virial-shock radius')
-    axes[1].set_title('Birnboim--Dekel stability index')
-    fig.suptitle(r'Boundary-driven halo-mass sequence, $\dot M=30\,M_\odot\,{\rm yr}^{-1}$')
+    axes[0].set_title("Resolved virial-shock radius")
+    axes[1].set_title("Birnboim--Dekel stability index")
+    fig.suptitle(r"Boundary-driven halo-mass sequence, $\dot M=30\,M_\odot\,{\rm yr}^{-1}$")
     fig.tight_layout()
     fig.savefig(filename, dpi=180)
     plt.close(fig)
@@ -135,24 +166,25 @@ def main(run_cases=True):
         for config in CONFIGS:
             RUNNER.main(config)
     cases = [_case_diagnostics(config) for config in CONFIGS]
-    output = EXAMPLE_DIR / 'outputs'
-    figure = output / 'NFWBoundaryDrivenVirialShock1D_MassSequence.jpg'
-    report = output / 'NFWBoundaryDrivenVirialShock1D_MassSequence.txt'
+    output = EXAMPLE_DIR / "outputs"
+    figure = output / "NFWBoundaryDrivenVirialShock1D_MassSequence.jpg"
+    report = output / "NFWBoundaryDrivenVirialShock1D_MassSequence.txt"
     _plot(cases, figure)
     _write_summary(cases, report)
-    print(f'mass-sequence figure = {figure}')
-    print(f'mass-sequence report = {report}')
+    print(f"mass-sequence figure = {figure}")
+    print(f"mass-sequence report = {report}")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        '--skip-runs', action='store_true',
-        help='regenerate the comparison from existing snapshots',
+        "--skip-runs",
+        action="store_true",
+        help="regenerate the comparison from existing snapshots",
     )
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(run_cases=not args.skip_runs)

@@ -1,7 +1,7 @@
 """Immutable cosmological state used by representation-aware fields."""
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from numbers import Real
 
 
@@ -27,7 +27,7 @@ class CosmologyContext:
         gamma = self._finite_real(self.gamma, "gamma")
         if gamma < 1.0 or (gamma == 1.0 and not self.isothermal):
             raise ValueError(
-                "gamma must be greater than one unless the EOS is isothermal"
+                "gamma must be greater than one unless the EOS is isothermal",
             )
         object.__setattr__(self, "gamma", gamma)
 
@@ -42,7 +42,7 @@ class CosmologyContext:
         )
         if hubble < 0.0:
             raise ValueError(
-                "hubble_parameter_km_s_Mpc must be finite and non-negative"
+                "hubble_parameter_km_s_Mpc must be finite and non-negative",
             )
         object.__setattr__(self, "hubble_parameter_km_s_Mpc", hubble)
 

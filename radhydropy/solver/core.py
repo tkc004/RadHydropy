@@ -34,6 +34,7 @@ from radhydropy.units import (
 # object for every trial is unnecessary overhead.
 _FLOAT_TINY = np.finfo(float).tiny
 
+
 class Solver:
     """Advance one-dimensional Euler equations on a RadHydropy mesh."""
 
@@ -70,7 +71,8 @@ class Solver:
         if geometry is None:
             raise ValueError("solver requires typed mesh geometry state")
         coordinate, boundary, width, area, volume = select_mesh_geometry_arrays(
-            geometry, par,
+            geometry,
+            par,
         )
         return SimpleNamespace(
             coordinate_runtime_code=coordinate,
@@ -138,7 +140,8 @@ class Solver:
         volume_field = geometry_state.volume_runtime_code
         area_field = geometry_state.area_runtime_code
         boundary = np.asarray(
-            boundary_field[interior.start : interior.stop + 1], dtype=float,
+            boundary_field[interior.start : interior.stop + 1],
+            dtype=float,
         )
         volume = np.asarray(volume_field[interior], dtype=float)
         submesh = SimpleNamespace(
@@ -149,8 +152,7 @@ class Solver:
         )
         if area_field is not None:
             submesh.face_area_cgs_cm2 = (
-                np.asarray(area_field[interior], dtype=float)
-                * scales["area_cgs_cm2"]
+                np.asarray(area_field[interior], dtype=float) * scales["area_cgs_cm2"]
             )
         group_edges_eV = getattr(par, "radiation_group_edges_eV", None)
         if group_edges_eV is not None:
@@ -267,8 +269,7 @@ class Solver:
             coordsys=getattr(mesh, "coordsys", "cartesian"),
         )
         photon_density_code = (
-            np.asarray(result.cell_photon_density, dtype=float)
-            / scales["number_density_cgs_cm3"]
+            np.asarray(result.cell_photon_density, dtype=float) / scales["number_density_cgs_cm3"]
         )
         if np.ndim(photon_density_code) != 2:
             raise ValueError(
@@ -285,7 +286,8 @@ class Solver:
             return None
         boundary = np.asarray(
             self._geometry_state(
-                mesh, getattr(mesh, "_par", None),
+                mesh,
+                getattr(mesh, "_par", None),
             ).boundary_runtime_code,
             dtype=float,
         )
@@ -431,7 +433,9 @@ class Solver:
                 specific_angular_momentum,
             )
         rotational_energy_density = self._rotational_energy_density(
-            mesh, fluid, par,
+            mesh,
+            fluid,
+            par,
         )
         density_floor = self._cfl_density_floor(par)
         numerical_vacuum = active & (rho <= density_floor)
@@ -462,14 +466,20 @@ class Solver:
             total_thermal = energy_density - 0.5 * rho_runtime_code * vel_runtime_code**2
             eta1 = self._dual_energy_eta(par, "dual_energy_eta1")
             total_valid = (
-                active & ~numerical_vacuum
-                & np.isfinite(total_thermal) & (total_thermal > 0.0)
-                & np.isfinite(total_pressure) & (total_pressure > 0.0)
+                active
+                & ~numerical_vacuum
+                & np.isfinite(total_thermal)
+                & (total_thermal > 0.0)
+                & np.isfinite(total_pressure)
+                & (total_pressure > 0.0)
             )
             dual_valid = (
-                active & ~numerical_vacuum
-                & np.isfinite(internal_density) & (internal_density > 0.0)
-                & np.isfinite(dual_pressure) & (dual_pressure > 0.0)
+                active
+                & ~numerical_vacuum
+                & np.isfinite(internal_density)
+                & (internal_density > 0.0)
+                & np.isfinite(dual_pressure)
+                & (dual_pressure > 0.0)
             )
             thermal_fraction = np.divide(
                 total_thermal,
@@ -477,8 +487,12 @@ class Solver:
                 out=np.zeros_like(total_thermal),
                 where=np.isfinite(total_thermal),
             )
-            consistency_factor = max(0.0, float(np.asarray(getattr(
-                par, "dual_energy_consistency_factor", 1.0e-1), dtype=float)))
+            consistency_factor = max(
+                0.0,
+                float(
+                    np.asarray(getattr(par, "dual_energy_consistency_factor", 1.0e-1), dtype=float)
+                ),
+            )
             dual_to_total = np.divide(
                 internal_density,
                 np.maximum(total_thermal, 1.0e-300),
@@ -498,20 +512,27 @@ class Solver:
             dual_preferred = dual_valid & (
                 ~total_valid | (dual_to_total > upper_consistency_factor)
             )
-            use_total = total_valid & ~dual_preferred & (
-                (thermal_fraction > eta1)
-                | ~dual_valid
-                | (dual_to_total < consistency_factor)
+            use_total = (
+                total_valid
+                & ~dual_preferred
+                & ((thermal_fraction > eta1) | ~dual_valid | (dual_to_total < consistency_factor))
             )
             use_dual = dual_valid & ~use_total
-            pressure_selection = str(getattr(
-                par, "dual_energy_pressure_selection", "switch",
-            )).lower()
+            pressure_selection = str(
+                getattr(
+                    par,
+                    "dual_energy_pressure_selection",
+                    "switch",
+                )
+            ).lower()
             if pressure_selection in ("conservative", "e-k", "ek"):
                 use_total = total_valid
                 use_dual = np.zeros_like(use_total, dtype=bool)
             elif pressure_selection in (
-                "internal", "internal-energy", "dual", "dual-energy",
+                "internal",
+                "internal-energy",
+                "dual",
+                "dual-energy",
             ):
                 # Use the independently evolved internal-energy equation for
                 # primitive pressure reconstruction.  Total Energy remains
@@ -537,9 +558,7 @@ class Solver:
 
             # If the separately advected field has failed but E-K is still a
             # valid conservative estimate, use E-K and count the fallback.
-            fallback = (
-                active & ~numerical_vacuum & ~dual_valid & total_valid
-            )
+            fallback = active & ~numerical_vacuum & ~dual_valid & total_valid
             self.dual_energy_pressure_fallback_count += int(
                 np.count_nonzero(fallback),
             )
@@ -555,15 +574,16 @@ class Solver:
             # E-K residual is the normal reason for selecting dual energy in
             # a cold converging flow; it must not overwrite a valid dual
             # state with the configured floor.
-            both_invalid = (
-                active & ~numerical_vacuum & ~total_valid & ~dual_valid
-            )
+            both_invalid = active & ~numerical_vacuum & ~total_valid & ~dual_valid
             if np.any(both_invalid):
                 floor_pressure_value = max(
-                    0.0, float(np.asarray(
-                        getattr(par, "dual_energy_pressure_floor", 1.0e-20),
-                        dtype=float,
-                    )),
+                    0.0,
+                    float(
+                        np.asarray(
+                            getattr(par, "dual_energy_pressure_floor", 1.0e-20),
+                            dtype=float,
+                        )
+                    ),
                 )
                 if floor_pressure_value <= 0.0:
                     floor_pressure_value = 1.0e-20
@@ -571,7 +591,8 @@ class Solver:
                 floor_internal_density = floor_pressure / (fluid.eos.gamma - 1.0)
                 current_internal_density = np.maximum(total_thermal, 0.0)
                 injected_density = np.maximum(
-                    floor_internal_density - current_internal_density, 0.0,
+                    floor_internal_density - current_internal_density,
+                    0.0,
                 )
                 injected_energy = injected_density * np.asarray(vol, dtype=float)
                 fluid.Energy_code[both_invalid] += injected_energy[both_invalid]
@@ -606,9 +627,8 @@ class Solver:
             )
             # Enforce the configured floor for both invalid reconstructions
             # and valid states that have cooled below the physical minimum.
-            below_floor = (
-                ~numerical_vacuum
-                & np.logical_or(invalid_pressure, pre_runtime_code < floor_pressure)
+            below_floor = ~numerical_vacuum & np.logical_or(
+                invalid_pressure, pre_runtime_code < floor_pressure
             )
             pre_runtime_code[below_floor] = floor_pressure[below_floor]
         else:
@@ -659,7 +679,8 @@ class Solver:
         )
         old_angular_momentum = (
             np.asarray(fluid.AngularMomentum_code, dtype=float).copy()
-            if hasattr(fluid, "AngularMomentum_code") else None
+            if hasattr(fluid, "AngularMomentum_code")
+            else None
         )
         old_potential_energy = (
             np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float).copy()
@@ -667,9 +688,12 @@ class Solver:
                 hasattr(fluid, "GravitationalPotentialEnergy_code")
                 and (
                     getattr(fluid, "_gravity_potential_energy_initialized", False)
-                    or np.any(np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float) != 0.0)
+                    or np.any(
+                        np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float) != 0.0
+                    )
                 )
-            ) else None
+            )
+            else None
         )
         old_conserved = None
         if density_floor > 0.0 and all(
@@ -684,42 +708,50 @@ class Solver:
                 np.asarray(fluid.Energy_code, dtype=float).copy(),
             )
         vol = self._geometry_state(
-            mesh, getattr(mesh, "_par", None),
+            mesh,
+            getattr(mesh, "_par", None),
         ).volume_runtime_code
         fluid.Mass_code = as_named_array(rho_runtime_code * vol)
         fluid.Mom_code = as_named_array(rho_runtime_code * vel_runtime_code * vol)
         if hasattr(fluid, "specific_angular_momentum_code") or old_angular_momentum is not None:
             specific_angular_momentum = np.asarray(
-                getattr(fluid, "specific_angular_momentum_code",
-                        np.zeros_like(rho_runtime_code)),
+                getattr(fluid, "specific_angular_momentum_code", np.zeros_like(rho_runtime_code)),
                 dtype=float,
             )
             fluid.AngularMomentum_code = as_named_array(
                 rho_runtime_code * specific_angular_momentum * vol,
             )
         rotational_energy_density = self._rotational_energy_density(
-            mesh, fluid, par,
+            mesh,
+            fluid,
+            par,
         )
         fluid.Energy_code = as_named_array(
             (
                 fluid.eos.total_energy_density(rho_runtime_code, vel_runtime_code, pre_runtime_code)
                 + rotational_energy_density
-            ) * vol,
+            )
+            * vol,
         )
         potential = self._gravity_potential(mesh, par)
         if potential is not None:
             fluid.GravitationalPotentialEnergy_code = as_named_array(
                 fluid.Mass_code * potential
-                if old_potential_energy is None else old_potential_energy,
+                if old_potential_energy is None
+                else old_potential_energy,
             )
             fluid._gravity_potential_energy_initialized = True
-        fluid.Mass_code[np.logical_or(fluid.Mass_code<0.0, np.isnan(fluid.Mass_code))] = 0.0
-        fluid.Energy_code[np.logical_or(fluid.Energy_code<0.0, np.isnan(fluid.Energy_code))] = 0.0
+        fluid.Mass_code[np.logical_or(fluid.Mass_code < 0.0, np.isnan(fluid.Mass_code))] = 0.0
+        fluid.Energy_code[np.logical_or(fluid.Energy_code < 0.0, np.isnan(fluid.Energy_code))] = 0.0
         if old_total_energy is not None:
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
-            preserved = old_total_energy if old_total_energy.size == count else old_total_energy[first:first + count]
-            fluid.Energy_code[first:first + count] = preserved
+            preserved = (
+                old_total_energy
+                if old_total_energy.size == count
+                else old_total_energy[first : first + count]
+            )
+            fluid.Energy_code[first : first + count] = preserved
         if old_total_mass is not None and old_total_momentum is not None:
             # In dual-energy mode Mass/Mom are the authoritative conservative
             # state.  Rebuilding them as rho*vol and rho*vel*vol after
@@ -729,21 +761,27 @@ class Solver:
             # exact and synchronize only the primitive/thermal quantities.
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
-            preserved_mass = old_total_mass if old_total_mass.size == count else old_total_mass[first:first + count]
-            preserved_momentum = old_total_momentum if old_total_momentum.size == count else old_total_momentum[first:first + count]
-            fluid.Mass_code[first:first + count] = preserved_mass
-            fluid.Mom_code[first:first + count] = preserved_momentum
+            preserved_mass = (
+                old_total_mass
+                if old_total_mass.size == count
+                else old_total_mass[first : first + count]
+            )
+            preserved_momentum = (
+                old_total_momentum
+                if old_total_momentum.size == count
+                else old_total_momentum[first : first + count]
+            )
+            fluid.Mass_code[first : first + count] = preserved_mass
+            fluid.Mom_code[first : first + count] = preserved_momentum
         if old_angular_momentum is not None:
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
             preserved_angular_momentum = (
                 old_angular_momentum
                 if old_angular_momentum.size == count
-                else old_angular_momentum[first:first + count]
+                else old_angular_momentum[first : first + count]
             )
-            fluid.AngularMomentum_code[first:first + count] = (
-                preserved_angular_momentum
-            )
+            fluid.AngularMomentum_code[first : first + count] = preserved_angular_momentum
         if dual_energy and getattr(fluid.eos, "is_polytropic", False):
             internal = np.asarray(
                 fluid.eos.thermal_energy_density(pre_runtime_code) * vol,
@@ -755,27 +793,26 @@ class Solver:
                 preserved_internal = (
                     old_internal
                     if old_internal.size == count
-                    else old_internal[first:first + count]
+                    else old_internal[first : first + count]
                 )
-                internal[first:first + count] = preserved_internal
+                internal[first : first + count] = preserved_internal
             fluid.InternalEnergy_code = as_named_array(np.maximum(internal, 0.0))
         if old_conserved is not None:
             inactive, old_mass, old_mom, old_energy = old_conserved
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
             if old_mass.size == count:
-                inactive_active = inactive[first:first + count]
-                fluid.Mass_code[first:first + count][inactive_active] = old_mass[inactive_active]
-                fluid.Mom_code[first:first + count][inactive_active] = old_mom[inactive_active]
-                fluid.Energy_code[first:first + count][inactive_active] = old_energy[inactive_active]
+                inactive_active = inactive[first : first + count]
+                fluid.Mass_code[first : first + count][inactive_active] = old_mass[inactive_active]
+                fluid.Mom_code[first : first + count][inactive_active] = old_mom[inactive_active]
+                fluid.Energy_code[first : first + count][inactive_active] = old_energy[
+                    inactive_active
+                ]
             else:
                 fluid.Mass_code[inactive] = old_mass[inactive]
                 fluid.Mom_code[inactive] = old_mom[inactive]
                 fluid.Energy_code[inactive] = old_energy[inactive]
-        if (
-            dual_energy and old_internal is not None
-            and getattr(fluid.eos, "is_polytropic", False)
-        ):
+        if dual_energy and old_internal is not None and getattr(fluid.eos, "is_polytropic", False):
             eta2 = self._dual_energy_eta(par, "dual_energy_eta2")
             conserved_mass = np.asarray(fluid.Mass_code, dtype=float)
             conserved_momentum = np.asarray(fluid.Mom_code, dtype=float)
@@ -788,7 +825,8 @@ class Solver:
                 where=conserved_mass > 0.0,
             )
             total_thermal = (
-                conserved_energy - conserved_kinetic
+                conserved_energy
+                - conserved_kinetic
                 - self._rotational_energy_from_conserved(mesh, fluid, par)
             )
             total_fraction = np.divide(
@@ -800,10 +838,12 @@ class Solver:
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
             physical = np.zeros(len(total_thermal), dtype=bool)
-            physical[first:first + count] = True
+            physical[first : first + count] = True
             sync = (
-                physical & np.isfinite(total_thermal)
-                & (total_thermal > 0.0) & (total_fraction > eta2)
+                physical
+                & np.isfinite(total_thermal)
+                & (total_thermal > 0.0)
+                & (total_fraction > eta2)
             )
             fluid.InternalEnergy_code[sync] = total_thermal[sync]
             self.dual_energy_synchronization_count += int(np.count_nonzero(sync))
@@ -818,26 +858,24 @@ class Solver:
         if hasattr(fluid, "_refresh_runtime_state"):
             fluid._refresh_runtime_state()
 
-
     def SetGradient(self, mesh, fluid):
         """Calculate centered gradients for density, velocity, and pressure."""
         par = getattr(mesh, "_par", None)
         width_runtime_code = self._geometry_state(mesh, par).width_runtime_code
         primitive = self._fluid_primitive_state(fluid, par)
         periodic = (
-            par is not None
-            and hasattr(par, "boundary")
-            and par.boundary.condition == "Periodic"
+            par is not None and hasattr(par, "boundary") and par.boundary.condition == "Periodic"
         )
-        density_code, velocity_code, pressure_code, _ = (
-            self._active_primitive_arrays(fluid, par)
-        )
+        density_code, velocity_code, pressure_code, _ = self._active_primitive_arrays(fluid, par)
         if periodic:
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
             for quantity in (density_code, velocity_code, pressure_code):
                 quantity.grad = self._periodic_physical_gradient(
-                    quantity, width_runtime_code, first, count,
+                    quantity,
+                    width_runtime_code,
+                    first,
+                    count,
                 )
         else:
             density_code.grad = ru.CalGradient(density_code, width_runtime_code)
@@ -845,17 +883,16 @@ class Solver:
             pressure_code.grad = ru.CalGradient(pressure_code, width_runtime_code)
         if hasattr(fluid, "specific_angular_momentum_code"):
             if periodic:
-                fluid.specific_angular_momentum_code.grad = (
-                    self._periodic_physical_gradient(
-                        fluid.specific_angular_momentum_code,
-                        width_runtime_code,
-                        first,
-                        count,
-                    )
+                fluid.specific_angular_momentum_code.grad = self._periodic_physical_gradient(
+                    fluid.specific_angular_momentum_code,
+                    width_runtime_code,
+                    first,
+                    count,
                 )
             else:
                 fluid.specific_angular_momentum_code.grad = ru.CalGradient(
-                    fluid.specific_angular_momentum_code, width_runtime_code,
+                    fluid.specific_angular_momentum_code,
+                    width_runtime_code,
                 )
 
     @staticmethod
@@ -866,35 +903,34 @@ class Solver:
         gradient = np.zeros_like(values)
         physical_values = values[first:last]
         physical_width_runtime_code = np.asarray(
-            width_runtime_code[first:last], dtype=float,
+            width_runtime_code[first:last],
+            dtype=float,
         )
         gradient[first:last] = (
-            ru.periodic_roll(physical_values, -1)
-            - ru.periodic_roll(physical_values, 1)
+            ru.periodic_roll(physical_values, -1) - ru.periodic_roll(physical_values, 1)
         ) / (2.0 * physical_width_runtime_code)
         if first:
-            gradient[:first] = gradient[last - first:last]
+            gradient[:first] = gradient[last - first : last]
         if last < len(gradient):
-            gradient[last:] = gradient[first:first + len(gradient) - last]
+            gradient[last:] = gradient[first : first + len(gradient) - last]
         return as_named_array(gradient)
 
     @staticmethod
-    def _positivity_limited_internal_flux(old_internal, flux, area, dt,
-                                          physical):
+    def _positivity_limited_internal_flux(old_internal, flux, area, dt, physical):
         from .positivity import limit_internal_flux
 
         return limit_internal_flux(old_internal, flux, area, dt, physical)
 
     @staticmethod
     @staticmethod
-    def _cfl_density_floor( *args, **kwargs):
+    def _cfl_density_floor(*args, **kwargs):
         from .dual_energy import _cfl_density_floor
 
         return _cfl_density_floor(*args, **kwargs)
 
     @staticmethod
     @staticmethod
-    def _dual_energy_enabled( *args, **kwargs):
+    def _dual_energy_enabled(*args, **kwargs):
         from .dual_energy import _dual_energy_enabled
 
         return _dual_energy_enabled(*args, **kwargs)
@@ -912,14 +948,14 @@ class Solver:
 
     @staticmethod
     @staticmethod
-    def _rotational_energy_enabled( *args, **kwargs):
+    def _rotational_energy_enabled(*args, **kwargs):
         from .dual_energy import _rotational_energy_enabled
 
         return _rotational_energy_enabled(*args, **kwargs)
 
     @staticmethod
     @staticmethod
-    def _gravity_potential_energy_enabled( *args, **kwargs):
+    def _gravity_potential_energy_enabled(*args, **kwargs):
         from .dual_energy import _gravity_potential_energy_enabled
 
         return _gravity_potential_energy_enabled(*args, **kwargs)
@@ -946,7 +982,7 @@ class Solver:
 
     @staticmethod
     @staticmethod
-    def _dual_energy_eta( *args, **kwargs):
+    def _dual_energy_eta(*args, **kwargs):
         from .dual_energy import _dual_energy_eta
 
         return _dual_energy_eta(*args, **kwargs)
@@ -961,9 +997,7 @@ class Solver:
         density_floor = self._cfl_density_floor(par)
         if density_floor <= 0.0:
             return
-        density_code, velocity_code, pressure_code, _ = (
-            self._active_primitive_arrays(fluid, par)
-        )
+        density_code, velocity_code, pressure_code, _ = self._active_primitive_arrays(fluid, par)
         for density, velocity, pressure in (
             (density_code.R, velocity_code.R, pressure_code.R),
             (density_code.L, velocity_code.L, pressure_code.L),
@@ -982,12 +1016,9 @@ class Solver:
                 velocity[inactive] = 0.0
                 pressure[inactive] = 0.0
 
-
     def SetConservedDensityFlux(self, fluid, par=None):
         """Store Euler fluxes and conserved densities on fluid arrays."""
-        density_code, velocity_code, pressure_code, _ = (
-            self._active_primitive_arrays(fluid, par)
-        )
+        density_code, velocity_code, pressure_code, _ = self._active_primitive_arrays(fluid, par)
         (
             fluid.Mass_code.F,
             fluid.Mass_code.q,
@@ -999,7 +1030,7 @@ class Solver:
 
     @staticmethod
     @staticmethod
-    def _set_angular_momentum_flux( *args, **kwargs):
+    def _set_angular_momentum_flux(*args, **kwargs):
         from .angular_momentum import _set_angular_momentum_flux
 
         return _set_angular_momentum_flux(*args, **kwargs)
@@ -1033,14 +1064,14 @@ class Solver:
         """Replace the outer face states with the homogeneous EdS state."""
         par = getattr(mesh, "_par", None)
         if par is None or not getattr(
-            par, "cosmological_background_boundary_reconstruction", False,
+            par,
+            "cosmological_background_boundary_reconstruction",
+            False,
         ):
             return
         if par.boundary.condition != "InflowSph":
             return
-        density_code, velocity_code, pressure_code, _ = (
-            self._active_primitive_arrays(fluid, par)
-        )
+        density_code, velocity_code, pressure_code, _ = self._active_primitive_arrays(fluid, par)
         first = int(par.mesh.ghost_cells)
         outer_face = first + int(par.mesh.grid_cells)
         if outer_face >= len(density_code.R):
@@ -1071,9 +1102,13 @@ class Solver:
                 quantity.R.first[outer_face] = value
                 quantity.L.first[outer_face] = value
         if hasattr(fluid, "specific_angular_momentum_code"):
-            angular_momentum = float(getattr(
-                par, "specific_angular_momentum_inflow", 0.0,
-            ))
+            angular_momentum = float(
+                getattr(
+                    par,
+                    "specific_angular_momentum_inflow",
+                    0.0,
+                )
+            )
             fluid.specific_angular_momentum_code.R[outer_face] = angular_momentum
             fluid.specific_angular_momentum_code.L[outer_face] = angular_momentum
             if order == 1:
@@ -1096,10 +1131,17 @@ class Solver:
         from .fluxes import interface_fluxes
 
         return interface_fluxes(
-            fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method,
+            fluid,
+            rho_L,
+            vel_L,
+            pre_L,
+            rho_R,
+            vel_R,
+            pre_R,
+            method,
         )
 
-    def SetFluxOnFace(self,fluid,boundcond,order=0,par=None,method="Rusanov"):
+    def SetFluxOnFace(self, fluid, boundcond, order=0, par=None, method="Rusanov"):
         """Calculate mass, momentum, and energy fluxes at interfaces."""
         from .fluxes import set_flux_on_face
 
@@ -1129,30 +1171,47 @@ class Solver:
         # Keep gas-vacuum interfaces active: their Riemann flux is what fills
         # the vacuum.  Only a vacuum-vacuum interface should be suppressed.
         # Face i joins cell i-1 (the rolled state) to cell i.
-        face_mask[first:last] = (
-            inactive[first:last]
-            & np.roll(inactive, 1)[first:last]
-        )
+        face_mask[first:last] = inactive[first:last] & np.roll(inactive, 1)[first:last]
         if not np.any(face_mask):
             return
         for flux in (fluid.Mass_code.flux, fluid.Mom_code.flux, fluid.Energy_code.flux):
             flux[face_mask] = 0.0
 
     @staticmethod
-    def _positive_conserved_state(mass, momentum, energy, mass_floor=0.0,
-                                  energy_floor=0.0, relative_tolerance=1.0e-12,
-                                  angular_momentum=None, radius=None):
+    def _positive_conserved_state(
+        mass,
+        momentum,
+        energy,
+        mass_floor=0.0,
+        energy_floor=0.0,
+        relative_tolerance=1.0e-12,
+        angular_momentum=None,
+        radius=None,
+    ):
         from .positivity import positive_conserved_state
 
         return positive_conserved_state(
-            mass, momentum, energy, mass_floor=mass_floor,
-            energy_floor=energy_floor, relative_tolerance=relative_tolerance,
-            angular_momentum=angular_momentum, radius=radius,
+            mass,
+            momentum,
+            energy,
+            mass_floor=mass_floor,
+            energy_floor=energy_floor,
+            relative_tolerance=relative_tolerance,
+            angular_momentum=angular_momentum,
+            radius=radius,
         )
 
     def _positivity_limited_face_fluxes(
-        self, fluid, dt, mesh, par, mass_face, mom_face, energy_face,
-        geometric_mom=None, angular_face=None,
+        self,
+        fluid,
+        dt,
+        mesh,
+        par,
+        mass_face,
+        mom_face,
+        energy_face,
+        geometric_mom=None,
+        angular_face=None,
     ):
         """Apply a local invariant-domain limiter to paired face fluxes.
 
@@ -1175,8 +1234,7 @@ class Solver:
             fluid.Mom_code += dt_value * (
                 np.asarray(mom_face, dtype=float) * area_runtime_code
                 - ru.periodic_roll(np.asarray(mom_face, dtype=float) * area_runtime_code, -1)
-                + (np.asarray(geometric_mom, dtype=float)
-                   if geometric_mom is not None else 0.0)
+                + (np.asarray(geometric_mom, dtype=float) if geometric_mom is not None else 0.0)
             )
             fluid.Energy_code += dt_value * (
                 np.asarray(energy_face, dtype=float) * area_runtime_code
@@ -1195,8 +1253,11 @@ class Solver:
         mass = np.asarray(fluid.Mass_code, dtype=float).copy()
         momentum = np.asarray(fluid.Mom_code, dtype=float).copy()
         energy = np.asarray(fluid.Energy_code, dtype=float).copy()
-        angular = (np.asarray(fluid.AngularMomentum_code, dtype=float).copy()
-                   if angular_face is not None else None)
+        angular = (
+            np.asarray(fluid.AngularMomentum_code, dtype=float).copy()
+            if angular_face is not None
+            else None
+        )
         geometry = self._geometry_state(mesh, par)
         radius = (
             np.abs(np.asarray(geometry.coordinate_runtime_code, dtype=float))
@@ -1212,12 +1273,20 @@ class Solver:
         physical = np.zeros(count, dtype=bool)
         physical[first:last] = True
         volume_runtime_code = np.asarray(geometry.volume_runtime_code, dtype=float)
-        mass_floor = max(
-            0.0, float(np.asarray(getattr(par, "positivity_density_floor", 0.0))),
-        ) * volume_runtime_code
-        energy_floor = max(
-            0.0, float(np.asarray(getattr(par, "positivity_energy_floor", 0.0))),
-        ) * volume_runtime_code
+        mass_floor = (
+            max(
+                0.0,
+                float(np.asarray(getattr(par, "positivity_density_floor", 0.0))),
+            )
+            * volume_runtime_code
+        )
+        energy_floor = (
+            max(
+                0.0,
+                float(np.asarray(getattr(par, "positivity_energy_floor", 0.0))),
+            )
+            * volume_runtime_code
+        )
         relative_tolerance = (
             # Keep the same roundoff allowance used by the global increment
             # limiter.  Dual energy may tolerate tiny E-K cancellation, but
@@ -1230,8 +1299,7 @@ class Solver:
         # Numerical vacuum is not a resolved state and should not contribute
         # a spurious momentum/energy constraint to its neighboring face.
         vacuum_mass = (
-            float(np.asarray(getattr(par, "cfl_density_floor", 0.0)))
-            * volume_runtime_code
+            float(np.asarray(getattr(par, "cfl_density_floor", 0.0))) * volume_runtime_code
         )
         vacuum = mass <= np.maximum(vacuum_mass, 0.0)
         mass[vacuum] = 0.0
@@ -1243,8 +1311,7 @@ class Solver:
         if angular is not None:
             angular[vacuum] = 0.0
 
-        def valid(mass_value, momentum_value, energy_value,
-                  angular_value=None):
+        def valid(mass_value, momentum_value, energy_value, angular_value=None):
             # Dual energy protects pressure reconstruction when E-K loses
             # precision, but it cannot make an inadmissible conservative
             # state valid.  Require total energy to contain at least the
@@ -1252,16 +1319,19 @@ class Solver:
             # Otherwise the limiter could pass K > E to the next primitive
             # reconstruction and let the dual field hide the violation.
             result = self._positive_conserved_state(
-                mass_value, momentum_value, energy_value,
-                mass_floor=mass_floor, energy_floor=energy_floor,
+                mass_value,
+                momentum_value,
+                energy_value,
+                mass_floor=mass_floor,
+                energy_floor=energy_floor,
                 relative_tolerance=relative_tolerance,
-                angular_momentum=angular_value, radius=radius,
+                angular_momentum=angular_value,
+                radius=radius,
             )
             result[~physical] = True
             return result
 
-        def cell_valid(index, mass_value, momentum_value, energy_value,
-                       angular_value=None):
+        def cell_valid(index, mass_value, momentum_value, energy_value, angular_value=None):
             """Check one trial cell without NumPy allocation."""
             if not (
                 math.isfinite(mass_value)
@@ -1274,14 +1344,8 @@ class Solver:
                 return energy_value >= energy_floor[index]
             kinetic_value = 0.5 * momentum_value**2 / mass_value
             rotational_value = 0.0
-            if (
-                angular_value is not None
-                and radius is not None
-                and radius[index] > 0.0
-            ):
-                rotational_value = 0.5 * angular_value**2 / (
-                    mass_value * radius[index]**2
-                )
+            if angular_value is not None and radius is not None and radius[index] > 0.0:
+                rotational_value = 0.5 * angular_value**2 / (mass_value * radius[index] ** 2)
             internal_value = energy_value - kinetic_value - rotational_value
             tolerance = relative_tolerance * max(
                 abs(energy_value),
@@ -1305,9 +1369,7 @@ class Solver:
             # make K exceed E even though the pre-source state is admissible.
             # Limit only this local momentum increment to the first admissible
             # boundary; do not add compensating energy.
-            geometry_increment = (
-                dt_value * np.asarray(geometric_mom, dtype=float)
-            )
+            geometry_increment = dt_value * np.asarray(geometric_mom, dtype=float)
             base_valid = valid(mass, momentum, energy, angular)
             full_geometry_momentum = momentum + geometry_increment
             full_valid = valid(mass, full_geometry_momentum, energy, angular)
@@ -1316,11 +1378,12 @@ class Solver:
                 low, high = 0.0, 1.0
                 for _ in range(48):
                     middle = 0.5 * (low + high)
-                    trial_momentum = (
-                        momentum[index] + middle * geometry_increment[index]
-                    )
+                    trial_momentum = momentum[index] + middle * geometry_increment[index]
                     trial_valid = cell_valid(
-                        index, mass[index], trial_momentum, energy[index],
+                        index,
+                        mass[index],
+                        trial_momentum,
+                        energy[index],
                         angular[index] if angular is not None else None,
                     )
                     if trial_valid:
@@ -1338,19 +1401,20 @@ class Solver:
         delta_mass = dt_value * mass_face * area_runtime_code
         delta_mom = dt_value * mom_face * area_runtime_code
         delta_energy = dt_value * energy_face * area_runtime_code
-        delta_angular = (dt_value * np.asarray(angular_face, dtype=float) * area_runtime_code
-                         if angular_face is not None else None)
+        delta_angular = (
+            dt_value * np.asarray(angular_face, dtype=float) * area_runtime_code
+            if angular_face is not None
+            else None
+        )
         # Accept the unlimited conservative update immediately when possible.
         # This is the overwhelmingly common path and avoids limiter overhead.
         full_mass = mass + delta_mass - ru.periodic_roll(delta_mass, -1)
-        full_mom = (
-            momentum + geometry_increment
-            + delta_mom - ru.periodic_roll(delta_mom, -1)
-        )
+        full_mom = momentum + geometry_increment + delta_mom - ru.periodic_roll(delta_mom, -1)
         full_energy = energy + delta_energy - ru.periodic_roll(delta_energy, -1)
         full_angular = (
             angular + delta_angular - ru.periodic_roll(delta_angular, -1)
-            if angular is not None else None
+            if angular is not None
+            else None
         )
         # Test the complete conservative update, including the spherical
         # pressure source, before limiting either contribution separately.
@@ -1367,9 +1431,13 @@ class Solver:
                 np.asarray(mass_face, dtype=float),
             )
             return 1.0
-        factor_method = str(getattr(
-            par, "positivity_factor_method", "invariant_domain",
-        )).lower()
+        factor_method = str(
+            getattr(
+                par,
+                "positivity_factor_method",
+                "invariant_domain",
+            )
+        ).lower()
         if factor_method == "invariant_domain":
             # The geometry source is limited first.  The remaining face
             # update is a line segment from this admissible state to the full
@@ -1387,20 +1455,15 @@ class Solver:
                 face_mass = delta_mass * scale
                 face_mom = delta_mom * scale
                 face_energy = delta_energy * scale
-                state_mass = (
-                    mass + face_mass - ru.periodic_roll(face_mass, -1)
-                )
-                state_mom = (
-                    base_mom + face_mom - ru.periodic_roll(face_mom, -1)
-                )
-                state_energy = (
-                    energy + face_energy
-                    - ru.periodic_roll(face_energy, -1)
-                )
+                state_mass = mass + face_mass - ru.periodic_roll(face_mass, -1)
+                state_mom = base_mom + face_mom - ru.periodic_roll(face_mom, -1)
+                state_energy = energy + face_energy - ru.periodic_roll(face_energy, -1)
                 state_angular = (
-                    base_angular + delta_angular * scale
+                    base_angular
+                    + delta_angular * scale
                     - ru.periodic_roll(delta_angular * scale, -1)
-                    if base_angular is not None else None
+                    if base_angular is not None
+                    else None
                 )
                 return state_mass, state_mom, state_energy, state_angular
 
@@ -1421,14 +1484,12 @@ class Solver:
                 updated_factors[near_zero] = 0.0
                 if np.array_equal(updated_factors, factors):
                     raise ValueError(
-                        "invariant-domain local face recovery did not "
-                        "converge",
+                        "invariant-domain local face recovery did not converge",
                     )
                 factors = updated_factors
             else:
                 raise ValueError(
-                    "invariant-domain local face recovery exceeded "
-                    "iteration limit",
+                    "invariant-domain local face recovery exceeded iteration limit",
                 )
             mass, momentum, energy, total_angular = line_state(factors)
         elif np.all(valid(full_mass, full_mom, full_energy, full_angular)):
@@ -1448,45 +1509,39 @@ class Solver:
             total_mom = momentum.copy()
             total_energy = energy.copy()
             total_angular = angular.copy() if angular is not None else None
-            if not np.all(valid(total_mass, total_mom, total_energy,
-                                total_angular)):
-                invalid = ~valid(total_mass, total_mom, total_energy,
-                                  total_angular)
+            if not np.all(valid(total_mass, total_mom, total_energy, total_angular)):
+                invalid = ~valid(total_mass, total_mom, total_energy, total_angular)
                 index = int(np.flatnonzero(invalid)[0])
                 mass_value = float(total_mass[index])
                 momentum_value = float(total_mom[index])
                 energy_value = float(total_energy[index])
-                kinetic_value = (
-                    0.5 * momentum_value**2 / mass_value
-                    if mass_value > 0.0 else 0.0
-                )
-                angular_value = (
-                    float(total_angular[index])
-                    if total_angular is not None else 0.0
-                )
-                radius_value = (
-                    float(radius[index])
-                    if radius is not None else float("nan")
-                )
+                kinetic_value = 0.5 * momentum_value**2 / mass_value if mass_value > 0.0 else 0.0
+                angular_value = float(total_angular[index]) if total_angular is not None else 0.0
+                radius_value = float(radius[index]) if radius is not None else float("nan")
                 rotational_value = (
-                    0.5 * angular_value**2
-                    / (mass_value * radius_value**2)
-                    if mass_value > 0.0 and radius_value > 0.0 else 0.0
+                    0.5 * angular_value**2 / (mass_value * radius_value**2)
+                    if mass_value > 0.0 and radius_value > 0.0
+                    else 0.0
                 )
-                internal_value = (
-                    energy_value - kinetic_value - rotational_value
-                )
-                specific_value = (
-                    angular_value / mass_value if mass_value > 0.0 else 0.0
-                )
+                internal_value = energy_value - kinetic_value - rotational_value
+                specific_value = angular_value / mass_value if mass_value > 0.0 else 0.0
                 raise ValueError(
                     "hydro state is outside positivity domain before paired "
                     "face construction at cell %d "
                     "(mass=%s mom=%s energy=%s radius=%s J=%s j=%s "
                     "kinetic=%s rotational=%s internal=%s)"
-                    % (index, mass_value, momentum_value, energy_value,
-                       radius_value, angular_value, specific_value,
-                       kinetic_value, rotational_value, internal_value),
+                    % (
+                        index,
+                        mass_value,
+                        momentum_value,
+                        energy_value,
+                        radius_value,
+                        angular_value,
+                        specific_value,
+                        kinetic_value,
+                        rotational_value,
+                        internal_value,
+                    ),
                 )
 
             def adjacent_valid(face, factor):
@@ -1496,39 +1551,29 @@ class Solver:
                 increment = factor - factors[face]
                 trial_mass_left = total_mass[left] - increment * delta_mass[face]
                 trial_mom_left = total_mom[left] - increment * delta_mom[face]
-                trial_energy_left = (
-                    total_energy[left] - increment * delta_energy[face]
-                )
+                trial_energy_left = total_energy[left] - increment * delta_energy[face]
                 trial_mass_right = total_mass[right] + increment * delta_mass[face]
                 trial_mom_right = total_mom[right] + increment * delta_mom[face]
-                trial_energy_right = (
-                    total_energy[right] + increment * delta_energy[face]
-                )
+                trial_energy_right = total_energy[right] + increment * delta_energy[face]
                 trial_angular_left = (
                     total_angular[left] - increment * delta_angular[face]
-                    if total_angular is not None else None
+                    if total_angular is not None
+                    else None
                 )
                 trial_angular_right = (
                     total_angular[right] + increment * delta_angular[face]
-                    if total_angular is not None else None
+                    if total_angular is not None
+                    else None
                 )
                 indices = [index for index in (left, right) if physical[index]]
                 if not indices:
                     return True
                 for index in indices:
-                    trial_mass_value = (
-                        trial_mass_left if index == left else trial_mass_right
-                    )
-                    trial_mom_value = (
-                        trial_mom_left if index == left else trial_mom_right
-                    )
-                    trial_energy_value = (
-                        trial_energy_left
-                        if index == left else trial_energy_right
-                    )
+                    trial_mass_value = trial_mass_left if index == left else trial_mass_right
+                    trial_mom_value = trial_mom_left if index == left else trial_mom_right
+                    trial_energy_value = trial_energy_left if index == left else trial_energy_right
                     trial_angular_value = (
-                        trial_angular_left
-                        if index == left else trial_angular_right
+                        trial_angular_left if index == left else trial_angular_right
                     )
                     if not cell_valid(
                         index,
@@ -1569,7 +1614,8 @@ class Solver:
                     mass_bound = max_increment
                     if dm < 0.0:
                         mass_bound = min(
-                            mass_bound, (mass0 - mass_limit) / -dm,
+                            mass_bound,
+                            (mass0 - mass_limit) / -dm,
                         )
                     if mass_bound < 0.0:
                         return None
@@ -1580,27 +1626,19 @@ class Solver:
                             return None
                         angular0 = float(total_angular[index])
                         angular_delta = sign * float(delta_angular[face])
-                    rotational_factor = (
-                        1.0 / radius_value**2
-                        if total_angular is not None else 0.0
-                    )
+                    rotational_factor = 1.0 / radius_value**2 if total_angular is not None else 0.0
                     energy0 -= energy_limit
-                    a = dm * de - 0.5 * dp**2 - (
-                        0.5 * rotational_factor * angular_delta**2
-                    )
+                    a = dm * de - 0.5 * dp**2 - (0.5 * rotational_factor * angular_delta**2)
                     b = (
-                        mass0 * de + dm * energy0 - mom0 * dp
+                        mass0 * de
+                        + dm * energy0
+                        - mom0 * dp
                         - rotational_factor * angular0 * angular_delta
                     )
-                    c = (
-                        mass0 * energy0 - 0.5 * mom0**2
-                        - 0.5 * rotational_factor * angular0**2
-                    )
+                    c = mass0 * energy0 - 0.5 * mom0**2 - 0.5 * rotational_factor * angular0**2
                     if c < 0.0:
                         return None
-                    value_at_bound = (
-                        (a * mass_bound + b) * mass_bound + c
-                    )
+                    value_at_bound = (a * mass_bound + b) * mass_bound + c
                     if value_at_bound >= 0.0:
                         continue
                     if abs(a) <= _FLOAT_TINY:
@@ -1611,15 +1649,10 @@ class Solver:
                         discriminant = b**2 - 4.0 * a * c
                         if discriminant < 0.0:
                             return None
-                        root_a = (
-                            -b - math.sqrt(discriminant)
-                        ) / (2.0 * a)
-                        root_b = (
-                            -b + math.sqrt(discriminant)
-                        ) / (2.0 * a)
+                        root_a = (-b - math.sqrt(discriminant)) / (2.0 * a)
+                        root_b = (-b + math.sqrt(discriminant)) / (2.0 * a)
                         positive_roots = [
-                            candidate for candidate in (root_a, root_b)
-                            if candidate >= 0.0
+                            candidate for candidate in (root_a, root_b) if candidate >= 0.0
                         ]
                         if not positive_roots:
                             return None
@@ -1630,8 +1663,9 @@ class Solver:
                 candidate = current + max(0.0, largest)
                 return candidate if adjacent_valid(face, candidate) else None
 
-            def batch_cell_valid(mass_value, momentum_value, energy_value,
-                                 indices, angular_value=None):
+            def batch_cell_valid(
+                mass_value, momentum_value, energy_value, indices, angular_value=None
+            ):
                 """Vectorized admissibility check for disjoint face pairs."""
                 mass_limit = mass_floor[indices]
                 energy_limit = energy_floor[indices]
@@ -1642,34 +1676,31 @@ class Solver:
                     & (mass_value >= mass_limit)
                 )
                 at_floor = result & (mass_value <= mass_limit)
-                result[at_floor] = (
-                    energy_value[at_floor] >= energy_limit[at_floor]
-                )
+                result[at_floor] = energy_value[at_floor] >= energy_limit[at_floor]
                 positive = result & ~at_floor
                 if np.any(positive):
                     kinetic = np.zeros_like(energy_value)
-                    kinetic[positive] = (
-                        0.5 * momentum_value[positive]**2
-                        / mass_value[positive]
-                    )
+                    kinetic[positive] = 0.5 * momentum_value[positive] ** 2 / mass_value[positive]
                     rotational = np.zeros_like(energy_value)
                     if angular_value is not None and radius is not None:
                         valid_radius = positive & (radius[indices] > 0.0)
                         rotational[valid_radius] = (
-                            0.5 * angular_value[valid_radius]**2
-                            / (mass_value[valid_radius]
-                               * radius[indices][valid_radius]**2)
+                            0.5
+                            * angular_value[valid_radius] ** 2
+                            / (mass_value[valid_radius] * radius[indices][valid_radius] ** 2)
                         )
                     internal = energy_value - kinetic - rotational
-                    tolerance = relative_tolerance * np.maximum.reduce((
-                        np.abs(energy_value), kinetic,
-                        np.abs(energy_limit),
-                        np.full_like(energy_value, _FLOAT_TINY),
-                    ))
+                    tolerance = relative_tolerance * np.maximum.reduce(
+                        (
+                            np.abs(energy_value),
+                            kinetic,
+                            np.abs(energy_limit),
+                            np.full_like(energy_value, _FLOAT_TINY),
+                        )
+                    )
                     tolerance *= 1.0 - 1.0e-8
                     result[positive] = (
-                        internal[positive]
-                        >= energy_limit[positive] - tolerance[positive]
+                        internal[positive] >= energy_limit[positive] - tolerance[positive]
                     )
                 return result
 
@@ -1689,12 +1720,23 @@ class Solver:
                     left_angular = total_angular[left] - increment * delta_angular[face_values]
                     right_angular = total_angular[right] + increment * delta_angular[face_values]
                 return (
-                    (~physical[left] | batch_cell_valid(
-                        left_mass, left_mom, left_energy, left, left_angular,
-                    ))
-                    & (~physical[right] | batch_cell_valid(
-                        right_mass, right_mom, right_energy, right, right_angular,
-                    ))
+                    ~physical[left]
+                    | batch_cell_valid(
+                        left_mass,
+                        left_mom,
+                        left_energy,
+                        left,
+                        left_angular,
+                    )
+                ) & (
+                    ~physical[right]
+                    | batch_cell_valid(
+                        right_mass,
+                        right_mom,
+                        right_energy,
+                        right,
+                        right_angular,
+                    )
                 )
 
             def batch_analytical_factors(face_values):
@@ -1713,16 +1755,17 @@ class Solver:
                     dp = sign * delta_mom[face_values]
                     de = sign * delta_energy[face_values]
                     finite = (
-                        np.isfinite(mass0) & np.isfinite(mom0)
-                        & np.isfinite(energy0) & (mass0 >= mass_floor[side])
+                        np.isfinite(mass0)
+                        & np.isfinite(mom0)
+                        & np.isfinite(energy0)
+                        & (mass0 >= mass_floor[side])
                     )
                     possible &= ~physical_side | finite
                     mass_bound = np.ones_like(largest)
                     decreasing_mass = dm < 0.0
                     mass_bound[decreasing_mass] = (
-                        (mass0[decreasing_mass] - mass_floor[side][decreasing_mass])
-                        / -dm[decreasing_mass]
-                    )
+                        mass0[decreasing_mass] - mass_floor[side][decreasing_mass]
+                    ) / -dm[decreasing_mass]
                     largest = np.minimum(largest, mass_bound)
                     angular0 = np.zeros_like(mass0)
                     angular_delta = np.zeros_like(mass0)
@@ -1731,24 +1774,17 @@ class Solver:
                         angular0 = total_angular[side]
                         angular_delta = sign * delta_angular[face_values]
                         radius_side = radius[side]
-                        valid_radius = (
-                            np.isfinite(radius_side) & (radius_side > 0.0)
-                        )
+                        valid_radius = np.isfinite(radius_side) & (radius_side > 0.0)
                         possible &= ~physical_side | valid_radius
-                        rotational_factor[valid_radius] = (
-                            1.0 / radius_side[valid_radius]**2
-                        )
-                    a = dm * de - 0.5 * dp**2 - (
-                        0.5 * rotational_factor * angular_delta**2
-                    )
+                        rotational_factor[valid_radius] = 1.0 / radius_side[valid_radius] ** 2
+                    a = dm * de - 0.5 * dp**2 - (0.5 * rotational_factor * angular_delta**2)
                     b = (
-                        mass0 * de + dm * energy0 - mom0 * dp
+                        mass0 * de
+                        + dm * energy0
+                        - mom0 * dp
                         - rotational_factor * angular0 * angular_delta
                     )
-                    c = (
-                        mass0 * energy0 - 0.5 * mom0**2
-                        - 0.5 * rotational_factor * angular0**2
-                    )
+                    c = mass0 * energy0 - 0.5 * mom0**2 - 0.5 * rotational_factor * angular0**2
                     possible &= ~physical_side | (c >= 0.0)
                     bounded = physical_side & (c >= 0.0)
                     value_bound = (a * largest + b) * largest + c
@@ -1757,7 +1793,10 @@ class Solver:
                     linear_bad = linear & (b >= 0.0)
                     possible &= ~linear_bad
                     linear_root = np.divide(
-                        -c, b, out=np.zeros_like(c), where=linear & (b != 0.0),
+                        -c,
+                        b,
+                        out=np.zeros_like(c),
+                        where=linear & (b != 0.0),
                     )
                     quadratic = bounded_failure & ~linear
                     discriminant = b**2 - 4.0 * a * c
@@ -1766,12 +1805,16 @@ class Solver:
                         np.maximum(discriminant, 0.0),
                     )
                     root_a = np.divide(
-                        -b - sqrt_discriminant, 2.0 * a,
-                        out=np.zeros_like(a), where=quadratic & (a != 0.0),
+                        -b - sqrt_discriminant,
+                        2.0 * a,
+                        out=np.zeros_like(a),
+                        where=quadratic & (a != 0.0),
                     )
                     root_b = np.divide(
-                        -b + sqrt_discriminant, 2.0 * a,
-                        out=np.zeros_like(a), where=quadratic & (a != 0.0),
+                        -b + sqrt_discriminant,
+                        2.0 * a,
+                        out=np.zeros_like(a),
+                        where=quadratic & (a != 0.0),
                     )
                     root_a = np.where(root_a >= 0.0, root_a, np.inf)
                     root_b = np.where(root_b >= 0.0, root_b, np.inf)
@@ -1790,7 +1833,8 @@ class Solver:
                 active_faces = face_values[active]
                 current = factors[active_faces].copy()
                 full = batch_adjacent_valid(
-                    active_faces, np.ones_like(current),
+                    active_faces,
+                    np.ones_like(current),
                 )
                 accepted = np.ones_like(current)
                 needs_fallback = ~full
@@ -1800,9 +1844,7 @@ class Solver:
                     )
                     candidate_positions = np.flatnonzero(needs_fallback)
                     accepted[candidate_positions[possible]] = candidates[possible]
-                    fallback_faces = active_faces[
-                        candidate_positions[~possible]
-                    ]
+                    fallback_faces = active_faces[candidate_positions[~possible]]
                     for face in fallback_faces:
                         current_face = factors[face]
                         low, high = current_face, 1.0
@@ -1837,9 +1879,13 @@ class Solver:
             max_recovery_sweeps = 8
             recovery_iterations = 48
             factor_tolerance = 1.0e-13
-            factor_method = str(getattr(
-                par, "positivity_factor_method", "invariant_domain",
-            )).lower()
+            factor_method = str(
+                getattr(
+                    par,
+                    "positivity_factor_method",
+                    "invariant_domain",
+                )
+            ).lower()
 
             # Parity batching is intentionally disabled until its altered
             # recovery ordering is proven equivalent for coupled interfaces.
@@ -1849,7 +1895,10 @@ class Solver:
                     parities = (0, 1) if sweep % 2 == 0 else (1, 0)
                     for parity in parities:
                         faces = np.arange(
-                            parity, len(mass_face), 2, dtype=int,
+                            parity,
+                            len(mass_face),
+                            2,
+                            dtype=int,
                         )
                         largest_increase = max(
                             largest_increase,
@@ -1878,7 +1927,8 @@ class Solver:
                         else:
                             accepted = (
                                 analytical_adjacent_factor(face, current)
-                                if factor_method == "analytical" else None
+                                if factor_method == "analytical"
+                                else None
                             )
                             if accepted is None:
                                 # The current coefficient is known admissible.
@@ -1895,7 +1945,8 @@ class Solver:
                                         break
                                 accepted = low
                         largest_increase = max(
-                            largest_increase, accepted - current,
+                            largest_increase,
+                            accepted - current,
                         )
                         increment = accepted - current
                         left = (face - 1) % count
@@ -1927,11 +1978,15 @@ class Solver:
         if boundary is not None and getattr(boundary, "condition", None) == "WindSph":
             wind_density = float(np.asarray(boundary.rho_outflow_proper))
             wind_velocity = float(np.asarray(boundary.vel_outflow_proper))
-            wind_pressure = float(np.asarray(fluid.eos.pressure(
-                boundary.rho_outflow_proper,
-                boundary.temperature_outflow_proper,
-                boundary.outflow_mu,
-            )))
+            wind_pressure = float(
+                np.asarray(
+                    fluid.eos.pressure(
+                        boundary.rho_outflow_proper,
+                        boundary.temperature_outflow_proper,
+                        boundary.outflow_mu,
+                    )
+                )
+            )
             wind_internal = (
                 wind_pressure / wind_density / (fluid.eos.gamma - 1.0)
                 if wind_density > 0.0 and not fluid.eos.is_isothermal
@@ -1942,12 +1997,8 @@ class Solver:
             missing_mass = np.maximum(mass_floor - mass, 0.0)
             reservoir_cells = physical & (missing_mass > 0.0)
             if np.any(reservoir_cells):
-                momentum[reservoir_cells] += (
-                    missing_mass[reservoir_cells] * wind_velocity
-                )
-                energy[reservoir_cells] += (
-                    missing_mass[reservoir_cells] * wind_specific_energy
-                )
+                momentum[reservoir_cells] += missing_mass[reservoir_cells] * wind_velocity
+                energy[reservoir_cells] += missing_mass[reservoir_cells] * wind_specific_energy
                 mass[reservoir_cells] += missing_mass[reservoir_cells]
                 self._last_wind_reservoir_mass = float(
                     np.sum(missing_mass[reservoir_cells]),
@@ -1967,9 +2018,7 @@ class Solver:
                 where=mass > 0.0,
             )
             floor_edge = physical & (mass <= mass_floor * (1.0 + 1.0e-12))
-            energy_deficit = floor_edge & (
-                energy < kinetic + energy_floor
-            )
+            energy_deficit = floor_edge & (energy < kinetic + energy_floor)
             for index in np.flatnonzero(energy_deficit):
                 base_mass = mass[index]
                 base_momentum = momentum[index]
@@ -1980,9 +2029,7 @@ class Solver:
                     trial_mass = base_mass + delta_mass
                     trial_momentum = base_momentum + delta_mass * wind_velocity
                     trial_energy = base_energy + delta_mass * wind_specific_energy
-                    return trial_energy - (
-                        0.5 * trial_momentum**2 / trial_mass
-                    ) >= required_energy
+                    return trial_energy - (0.5 * trial_momentum**2 / trial_mass) >= required_energy
 
                 low = 0.0
                 high = max(base_mass, mass_floor[index], 1.0) * 1.0e-12
@@ -2011,8 +2058,8 @@ class Solver:
             index = int(np.flatnonzero(invalid)[0])
             raise ValueError(
                 "hydro state is outside positivity domain after face update "
-                "at cell %d (mass=%s mom=%s energy=%s)" %
-                (index, mass[index], momentum[index], energy[index]),
+                "at cell %d (mass=%s mom=%s energy=%s)"
+                % (index, mass[index], momentum[index], energy[index]),
             )
 
         fluid.Mass_code[...] = mass
@@ -2025,11 +2072,7 @@ class Solver:
 
     def _apply_wind_reservoir_flux(self, dt, mesh, fluid, par):
         """Restore rejected WindSph boundary flux as one coupled parcel."""
-        if (
-            par is None
-            or getattr(getattr(par, "boundary", None), "condition", None)
-            != "WindSph"
-        ):
+        if par is None or getattr(getattr(par, "boundary", None), "condition", None) != "WindSph":
             return 0.0
         factors = np.asarray(
             getattr(self, "_last_face_limiter_factors", np.ones(0)),
@@ -2046,11 +2089,15 @@ class Solver:
         boundary = par.boundary
         rho_wind = float(np.asarray(boundary.rho_outflow_proper))
         velocity_wind = float(np.asarray(boundary.vel_outflow_proper))
-        pressure_wind = float(np.asarray(fluid.eos.pressure(
-            boundary.rho_outflow_proper,
-            boundary.temperature_outflow_proper,
-            boundary.outflow_mu,
-        )))
+        pressure_wind = float(
+            np.asarray(
+                fluid.eos.pressure(
+                    boundary.rho_outflow_proper,
+                    boundary.temperature_outflow_proper,
+                    boundary.outflow_mu,
+                )
+            )
+        )
         wind_internal = (
             pressure_wind / rho_wind / (fluid.eos.gamma - 1.0)
             if rho_wind > 0.0 and not fluid.eos.is_isothermal
@@ -2061,10 +2108,14 @@ class Solver:
         dt_value = float(np.asarray(dt))
         mass_rate = rho_wind * velocity_wind * area_runtime_code
         momentum_rate = (rho_wind * velocity_wind**2 + pressure_wind) * area_runtime_code
-        energy_rate = velocity_wind * (
-            0.5 * rho_wind * velocity_wind**2
-            + fluid.eos.gamma * pressure_wind / (fluid.eos.gamma - 1.0)
-        ) * area_runtime_code
+        energy_rate = (
+            velocity_wind
+            * (
+                0.5 * rho_wind * velocity_wind**2
+                + fluid.eos.gamma * pressure_wind / (fluid.eos.gamma - 1.0)
+            )
+            * area_runtime_code
+        )
         correction_mass = rejected_fraction * dt_value * mass_rate
         correction_momentum = rejected_fraction * dt_value * momentum_rate
         correction_energy = rejected_fraction * dt_value * energy_rate
@@ -2073,14 +2124,13 @@ class Solver:
         fluid.Energy_code[first] += correction_energy
         if hasattr(fluid, "InternalEnergy_code"):
             correction_internal = correction_energy - (
-                velocity_wind * correction_momentum
-                - 0.5 * velocity_wind**2 * correction_mass
+                velocity_wind * correction_momentum - 0.5 * velocity_wind**2 * correction_mass
             )
             fluid.InternalEnergy_code[first] += correction_internal
         mass = np.asarray(fluid.Mass_code, dtype=float)
         momentum = np.asarray(fluid.Mom_code, dtype=float)
         energy = np.asarray(fluid.Energy_code, dtype=float)
-        kinetic = 0.5 * momentum[first]**2 / mass[first]
+        kinetic = 0.5 * momentum[first] ** 2 / mass[first]
         if energy[first] < kinetic:
             # A rejected parcel can still be too fast for the receiving cell
             # when its velocity differs substantially from the wind.  Add
@@ -2094,9 +2144,7 @@ class Solver:
                 trial_mass = base_mass + delta_mass
                 trial_momentum = base_momentum + delta_mass * velocity_wind
                 trial_energy = base_energy + delta_mass * wind_specific_energy
-                return trial_energy >= (
-                    0.5 * trial_momentum**2 / trial_mass
-                )
+                return trial_energy >= (0.5 * trial_momentum**2 / trial_mass)
 
             low = 0.0
             high = max(base_mass, correction_mass, 1.0) * 1.0e-12
@@ -2120,12 +2168,10 @@ class Solver:
             energy[first] += high * wind_specific_energy
             if hasattr(fluid, "InternalEnergy_code"):
                 fluid.InternalEnergy_code[first] += high * (
-                    wind_specific_energy
-                    - velocity_wind**2
-                    + 0.5 * velocity_wind**2
+                    wind_specific_energy - velocity_wind**2 + 0.5 * velocity_wind**2
                 )
             self._last_wind_reservoir_mass += high
-        kinetic = 0.5 * momentum[first]**2 / mass[first]
+        kinetic = 0.5 * momentum[first] ** 2 / mass[first]
         if not (
             np.isfinite(mass[first])
             and np.isfinite(momentum[first])
@@ -2142,19 +2188,19 @@ class Solver:
         )
         return correction_mass
 
-    def SetInterFaceFlux(self,mesh,fluid,boundcond, method="Rusanov",verbose=None, order=0):
+    def SetInterFaceFlux(self, mesh, fluid, boundcond, method="Rusanov", verbose=None, order=0):
         """Set interface fluxes using GLF, Rusanov, or HLLC fluxes."""
         if verbose is None:
             verbose = 0
         geometry = self._geometry_state(mesh, getattr(mesh, "_par", None))
         if method in ("GLF", "Rusanov", "HLLC"):
-            if method=="GLF":
+            if method == "GLF":
                 # Global Lax Friedrich scheme
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)
                 # simple to implement but very diffusive
                 # calculate cmax
                 fluid.cmax = geometry.width_runtime_code / np.amin(self.dt)
-            elif method=="Rusanov":
+            elif method == "Rusanov":
                 # Local Lax Friedrich schem
                 # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)
                 # simple to implement but less diffusive
@@ -2162,20 +2208,28 @@ class Solver:
             else:  # HLLC uses Rusanov speeds for CFL and vacuum fallback.
                 fluid.cmax = np.maximum(fluid.vsignal_code, ru.periodic_roll(fluid.vsignal_code, 1))
 
-            self.SetFaceLR(mesh,fluid, boundcond, order=order)
+            self.SetFaceLR(mesh, fluid, boundcond, order=order)
             self.SetFluxOnFace(
-                fluid, boundcond, order=order, par=getattr(mesh, "_par", None), method=method,
+                fluid,
+                boundcond,
+                order=order,
+                par=getattr(mesh, "_par", None),
+                method=method,
             )
             self._apply_low_density_flux_mask(
-                fluid, getattr(mesh, "_par", None),
+                fluid,
+                getattr(mesh, "_par", None),
             )
             self._apply_hydrostatic_core_flux(fluid, getattr(mesh, "_par", None))
             self._zero_spherical_origin_flux(mesh, fluid)
             self._apply_local_angular_energy_fallback(
-                mesh, fluid, getattr(mesh, "_par", None),
+                mesh,
+                fluid,
+                getattr(mesh, "_par", None),
             )
             angular_momentum_face = self._set_angular_momentum_flux(
-                fluid, order=order,
+                fluid,
+                order=order,
             )
             self._set_rotational_energy_flux(
                 mesh,
@@ -2188,8 +2242,8 @@ class Solver:
             # later reconstruction cannot repopulate that face.
             self._zero_spherical_origin_flux(mesh, fluid)
         else:
-            raise ValueError("Interface flux method unknown: %s"%method)
-        if (verbose>=2):
+            raise ValueError("Interface flux method unknown: %s" % method)
+        if verbose >= 2:
             log_diagnostic(
                 logging.DEBUG,
                 "interface_fluxes_constructed",
@@ -2198,12 +2252,14 @@ class Solver:
                 energy_flux=fluid.Energy_code.flux,
             )
 
-
     def AddFluxes(self, dt: float, mesh, fluid, boundcond):
         """Apply interface fluxes to conserved quantities and advance time."""
         old_mass_for_internal = np.asarray(fluid.Mass_code, dtype=float).copy()
         self._limit_angular_momentum_flux(
-            dt, mesh, fluid, getattr(mesh, "_par", None),
+            dt,
+            mesh,
+            fluid,
+            getattr(mesh, "_par", None),
         )
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
@@ -2213,29 +2269,29 @@ class Solver:
         pressure_runtime_code = None
         velocity_runtime_code = None
         if getattr(mesh, "coordsys", None) == "spherical" or (
-            self._dual_energy_enabled(par)
-            and hasattr(fluid, "InternalEnergy_code")
+            self._dual_energy_enabled(par) and hasattr(fluid, "InternalEnergy_code")
         ):
-            _, velocity_runtime_code, pressure_runtime_code, _ = (
-                self._active_primitive_arrays(fluid, par)
+            _, velocity_runtime_code, pressure_runtime_code, _ = self._active_primitive_arrays(
+                fluid, par
             )
-        df_Mass_code = fluid.Mass_code.flux * area_runtime_code - ru.periodic_roll(fluid.Mass_code.flux * area_runtime_code, -1)
-        df_Mom_code = fluid.Mom_code.flux * area_runtime_code - ru.periodic_roll(fluid.Mom_code.flux * area_runtime_code, -1)
-        df_Energy_code = fluid.Energy_code.flux * area_runtime_code - ru.periodic_roll(fluid.Energy_code.flux * area_runtime_code, -1)
+        df_Mass_code = fluid.Mass_code.flux * area_runtime_code - ru.periodic_roll(
+            fluid.Mass_code.flux * area_runtime_code, -1
+        )
+        df_Mom_code = fluid.Mom_code.flux * area_runtime_code - ru.periodic_roll(
+            fluid.Mom_code.flux * area_runtime_code, -1
+        )
+        df_Energy_code = fluid.Energy_code.flux * area_runtime_code - ru.periodic_roll(
+            fluid.Energy_code.flux * area_runtime_code, -1
+        )
         df_AngularMomentum = None
         if hasattr(fluid, "AngularMomentum_code"):
             angular_flux_area = fluid.AngularMomentum_code.flux * area_runtime_code
-            df_AngularMomentum = (
-                angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
-            )
+            df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
         potential_face = self._gravity_potential_faces(mesh, getattr(mesh, "_par", None))
         df_potential = None
         if potential_face is not None:
             potential_flux_area = potential_face * fluid.Mass_code.flux * area_runtime_code
-            df_potential = (
-                potential_flux_area
-                - ru.periodic_roll(potential_flux_area, -1)
-            )
+            df_potential = potential_flux_area - ru.periodic_roll(potential_flux_area, -1)
         if getattr(mesh, "coordsys", None) == "spherical":
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.
@@ -2265,7 +2321,8 @@ class Solver:
             total_energy_flux = np.asarray(fluid.Energy_code.flux, dtype=float)
             if hasattr(fluid, "rotational_energy_flux"):
                 total_energy_flux -= np.asarray(
-                    fluid.rotational_energy_flux, dtype=float,
+                    fluid.rotational_energy_flux,
+                    dtype=float,
                 )
             internal_flux = (
                 total_energy_flux
@@ -2276,9 +2333,8 @@ class Solver:
             origin_face = self._spherical_origin_face_index(mesh)
             if origin_face is not None:
                 internal_flux[origin_face] = 0.0
-            df_InternalEnergy = (
-                internal_flux * area_runtime_code
-                - ru.periodic_roll(internal_flux * area_runtime_code, -1)
+            df_InternalEnergy = internal_flux * area_runtime_code - ru.periodic_roll(
+                internal_flux * area_runtime_code, -1
             )
             if getattr(mesh, "coordsys", None) == "spherical":
                 # Account for spherical pressure work using the same
@@ -2293,33 +2349,41 @@ class Solver:
             area_right = ru.periodic_roll(area_runtime_code, -1)
             geometric_mom = pressure_runtime_code * (area_right - area_runtime_code)
         positivity_factor = self._positivity_limited_face_fluxes(
-            fluid, dt, mesh, par,
-            fluid.Mass_code.flux, fluid.Mom_code.flux, fluid.Energy_code.flux,
+            fluid,
+            dt,
+            mesh,
+            par,
+            fluid.Mass_code.flux,
+            fluid.Mom_code.flux,
+            fluid.Energy_code.flux,
             geometric_mom=geometric_mom,
-            angular_face=(fluid.AngularMomentum_code.flux
-                          if df_AngularMomentum is not None else None),
+            angular_face=(
+                fluid.AngularMomentum_code.flux if df_AngularMomentum is not None else None
+            ),
         )
         # A positivity reduction at the prescribed wind face is a numerical
         # rejection of reservoir material, not a physical reduction of the
         # stellar-wind luminosity.  Reinsert the rejected parcel with its
         # matching mass, momentum, and energy before synchronizing primitives.
         self._apply_wind_reservoir_flux(
-            dt, mesh, fluid, getattr(mesh, "_par", None),
+            dt,
+            mesh,
+            fluid,
+            getattr(mesh, "_par", None),
         )
         if df_InternalEnergy is not None:
             # Couple the dual-energy advection to the same face coefficients
             # used by the conservative update.  Applying the minimum face
             # coefficient globally defeats the purpose of the local limiter.
             factors = np.asarray(
-                getattr(self, "_last_face_limiter_factors",
-                        np.ones(len(fluid.Mass_code.flux))),
+                getattr(self, "_last_face_limiter_factors", np.ones(len(fluid.Mass_code.flux))),
                 dtype=float,
             )
             limited_internal_flux = np.asarray(internal_flux, dtype=float) * factors
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
             physical = np.zeros(len(fluid.InternalEnergy_code), dtype=bool)
-            physical[first:first + count] = True
+            physical[first : first + count] = True
             internal_factors = self._positivity_limited_internal_flux(
                 fluid.InternalEnergy_code,
                 limited_internal_flux,
@@ -2328,9 +2392,8 @@ class Solver:
                 physical,
             )
             limited_internal_flux *= internal_factors
-            limited_df_internal = (
-                limited_internal_flux * area_runtime_code
-                - ru.periodic_roll(limited_internal_flux * area_runtime_code, -1)
+            limited_df_internal = limited_internal_flux * area_runtime_code - ru.periodic_roll(
+                limited_internal_flux * area_runtime_code, -1
             )
             if getattr(mesh, "coordsys", None) == "spherical":
                 # Retain the established spherical pressure-work
@@ -2340,12 +2403,13 @@ class Solver:
                 # can over-limit cold expanding cells.
                 limited_df_internal -= pressure_runtime_code * (
                     ru.periodic_roll(
-                        factors * face_velocity * area_runtime_code, -1,
-                    ) - factors * face_velocity * area_runtime_code
+                        factors * face_velocity * area_runtime_code,
+                        -1,
+                    )
+                    - factors * face_velocity * area_runtime_code
                 )
             candidate_internal = (
-                np.asarray(fluid.InternalEnergy_code, dtype=float)
-                + limited_df_internal * dt
+                np.asarray(fluid.InternalEnergy_code, dtype=float) + limited_df_internal * dt
             )
             previous_internal = np.asarray(fluid.InternalEnergy_code, dtype=float)
 
@@ -2368,12 +2432,14 @@ class Solver:
             )
             conservative_internal = total_energy - conservative_internal
             conservative_internal -= self._rotational_energy_from_conserved(
-                mesh, fluid, getattr(mesh, "_par", None),
+                mesh,
+                fluid,
+                getattr(mesh, "_par", None),
             )
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
             physical = np.zeros(len(candidate_internal), dtype=bool)
-            physical[first:first + count] = True
+            physical[first : first + count] = True
             fallback = (
                 physical
                 & (~np.isfinite(candidate_internal) | (candidate_internal <= 0.0))
@@ -2409,10 +2475,15 @@ class Solver:
             # update.  Treat an abrupt loss below the configured consistency
             # fraction as a failed dual estimate as well.  Prefer E-K when it
             # is admissible; otherwise keep the previous positive dual state.
-            consistency_factor = max(0.0, float(np.asarray(getattr(
-                par, "dual_energy_consistency_factor", 1.0e-1), dtype=float)))
+            consistency_factor = max(
+                0.0,
+                float(
+                    np.asarray(getattr(par, "dual_energy_consistency_factor", 1.0e-1), dtype=float)
+                ),
+            )
             far_below_previous = (
-                physical & np.isfinite(candidate_internal)
+                physical
+                & np.isfinite(candidate_internal)
                 & np.isfinite(previous_internal)
                 & (previous_internal > 0.0)
                 & (candidate_internal < consistency_factor * previous_internal)
@@ -2423,17 +2494,15 @@ class Solver:
                 & (conservative_internal > 0.0)
             )
             if np.any(conservative_recovery):
-                candidate_internal[conservative_recovery] = (
-                    conservative_internal[conservative_recovery]
-                )
+                candidate_internal[conservative_recovery] = conservative_internal[
+                    conservative_recovery
+                ]
                 self.dual_energy_pressure_fallback_count += int(
                     np.count_nonzero(conservative_recovery),
                 )
             retain_consistent = far_below_previous & ~conservative_recovery
             if np.any(retain_consistent):
-                candidate_internal[retain_consistent] = (
-                    previous_internal[retain_consistent]
-                )
+                candidate_internal[retain_consistent] = previous_internal[retain_consistent]
                 self.dual_energy_pressure_fallback_count += int(
                     np.count_nonzero(retain_consistent),
                 )
@@ -2446,12 +2515,12 @@ class Solver:
             # entropy only for moderate density changes; strong compression,
             # expansion, and near-vacuum cells are left to the conservative
             # consistency/fallback logic above.
-            if (
-                getattr(par, "dual_energy_entropy_limiter", False)
-                and not self._thermochemistry_enabled(fluid, par)
-            ):
+            if getattr(
+                par, "dual_energy_entropy_limiter", False
+            ) and not self._thermochemistry_enabled(fluid, par):
                 volume = np.asarray(
-                    self._geometry_state(mesh, par).volume_runtime_code, dtype=float,
+                    self._geometry_state(mesh, par).volume_runtime_code,
+                    dtype=float,
                 )
                 old_density = np.divide(
                     old_mass_for_internal,
@@ -2471,11 +2540,10 @@ class Solver:
                     out=np.ones_like(old_density),
                     where=old_density > 0.0,
                 )
-                moderate_density_change = (
-                    physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)
-                )
+                moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)
                 isentropic_internal = previous_internal * np.maximum(
-                    density_ratio, 0.0,
+                    density_ratio,
+                    0.0,
                 ) ** float(fluid.eos.gamma)
                 entropy_limited = (
                     moderate_density_change
@@ -2486,9 +2554,7 @@ class Solver:
                     & (candidate_internal < isentropic_internal)
                 )
                 if np.any(entropy_limited):
-                    candidate_internal[entropy_limited] = (
-                        isentropic_internal[entropy_limited]
-                    )
+                    candidate_internal[entropy_limited] = isentropic_internal[entropy_limited]
                     self.dual_energy_entropy_limiter_count += int(
                         np.count_nonzero(entropy_limited),
                     )
@@ -2501,16 +2567,14 @@ class Solver:
             )
         if df_potential is not None:
             factors = np.asarray(
-                getattr(self, "_last_face_limiter_factors",
-                        np.ones(len(fluid.Mass_code.flux))),
+                getattr(self, "_last_face_limiter_factors", np.ones(len(fluid.Mass_code.flux))),
                 dtype=float,
             )
             limited_potential_flux_area = (
                 potential_face * fluid.Mass_code.flux * factors * area_runtime_code
             )
             fluid.GravitationalPotentialEnergy_code += dt * (
-                limited_potential_flux_area
-                - ru.periodic_roll(limited_potential_flux_area, -1)
+                limited_potential_flux_area - ru.periodic_roll(limited_potential_flux_area, -1)
             )
         # Advance the representation-specific runtime clock.
         par = getattr(mesh, "_par", None)
@@ -2559,16 +2623,19 @@ class Solver:
         from .radiation import apply_radiation_pressure
 
         return apply_radiation_pressure(
-            self, dt, mesh, fluid, par, source_result,
+            self,
+            dt,
+            mesh,
+            fluid,
+            par,
+            source_result,
         )
-
 
     def SetBoundary(self, mesh, fluid, par):
         """Fill ghost cells according to the selected boundary condition."""
         from .boundaries import set_boundary
 
         return set_boundary(self, mesh, fluid, par)
-
 
     def GetTimeStep(self, mesh, fluid, par, CFL=None):
         """Return a CFL-limited timestep in the active time coordinate."""

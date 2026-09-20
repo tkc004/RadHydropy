@@ -25,8 +25,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     fluid.SetSoundSpeed()
     runtime_state = getattr(fluid, "runtime_state", None)
     runtime_state = fluid if runtime_state is None else runtime_state
-    density_field, velocity, pressure_field, _, time_runtime_code = (
-        select_fluid_primitive_arrays(runtime_state, par)
+    density_field, velocity, pressure_field, _, time_runtime_code = select_fluid_primitive_arrays(
+        runtime_state, par
     )
     vsignal = np.absolute(velocity) + fluid.cs_code
     density = np.asarray(density_field, dtype=float)
@@ -79,18 +79,24 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         in ("InflowSph", "OutflowSph", "WindSph")
     ):
         interface_indices = np.array([first - 1, first + active_count])
-        cfl_width_runtime_code = np.concatenate((
-            np.asarray(active_width_runtime_code, dtype=float),
-            np.asarray(width_runtime_code[interface_indices], dtype=float),
-        ))
-        cfl_density = np.concatenate((
-            np.asarray(active_density, dtype=float),
-            np.asarray(density[interface_indices], dtype=float),
-        ))
-        cfl_vsignal = np.concatenate((
-            np.asarray(active_vsignal, dtype=float),
-            np.asarray(vsignal[interface_indices], dtype=float),
-        ))
+        cfl_width_runtime_code = np.concatenate(
+            (
+                np.asarray(active_width_runtime_code, dtype=float),
+                np.asarray(width_runtime_code[interface_indices], dtype=float),
+            )
+        )
+        cfl_density = np.concatenate(
+            (
+                np.asarray(active_density, dtype=float),
+                np.asarray(density[interface_indices], dtype=float),
+            )
+        )
+        cfl_vsignal = np.concatenate(
+            (
+                np.asarray(active_vsignal, dtype=float),
+                np.asarray(vsignal[interface_indices], dtype=float),
+            )
+        )
         cfl_indices = np.concatenate((cfl_indices, interface_indices))
 
     core_mask = getattr(par, "_hydrostatic_core_mask", None)
@@ -104,7 +110,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     # pressure/rho is undefined; exclude such cells from the minimum and
     # keep their interface signal speed neutral for the next flux update.
     density_floor = max(
-        0.0, float(np.asarray(getattr(par, "cfl_density_floor", 0.0))),
+        0.0,
+        float(np.asarray(getattr(par, "cfl_density_floor", 0.0))),
     )
     zero_density = active_density <= density_floor
     if np.any(zero_density):
@@ -125,10 +132,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     boundary = getattr(par, "boundary", None)
     boundary_condition = getattr(boundary, "condition", None)
     if (
-        getattr(getattr(par, "hydrodynamics", None),
-                "boundary_mass_loading_timestep", False)
-        and
-        boundary_condition in ("InflowSph", "OutflowSph")
+        getattr(getattr(par, "hydrodynamics", None), "boundary_mass_loading_timestep", False)
+        and boundary_condition in ("InflowSph", "OutflowSph")
         and hasattr(fluid, "Mass_code")
         and first + 1 < len(fluid.Mass_code)
         and first < len(area_runtime_code)
@@ -139,18 +144,26 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         else:
             boundary_density = getattr(boundary, "rho_outflow_proper", 0.0)
             boundary_velocity = getattr(boundary, "vel_outflow_proper", 0.0)
-        mass_flux = abs(float(np.asarray(boundary_density))) * abs(
-            float(np.asarray(boundary_velocity)),
-        ) * abs(float(np.asarray(area_runtime_code[first])))
+        mass_flux = (
+            abs(float(np.asarray(boundary_density)))
+            * abs(
+                float(np.asarray(boundary_velocity)),
+            )
+            * abs(float(np.asarray(area_runtime_code[first])))
+        )
         # The reconstructed boundary/front stencil can deliver the imposed
         # flux into the next active cell as the wind front advances.  Use the
         # lower mass of the two receiving cells so the constraint follows a
         # newly formed low-density cavity instead of assuming that the first
         # cell remains the receiver.
-        receiving_mass = np.asarray(fluid.Mass_code[first:first + 2], dtype=float)
-        cell_mass = float(np.min(receiving_mass[receiving_mass > 0.0])) if np.any(
-            receiving_mass > 0.0,
-        ) else 0.0
+        receiving_mass = np.asarray(fluid.Mass_code[first : first + 2], dtype=float)
+        cell_mass = (
+            float(np.min(receiving_mass[receiving_mass > 0.0]))
+            if np.any(
+                receiving_mass > 0.0,
+            )
+            else 0.0
+        )
         if mass_flux > 0.0 and cell_mass > 0.0:
             # Keep the injected mass below the receiving-cell mass.  Using
             # the same safety fraction as the wave-speed CFL preserves the
@@ -228,15 +241,10 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         cell_volume = np.asarray(volume_runtime_code)[diagnostic_index]
         cell_rho_code = np.asarray(density_field)[diagnostic_index]
         cell_vel_code = np.asarray(velocity)[diagnostic_index]
-        cell_energy_density = (
-            np.asarray(fluid.Energy_code)[diagnostic_index] / cell_volume
-        )
+        cell_energy_density = np.asarray(fluid.Energy_code)[diagnostic_index] / cell_volume
         cell_kinetic_density = 0.5 * cell_rho_code * cell_vel_code**2
         cell_thermal_density = cell_energy_density - cell_kinetic_density
-        cell_specific_thermal = (
-            cell_thermal_density / cell_rho_code
-            if cell_rho_code > 0.0 else 0.0
-        )
+        cell_specific_thermal = cell_thermal_density / cell_rho_code if cell_rho_code > 0.0 else 0.0
         log_diagnostic(
             logging.WARNING,
             "hydro_timestep_energy_state",
@@ -250,7 +258,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
         )
         neighbor_start = max(first, diagnostic_index - 2)
         neighbor_stop = min(
-        first + int(par.mesh.grid_cells),
+            first + int(par.mesh.grid_cells),
             diagnostic_index + 3,
         )
         neighbors = []

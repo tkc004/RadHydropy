@@ -1,13 +1,11 @@
 from pathlib import Path
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
 
 import numpy as np
 
 from radhydropy.thermo_networks import c2ray
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-
 
 CODE_UNITS = CodeUnits.from_mapping(
     {
@@ -19,12 +17,10 @@ CODE_UNITS = CodeUnits.from_mapping(
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
         },
-    }
+    },
 )
 METAL_PIE_TABLE = (
-    Path(__file__).resolve().parents[2]
-    / "metal_pie_table"
-    / "metal_pie_table_Z1_metals.h5"
+    Path(__file__).resolve().parents[2] / "metal_pie_table" / "metal_pie_table_Z1_metals.h5"
 )
 
 
@@ -107,8 +103,7 @@ def test_c2ray_syncs_multigroup_photon_density_to_active_fluid_cells():
 
     np.testing.assert_array_equal(
         fluid.ngamma_code,
-        [[0.0, 1.0, 2.0, 3.0, 4.0, 0.0],
-         [0.0, 5.0, 6.0, 7.0, 8.0, 0.0]],
+        [[0.0, 1.0, 2.0, 3.0, 4.0, 0.0], [0.0, 5.0, 6.0, 7.0, 8.0, 0.0]],
     )
 
 
@@ -136,7 +131,7 @@ def test_c2ray_hydrogen_helium_uses_coupled_local_solver():
                 "HeII": np.array([0.0, 0.0, 0.0, 1.0e-11, 1.0e-11]),
             },
             "thermal_coupling": True,
-        }
+        },
     )
     par = make_par()
     par.thermochemistry_network = "hydrogen_helium"
@@ -189,7 +184,7 @@ def test_c2ray_hydrogen_helium_pie_enters_implicit_thermal_rate():
             },
             "metal_pie_table": table,
             "metallicity": 1.0,
-        }
+        },
     )
     photon_density = np.array([[1.0e-4], [2.0e-4]])
     with_pie = c2ray._hhe_cell_state(state, 0)

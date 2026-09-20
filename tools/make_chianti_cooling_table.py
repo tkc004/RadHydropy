@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Generate an optically-thin CHIANTI cooling table as a function of:
+"""Generate an optically-thin CHIANTI cooling table as a function of:
 
     metallicity Z/Zsun,
     temperature T [K],
@@ -33,7 +32,7 @@ variable, e.g.
 
     python make_chianti_cooling_table.py --xuvtop /path/to/chianti/database
 
-Example
+Example:
 -------
     python make_chianti_cooling_table.py \
         --output chianti_cooling_table.h5 \
@@ -42,18 +41,19 @@ Example
         --logne-min -8 --logne-max 6 --nne 71 \
         --workers 4 \
         --metallicities 0.0 0.01 0.03 0.1 0.3 1.0 3.0
+
 """
 
 import argparse
-from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing as mp
 import os
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-import numpy as np
 import h5py
+import numpy as np
 
 # The database is kept next to the repository package, rather than inside
 # this tools directory:
@@ -64,9 +64,7 @@ import h5py
 #
 # Resolve this from __file__ so the script can be run after changing into
 # RadHydropy/tools, without requiring the caller to set XUVTOP first.
-DEFAULT_XUVTOP = (
-    Path(__file__).resolve().parents[2] / "CHIANTI_11.0.2_database"
-)
+DEFAULT_XUVTOP = Path(__file__).resolve().parents[2] / "CHIANTI_11.0.2_database"
 
 ch = None
 _WORKER_XUVTOP = None
@@ -74,7 +72,7 @@ _WORKER_XUVTOP = None
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Generate a CHIANTI cooling table in HDF5 format."
+        description="Generate a CHIANTI cooling table in HDF5 format.",
     )
 
     parser.add_argument(
@@ -213,9 +211,13 @@ def check_environment(xuvtop_arg=None):
 
     # Prefer an explicit CLI value, then the environment, then the database
     # bundled alongside this repository.
-    xuvtop = Path(
-        xuvtop_arg or os.environ.get("XUVTOP", DEFAULT_XUVTOP)
-    ).expanduser().resolve()
+    xuvtop = (
+        Path(
+            xuvtop_arg or os.environ.get("XUVTOP", DEFAULT_XUVTOP),
+        )
+        .expanduser()
+        .resolve()
+    )
 
     if not xuvtop.is_dir():
         raise RuntimeError(f"CHIANTI database directory does not exist: {xuvtop}")
@@ -229,8 +231,7 @@ def check_environment(xuvtop_arg=None):
             import ChiantiPy.core as ch_module
         except ImportError as exc:
             raise RuntimeError(
-                "Could not import ChiantiPy. Install it with:\n\n"
-                "    pip install ChiantiPy\n"
+                "Could not import ChiantiPy. Install it with:\n\n    pip install ChiantiPy\n",
             ) from exc
         ch = ch_module
 
@@ -244,8 +245,7 @@ def _initialize_cooling_worker(xuvtop):
 
 
 def _get_radloss_rate(radloss_object):
-    """
-    Extract the radiative-loss coefficient from a ChiantiPy radLoss object.
+    """Extract the radiative-loss coefficient from a ChiantiPy radLoss object.
 
     In common ChiantiPy versions this is:
 
@@ -256,7 +256,7 @@ def _get_radloss_rate(radloss_object):
     if not hasattr(radloss_object, "RadLoss"):
         raise RuntimeError(
             "ChiantiPy radLoss object does not have attribute RadLoss. "
-            "Your ChiantiPy version may have a different API."
+            "Your ChiantiPy version may have a different API.",
         )
 
     radloss_dict = radloss_object.RadLoss
@@ -264,7 +264,7 @@ def _get_radloss_rate(radloss_object):
     if "rate" not in radloss_dict:
         raise RuntimeError(
             "Could not find key 'rate' in radLoss.RadLoss. Available keys are: "
-            f"{list(radloss_dict.keys())}"
+            f"{list(radloss_dict.keys())}",
         )
 
     return np.asarray(radloss_dict["rate"], dtype=float)
@@ -277,8 +277,7 @@ def compute_cooling_vs_T_for_density(
     min_abund,
     do_continuum=True,
 ):
-    """
-    Compute Lambda(T, ne) for one density and all temperatures.
+    """Compute Lambda(T, ne) for one density and all temperatures.
 
     Parameters
     ----------
@@ -301,8 +300,8 @@ def compute_cooling_vs_T_for_density(
     -------
     rate : ndarray
         Cooling coefficient array with same length as temperatures.
-    """
 
+    """
     # ChiantiPy uses doContinuum as int/bool depending on version.
     rl = ch.radLoss(
         temperatures,
@@ -318,7 +317,7 @@ def compute_cooling_vs_T_for_density(
     if rate.shape[0] != temperatures.shape[0]:
         raise RuntimeError(
             "Unexpected CHIANTI output shape. "
-            f"Expected length {temperatures.shape[0]}, got shape {rate.shape}."
+            f"Expected length {temperatures.shape[0]}, got shape {rate.shape}.",
         )
 
     return rate
@@ -360,15 +359,14 @@ def compute_cooling_grid(
     workers=1,
     xuvtop=None,
 ):
-    """
-    Compute Lambda(T, ne) on a 2D grid.
+    """Compute Lambda(T, ne) on a 2D grid.
 
     Returns
     -------
     cooling : ndarray
         Shape is (nT, nne).
-    """
 
+    """
     nT = len(temperatures)
     nne = len(electron_densities)
 
@@ -404,7 +402,7 @@ def compute_cooling_grid(
             print(
                 f"  density {j + 1:4d}/{nne:4d}: "
                 f"ne = {ne:.6e} cm^-3, "
-                f"total = {time.time() - start:.2f} s"
+                f"total = {time.time() - start:.2f} s",
             )
     else:
         tasks = (
@@ -428,10 +426,7 @@ def compute_cooling_grid(
             initializer=_initialize_cooling_worker,
             initargs=(xuvtop,),
         ) as executor:
-            futures = {
-                executor.submit(_compute_density_column, task): task[0]
-                for task in tasks
-            }
+            futures = {executor.submit(_compute_density_column, task): task[0] for task in tasks}
             print(f"  submitted {len(futures)} density calculations", flush=True)
             for completed, future in enumerate(as_completed(futures), start=1):
                 j, ne, rate = future.result()
@@ -453,8 +448,7 @@ def build_metallicity_table(
     metallicities,
     clip_negative_metal_cooling=False,
 ):
-    """
-    Build Lambda(Z, T, ne) from solar and H/He cooling.
+    """Build Lambda(Z, T, ne) from solar and H/He cooling.
 
     Parameters
     ----------
@@ -474,8 +468,8 @@ def build_metallicity_table(
     -------
     cooling_table : ndarray
         Shape (nZ, nT, nne).
-    """
 
+    """
     metal_cooling_solar = cooling_solar - cooling_hhe
 
     if clip_negative_metal_cooling:
@@ -504,10 +498,7 @@ def write_hdf5(
     args,
     xuvtop,
 ):
-    """
-    Write table and metadata to HDF5.
-    """
-
+    """Write table and metadata to HDF5."""
     with h5py.File(filename, "w") as f:
         f.create_dataset("temperature_K", data=temperatures)
         f.create_dataset("log10_temperature_K", data=np.log10(temperatures))
@@ -563,8 +554,7 @@ def write_hdf5(
         f.attrs["min_abund_hhe"] = args.min_abund_hhe
         f.attrs["do_continuum"] = not args.no_continuum
         f.attrs["metallicity_scaling"] = (
-            "Lambda(Z) = Lambda_HHe + (Z/Zsun) * "
-            "(Lambda_solar - Lambda_HHe)"
+            "Lambda(Z) = Lambda_HHe + (Z/Zsun) * (Lambda_solar - Lambda_HHe)"
         )
         f.attrs["axis_order"] = "cooling_erg_cm3_s[metallicity, temperature, electron_density]"
 

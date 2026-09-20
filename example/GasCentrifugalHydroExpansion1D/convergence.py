@@ -9,50 +9,59 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
+import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
-
 from gas_centrifugal_hydro_expansion1d import (
-    CONFIG, run_simulation, spherical_centers,
+    CONFIG,
+    run_simulation,
+    spherical_centers,
 )
-import example_utils as eu
 from shell_remap import centrifugal_shell_reference
+
 from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def measure(config):
-    initial_condition = config['initial_condition']
-    (sim, saved_mesh, saved, initial_mass, initial_energy, initial_radius,
-     cumulative_gravity_work, cumulative_potential_change,
-     cumulative_potential_flux) = (
-        run_simulation(config)
-    )
+    initial_condition = config["initial_condition"]
+    (
+        sim,
+        saved_mesh,
+        saved,
+        initial_mass,
+        initial_energy,
+        initial_radius,
+        cumulative_gravity_work,
+        cumulative_potential_change,
+        cumulative_potential_flux,
+    ) = run_simulation(config)
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
     active = slice(first, first + count)
     source_boundary = np.asarray(
-        saved_mesh.boundary_proper_code[first:first + count + 1],
+        saved_mesh.boundary_proper_code[first : first + count + 1],
         dtype=float,
     )
     saved_radius = spherical_centers(
-        np.asarray(saved_mesh.boundary_proper_code, dtype=float)
+        np.asarray(saved_mesh.boundary_proper_code, dtype=float),
     )[active]
-    units = CodeUnits.from_mapping(config['par']['units']['CodeUnits'])
-    central_mass = quantity_to_value(initial_condition['central_mass_proper'], units.mass_unit)
-    rotation_factor = float(initial_condition['rotation_factor'])
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    central_mass = quantity_to_value(initial_condition["central_mass_proper"], units.mass_unit)
+    rotation_factor = float(initial_condition["rotation_factor"])
     final_time = float(sim.fluid.time_proper_code)
     reference = centrifugal_shell_reference(
         source_boundary,
         source_boundary,
         final_time,
-        quantity_to_value(initial_condition['rho_proper'], units.density_unit),
+        quantity_to_value(initial_condition["rho_proper"], units.density_unit),
         central_mass,
         rotation_factor,
-        samples_per_cell=int(initial_condition.get('reference_samples_per_cell', 32)),
+        samples_per_cell=int(initial_condition.get("reference_samples_per_cell", 32)),
     )
-    ode_velocity = reference['vel_proper']
-    ode_j = reference['specific_angular_momentum_proper_code']
+    ode_velocity = reference["vel_proper"]
+    ode_j = reference["specific_angular_momentum_proper_code"]
     saved_velocity = np.asarray(saved.vel_proper_code[active], dtype=float)
     saved_j = np.asarray(saved.specific_angular_momentum_code[active], dtype=float)
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
@@ -60,17 +69,21 @@ def measure(config):
     velocity_error = np.max(np.abs(saved_velocity - ode_velocity))
     j_error = np.max(np.abs(saved_j - ode_j))
     simulated_energy = np.sum(saved_energy - central_mass * saved_mass / saved_radius)
-    shell_energy = np.sum(reference['energy_proper_code'])
+    shell_energy = np.sum(reference["energy_proper_code"])
     energy_error = abs(simulated_energy - shell_energy) / max(abs(shell_energy), 1.0e-12)
     mass_error = abs(np.sum(saved_mass) - np.sum(initial_mass)) / max(
-        abs(np.sum(initial_mass)), 1.0e-300
+        abs(np.sum(initial_mass)),
+        1.0e-300,
     )
     potential_initial = -central_mass * np.sum(initial_mass / initial_radius)
     potential_final = -central_mass * np.sum(saved_mass / saved_radius)
     potential_residual = abs(cumulative_gravity_work + potential_final - potential_initial)
     return (
-        float(velocity_error), float(j_error), float(energy_error),
-        float(mass_error), float(potential_residual),
+        float(velocity_error),
+        float(j_error),
+        float(energy_error),
+        float(mass_error),
+        float(potential_residual),
     )
 
 
@@ -80,25 +93,29 @@ def main():
     results = []
     for resolution in resolutions:
         case_config = copy.deepcopy(config)
-        case_config['par']['mesh']['grid_cells'] = resolution
+        case_config["par"]["mesh"]["grid_cells"] = resolution
         results.append(measure(case_config))
-        print('resolution %d: velocity=%g J/M=%g energy=%g mass=%g potential=%g' % (
-            resolution, *results[-1]
-        ))
+        print(
+            "resolution %d: velocity=%g J/M=%g energy=%g mass=%g potential=%g"
+            % (
+                resolution,
+                *results[-1],
+            )
+        )
     results = np.asarray(results)
-    output = ROOT / 'outputs' / 'GasCentrifugalHydroExpansion1D_convergence.jpg'
+    output = ROOT / "outputs" / "GasCentrifugalHydroExpansion1D_convergence.jpg"
     fig, axis = plt.subplots(figsize=(6, 4))
-    for index, label in enumerate(('velocity', 'J/M', 'energy', 'mass', 'potential')):
-        axis.loglog(resolutions, results[:, index], 'o-', label=label)
-    axis.set_xlabel('number of cells')
-    axis.set_ylabel('absolute / relative error')
-    axis.grid(alpha=0.25, which='both')
+    for index, label in enumerate(("velocity", "J/M", "energy", "mass", "potential")):
+        axis.loglog(resolutions, results[:, index], "o-", label=label)
+    axis.set_xlabel("number of cells")
+    axis.set_ylabel("absolute / relative error")
+    axis.grid(alpha=0.25, which="both")
     axis.legend()
     fig.tight_layout()
     fig.savefig(output, dpi=180)
     plt.close(fig)
-    print('convergence figure = %s' % output)
+    print("convergence figure = %s" % output)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -5,19 +5,8 @@ from math import erf
 import numpy as np
 import unyt
 
-from radhydropy.constants import PROTON_MASS_CGS
-from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import quantity_to_value
-from tools.lcdm_correlation import (
-    eisenstein_hu_nowiggle_transfer,
-    generate_lcdm_correlation_table,
-    linear_correlation_from_power_spectrum,
-    linear_matter_power_spectrum,
-    linear_matter_power_spectrum_shape,
-    load_lcdm_correlation_table,
-)
 
 DEFAULT_CENTRAL_CORE_MODEL = False
 
@@ -46,7 +35,7 @@ def radius_perturbation_comoving_code(config):
             quantity_to_value(initial_condition["target_halo_mass"], code_unit_system.mass_unit)
             / ((4.0 * np.pi / 3.0) * rho_comoving * (1.0 + overdensity))
         )
-        ** (1.0 / 3.0)
+        ** (1.0 / 3.0),
     )
 
 
@@ -55,7 +44,7 @@ def _gaussian_correlation_mean(radius_comoving_code, correlation_length):
     radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
     x = radius_comoving_code / max(float(correlation_length), 1.0e-30)
     erf_x = np.vectorize(erf, otypes=[float])(x)
-    integral = np.sqrt(np.pi) / 4.0 * erf_x - 0.5 * x * np.exp(-x**2)
+    integral = np.sqrt(np.pi) / 4.0 * erf_x - 0.5 * x * np.exp(-(x**2))
     result = np.divide(3.0 * integral, np.maximum(x**3, 1.0e-30))
     result = np.asarray(result, dtype=float)
     result[x < 1.0e-4] = 1.0
@@ -82,21 +71,32 @@ def _correlation_profile(radius_comoving_code, table, length_unit_mpc_h):
     # mean correlation.
     integration_radius = np.concatenate(([0.0], table_radius))
     integration_xi = np.concatenate(([table_correlation[0]], table_correlation))
-    cumulative = np.concatenate((
-        [0.0],
-        np.cumsum(
-            0.5 * (integration_xi[1:] * integration_radius[1:]**2
-                   + integration_xi[:-1] * integration_radius[:-1]**2)
-            * np.diff(integration_radius)
-        ),
-    ))
+    cumulative = np.concatenate(
+        (
+            [0.0],
+            np.cumsum(
+                0.5
+                * (
+                    integration_xi[1:] * integration_radius[1:] ** 2
+                    + integration_xi[:-1] * integration_radius[:-1] ** 2
+                )
+                * np.diff(integration_radius),
+            ),
+        )
+    )
     xi = np.interp(
-        radius_mpc_h, table_radius, table_correlation,
-        left=table_correlation[0], right=table_correlation[-1],
+        radius_mpc_h,
+        table_radius,
+        table_correlation,
+        left=table_correlation[0],
+        right=table_correlation[-1],
     )
     enclosed_integral = np.interp(
-        radius_mpc_h, integration_radius, cumulative,
-        left=0.0, right=cumulative[-1],
+        radius_mpc_h,
+        integration_radius,
+        cumulative,
+        left=0.0,
+        right=cumulative[-1],
     )
     mean_xi = np.where(
         radius_mpc_h <= table_radius[0],
@@ -124,7 +124,10 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
         inside = radius_comoving_code < radius_perturbation_comoving_code_value
         delta = overdensity * inside
         mean_delta = overdensity * np.where(
-            inside, 1.0, (radius_perturbation_comoving_code_value / np.maximum(radius_comoving_code, 1.0e-30)) ** 3
+            inside,
+            1.0,
+            (radius_perturbation_comoving_code_value / np.maximum(radius_comoving_code, 1.0e-30))
+            ** 3,
         )
         return np.asarray(delta, dtype=float), np.asarray(mean_delta, dtype=float)
     if profile not in ("linear_correlation", "gaussian_correlation"):
@@ -133,27 +136,33 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
     if profile == "linear_correlation":
         if correlation_table is None:
             raise ValueError(
-                "linear_correlation requires a tabulated correlation table"
+                "linear_correlation requires a tabulated correlation table",
             )
         xi, mean_xi = _correlation_profile(
-            radius_comoving_code, correlation_table, length_unit_mpc_h
+            radius_comoving_code,
+            correlation_table,
+            length_unit_mpc_h,
         )
         target_mean_xi = float(
             _correlation_profile(
-                np.array([radius_perturbation_comoving_code_value]), correlation_table,
+                np.array([radius_perturbation_comoving_code_value]),
+                correlation_table,
                 length_unit_mpc_h,
-            )[1][0]
+            )[1][0],
         )
     else:
         correlation_length = float(
-            initial_condition.get("correlation_length", 0.5 * radius_perturbation_comoving_code_value)
+            initial_condition.get(
+                "correlation_length", 0.5 * radius_perturbation_comoving_code_value
+            ),
         )
-        xi = np.exp(-(radius_comoving_code / max(correlation_length, 1.0e-30)) ** 2)
+        xi = np.exp(-((radius_comoving_code / max(correlation_length, 1.0e-30)) ** 2))
         mean_xi = _gaussian_correlation_mean(radius_comoving_code, correlation_length)
         target_mean_xi = float(
             _gaussian_correlation_mean(
-                np.array([radius_perturbation_comoving_code_value]), correlation_length
-            )[0]
+                np.array([radius_perturbation_comoving_code_value]),
+                correlation_length,
+            )[0],
         )
     if target_mean_xi <= 0.0:
         raise ValueError("correlation mean at target radius must be positive")
@@ -166,14 +175,20 @@ def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1
     logt = np.linspace(table.log_temperature[0], table.log_temperature[-1], 512)
     temperature_proper_cgs_K = 10.0**logt
     heating, cooling = table.rates(
-        temperature_proper_cgs_K, hydrogen_number_density_cgs_cm3, metallicity=1.0, redshift=redshift
+        temperature_proper_cgs_K,
+        hydrogen_number_density_cgs_cm3,
+        metallicity=1.0,
+        redshift=redshift,
     )
     net = np.asarray(heating) - np.asarray(cooling)
     crossings = np.flatnonzero(net[:-1] * net[1:] <= 0.0)
     if crossings.size:
         i = crossings[0]
         fraction = abs(net[i]) / max(abs(net[i]) + abs(net[i + 1]), 1.0e-300)
-        return float(temperature_proper_cgs_K[i] * (temperature_proper_cgs_K[i + 1] / temperature_proper_cgs_K[i])**fraction)
+        return float(
+            temperature_proper_cgs_K[i]
+            * (temperature_proper_cgs_K[i + 1] / temperature_proper_cgs_K[i]) ** fraction
+        )
     return float(np.clip(fallback, temperature_proper_cgs_K[0], temperature_proper_cgs_K[-1]))
 
 
@@ -197,7 +212,6 @@ def cmb_equilibrium_electron_fraction(initial_condition):
     return value
 
 
-
 def make_dark_matter(config):
     initial_condition = config["initial_condition"]
     code_unit_system = config["_code_unit_system"]
@@ -208,10 +222,14 @@ def make_dark_matter(config):
         code_unit_system.length_unit,
     )
     central_core_model = DEFAULT_CENTRAL_CORE_MODEL
-    central_core_radius = quantity_to_value(
-        initial_condition.get("dm_central_core_radius", dm_inner),
-        code_unit_system.length_unit,
-    ) if central_core_model else dm_inner
+    central_core_radius = (
+        quantity_to_value(
+            initial_condition.get("dm_central_core_radius", dm_inner),
+            code_unit_system.length_unit,
+        )
+        if central_core_model
+        else dm_inner
+    )
     if central_core_radius < dm_inner:
         raise ValueError("dm_central_core_radius must be >= radius_inner_dark_matter_comoving")
     # A fixed unresolved core already represents the excess mass inside its
@@ -240,7 +258,7 @@ def make_dark_matter(config):
         ),
     )
     mass_comoving_code = rho_comoving_code * dm_fraction * (1.0 + delta) * volume_comoving_code
-    vel_supercomoving_code = -a**2 * hubble * mean_delta * radius_comoving_code / 3.0
+    vel_supercomoving_code = -(a**2) * hubble * mean_delta * radius_comoving_code / 3.0
     central_core_mass = None
     if central_core_model:
         core_radius_comoving_code = central_core_radius
@@ -258,13 +276,21 @@ def make_dark_matter(config):
         # central mass.
         central_core_mass = max(
             0.0,
-            rho_comoving_code * dm_fraction * float(core_mean_delta[0])
-            * 4.0 * np.pi / 3.0 * core_radius_comoving_code**3,
-    )
+            rho_comoving_code
+            * dm_fraction
+            * float(core_mean_delta[0])
+            * 4.0
+            * np.pi
+            / 3.0
+            * core_radius_comoving_code**3,
+        )
     shells = DarkMatterShells(
-        radius_comoving_code, vel_supercomoving_code, mass_comoving_code,
+        radius_comoving_code,
+        vel_supercomoving_code,
+        mass_comoving_code,
         angular_momentum=np.full(
-            count, float(initial_condition.get("dm_specific_angular_momentum", 0.0))
+            count,
+            float(initial_condition.get("dm_specific_angular_momentum", 0.0)),
         ),
         softening=quantity_to_value(initial_condition["softening"], code_unit_system.length_unit),
         code_units=code_unit_system,
@@ -274,7 +300,8 @@ def make_dark_matter(config):
                 initial_condition.get("dm_central_core_radius", dm_inner),
                 code_unit_system.length_unit,
             )
-            if central_core_mass is not None else 0.0
+            if central_core_mass is not None
+            else 0.0
         ),
         core_absorption_velocity=float(initial_condition.get("dm_core_absorption_velocity", 0.0)),
         core_absorption_energy=float(initial_condition.get("dm_core_absorption_energy", 0.0)),
@@ -284,16 +311,18 @@ def make_dark_matter(config):
             initial_condition.get("dm_central_core_radius", dm_inner),
             code_unit_system.length_unit,
         )
-        if central_core_mass is not None else 0.0
+        if central_core_mass is not None
+        else 0.0
     )
-    shells.central_core_mass = (
-        float(central_core_mass) if central_core_mass is not None else 0.0
-    )
+    shells.central_core_mass = float(central_core_mass) if central_core_mass is not None else 0.0
     return shells
 
 
 def splashback_radius(
-    dm_radius_proper_code, dm_mass_comoving_code, rvir_proper_code=np.nan, bin_count=128,
+    dm_radius_proper_code,
+    dm_mass_comoving_code,
+    rvir_proper_code=np.nan,
+    bin_count=128,
 ):
     """Estimate splashback from the steepest outer DM density slope.
 
@@ -305,7 +334,12 @@ def splashback_radius(
     mass_comoving_code = np.asarray(dm_mass_comoving_code, dtype=float)
     if not np.isfinite(rvir_proper_code) or float(rvir_proper_code) <= 0.0:
         return float("nan")
-    valid = np.isfinite(radius_proper_code) & np.isfinite(mass_comoving_code) & (radius_proper_code > 0.0) & (mass_comoving_code > 0.0)
+    valid = (
+        np.isfinite(radius_proper_code)
+        & np.isfinite(mass_comoving_code)
+        & (radius_proper_code > 0.0)
+        & (mass_comoving_code > 0.0)
+    )
     radius_proper_code = radius_proper_code[valid]
     mass_comoving_code = mass_comoving_code[valid]
     if radius_proper_code.size < 16:
@@ -318,7 +352,9 @@ def splashback_radius(
         radius_proper_code[-1] * 1.1,
         int(max(32, bin_count)) + 1,
     )
-    shell_mass_comoving_code, _ = np.histogram(radius_proper_code, bins=edges, weights=mass_comoving_code)
+    shell_mass_comoving_code, _ = np.histogram(
+        radius_proper_code, bins=edges, weights=mass_comoving_code
+    )
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
     rho_comoving_code = shell_mass_comoving_code / np.maximum(shell_volume, 1.0e-300)
     occupied = rho_comoving_code > 0.0
@@ -334,7 +370,9 @@ def splashback_radius(
     if window >= 3:
         padded = np.pad(log_density, (window // 2,), mode="edge")
         log_density = np.convolve(
-            padded, np.ones(window) / float(window), mode="valid"
+            padded,
+            np.ones(window) / float(window),
+            mode="valid",
         )
     slope = np.gradient(log_density, log_radius)
     # Splashback is an outer-halo caustic; features inside r200 are inner
@@ -360,7 +398,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     first = int(sim.par.noghost)
     last = first + int(sim.par.nogrid)
     x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
-    edges = np.asarray(sim.mesh.boundary_comoving_code[first:last + 1], dtype=float)
+    edges = np.asarray(sim.mesh.boundary_comoving_code[first : last + 1], dtype=float)
     rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
     gas_mass_comoving_code = rho_comoving_code * 4.0 * np.pi / 3.0 * np.diff(edges**3)
     gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_mass_comoving_code)))
@@ -375,7 +413,9 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     def total_mass_at(proper_radius):
         comoving = np.asarray(proper_radius) / a
         cg = np.interp(comoving, edges, gas_cumulative, left=0.0, right=gas_cumulative[-1])
-        cd = np.interp(comoving, dm_radius_comoving_code, dm_cumulative, left=0.0, right=dm_cumulative[-1])
+        cd = np.interp(
+            comoving, dm_radius_comoving_code, dm_cumulative, left=0.0, right=dm_cumulative[-1]
+        )
         return cg + cd
 
     # Determine r_vir from the live collisionless profile.  The DM shells
@@ -390,9 +430,14 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     )
     overdensity = dm_mean_density_comoving_code / max(200.0 * rho_crit, 1.0e-30)
     candidates = np.flatnonzero(overdensity >= 1.0)
-    target_mass = quantity_to_value(
-        initial_condition["target_halo_mass"], code_unit_system.mass_unit
-    ) if "target_halo_mass" in initial_condition else np.nan
+    target_mass = (
+        quantity_to_value(
+            initial_condition["target_halo_mass"],
+            code_unit_system.mass_unit,
+        )
+        if "target_halo_mass" in initial_condition
+        else np.nan
+    )
     target_index = np.searchsorted(dm_total_mass_comoving_code, target_mass)
     rtarget = (
         float(dm_radius_proper_code[target_index])
@@ -412,13 +457,13 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
 
     if np.isfinite(rvir) and rvir > 0.0 and np.isfinite(mvir):
         temperature_factor = float(
-            sim.par.units.CodeUnits.boltzmann_code
-            / sim.par.units.CodeUnits.proton_mass_code
+            sim.par.units.CodeUnits.boltzmann_code / sim.par.units.CodeUnits.proton_mass_code,
         )
         tvir = float(
             float(initial_condition.get("mu", 0.59))
             * float(cosmology.gravitational_constant)
-            * mvir / (2.0 * rvir * temperature_factor)
+            * mvir
+            / (2.0 * rvir * temperature_factor),
         )
     else:
         tvir = float("nan")
@@ -463,11 +508,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
         upper_radius = proper[upper_index]
         if np.isfinite(rvir) and rvir > proper[0]:
             upper_radius = min(upper_radius, 3.0 * rvir)
-        valid = (
-            finite_temperature
-            & (proper > lower_radius)
-            & (proper < upper_radius)
-        )
+        valid = finite_temperature & (proper > lower_radius) & (proper < upper_radius)
         candidate = np.flatnonzero(valid)
         if candidate.size:
             # Across an accretion shock temperature falls outward, so retain
@@ -480,7 +521,8 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
                 outer = min(proper.size - 1, int(local) + 2)
                 compression = rho_comoving_code[inner] / max(rho_comoving_code[outer], 1.0e-300)
                 heating = temp_phys[inner] / max(
-                    temp_phys[outer], 1.0e-300
+                    temp_phys[outer],
+                    1.0e-300,
                 )
                 upstream_velocity = velocity_phys[outer]
                 downstream_velocity = velocity_phys[inner]
@@ -511,9 +553,14 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
 
     g_code = float(cosmology.gravitational_constant)
     j = float(initial_condition["specific_angular_momentum"])
-    target_mass = quantity_to_value(
-        initial_condition["target_halo_mass"], code_unit_system.mass_unit
-    ) if "target_halo_mass" in initial_condition else np.nan
+    target_mass = (
+        quantity_to_value(
+            initial_condition["target_halo_mass"],
+            code_unit_system.mass_unit,
+        )
+        if "target_halo_mass" in initial_condition
+        else np.nan
+    )
     # This is a halo-scale centrifugal-radius diagnostic, not a resolved
     # rotating-disc solution.  Using the local enclosed mass here makes the
     # radius grow artificially when the correlation IC has assembled only a
@@ -527,7 +574,9 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     if np.isfinite(rdisc):
         rdisc = float(np.clip(rdisc, proper[0], max(rdisc_max, proper[0])))
     return {
-        "time_cosmic_Gyr": float(time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+        ),
         "rvir_kpc": rvir,
         "rtarget_kpc": rtarget,
         "rho_crit_code": rho_crit,
@@ -557,14 +606,16 @@ def density_profiles(sim, dark_matter, time_cosmic_code, config):
     if dm_radius_proper_code.size > 1:
         dm_edges = np.empty(dm_radius_proper_code.size + 1)
         dm_edges[1:-1] = np.sqrt(dm_radius_proper_code[:-1] * dm_radius_proper_code[1:])
-        dm_edges[0] = dm_radius_proper_code[0]**2 / dm_edges[1]
-        dm_edges[-1] = dm_radius_proper_code[-1]**2 / dm_edges[-2]
+        dm_edges[0] = dm_radius_proper_code[0] ** 2 / dm_edges[1]
+        dm_edges[-1] = dm_radius_proper_code[-1] ** 2 / dm_edges[-2]
     else:
         dm_edges = np.array([0.5 * dm_radius_proper_code[0], 1.5 * dm_radius_proper_code[0]])
     dm_volume = 4.0 * np.pi / 3.0 * np.diff(dm_edges**3)
     dm_density_proper_code = dm_mass_comoving_code / np.maximum(dm_volume, 1.0e-30)
     return {
-        "time_cosmic_Gyr": float(time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+        ),
         "gas_radius_kpc": gas["radius_proper_kpc"],
         "gas_rho_proper_code": gas["rho_proper_code"],
         "dm_radius_proper_kpc": dm_radius_proper_code,
@@ -573,9 +624,7 @@ def density_profiles(sim, dark_matter, time_cosmic_code, config):
         # The softened unresolved core is part of the gravitating DM profile
         # even though it is not represented by a live shell.
         "dm_central_core_mass": float(getattr(dark_matter, "central_core_mass", 0.0)),
-        "dm_central_core_radius_kpc": (
-            a * float(getattr(dark_matter, "central_core_radius", 0.0))
-        ),
+        "dm_central_core_radius_kpc": (a * float(getattr(dark_matter, "central_core_radius", 0.0))),
     }
 
 
@@ -593,18 +642,24 @@ def gas_density_profile(sim, time_cosmic_code, config):
     last = first + int(sim.par.nogrid)
     scale_factor = float(cosmology.scale_factor(time_cosmic_code))
     radius_comoving = np.asarray(
-        sim.mesh.x_comoving_code[first:last], dtype=float
+        sim.mesh.x_comoving_code[first:last],
+        dtype=float,
     )
     density_comoving = np.asarray(
-        sim.fluid.rho_comoving_code[first:last], dtype=float
+        sim.fluid.rho_comoving_code[first:last],
+        dtype=float,
     )
     return {
-        "time_cosmic_Gyr": float(time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")),
+        "time_cosmic_Gyr": float(
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+        ),
         "scale_factor": scale_factor,
         "radius_comoving_kpc": radius_comoving,
         "radius_proper_kpc": scale_factor * radius_comoving,
         "rho_proper_code": density_comoving / scale_factor**3,
     }
+
+
 class VolumeSmoothedDarkMatter:
     """Use shell mass interpolated linearly in enclosed volume_comoving_code for gas force."""
 
@@ -639,8 +694,9 @@ class VolumeSmoothedDarkMatter:
     def total_origin_reflection_count(self):
         return self.shells.total_origin_reflection_count
 
-    def gravitating_enclosed_mass(self, radius_comoving_code=None,
-                                  include_shell_mass_with_fixed=False):
+    def gravitating_enclosed_mass(
+        self, radius_comoving_code=None, include_shell_mass_with_fixed=False
+    ):
         if radius_comoving_code is None:
             return self.shells.gravitating_enclosed_mass(
                 radius_comoving_code,

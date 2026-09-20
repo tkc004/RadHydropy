@@ -18,8 +18,7 @@ class MetalPIETable:
             self.log_temperature = np.asarray(axes["log10_temperature_K"], dtype=float)
             self.log_density = np.asarray(axes["log10_hydrogen_density_cm-3"], dtype=float)
             self.is_hm12_uv_background = (
-                self.metadata.get("spectrum_type")
-                == "Haardt-Madau 2012 UV background"
+                self.metadata.get("spectrum_type") == "Haardt-Madau 2012 UV background"
                 or self.metadata.get("radiation_background") == "table HM12 redshift"
             )
             if self.is_hm12_uv_background:
@@ -27,7 +26,8 @@ class MetalPIETable:
                 self.log_ionization_parameter = None
             else:
                 self.log_ionization_parameter = np.asarray(
-                    axes["log10_ionization_parameter"], dtype=float
+                    axes["log10_ionization_parameter"],
+                    dtype=float,
                 )
                 self.redshift = None
             self.metallicity = np.asarray(axes["metallicity_Zsun"], dtype=float)
@@ -43,8 +43,7 @@ class MetalPIETable:
             self._cooling = np.asarray(rates[cooling_name], dtype=float)
 
         third_axis_length = len(
-            self.redshift if self.is_hm12_uv_background
-            else self.log_ionization_parameter
+            self.redshift if self.is_hm12_uv_background else self.log_ionization_parameter,
         )
         expected = (
             len(self.log_temperature),
@@ -114,14 +113,18 @@ class MetalPIETable:
                 raise ValueError("PIE tables require an ionization parameter")
             third_axis = ionization_parameter
         coordinates = self._coordinates(
-            temperature_cgs_K, hydrogen_density_cgs_cm3, third_axis
+            temperature_cgs_K,
+            hydrogen_density_cgs_cm3,
+            third_axis,
         )
         metallicity_index = int(np.argmin(np.abs(self.metallicity - float(metallicity))))
         return (
             self._interpolate_log(
-                self._log_heating[..., metallicity_index], coordinates
+                self._log_heating[..., metallicity_index],
+                coordinates,
             ),
             self._interpolate_log(
-                self._log_cooling[..., metallicity_index], coordinates
+                self._log_cooling[..., metallicity_index],
+                coordinates,
             ),
         )

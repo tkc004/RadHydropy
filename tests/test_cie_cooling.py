@@ -1,5 +1,4 @@
 from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
 
 import h5py
 import numpy as np
@@ -7,15 +6,16 @@ import pytest
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
 from radhydropy.fluid import Fluid
+from radhydropy.runtime_fields import (
+    SUPERCOMOVING_RUNTIME_FIELDS,
+    FluidRuntimeState,
+    MeshGeometryState,
+    runtime_fields,
+)
 from radhydropy.thermo_networks.cie.cie_cooling import CIECoolingNetwork, _state
 from radhydropy.thermo_networks.cie.cie_tables import CIETable
 from radhydropy.units import CodeUnits
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    MeshGeometryState,
-    SUPERCOMOVING_RUNTIME_FIELDS,
-    runtime_fields,
-)
+from tests.parameter_fixtures import parameter_namespace
 
 
 def make_cie_tables(tmp_path):
@@ -114,7 +114,9 @@ def make_network_state(paths, temperature=1.0e5, rho_code=1.0e-20, metallicity=1
         "hydrogen_mass_fraction": 1.0,
         "rho_cgs_g_cm3": np.array([rho_code]),
         "temperature_cgs_K": np.array([temperature]),
-        "specific_energy_cgs_erg_g": np.array([BOLTZMANN_CONSTANT_CGS * temperature / (2.0 / 3.0 * PROTON_MASS_CGS)]),
+        "specific_energy_cgs_erg_g": np.array(
+            [BOLTZMANN_CONSTANT_CGS * temperature / (2.0 / 3.0 * PROTON_MASS_CGS)]
+        ),
         "gamma": 5.0 / 3.0,
         "mu": np.array([1.0]),
         "volume_cgs_cm3": np.array([1.0]),
@@ -153,15 +155,13 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
                 "UnitVelocity_in_cgs": 1.0,
                 "UnitCurrent_in_cgs": 1.0,
                 "UnitTemp_in_cgs": 1.0,
-            }
-        }
+            },
+        },
     )
     temperature = 1.0e5
     rho = 1.0e-20
     gamma = 5.0 / 3.0
-    specific_energy = BOLTZMANN_CONSTANT_CGS * temperature / (
-        (gamma - 1.0) * PROTON_MASS_CGS
-    )
+    specific_energy = BOLTZMANN_CONSTANT_CGS * temperature / ((gamma - 1.0) * PROTON_MASS_CGS)
     fluid = Fluid()
     fluid.rho_proper_code = np.array([rho, rho])
     fluid.vel_proper_code = np.zeros(2)
@@ -172,13 +172,22 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
     fluid.pre_proper_code = np.ones(2)
     fluid.eos = SimpleNamespace(gamma=gamma)
     fluid.time_proper_code = 0.0
-    fluid.runtime_fields = runtime_fields(parameter_namespace(
-        coordinate_frame="physical", time_coordinate="proper",
-        velocity_representation="proper"
-    ))
+    fluid.runtime_fields = runtime_fields(
+        parameter_namespace(
+            coordinate_frame="physical",
+            time_coordinate="proper",
+            velocity_representation="proper",
+        )
+    )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         fluid.runtime_fields,
-        **{fluid.runtime_fields.density: fluid.rho_proper_code, fluid.runtime_fields.velocity: fluid.vel_proper_code, fluid.runtime_fields.pressure: fluid.pre_proper_code, fluid.runtime_fields.temperature: fluid.temp_proper_code, fluid.runtime_fields.time: fluid.time_proper_code},
+        **{
+            fluid.runtime_fields.density: fluid.rho_proper_code,
+            fluid.runtime_fields.velocity: fluid.vel_proper_code,
+            fluid.runtime_fields.pressure: fluid.pre_proper_code,
+            fluid.runtime_fields.temperature: fluid.temp_proper_code,
+            fluid.runtime_fields.time: fluid.time_proper_code,
+        },
         mu_dimensionless=fluid.mu,
     )
     mesh = SimpleNamespace(
@@ -188,7 +197,7 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
             width_proper_code=np.ones(2),
             area_proper_code=np.ones(2),
             volume_proper_code=np.ones(2),
-        )
+        ),
     )
     par = parameter_namespace(
         CodeUnits=code_units,
@@ -226,15 +235,14 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
                 "UnitVelocity_in_cgs": 1.0,
                 "UnitCurrent_in_cgs": 1.0,
                 "UnitTemp_in_cgs": 1.0,
-            }
-        }
+            },
+        },
     )
     scale_factor = 2.0
     gamma = 5.0 / 3.0
     physical_temperature = 100.0
     specific_internal = (
-        BOLTZMANN_CONSTANT_CGS * physical_temperature
-        / ((gamma - 1.0) * PROTON_MASS_CGS)
+        BOLTZMANN_CONSTANT_CGS * physical_temperature / ((gamma - 1.0) * PROTON_MASS_CGS)
     )
     velocity_supercomoving = 3.0
     fluid = Fluid()
@@ -243,10 +251,11 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
     fluid.temp_supercomoving_code = np.array([physical_temperature * scale_factor**2])
     fluid.mu = np.ones(1)
     fluid.Mass_code = np.array([8.0])
-    fluid.Energy_code = np.array([
-        8.0 * (specific_internal * scale_factor**2
-               + 0.5 * velocity_supercomoving**2)
-    ])
+    fluid.Energy_code = np.array(
+        [
+            8.0 * (specific_internal * scale_factor**2 + 0.5 * velocity_supercomoving**2),
+        ]
+    )
     fluid.eos = SimpleNamespace(gamma=gamma)
     fluid.pre_supercomoving_code = np.zeros_like(fluid.rho_comoving_code)
     fluid.tau_supercomoving_code = 0.0
@@ -268,7 +277,7 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
             width_comoving_code=np.ones(1),
             area_comoving_code=np.ones(1),
             volume_comoving_code=np.ones(1),
-        )
+        ),
     )
     par = parameter_namespace(
         CodeUnits=code_units,

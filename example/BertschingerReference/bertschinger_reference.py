@@ -2,14 +2,15 @@
 
 import argparse
 import os
-from pathlib import Path
 import sys
 import tempfile
+from pathlib import Path
 
-os.environ.setdefault('MPLCONFIGDIR', os.path.join(tempfile.gettempdir(), 'radhydropy-matplotlib'))
+os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,10 +19,6 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits, quantity_to_value
-from example import example_utils as eu
-import tools as et
 from bertschinger_ode import (
     first_outer_caustic,
     first_post_centre_apocentre,
@@ -29,34 +26,40 @@ from bertschinger_ode import (
     solve_eq41_self_similar,
 )
 
+import tools as et
+from example import example_utils as eu
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
 
-DEFAULT_CONFIG = Path(__file__).with_name('bertschinger_reference.yaml')
+DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_reference.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
-    par = config['par']
-    initial_condition = config['initial_condition']
-    example = config['example']
-    units = CodeUnits.from_mapping(par['units']['CodeUnits'])
+    par = config["par"]
+    initial_condition = config["initial_condition"]
+    example = config["example"]
+    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     cosmology = EinsteinDeSitter.from_code_units(
-        units, t_ref=quantity_to_value(example['cosmology_t_ref'], units.time_unit),
-        a_ref=float(example['cosmology_a_ref']),
+        units,
+        t_ref=quantity_to_value(example["cosmology_t_ref"], units.time_unit),
+        a_ref=float(example["cosmology_a_ref"]),
     )
     config["_code_units"] = units
     config["_cosmology"] = cosmology
     shells, delta_mass = et.make_scale_free_shells(config)
-    initial_time = quantity_to_value(initial_condition['time_cosmic'], units.time_unit)
+    initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     time_final_cosmic_code = quantity_to_value(
-        example['time_final_cosmic'], units.time_unit
+        example["time_final_cosmic"],
+        units.time_unit,
     )
     tau = float(cosmology.supercomoving_time(initial_time))
     tau_final_supercomoving = float(
-        cosmology.supercomoving_time(time_final_cosmic_code)
+        cosmology.supercomoving_time(time_final_cosmic_code),
     )
     history_time = [initial_time]
     history_rta = []
-    timestep = float(example['supercomoving_timestep'])
+    timestep = float(example["supercomoving_timestep"])
 
     while tau < tau_final_supercomoving:
         dt = min(timestep, tau_final_supercomoving - tau)
@@ -68,7 +71,7 @@ def main(config_filename=DEFAULT_CONFIG):
         background = 4.0 * np.pi / 3.0 * rho_start * shells.radius**3
         shells.step(
             dt,
-            crossing_safety_factor=float(example['crossing_safety_factor']),
+            crossing_safety_factor=float(example["crossing_safety_factor"]),
             background_enclosed_mass=background,
             scale_factor=a_start,
             scale_factor_end=a_end,
@@ -78,112 +81,134 @@ def main(config_filename=DEFAULT_CONFIG):
         tau += dt
         history_time.append(time_end)
 
-    config['_cosmology'] = cosmology
-    profiles = et.similarity_profiles(shells, time_final_cosmic_code, config,
-                                      bins=int(example['profile_bins']))
+    config["_cosmology"] = cosmology
+    profiles = et.similarity_profiles(
+        shells, time_final_cosmic_code, config, bins=int(example["profile_bins"])
+    )
     ode_solution = solve_eq41_self_similar(
-        xi_end=float(example['ode_xi_end']),
-        points=int(example['ode_points']),
-        similarity_exponent=float(example['ode_similarity_exponent']),
-        centre_match_lambda=float(example['ode_centre_match_lambda']),
-        centre_matching_velocity=float(
-            example['ode_centre_matching_velocity']),
+        xi_end=float(example["ode_xi_end"]),
+        points=int(example["ode_points"]),
+        similarity_exponent=float(example["ode_similarity_exponent"]),
+        centre_match_lambda=float(example["ode_centre_match_lambda"]),
+        centre_matching_velocity=float(example["ode_centre_matching_velocity"]),
     )
     splashback_xi, splashback_lambda = first_post_centre_apocentre(ode_solution)
     caustic_xi, caustic_lambda = first_outer_caustic(ode_solution)
-    if not np.all(np.isfinite(profiles['density_contrast_dimensionless'])):
-        raise RuntimeError('similarity density profile contains non-finite values')
+    if not np.all(np.isfinite(profiles["density_contrast_dimensionless"])):
+        raise RuntimeError("similarity density profile contains non-finite values")
     if not np.all(np.diff(shells.radius) >= 0.0):
-        raise RuntimeError('shells are not sorted after evolution')
+        raise RuntimeError("shells are not sorted after evolution")
 
-    directory = Path(par['output']['directory'])
-    output = directory / 'BertschingerReference.hdf5'
-    et.write_reference(output, profiles, {
-        'Solution': 'Bertschinger1985_collisionless_radial',
-        'SimilarityEpsilon': 1.0,
-        'TurnaroundExponent': 8.0 / 9.0,
-        'CosmologyType': 'einstein_de_sitter',
-        'CosmologyTRef': cosmology.t_ref,
-        'CosmologyARef': cosmology.a_ref,
-        'InitialCosmicTime': initial_time,
-        'FinalCosmicTime': time_final_cosmic_code,
-        'PerturbationMass': delta_mass,
-        'SimilarityEquation': 'Bertschinger1985_Eq4.1_collisionless_shell',
-        'ODEInitialLambda': 1.0,
-        'ODEInitialLambdaPrime': -8.0 / 9.0,
-        'ODEPoints': int(example['ode_points']),
-        'ODESimilarityExponent': float(example['ode_similarity_exponent']),
-        'ODEMassNormalization': 9.0 * np.pi**2 / 16.0,
-        'ODECentreMatchLambda': float(example['ode_centre_match_lambda']),
-        'ODECentreMatchingVelocity': float(
-            example['ode_centre_matching_velocity']),
-    })
-    output_ode = directory / 'BertschingerEq41ODE.hdf5'
-    et.write_reference(output_ode, {
-        'xi': ode_solution.xi,
-        'lambda': ode_solution.lam,
-        'lambda_prime': ode_solution.lam_prime,
-        'mass_dimensionless': ode_solution.mass_dimensionless,
-        'radius_turnaround_dimensionless': 1.0,
-    }, {
-        'Solution': 'Bertschinger1985_collisionless_shell_ODE',
-        'Equation': 'Bertschinger1985_Eq4.1',
-        'MassClosure': 'full_alternating_stream_crossing_sum',
-        'InitialLambda': 1.0,
-        'InitialLambdaPrime': -8.0 / 9.0,
-        'AngularMomentum': 0.0,
-        'XiEnd': float(example['ode_xi_end']),
-        'Points': int(example['ode_points']),
-        'SimilarityExponent': float(example['ode_similarity_exponent']),
-        'MassNormalization': 9.0 * np.pi**2 / 16.0,
-        'CentreMatchLambda': float(example['ode_centre_match_lambda']),
-        'CentreMatchingVelocity': float(
-            example['ode_centre_matching_velocity']),
-        'SplashbackDefinition': (
-            'first post-centre lambda-prime zero with negative second derivative'),
-        'SplashbackXi': splashback_xi,
-        'SplashbackLambda': splashback_lambda,
-        'OuterCausticXi': caustic_xi,
-        'OuterCausticLambda': caustic_lambda,
-    })
-    ode_figure = directory / 'BertschingerEq41XiLambda.jpg'
+    directory = Path(par["output"]["directory"])
+    output = directory / "BertschingerReference.hdf5"
+    et.write_reference(
+        output,
+        profiles,
+        {
+            "Solution": "Bertschinger1985_collisionless_radial",
+            "SimilarityEpsilon": 1.0,
+            "TurnaroundExponent": 8.0 / 9.0,
+            "CosmologyType": "einstein_de_sitter",
+            "CosmologyTRef": cosmology.t_ref,
+            "CosmologyARef": cosmology.a_ref,
+            "InitialCosmicTime": initial_time,
+            "FinalCosmicTime": time_final_cosmic_code,
+            "PerturbationMass": delta_mass,
+            "SimilarityEquation": "Bertschinger1985_Eq4.1_collisionless_shell",
+            "ODEInitialLambda": 1.0,
+            "ODEInitialLambdaPrime": -8.0 / 9.0,
+            "ODEPoints": int(example["ode_points"]),
+            "ODESimilarityExponent": float(example["ode_similarity_exponent"]),
+            "ODEMassNormalization": 9.0 * np.pi**2 / 16.0,
+            "ODECentreMatchLambda": float(example["ode_centre_match_lambda"]),
+            "ODECentreMatchingVelocity": float(example["ode_centre_matching_velocity"]),
+        },
+    )
+    output_ode = directory / "BertschingerEq41ODE.hdf5"
+    et.write_reference(
+        output_ode,
+        {
+            "xi": ode_solution.xi,
+            "lambda": ode_solution.lam,
+            "lambda_prime": ode_solution.lam_prime,
+            "mass_dimensionless": ode_solution.mass_dimensionless,
+            "radius_turnaround_dimensionless": 1.0,
+        },
+        {
+            "Solution": "Bertschinger1985_collisionless_shell_ODE",
+            "Equation": "Bertschinger1985_Eq4.1",
+            "MassClosure": "full_alternating_stream_crossing_sum",
+            "InitialLambda": 1.0,
+            "InitialLambdaPrime": -8.0 / 9.0,
+            "AngularMomentum": 0.0,
+            "XiEnd": float(example["ode_xi_end"]),
+            "Points": int(example["ode_points"]),
+            "SimilarityExponent": float(example["ode_similarity_exponent"]),
+            "MassNormalization": 9.0 * np.pi**2 / 16.0,
+            "CentreMatchLambda": float(example["ode_centre_match_lambda"]),
+            "CentreMatchingVelocity": float(example["ode_centre_matching_velocity"]),
+            "SplashbackDefinition": (
+                "first post-centre lambda-prime zero with negative second derivative"
+            ),
+            "SplashbackXi": splashback_xi,
+            "SplashbackLambda": splashback_lambda,
+            "OuterCausticXi": caustic_xi,
+            "OuterCausticLambda": caustic_lambda,
+        },
+    )
+    ode_figure = directory / "BertschingerEq41XiLambda.jpg"
     ode_plot = plot_xi_lambda(ode_solution)
-    ode_plot.plot(splashback_xi, splashback_lambda, marker='*', markersize=11,
-                  color='tab:red', markeredgecolor='black',
-                  label=r'first post-centre apocentre ($\lambda_{\rm sp}$)')
-    ode_plot.plot(caustic_xi, caustic_lambda, marker='o', markersize=7,
-                  color='tab:green', markeredgecolor='black',
-                  label=r'fixed-time outer caustic ($\lambda_{\rm c}$)')
-    ode_plot.legend(loc='best', fontsize=8)
+    ode_plot.plot(
+        splashback_xi,
+        splashback_lambda,
+        marker="*",
+        markersize=11,
+        color="tab:red",
+        markeredgecolor="black",
+        label=r"first post-centre apocentre ($\lambda_{\rm sp}$)",
+    )
+    ode_plot.plot(
+        caustic_xi,
+        caustic_lambda,
+        marker="o",
+        markersize=7,
+        color="tab:green",
+        markeredgecolor="black",
+        label=r"fixed-time outer caustic ($\lambda_{\rm c}$)",
+    )
+    ode_plot.legend(loc="best", fontsize=8)
     ode_plot.figure.tight_layout()
     ode_plot.figure.savefig(ode_figure, dpi=200)
     ode_plot.figure.clf()
-    import matplotlib.pyplot as plt
     plt.close(ode_plot.figure)
-    figure = directory / 'BertschingerReference.jpg'
+    figure = directory / "BertschingerReference.jpg"
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    axes[0].loglog(profiles['lambda_dimensionless'], np.maximum(profiles['density_contrast_dimensionless'], 1.0e-12))
-    axes[0].set(xlabel=r'$\lambda=r/r_{ta}$', ylabel=r'$\rho/\rho_b$')
-    axes[1].plot(profiles['lambda_dimensionless'], profiles['vel_scaled_dimensionless'])
-    axes[1].set(xlabel=r'$\lambda=r/r_{ta}$', ylabel=r'$v/(r_{ta}/t)$')
+    axes[0].loglog(
+        profiles["lambda_dimensionless"],
+        np.maximum(profiles["density_contrast_dimensionless"], 1.0e-12),
+    )
+    axes[0].set(xlabel=r"$\lambda=r/r_{ta}$", ylabel=r"$\rho/\rho_b$")
+    axes[1].plot(profiles["lambda_dimensionless"], profiles["vel_scaled_dimensionless"])
+    axes[1].set(xlabel=r"$\lambda=r/r_{ta}$", ylabel=r"$v/(r_{ta}/t)$")
     for axis in axes:
         axis.grid(alpha=0.25)
     fig.tight_layout()
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-    print('Bertschinger collisionless reference generated')
-    print('turnaround radius = %.8g' % profiles['radius_turnaround_proper_code'])
-    print('first post-centre apocentre: xi = %.8g, lambda_sp = %.8g' %
-          (splashback_xi, splashback_lambda))
-    print('fixed-time outer caustic: xi = %.8g, lambda_c = %.8g' %
-          (caustic_xi, caustic_lambda))
-    print('output = %s' % output)
-    print('Eq. 4.1 ODE output = %s' % output_ode)
-    print('Eq. 4.1 xi-lambda figure = %s' % ode_figure)
-    print('figure = %s' % figure)
+    print("Bertschinger collisionless reference generated")
+    print("turnaround radius = %.8g" % profiles["radius_turnaround_proper_code"])
+    print(
+        "first post-centre apocentre: xi = %.8g, lambda_sp = %.8g"
+        % (splashback_xi, splashback_lambda)
+    )
+    print("fixed-time outer caustic: xi = %.8g, lambda_c = %.8g" % (caustic_xi, caustic_lambda))
+    print("output = %s" % output)
+    print("Eq. 4.1 ODE output = %s" % output_ode)
+    print("Eq. 4.1 xi-lambda figure = %s" % ode_figure)
+    print("figure = %s" % figure)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
     main(parser.parse_args().config)

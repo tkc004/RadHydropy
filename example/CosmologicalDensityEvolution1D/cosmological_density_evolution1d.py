@@ -1,8 +1,8 @@
 """Compare uniform-gas density evolution with the standalone cosmology tool."""
 
-from pathlib import Path
 import copy
 import sys
+from pathlib import Path
 
 import numpy as np
 import unyt
@@ -14,15 +14,15 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(TOOLS_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
-from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
-from radhydropy.units import CodeUnits
 import example_utils as eu
 from cosmological_initial_condition import build_initial_condition
 from cosmology import EinsteinDeSitter as PhysicalEdS
 from cosmology import LambdaCDM as PhysicalLambdaCDM
 
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
+from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
+from radhydropy.units import CodeUnits
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 CONFIG_FILE = Path(__file__).with_name("cosmological_density_evolution1d.yaml")
@@ -33,9 +33,14 @@ SECONDS_PER_GYR = 365.25 * 24.0 * 3600.0 * 1.0e9
 
 
 def density_msun_mpc3_to_cgs(density_msun_mpc3_unyt):
-    return float(density_msun_mpc3_unyt) * float((1.0 * unyt.Msun).to_value("g")) / float(
-        (1.0 * unyt.Mpc).to_value("cm")
-    ) ** 3
+    return (
+        float(density_msun_mpc3_unyt)
+        * float((1.0 * unyt.Msun).to_value("g"))
+        / float(
+            (1.0 * unyt.Mpc).to_value("cm"),
+        )
+        ** 3
+    )
 
 
 def make_units():
@@ -76,14 +81,19 @@ def run():
         final_time = final_time_gyr / time_unit_gyr
         if code_class is CodeEdS:
             code_cosmology = code_class.from_code_units(
-                units, t_ref=physical.age_0 / time_unit_gyr, a_ref=1.0
+                units,
+                t_ref=physical.age_0 / time_unit_gyr,
+                a_ref=1.0,
             )
             cosmology_type = "einstein_de_sitter"
             cosmology_parameters = {}
         else:
             code_cosmology = code_class.from_code_units(
-                units, t_ref=physical.age_0 / time_unit_gyr, a_ref=1.0,
-                omega_m=physical.omega_m, omega_lambda=physical.omega_lambda,
+                units,
+                t_ref=physical.age_0 / time_unit_gyr,
+                a_ref=1.0,
+                omega_m=physical.omega_m,
+                omega_lambda=physical.omega_lambda,
                 hubble_ref=physical.hubble_0_gyr * time_unit_gyr,
             )
             cosmology_type = "lambda_cdm"
@@ -95,7 +105,7 @@ def run():
         initial_tau = float(code_cosmology.supercomoving_time(initial_time))
         final_tau = float(code_cosmology.supercomoving_time(final_time))
         rho_proper_cgs_g_cm3 = density_msun_mpc3_to_cgs(
-            physical.critical_density(initial_time_gyr)
+            physical.critical_density(initial_time_gyr),
         )
         rho_proper_code = rho_proper_cgs_g_cm3 / density_unit
         case_config = copy.deepcopy(config)
@@ -109,10 +119,10 @@ def run():
             rho_proper_code * initial_scale_factor**3,
         )
         case_config["_temp_supercomoving_code"] = np.ones(
-            int(config["par"]["mesh"]["grid_cells"])
+            int(config["par"]["mesh"]["grid_cells"]),
         )
         case_config["_vel_supercomoving_code"] = np.zeros(
-            int(config["par"]["mesh"]["grid_cells"])
+            int(config["par"]["mesh"]["grid_cells"]),
         )
         initial = build_initial_condition(case_config)
         output_dir = OUTPUT_ROOT / label
@@ -156,13 +166,18 @@ def run():
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
         measured_density = float(np.mean(sim.fluid.rho_comoving_code)) / final_a**3
         expected_density = rho_proper_code * (initial_scale_factor / final_scale_factor) ** 3
-        expected_critical = density_msun_mpc3_to_cgs(
-            physical.critical_density(final_time_gyr)
-        ) / density_unit
+        expected_critical = (
+            density_msun_mpc3_to_cgs(
+                physical.critical_density(final_time_gyr),
+            )
+            / density_unit
+        )
         relative_error = (measured_density - expected_density) / expected_density
-        print(f"{label}: a={final_a:.12g}, gas={measured_density:.12g}, "
-              f"analytic={expected_density:.12g}, critical(z=1)={expected_critical:.12g}, "
-              f"relative_error={relative_error:.6e}")
+        print(
+            f"{label}: a={final_a:.12g}, gas={measured_density:.12g}, "
+            f"analytic={expected_density:.12g}, critical(z=1)={expected_critical:.12g}, "
+            f"relative_error={relative_error:.6e}"
+        )
         if not np.isclose(final_a, final_scale_factor, rtol=2.0e-8):
             raise RuntimeError(f"{label}: scale factors disagree")
         if not np.isclose(measured_density, expected_density, rtol=2.0e-8):

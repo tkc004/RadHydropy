@@ -2,11 +2,12 @@
 
 import argparse
 import copy
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -17,21 +18,20 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
+import example_utils as eu
+
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
-from radhydropy.units import code_unit_scales
-from radhydropy.units import CodeUnits
 from radhydropy.thermo_networks.pie import MetalPIETable
-import example_utils as eu
+from radhydropy.units import CodeUnits, code_unit_scales
 from tools import build_initial_condition, estimate_cooling_length, load_output_state, shock_history
 
-
-DEFAULT_CONFIG = EXAMPLE_DIR / 'pie_spherical_radiative_shock1d.yaml'
+DEFAULT_CONFIG = EXAMPLE_DIR / "pie_spherical_radiative_shock1d.yaml"
 CASES = (
-    ('adiabatic', 'adiabatic control', False, 0.0),
-    ('pie_z0p1', 'PIE, Z=0.1', True, 0.1),
-    ('pie_z1', 'PIE, Z=1', True, 1.0),
+    ("adiabatic", "adiabatic control", False, 0.0),
+    ("pie_z0p1", "PIE, Z=0.1", True, 0.1),
+    ("pie_z1", "PIE, Z=1", True, 1.0),
 )
 
 
@@ -44,62 +44,65 @@ class CollidingStreamsSolver(Solver):
         right_start = first + par.mesh.grid_cells
         left_ghost = slice(0, first)
         right_ghost = slice(right_start, right_start + par.mesh.ghost_cells)
-        scales = code_unit_scales(getattr(par, 'CodeUnits', None))
+        scales = code_unit_scales(getattr(par, "CodeUnits", None))
 
         left_state = {
-            'rho_proper_code': par.boundary.rho_outflow_proper,
-            'vel_proper_code': par.boundary.vel_outflow_proper,
-            'pre_proper_code': fluid.eos.pressure(
+            "rho_proper_code": par.boundary.rho_outflow_proper,
+            "vel_proper_code": par.boundary.vel_outflow_proper,
+            "pre_proper_code": fluid.eos.pressure(
                 par.boundary.rho_outflow_proper,
                 par.boundary.temperature_outflow_proper,
                 par.boundary.outflow_mu,
             ),
         }
         right_state = {
-            'rho_proper_code': par.boundary.rho_inflow_proper,
-            'vel_proper_code': par.boundary.vel_inflow_proper,
-            'pre_proper_code': fluid.eos.pressure(
+            "rho_proper_code": par.boundary.rho_inflow_proper,
+            "vel_proper_code": par.boundary.vel_inflow_proper,
+            "pre_proper_code": fluid.eos.pressure(
                 par.boundary.rho_inflow_proper,
                 par.boundary.temperature_inflow_proper,
                 par.boundary.inflow_mu,
             ),
         }
         for state, side in ((left_state, left_ghost), (right_state, right_ghost)):
-            if hasattr(fluid, 'xHI'):
-                state['xHI'] = getattr(par, 'hydrogen_xHI_inflow', 1.0)
-            if hasattr(fluid, 'ngamma_code'):
-                state['ngamma_code'] = self._to_code_number_density(
-                    getattr(par, 'hydrogen_ngamma_inflow', 0.0), scales
+            if hasattr(fluid, "xHI"):
+                state["xHI"] = getattr(par, "hydrogen_xHI_inflow", 1.0)
+            if hasattr(fluid, "ngamma_code"):
+                state["ngamma_code"] = self._to_code_number_density(
+                    getattr(par, "hydrogen_ngamma_inflow", 0.0),
+                    scales,
                 )
             self._copy_boundary_state(fluid, side, state)
 
 
 def _run_case(config, label, title, pie_enabled, metallicity, table):
     case_config = copy.deepcopy(config)
-    case = case_config['par']
-    initial = case_config['initial_condition']
-    case_dir = Path(case['output']['directory']).resolve() / label
+    case = case_config["par"]
+    initial = case_config["initial_condition"]
+    case_dir = Path(case["output"]["directory"]).resolve() / label
     case_dir.mkdir(parents=True, exist_ok=True)
-    case['simulation'].update({
-        'name': f"PIESphericalRadiativeShock1D_{label}",
-        'initial_condition_filename': str(case_dir / 'InitialCondition.hdf5'),
-    })
-    case['output'].update({'directory': str(case_dir), 'filename_prefix': 'Output'})
-    case['thermochemistry']['metallicity'] = metallicity
-    case['thermochemistry']['metal_pie_enabled'] = pie_enabled
+    case["simulation"].update(
+        {
+            "name": f"PIESphericalRadiativeShock1D_{label}",
+            "initial_condition_filename": str(case_dir / "InitialCondition.hdf5"),
+        }
+    )
+    case["output"].update({"directory": str(case_dir), "filename_prefix": "Output"})
+    case["thermochemistry"]["metallicity"] = metallicity
+    case["thermochemistry"]["metal_pie_enabled"] = pie_enabled
     if not pie_enabled:
-        case['thermochemistry']['thermochemistry_network'] = 'hydrogen'
+        case["thermochemistry"]["thermochemistry_network"] = "hydrogen"
 
-    code_units = CodeUnits.from_mapping(case['units']['CodeUnits'])
+    code_units = CodeUnits.from_mapping(case["units"]["CodeUnits"])
 
-    case_config['_code_units'] = code_units
+    case_config["_code_units"] = code_units
     eu.clean_previous_outputs(case_config)
     initial_state = build_initial_condition(
-        case_config
+        case_config,
     )
-    initial_state.write(case['simulation']['initial_condition_filename'], validate=True)
+    initial_state.write(case["simulation"]["initial_condition_filename"], validate=True)
 
-    sim = Rsim(case_config['par'])
+    sim = Rsim(case_config["par"])
     sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
     sim.SetMesh()
@@ -108,49 +111,58 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
     sim.solver = CollidingStreamsSolver()
     # Maintain an outward inner stream and inward outer stream so the shock
     # forms near the initial midpoint instead of at a reflecting wall.
-    sim.Run(outputtime=0, mode='hydro_sources' if pie_enabled else 'hydro')
+    sim.Run(outputtime=0, mode="hydro_sources" if pie_enabled else "hydro")
 
     output_files = sorted(
-        case_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5")
+        case_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5"),
     )
     if len(output_files) < 2:
-        raise RuntimeError(f'expected snapshots for {label}')
+        raise RuntimeError(f"expected snapshots for {label}")
 
     # Output headers currently do not retain the evolving hydro time.  The
     # numbered snapshots span the configured run, so use their normalized
     # positions for plot/report labels until that core I/O issue is fixed.
-    final_time_myr = float(case['simulation']['final_time'].to_value('Myr'))
+    final_time_myr = float(case["simulation"]["final_time"].to_value("Myr"))
     history = shock_history(output_files, case_config)
     history[:, 0] = np.linspace(0.0, final_time_myr, len(output_files))
     final_snapshot = load_output_state(output_files[-1], case_config)
-    cooling = None if not pie_enabled else estimate_cooling_length(
-        final_snapshot, table, metallicity,
-        float(case['thermochemistry']['hydrogen_mass_fraction']), float(initial['mean_molecular_weight']),
+    cooling = (
+        None
+        if not pie_enabled
+        else estimate_cooling_length(
+            final_snapshot,
+            table,
+            metallicity,
+            float(case["thermochemistry"]["hydrogen_mass_fraction"]),
+            float(initial["mean_molecular_weight"]),
+        )
     )
-    report = case_dir / 'ShockHistory.txt'
-    with report.open('w', encoding='utf-8') as stream:
-        stream.write('time_proper_Myr shock_radius_proper_kpc\n')
+    report = case_dir / "ShockHistory.txt"
+    with report.open("w", encoding="utf-8") as stream:
+        stream.write("time_proper_Myr shock_radius_proper_kpc\n")
         for time_proper_Myr, radius_proper_kpc in history:
-            stream.write(f'{time_proper_Myr:.8g} {radius_proper_kpc:.8g}\n')
-        stream.write('\nfinal_cooling_diagnostics\n')
+            stream.write(f"{time_proper_Myr:.8g} {radius_proper_kpc:.8g}\n")
+        stream.write("\nfinal_cooling_diagnostics\n")
         if cooling is None:
-            stream.write('cooling_length_proper_kpc nan\n')
+            stream.write("cooling_length_proper_kpc nan\n")
         else:
             stream.write(
-                'cooling_time_proper_Myr %.8g\ncooling_length_proper_kpc %.8g\n'
-                'cooling_cells %.8g\n' % (
-                    cooling['cooling_time_proper_Myr'], cooling['cooling_length_proper_kpc'],
-                    cooling['cooling_cells'],
-                )
+                "cooling_time_proper_Myr %.8g\ncooling_length_proper_kpc %.8g\n"
+                "cooling_cells %.8g\n"
+                % (
+                    cooling["cooling_time_proper_Myr"],
+                    cooling["cooling_length_proper_kpc"],
+                    cooling["cooling_cells"],
+                ),
             )
     return {
-        'label': label,
-        'title': title,
-        'history': history,
-        'snapshots': output_files,
-        'config': case_config,
-        'report': report,
-        'cooling': cooling,
+        "label": label,
+        "title": title,
+        "history": history,
+        "snapshots": output_files,
+        "config": case_config,
+        "report": report,
+        "cooling": cooling,
     }
 
 
@@ -158,84 +170,97 @@ def main(config_filename=DEFAULT_CONFIG):
     config_filename = Path(config_filename).resolve()
     nested = eu.load_nested_example_config(config_filename)
     config = nested
-    par = config['par']
-    initial = config['initial_condition']
-    thermo = par['thermochemistry']
-    thermo['metal_pie_table_filename'] = str(
-        (config_filename.parent / thermo['metal_pie_table_filename']).resolve()
+    par = config["par"]
+    initial = config["initial_condition"]
+    thermo = par["thermochemistry"]
+    thermo["metal_pie_table_filename"] = str(
+        (config_filename.parent / thermo["metal_pie_table_filename"]).resolve(),
     )
-    table = MetalPIETable(thermo['metal_pie_table_filename'])
-    Path(par['output']['directory']).mkdir(parents=True, exist_ok=True)
+    table = MetalPIETable(thermo["metal_pie_table_filename"])
+    Path(par["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     results = [
         _run_case(config, label, title, pie_enabled, metallicity, table)
         for label, title, pie_enabled, metallicity in CASES
     ]
 
-    figure = Path(par['output']['directory']).resolve() / 'PIESphericalRadiativeShock1D.jpg'
+    figure = Path(par["output"]["directory"]).resolve() / "PIESphericalRadiativeShock1D.jpg"
     fig, axes = plt.subplots(3, 3, figsize=(15, 11), squeeze=False)
     for row, result in enumerate(results):
-        sample_indices = np.unique(np.linspace(
-            0, len(result['snapshots']) - 1, 5, dtype=int
-        ))
-        sample_times = result['history'][sample_indices, 0]
+        sample_indices = np.unique(
+            np.linspace(
+                0,
+                len(result["snapshots"]) - 1,
+                5,
+                dtype=int,
+            )
+        )
+        sample_times = result["history"][sample_indices, 0]
         for index, time_proper_Myr in zip(sample_indices, sample_times):
-            snapshot = load_output_state(result['snapshots'][index], result['config'])
+            snapshot = load_output_state(result["snapshots"][index], result["config"])
             radius_proper_cgs_cm = (
-                0.5 * (snapshot['boundary_proper_cgs_cm'][1:] + snapshot['boundary_proper_cgs_cm'][:-1])
+                0.5
+                * (snapshot["boundary_proper_cgs_cm"][1:] + snapshot["boundary_proper_cgs_cm"][:-1])
                 / 3.0856775814913673e21
             )
-            label = f'{time_myr:.2g} Myr'
+            label = f"{time_myr:.2g} Myr"
             axes[row, 0].plot(
-                radius_proper_cgs_cm, snapshot['rho_proper_cgs_g_cm3'], label=label,
+                radius_proper_cgs_cm,
+                snapshot["rho_proper_cgs_g_cm3"],
+                label=label,
             )
             axes[row, 1].plot(
-                radius_proper_cgs_cm, snapshot['temperature_proper_cgs_K'], label=label,
+                radius_proper_cgs_cm,
+                snapshot["temperature_proper_cgs_K"],
+                label=label,
             )
         axes[row, 2].plot(
-            result['history'][:, 0], result['history'][:, 1],
-            marker='o', ms=3, label=result['title'],
+            result["history"][:, 0],
+            result["history"][:, 1],
+            marker="o",
+            ms=3,
+            label=result["title"],
         )
         axes[row, 0].set_ylabel(f"{result['title']}\\n$\\rho$ [g cm$^{{-3}}$]")
-        axes[row, 1].set_ylabel('T [K]')
-        axes[row, 1].set_yscale('log')
-        axes[row, 2].set_ylabel('shock radius [kpc]')
+        axes[row, 1].set_ylabel("T [K]")
+        axes[row, 1].set_yscale("log")
+        axes[row, 2].set_ylabel("shock radius [kpc]")
         for column in range(3):
             axes[row, column].grid(alpha=0.25)
             axes[row, column].legend(frameon=False, fontsize=8)
     for column in range(2):
-        axes[2, column].set_xlabel('r [kpc]')
+        axes[2, column].set_xlabel("r [kpc]")
         for row in range(3):
             if column == 0:
-                axes[row, column].set_yscale('log')
+                axes[row, column].set_yscale("log")
             else:
-                axes[row, column].set_yscale('log')
+                axes[row, column].set_yscale("log")
     for row in range(3):
-        axes[row, 2].set_xlabel('time [Myr]')
+        axes[row, 2].set_xlabel("time [Myr]")
         collision_radius = 0.5 * (
-            float(initial['radius_inner_proper'].to_value('kpc'))
-            + float(initial['radius_outer_proper'].to_value('kpc'))
+            float(initial["radius_inner_proper"].to_value("kpc"))
+            + float(initial["radius_outer_proper"].to_value("kpc"))
         )
         axes[row, 0].set_xlim(collision_radius - 3.0, collision_radius + 3.0)
         axes[row, 1].set_xlim(collision_radius - 3.0, collision_radius + 3.0)
-    axes[0, 0].set_title('Absolute density profiles')
-    axes[0, 1].set_title('Absolute temperature profiles')
-    axes[0, 2].set_title('Shock-radius history')
-    fig.suptitle('Gravity-free spherical shock: adiabatic and HM12 PIE cases')
+    axes[0, 0].set_title("Absolute density profiles")
+    axes[0, 1].set_title("Absolute temperature profiles")
+    axes[0, 2].set_title("Shock-radius history")
+    fig.suptitle("Gravity-free spherical shock: adiabatic and HM12 PIE cases")
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
     for result in results:
         print(f"{result['label']}: snapshots = {len(result['snapshots'])}")
         print(f"{result['label']}: shock history = {result['report']}")
-    print(f'figure = {figure}')
+    print(f"figure = {figure}")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', default=DEFAULT_CONFIG)
+    parser.add_argument("--config", default=DEFAULT_CONFIG)
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args.config)

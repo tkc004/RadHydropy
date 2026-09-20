@@ -15,21 +15,14 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-
-DEFAULT_DATABASE = (
-    Path(__file__).resolve().parents[2] / "CHIANTI_11.0.2_database"
-)
-DEFAULT_TABLE = (
-    DEFAULT_DATABASE / "cooling_tables" / "chianti_cie_ion_fractions.h5"
-)
-DEFAULT_ABUNDANCE = (
-    DEFAULT_DATABASE / "abundance" / "sun_photospheric_2015_scott.abund"
-)
+DEFAULT_DATABASE = Path(__file__).resolve().parents[2] / "CHIANTI_11.0.2_database"
+DEFAULT_TABLE = DEFAULT_DATABASE / "cooling_tables" / "chianti_cie_ion_fractions.h5"
+DEFAULT_ABUNDANCE = DEFAULT_DATABASE / "abundance" / "sun_photospheric_2015_scott.abund"
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Calculate ne from CIE ion fractions, metallicity, nH, and T."
+        description="Calculate ne from CIE ion fractions, metallicity, nH, and T.",
     )
     parser.add_argument(
         "--metallicity",
@@ -92,7 +85,7 @@ def calculate_electron_density(table_file, abundance_file, metallicity, nH, temp
         ion_stage = table["ion_stage"][:]
 
     abundance_atomic_number, abundance_symbols, solar_abundance = read_abundances(
-        abundance_file
+        abundance_file,
     )
     if not np.array_equal(table_atomic_number, abundance_atomic_number):
         raise ValueError("Ion-fraction and abundance files contain different elements.")
@@ -102,11 +95,11 @@ def calculate_electron_density(table_file, abundance_file, metallicity, nH, temp
     if np.any(temperatures <= 0):
         raise ValueError("temperatures must be positive")
     if np.any(log_temperatures < log_temperature_grid[0]) or np.any(
-        log_temperatures > log_temperature_grid[-1]
+        log_temperatures > log_temperature_grid[-1],
     ):
         raise ValueError(
-            f"temperature range is {10**log_temperature_grid[0]:g} to "
-            f"{10**log_temperature_grid[-1]:g} K"
+            f"temperature range is {10 ** log_temperature_grid[0]:g} to "
+            f"{10 ** log_temperature_grid[-1]:g} K",
         )
 
     electron_fraction = np.zeros(temperatures.size)
@@ -117,7 +110,7 @@ def calculate_electron_density(table_file, abundance_file, metallicity, nH, temp
             [
                 np.interp(log_temperatures, log_temperature_grid, curve)
                 for curve in fractions[element_index]
-            ]
+            ],
         ).T
         element_fractions /= element_fractions.sum(axis=1, keepdims=True)
         mean_charge = element_fractions @ ion_stage
@@ -153,11 +146,12 @@ def main():
     print(f"Metallicity Z/Zsun = {args.metallicity:g}")
     print(f"nH = {args.nH:.6e} cm^-3")
     for temperature, ne, fraction in zip(
-        temperatures, electron_density, electron_fraction
+        temperatures,
+        electron_density,
+        electron_fraction,
     ):
         print(
-            f"T = {temperature:.6e} K: "
-            f"ne = {ne:.6e} cm^-3, ne/nH = {fraction:.6e}"
+            f"T = {temperature:.6e} K: ne = {ne:.6e} cm^-3, ne/nH = {fraction:.6e}",
         )
 
     if args.show_breakdown:
@@ -165,8 +159,10 @@ def main():
             print(f"\nElectron contribution at T = {temperature:g} K:")
             for symbol, contribution in zip(symbols, row):
                 if contribution > 0:
-                    print(f"  {symbol.decode() if isinstance(symbol, bytes) else symbol}: "
-                          f"{contribution:.6e} electrons per H nucleus")
+                    print(
+                        f"  {symbol.decode() if isinstance(symbol, bytes) else symbol}: "
+                        f"{contribution:.6e} electrons per H nucleus"
+                    )
 
 
 if __name__ == "__main__":

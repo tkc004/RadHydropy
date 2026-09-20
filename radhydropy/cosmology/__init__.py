@@ -34,9 +34,9 @@ from radhydropy.cosmology.variables import (
 )
 
 __all__ = [
+    "CosmologyContext",
     "EinsteinDeSitter",
     "LambdaCDM",
-    "CosmologyContext",
     "ProperCgsState",
     "SupercomovingHdf5State",
     "SupercomovingMeshState",
