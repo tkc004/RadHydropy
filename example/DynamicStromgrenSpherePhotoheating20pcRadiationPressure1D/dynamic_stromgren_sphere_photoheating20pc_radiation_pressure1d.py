@@ -260,7 +260,7 @@ def main(config_filename=DEFAULT_CONFIG):
     axes[1].set_xlabel("time [Myr]")
     axes[1].set_ylabel(r"$P_{\rm rad}/P_{\rm gas}$")
     for axis in axes:
-        axis.grid(True, which="both", alpha=0.25)
+        axis.grid(visible=True, which="both", alpha=0.25)
     fig.tight_layout()
     fig.savefig(pressure_figure, dpi=180)
     plt.close(fig)

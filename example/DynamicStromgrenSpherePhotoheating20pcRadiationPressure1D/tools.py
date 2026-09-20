@@ -126,7 +126,7 @@ def save_plot(mesh, fluid, config, figure_filename):
 
     for ax in axes:
         ax.set_xlim(0.0, plot_radius_max)
-        ax.grid(True, which="both", alpha=0.25)
+        ax.grid(visible=True, which="both", alpha=0.25)
     final_time_myr = config["par"]["simulation"]["final_time"].to_value(unyt.Myr)
     fig.suptitle(f"Dynamic photoheated Stromgren sphere at {final_time_myr:.3g} Myr")
     fig.tight_layout()

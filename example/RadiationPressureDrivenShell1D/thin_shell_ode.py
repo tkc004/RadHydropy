@@ -229,7 +229,7 @@ def main(config_filename=DEFAULT_CONFIG):
     axes[2].set_ylabel("momentum relative error")
     axes[2].set_xlabel("time [Myr]")
     for axis in axes:
-        axis.grid(True, alpha=0.25)
+        axis.grid(visible=True, alpha=0.25)
         axis.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(figure, dpi=180)

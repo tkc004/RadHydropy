@@ -150,7 +150,7 @@ def save_history_plot(history, filename, config, target_neutral_fraction):
     ax.set_ylabel("Ionized fraction")
     ax.set_yscale("log")
     ax.set_ylim(7.0e-3, 1.2)
-    ax.grid(True, which="both", alpha=0.25)
+    ax.grid(visible=True, which="both", alpha=0.25)
     ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(filename, dpi=200)

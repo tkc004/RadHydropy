@@ -285,8 +285,8 @@ def main(config_filename=DEFAULT_CONFIG):
     config["_pie_table"] = table
     config["_correlation_table"] = correlation_table
     outputs = {
-        "adiabatic": run_case(config, False),
-        "radiative": run_case(config, True),
+        "adiabatic": run_case(config, radiative=False),
+        "radiative": run_case(config, radiative=True),
     }
     histories = {key: value[0] for key, value in outputs.items()}
     density_profiles = {key: value[1] for key, value in outputs.items()}

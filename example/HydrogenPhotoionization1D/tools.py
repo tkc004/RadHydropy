@@ -157,7 +157,7 @@ def save_history_plot(history, filename, config, target_xHI):  # noqa: N803
     ax.set_yscale("log")
     lower_ylim = min(analytic.min(), np.min(xHI), target_xHI) * 0.2
     ax.set_ylim(max(lower_ylim, 1.0e-6), 1.2)
-    ax.grid(True, which="both", alpha=0.25)
+    ax.grid(visible=True, which="both", alpha=0.25)
     ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(filename, dpi=200)

@@ -365,8 +365,8 @@ def save_history_plot(history, filename, reference):
         reference["temperature_thermal_equilibrium_cgs_K_unyt"].to_value(unyt.K) * 1.55,
     )
     ax_xHI.set_ylim(1.0e-9, 1.5)
-    ax_temp.grid(True, which="both", alpha=0.25)
-    ax_xHI.grid(True, which="both", alpha=0.25)
+    ax_temp.grid(visible=True, which="both", alpha=0.25)
+    ax_xHI.grid(visible=True, which="both", alpha=0.25)
     ax_temp.legend(frameon=False, loc="lower left")
     ax_xHI.legend(frameon=False, loc="lower left")
     fig.subplots_adjust(

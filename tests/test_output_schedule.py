@@ -498,7 +498,7 @@ class Testing(unittest.TestCase):
 
     def test_parameter_tree_converts_numpy_scalars(self):
         self.assertEqual(rio.parameter_tree(np.int64(256)), 256)
-        self.assertEqual(rio.parameter_tree(np.bool_(True)), True)
+        self.assertEqual(rio.parameter_tree(np.bool_(1)), True)
 
     def test_hydrostatic_example_plots_interior_cells_in_cgs(self):
         example_dir = Path(__file__).resolve().parents[1] / "example" / "HydrostaticEquilibrium1D"

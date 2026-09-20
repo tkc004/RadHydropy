@@ -318,7 +318,7 @@ def main():
     axis.set_xlim(1.0e2, 1.0e5)
     axis.set_ylim(1.0e16, 1.0e20)
     axis.set_title(r"Power-law H II regions: $n_c=10^6\,cm^{-3}$, $r_c=2.1\times10^{16}\,cm$")
-    axis.grid(True, which="both", alpha=0.25)
+    axis.grid(visible=True, which="both", alpha=0.25)
     axis.legend(fontsize=9)
     figure.tight_layout()
     figure.savefig(args.output, dpi=180)

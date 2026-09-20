@@ -250,7 +250,7 @@ def plot_snapshots(filenames, config, figure_filename):
     for axis in axes:
         axis.axvline(virial_radius_proper_kpc, color="black", ls=":", alpha=0.6)
         axis.axvline(2.0 * virial_radius_proper_kpc, color="black", ls="--", alpha=0.6)
-        axis.grid(True, which="both", alpha=0.25)
+        axis.grid(visible=True, which="both", alpha=0.25)
         axis.legend(frameon=False, fontsize=8)
     axes[0].text(
         virial_radius_proper_kpc,

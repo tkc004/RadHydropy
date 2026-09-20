@@ -309,7 +309,7 @@ def save_profile_plot(snapshots, output, exponent):
 
     for axis in axes:
         axis.set_xlim(0.0, 1.0)
-        axis.grid(True, which="both", alpha=0.25)
+        axis.grid(visible=True, which="both", alpha=0.25)
         axis.set_xlabel("radius (pc)")
     density_axis.set_yscale("log")
     density_axis.set_ylabel(r"hydrogen number density (cm$^{-3}$)")
@@ -441,7 +441,7 @@ def main(config_filename=DEFAULT_CONFIG):
     axis.set_xlabel("time (yr)")
     axis.set_ylabel("ionization-front radius (cm)")
     axis.set_title(f"RadHydropy vs analytic power-law H II region, w={exponent:g}")
-    axis.grid(True, which="both", alpha=0.25)
+    axis.grid(visible=True, which="both", alpha=0.25)
     axis.legend()
     figure.tight_layout()
     output = Path(output_config["directory"]) / example["front_plot_filename"]

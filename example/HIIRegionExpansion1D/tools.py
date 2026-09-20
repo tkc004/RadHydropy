@@ -501,7 +501,7 @@ def save_front_plot(history, config, figure_filename):
     if show_stagnation_radius:
         radius_limits += (1.1 * radius_stagnation_pc,)
     ax.set_ylim(0.0, max(radius_limits))
-    ax.grid(True, alpha=0.25)
+    ax.grid(visible=True, alpha=0.25)
     ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
@@ -570,7 +570,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
         ymin = 10.0 ** np.floor(np.log10(0.8 * np.min(positive_density)))
         ymax = 10.0 ** np.ceil(np.log10(1.2 * np.max(positive_density)))
         ax.set_ylim(ymin, ymax)
-    ax.grid(True, alpha=0.25)
+    ax.grid(visible=True, alpha=0.25)
     ax.legend(frameon=False)
     radiation_ax.plot(
         radius_proper_pc,
@@ -596,7 +596,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
         ymin = 10.0 ** np.floor(np.log10(0.8 * np.min(positive_radiation)))
         ymax = 10.0 ** np.ceil(np.log10(1.2 * np.max(positive_radiation)))
         radiation_ax.set_ylim(ymin, ymax)
-    radiation_ax.grid(True, alpha=0.25)
+    radiation_ax.grid(visible=True, alpha=0.25)
     radiation_ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)

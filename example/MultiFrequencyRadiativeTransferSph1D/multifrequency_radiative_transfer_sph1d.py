@@ -121,7 +121,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     axes[0].set_yscale("log")
     axes[0].set_ylabel(r"$x_{\rm HI}$")
     axes[0].set_ylim(1.0e-6, 1.1)
-    axes[0].grid(True, which="both", alpha=0.25)
+    axes[0].grid(visible=True, which="both", alpha=0.25)
     ionized_axis = axes[0].twinx()
     (ionized_line,) = ionized_axis.plot(
         radius_proper_kpc,
@@ -152,7 +152,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
         )
     axes[1].set_yscale("log")
     axes[1].set_ylabel("Temperature [K]")
-    axes[1].grid(True, which="both", alpha=0.25)
+    axes[1].grid(visible=True, which="both", alpha=0.25)
     if temperature_reference is not None:
         axes[1].legend(frameon=False)
     photon_axis = axes[2]
@@ -161,7 +161,7 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     photon_axis.set_yscale("log")
     photon_axis.set_xlabel("Radius [kpc]")
     photon_axis.set_ylabel(r"$n_\gamma$ [cm$^{-3}$]")
-    photon_axis.grid(True, which="both", alpha=0.25)
+    photon_axis.grid(visible=True, which="both", alpha=0.25)
     photon_axis.legend(frameon=False)
     network_name = (
         config["par"].get("thermochemistry", {}).get("thermochemistry_network", "hydrogen")

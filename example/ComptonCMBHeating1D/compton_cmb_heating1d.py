@@ -282,12 +282,12 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     temperature_axis.set_yscale("log")
     temperature_axis.set_ylabel("Temperature [K]")
-    temperature_axis.grid(True, which="both", alpha=0.25)
+    temperature_axis.grid(visible=True, which="both", alpha=0.25)
     temperature_axis.legend(frameon=False, fontsize=8, ncol=2)
     error_axis.set_yscale("log")
     error_axis.set_xlabel("Time [Myr]")
     error_axis.set_ylabel("relative error")
-    error_axis.grid(True, which="both", alpha=0.25)
+    error_axis.grid(visible=True, which="both", alpha=0.25)
     if error_axis.lines:
         error_axis.legend(frameon=False)
     fig.suptitle(

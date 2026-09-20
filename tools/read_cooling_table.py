@@ -101,7 +101,7 @@ def main():
             rf"$\Lambda({high_density:g})/\Lambda({low_density:g})$",
         )
         ax.set_title("Density dependence of CHIANTI cooling")
-        ax.grid(True, alpha=0.25)
+        ax.grid(visible=True, alpha=0.25)
         ax.legend(title="Metallicity", frameon=False)
 
         fig.savefig(output_path, dpi=180)
@@ -126,7 +126,7 @@ def main():
     ax.set_title(
         rf"CHIANTI cooling rate at $n_e={selected_density:g}\ \mathrm{{cm}}^{{-3}}$",
     )
-    ax.grid(True, which="both", alpha=0.25)
+    ax.grid(visible=True, which="both", alpha=0.25)
     ax.legend(title="Metallicity", frameon=False)
 
     fig.savefig(output_path, dpi=180)

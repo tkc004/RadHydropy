@@ -105,7 +105,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE, config_filename=CON
         axis.set_yscale("log")
         axis.set_ylim(1.0e-6, 1.1)
         axis.set_title(species)
-        axis.grid(True, which="both", alpha=0.25)
+        axis.grid(visible=True, which="both", alpha=0.25)
         axis.legend(frameon=False, fontsize=8)
 
     temperature_axis = axes[1, 2]
@@ -141,7 +141,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE, config_filename=CON
     temperature_axis.set_ylim(1.0e1, 1.0e8)
     temperature_axis.set_title("Temperature")
     temperature_axis.set_ylabel("T [K]")
-    temperature_axis.grid(True, which="both", alpha=0.25)
+    temperature_axis.grid(visible=True, which="both", alpha=0.25)
     temperature_axis.legend(frameon=False, fontsize=8)
 
     axes[1, 0].set_xlabel(r"$r/r_s$, $r_s=5.4$ kpc")

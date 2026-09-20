@@ -426,7 +426,7 @@ def save_front_plot(history, config, figure_filename):
         ax.set_ylim(0.0, plot_radius_max)
     ax.set_xlabel("Time [Myr]")
     ax.set_ylabel("Ionization-front radius [kpc]")
-    ax.grid(True, alpha=0.25)
+    ax.grid(visible=True, alpha=0.25)
     ax.legend(frameon=False, loc="best")
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200, bbox_inches="tight")
@@ -537,7 +537,7 @@ def save_plot(mesh, fluid, config, figure_filename):
 
     for ax in axes:
         ax.set_xlim(0.0, plot_radius_max)
-        ax.grid(True, which="both", alpha=0.25)
+        ax.grid(visible=True, which="both", alpha=0.25)
     final_time_myr = config["par"]["simulation"]["final_time"].to_value(unyt.Myr)
     fig.suptitle(
         f"Dynamic photoheated Stromgren sphere at {final_time_myr:.3g} Myr",

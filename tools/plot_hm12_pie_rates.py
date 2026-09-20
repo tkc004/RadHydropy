@@ -217,7 +217,7 @@ def plot_rates(
         rf"HM12 {component}: $n_\mathrm{{H}}={hydrogen_density:g}\,\mathrm{{cm^{{-3}}}}$, "
         rf"$Z/Z_\odot={selected_metallicity:g}$",
     )
-    ax.grid(True, alpha=0.25)
+    ax.grid(visible=True, alpha=0.25)
     ax.legend(ncol=2, frameon=False, fontsize=8)
     fig.savefig(output_path, dpi=180)
     plt.close(fig)

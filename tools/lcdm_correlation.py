@@ -145,7 +145,7 @@ def plot_lcdm_transfer_function(
     axis.set_xlabel(r"$k\ [h\,\mathrm{Mpc}^{-1}]$")
     axis.set_ylabel(r"$T(k)$")
     axis.set_title("LCDM linear matter transfer function")
-    axis.grid(True, which="both", alpha=0.25)
+    axis.grid(visible=True, which="both", alpha=0.25)
     axis.set_ylim(bottom=1.0e-4)
     figure.tight_layout()
 
@@ -188,7 +188,7 @@ def plot_linear_matter_power_spectrum(
     axis.set_xlabel(r"$k\ [h\,\mathrm{Mpc}^{-1}]$")
     axis.set_ylabel(r"$P(k)\ [(\mathrm{Mpc}/h)^3]$")
     axis.set_title(rf"Linear matter power spectrum ($\sigma_8={sigma8:.3f}$)")
-    axis.grid(True, which="both", alpha=0.25)
+    axis.grid(visible=True, which="both", alpha=0.25)
     figure.tight_layout()
 
     if filename is not None:
@@ -252,7 +252,7 @@ def plot_linear_correlation_from_power_spectrum(
     axis.set_xlabel(r"$r\ [\mathrm{Mpc}/h]$")
     axis.set_ylabel(r"$\xi(r)$")
     axis.set_title("Linear matter correlation function")
-    axis.grid(True, which="both", alpha=0.25)
+    axis.grid(visible=True, which="both", alpha=0.25)
     figure.tight_layout()
 
     if filename is not None:

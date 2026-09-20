@@ -134,7 +134,7 @@ def save_plot(snapshot, config, figure_filename):
     ax.set_ylabel(r"Photon number density [cm$^{-3}$]")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.grid(True, which="both", alpha=0.25)
+    ax.grid(visible=True, which="both", alpha=0.25)
     ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)

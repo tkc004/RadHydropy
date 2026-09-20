@@ -157,9 +157,9 @@ def _plot(histories, config, filename):
     ax_difference.set(xlabel="Time [Myr]", ylabel=r"$(R-R_{100000})/R_{100000}$")
     ax.set_xlim(0.0, time_proper_Myr[-1].to_value(unyt.Myr))
     ax.set_ylim(0.0, example["plot_radius_max"].to_value(unyt.kpc))
-    ax.grid(True, alpha=0.25)
+    ax.grid(visible=True, alpha=0.25)
     ax.legend(frameon=False, fontsize=8, loc="lower right")
-    ax_difference.grid(True, alpha=0.25)
+    ax_difference.grid(visible=True, alpha=0.25)
     ax_difference.legend(
         frameon=False,
         fontsize=8,

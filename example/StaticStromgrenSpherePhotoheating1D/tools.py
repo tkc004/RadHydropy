@@ -431,7 +431,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     ax_frac.set_yscale("log")
     ax_frac.set_ylabel("Hydrogen fraction")
     ax_frac.set_title(f"Radial profiles at {profile_time_proper_Myr:.0f} Myr")
-    ax_frac.grid(True, which="both", alpha=0.25)
+    ax_frac.grid(visible=True, which="both", alpha=0.25)
     ax_frac.legend(frameon=False, loc="center right")
 
     ax_temp.plot(radius_proper_cgs_kpc, temperature_cgs_K, color="tab:red", lw=1.8)
@@ -450,7 +450,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     ax_temp.set_xlim(0.0, plot_radius_max)
     ax_temp.set_yscale("log")
     ax_temp.set_ylabel("Temperature [K]")
-    ax_temp.grid(True, which="both", alpha=0.25)
+    ax_temp.grid(visible=True, which="both", alpha=0.25)
     if temperature_reference is not None:
         ax_temp.legend(frameon=False, loc="upper right")
 
@@ -476,7 +476,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     ax_front.set_ylim(0.0, plot_radius_max)
     ax_front.set_xlabel("Time [Myr]")
     ax_front.set_ylabel("I-front radius [kpc]")
-    ax_front.grid(True, alpha=0.25)
+    ax_front.grid(visible=True, alpha=0.25)
     ax_front.legend(frameon=False, loc="lower right")
 
     fig.savefig(figure_filename, dpi=200, bbox_inches="tight")

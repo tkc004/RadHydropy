@@ -128,7 +128,7 @@ def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
         r"$(E_{\rm rad}-E_{\rm no\ rad})/E_{\rm no\ rad}$",
     )
     for axis in axes:
-        axis.grid(True, which="both", alpha=0.25)
+        axis.grid(visible=True, which="both", alpha=0.25)
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
