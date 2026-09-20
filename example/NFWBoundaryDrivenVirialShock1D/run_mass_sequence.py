@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Run and compare stable, marginal, and low-mass virial-shock cases."""  # noqa: CPY001
+"""Run and compare stable, marginal, and low-mass virial-shock cases."""
 
 import argparse
 import os
@@ -16,18 +16,18 @@ for path in (PROJECT_ROOT, EXAMPLE_DIR.parent, EXAMPLE_DIR):
 os.environ.setdefault("XDG_CACHE_HOME", str(Path(tempfile.gettempdir()) / "radhydropy-cache"))
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import unyt  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
+import unyt
 
-from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER  # noqa: E402
-from radhydropy.io import load_output_time_list  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from tools import (  # noqa: E402
+from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER
+from radhydropy.io import load_output_time_list
+from radhydropy.thermo_networks.pie import MetalPIETable
+from tools import (
     GAMMA_CRITICAL,
     load_output_state,
     locate_shock,
@@ -77,7 +77,7 @@ def _case_diagnostics(config_filename):
         initial_condition["mu"],
     )
     stability_by_time = {row["time_proper_Myr"]: row for row in stability}
-    shock_radius_over_R200_dimensionless = []  # noqa: N806
+    shock_radius_over_R200_dimensionless = []
     gamma_eff_dimensionless = []
     for filename, time in zip(files, times, strict=False):
         snapshot = load_output_state(filename, config)
@@ -96,10 +96,10 @@ def _case_diagnostics(config_filename):
     return {
         "mass_proper_Msun": halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun),
         "label": r"$10^{12}\,M_\odot$"
-        if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 5e11  # noqa: PLR2004
+        if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 5e11
         else (
             r"$3\times10^{11}\,M_\odot$"
-            if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 2e11  # noqa: PLR2004
+            if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 2e11
             else r"$10^{11}\,M_\odot$"
         ),
         "times_proper_Myr": np.asarray(times),
@@ -114,7 +114,7 @@ def _write_summary(cases, filename):
             "halo_mass_proper_Msun time_proper_Myr shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n",
         )
         for case in cases:
-            for time_proper_Myr, radius_dimensionless, gamma_eff_dimensionless in zip(  # noqa: N806
+            for time_proper_Myr, radius_dimensionless, gamma_eff_dimensionless in zip(
                 case["times_proper_Myr"],
                 case["shock_radius_over_R200_dimensionless"],
                 case["gamma_eff_dimensionless"],

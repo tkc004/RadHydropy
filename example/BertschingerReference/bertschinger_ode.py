@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-r"""Numerical reference solver for Bertschinger (1985), equation (4.1)."""  # noqa: CPY001
+r"""Numerical reference solver for Bertschinger (1985), equation (4.1)."""
 
 from dataclasses import dataclass
 
@@ -46,7 +46,7 @@ def first_post_centre_apocentre(solution):
     xi = np.asarray(solution.xi, dtype=float)
     lam = np.asarray(solution.lam, dtype=float)
     lam_prime = np.asarray(solution.lam_prime, dtype=float)
-    if xi.size < 3 or not (xi.size == lam.size == lam_prime.size):  # noqa: PLR2004
+    if xi.size < 3 or not (xi.size == lam.size == lam_prime.size):
         raise ValueError("invalid Bertschinger shell solution")
 
     outbound = np.flatnonzero((lam_prime[:-1] <= 0.0) & (lam_prime[1:] >= 0.0))
@@ -136,7 +136,7 @@ def solve_eq41_self_similar(
     """
     if (
         xi_end <= 0.0
-        or points < 2  # noqa: PLR2004
+        or points < 2
         or similarity_exponent <= 0.0
         or not 0.0 < centre_match_lambda < 1.0
         or centre_matching_velocity <= 0.0
@@ -194,8 +194,8 @@ def solve_eq41_self_similar(
         order = np.argsort(solution.y[0])
         radius_dimensionless = solution.y[0][order]
         similarity_time_dimensionless = solution.t[order]
-        unique = np.concatenate(([True], np.diff(radius_dimensionless) > 1.0e-12))  # noqa: PLR2004
-        if np.count_nonzero(unique) < 2:  # noqa: PLR2004
+        unique = np.concatenate(([True], np.diff(radius_dimensionless) > 1.0e-12))
+        if np.count_nonzero(unique) < 2:
             # At the resolution cutoff, a rapidly shrinking late branch can
             # be represented by a single solver point.  It carries no new
             # radial interval and is safely omitted from the closure.
@@ -257,7 +257,7 @@ def solve_eq41_self_similar(
     unique = np.concatenate(
         (
             [True],
-            np.diff(output_similarity_time_dimensionless) > 1.0e-12,  # noqa: PLR2004
+            np.diff(output_similarity_time_dimensionless) > 1.0e-12,
         ),
     )
     output_similarity_time_dimensionless = output_similarity_time_dimensionless[unique]

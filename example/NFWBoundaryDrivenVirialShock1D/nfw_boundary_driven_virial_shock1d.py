@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Boundary-fed virial shock in a fixed NFW halo, with an HM12 PIE restart."""  # noqa: CPY001
+"""Boundary-fed virial shock in a fixed NFW halo, with an HM12 PIE restart."""
 
 import argparse
 import copy
@@ -19,12 +19,12 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 os.environ.setdefault("XDG_CACHE_HOME", str(Path(tempfile.gettempdir()) / "radhydropy-cache"))
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
-import example_utils as eu  # noqa: E402
-import numpy as np  # noqa: E402
-import unyt  # noqa: E402
+import example_utils as eu
+import numpy as np
+import unyt
 
-import radhydropy.io as rio  # noqa: E402
-from example.NFWBoundaryDrivenVirialShock1D.tools import (  # noqa: E402
+import radhydropy.io as rio
+from example.NFWBoundaryDrivenVirialShock1D.tools import (
     boundary_inflow_state,
     build_initial_condition,
     nfw_halo_parameters,
@@ -35,11 +35,11 @@ from example.NFWBoundaryDrivenVirialShock1D.tools import (  # noqa: E402
     write_report,
     write_stability_report,
 )
-from radhydropy.gravity import Gravity, nfw_potential  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.solver import Solver  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits, code_unit_scales  # noqa: E402
+from radhydropy.gravity import Gravity, nfw_potential
+from radhydropy.rsim import Rsim
+from radhydropy.solver import Solver
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits, code_unit_scales
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "nfw_boundary_driven_virial_shock1d.yaml"
 
@@ -141,7 +141,7 @@ def _run_stage(config, halo, mode, restart=False):
 
 def _write_adiabatic_energy_audit(files, config, filename):
     """Write the open-boundary total-energy budget for an adiabatic stage."""
-    if len(files) < 2:  # noqa: PLR2004
+    if len(files) < 2:
         raise RuntimeError("energy audit requires at least two snapshots")
 
     def snapshot_energy(path):

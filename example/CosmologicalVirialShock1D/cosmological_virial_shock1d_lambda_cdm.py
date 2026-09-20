@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Launch the preserved LambdaCDM virial-shock comparison workflow."""  # noqa: CPY001
+"""Launch the preserved LambdaCDM virial-shock comparison workflow."""
 
 import runpy
 from pathlib import Path

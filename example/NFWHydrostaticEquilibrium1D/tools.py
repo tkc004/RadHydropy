@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""NFW halo and isothermal hydrostatic-gas helpers."""  # noqa: CPY001
+"""NFW halo and isothermal hydrostatic-gas helpers."""
 
 import matplotlib as mpl
 
@@ -96,7 +96,7 @@ def hydrostatic_density_profile(
     """
     radius_proper_cgs_cm_unyt = radius_proper_unyt.to(unyt.cm)
     boundaries_proper_cgs_cm_unyt = boundaries_proper_unyt.to(unyt.cm)
-    temperature_proper_cgs_K = temperature_proper_unyt.to_value(unyt.K)  # noqa: N806
+    temperature_proper_cgs_K = temperature_proper_unyt.to_value(unyt.K)
     potential = nfw_potential(
         radius_proper_cgs_cm_unyt,
         halo["rho_scale_cgs_g_cm3_unyt"],

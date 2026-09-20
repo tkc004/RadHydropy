@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import numpy as np  # noqa: CPY001
+import numpy as np
 from scipy import special
 
 # analytic Sedov blast wave solution
@@ -64,7 +64,7 @@ def get_Cc(nu, w, g, wa, b):
     wa are some parameters of solution
     b is power law index for the analytic blastwave solution
     """
-    Cc = np.zeros(7)  # noqa: N806
+    Cc = np.zeros(7)
     # Cc[0] = 2.0 * (nu - 1.0) * np.pi + (nu - 2.0) * (nu - 3.0)
     Cc[0] = (
         2.0**nu * np.pi ** (0.5 * (nu - 1.0)) * special.gamma(0.5 * (nu + 1.0)) / special.gamma(nu)
@@ -84,7 +84,7 @@ def getShockquan(g, nu, w, A0, Rs, t):
     nu is dimension of the problem
     w is the exponent of initial density profile from rho0 = A0 r^-w
     """
-    Rsdot = 2.0 * Rs / (nu + 2.0 - w) / t  # dRs/dt  # noqa: N806
+    Rsdot = 2.0 * Rs / (nu + 2.0 - w) / t  # dRs/dt
     rho0 = get_rho0(Rs, A0, w)  # TK: rho0 should be the pre-shock density at shock radius?
     rhos = (g + 1.0) / (g - 1.0) * rho0
     vs = 2.0 * Rsdot / (g + 1.0)
@@ -144,24 +144,24 @@ def integral_solution(nu, g, w):
     """
     wa = get_wa(nu, g)
     b = get_beta_index(nu, w, g, wa)
-    Cc = get_Cc(nu, w, g, wa, b)  # noqa: N806
-    Fmin = Cc[2] if w < wa[1] else Cc[6]  # noqa: N806
-    F = np.linspace(Fmin, 1.0, 10000)  # noqa: N806
+    Cc = get_Cc(nu, w, g, wa, b)
+    Fmin = Cc[2] if w < wa[1] else Cc[6]
+    F = np.linspace(Fmin, 1.0, 10000)
     eta = eta_func(F, b, Cc)
-    Df = D_func(F, b, Cc, w)  # noqa: N806
-    Vf = V_func(F, b, Cc)  # noqa: N806
-    Pf = P_func(F, b, Cc, w)  # noqa: N806
-    deta_dF = np.gradient(eta, F)  # noqa: N806
-    Integrant = np.power(eta, nu - 1.0) * (Df * Vf * Vf + Pf) * deta_dF  # noqa: N806
-    Integrated_value = np.trapezoid(Integrant, F)  # noqa: N806
+    Df = D_func(F, b, Cc, w)
+    Vf = V_func(F, b, Cc)
+    Pf = P_func(F, b, Cc, w)
+    deta_dF = np.gradient(eta, F)
+    Integrant = np.power(eta, nu - 1.0) * (Df * Vf * Vf + Pf) * deta_dF
+    Integrated_value = np.trapezoid(Integrant, F)
     alpha = 8.0 * Cc[0] / (g**2 - 1.0) / (nu + 2.0 + w) ** 2 * Integrated_value
     return alpha, eta, Df, Vf, Pf
 
 
 def get_blastwave_solution(E0, A0, nu, g, w, t):
     """Calculate the blast wave solution with unit"""
-    alpha, eta, Df, Vf, Pf = integral_solution(nu, g, w)  # noqa: N806
-    Rs = getRs(E0, A0, nu, w, alpha, t)  # noqa: N806
+    alpha, eta, Df, Vf, Pf = integral_solution(nu, g, w)
+    Rs = getRs(E0, A0, nu, w, alpha, t)
     rhos, vs, ps = getShockquan(g, nu, w, A0, Rs, t)
     radius_proper_cgs_cm = eta * Rs
     rho_proper_cgs_g_cm3 = rhos * Df

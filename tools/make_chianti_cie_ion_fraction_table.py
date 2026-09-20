@@ -9,7 +9,7 @@ The generated ``ion_fraction`` dataset has axes:
 
 where ``ion_stage`` is the number of electrons removed. For example, stage
 0 is neutral hydrogen and stage 1 is H II.
-"""  # noqa: CPY001
+"""
 
 import argparse
 from pathlib import Path
@@ -109,7 +109,7 @@ def read_ioneq_file(filename):
         values = np.asarray(
             [float(line[6 + 10 * i : 6 + 10 * (i + 1)]) for i in range(n_temperature)],
         )
-        if len(header) != 2 or values.size != n_temperature:  # noqa: PLR2004
+        if len(header) != 2 or values.size != n_temperature:
             raise ValueError(f"Malformed ion-fraction row in {filename}: {line[:40]!r}")
 
         atomic_number, ion_stage = (int(value) for value in header)

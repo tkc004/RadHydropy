@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Radiation source orchestration for the hydrodynamics solver."""  # noqa: CPY001
+"""Radiation source orchestration for the hydrodynamics solver."""
 
 import numpy as np
 

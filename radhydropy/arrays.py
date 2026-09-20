@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""NumPy array subclass that allows solver-side scratch attributes."""  # noqa: CPY001
+"""NumPy array subclass that allows solver-side scratch attributes."""
 
 import numpy as np
 

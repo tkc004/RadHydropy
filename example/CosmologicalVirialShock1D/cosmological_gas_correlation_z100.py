@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Adiabatic gas collapse from the z=100 LCDM correlation-function IC."""  # noqa: CPY001
+"""Adiabatic gas collapse from the z=100 LCDM correlation-function IC."""
 
 import argparse
 import sys
@@ -17,11 +17,11 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import plot_entropy_evolution as entropy_plotter  # noqa: E402
-import plot_halo_energy_accounting as energy_plotter  # noqa: E402
-import virial_shock_tools as et  # noqa: E402
-from cosmological_gas_correlation_runtime import CosmologicalRunCallbacks  # noqa: E402
-from cosmological_gas_correlation_support import (  # noqa: E402
+import plot_entropy_evolution as entropy_plotter
+import plot_halo_energy_accounting as energy_plotter
+import virial_shock_tools as et
+from cosmological_gas_correlation_runtime import CosmologicalRunCallbacks
+from cosmological_gas_correlation_support import (
     _dark_matter_energy_state,
     _energy_audit_state,
     _energy_cell_state,
@@ -39,15 +39,15 @@ from cosmological_gas_correlation_support import (  # noqa: E402
     plot_temperature_evolution,
     plot_velocity_evolution,
 )
-from diagnostics import CosmologicalVirialShockDiagnostics  # noqa: E402
-from example_utils import load_nested_example_config  # noqa: E402
-from physics import CosmologicalVirialShockPhysics  # noqa: E402
+from diagnostics import CosmologicalVirialShockDiagnostics
+from example_utils import load_nested_example_config
+from physics import CosmologicalVirialShockPhysics
 
-from radhydropy.constants import PROTON_MASS_CGS  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM  # noqa: E402
-from radhydropy.rsim.core import Rsim  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from radhydropy.constants import PROTON_MASS_CGS
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
+from radhydropy.rsim.core import Rsim
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_gas_correlation_z100.yaml",
@@ -172,14 +172,14 @@ def run(
             "initial gas/total mass fraction does not match baryon_fraction",
         )
     initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    temperature_proper_cgs_K = (  # noqa: N806
+    temperature_proper_cgs_K = (
         float(np.median(initial.fluid.temp_supercomoving_code))
         / float(
             cosmology.scale_factor(initial_time),
         )
         ** 2
     )
-    cmb_temperature_0_cgs_K = float(  # noqa: N806
+    cmb_temperature_0_cgs_K = float(
         initial_condition["cmb_temperature_0"].to_value(unyt.K),
     )
     expected_temperature = cmb_temperature_0_cgs_K * (

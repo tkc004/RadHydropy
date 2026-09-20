@@ -6,7 +6,7 @@ The implementation and configuration remain in the historical
 ``CosmologicalVirialShock1DLambdaCDM`` directory.  This entry point makes the
 workflow discoverable from the canonical cosmological virial-shock example
 without copying or modifying either original directory.
-"""  # noqa: CPY001
+"""
 
 import runpy
 import sys

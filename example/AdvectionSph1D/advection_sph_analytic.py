@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Analytic/reference profiles for spherical advection examples."""  # noqa: CPY001
+"""Analytic/reference profiles for spherical advection examples."""
 
 import numpy as np
 

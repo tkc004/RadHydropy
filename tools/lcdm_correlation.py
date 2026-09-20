@@ -6,7 +6,7 @@ Wavenumbers use ``h/Mpc``; radii use ``Mpc/h``; power spectra use
 ``(Mpc/h)^3``.  The Fourier-Bessel integral is exact for the supplied
 tabulated linear power spectrum.  The built-in spectrum uses the analytic
 Eisenstein--Hu no-wiggle transfer shape.
-"""  # noqa: CPY001
+"""
 
 import importlib.util
 from pathlib import Path

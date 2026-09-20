@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Gravity-free spherical radiative-shock overstability experiment."""  # noqa: CPY001
+"""Gravity-free spherical radiative-shock overstability experiment."""
 
 import argparse
 import copy
@@ -20,14 +20,14 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.solver import Solver  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits, code_unit_scales  # noqa: E402
-from tools import build_initial_condition, estimate_cooling_length, load_output_state, shock_history  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
+from radhydropy.solver import Solver
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits, code_unit_scales
+from tools import build_initial_condition, estimate_cooling_length, load_output_state, shock_history
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_spherical_radiative_shock1d.yaml"
 CASES = (
@@ -118,7 +118,7 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
     output_files = sorted(
         case_dir.glob(f"{case['output']['filename_prefix']}_*.hdf5"),
     )
-    if len(output_files) < 2:  # noqa: PLR2004
+    if len(output_files) < 2:
         raise RuntimeError(f"expected snapshots for {label}")
 
     # Output headers currently do not retain the evolving hydro time.  The
@@ -142,7 +142,7 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
     report = case_dir / "ShockHistory.txt"
     with report.open("w", encoding="utf-8") as stream:
         stream.write("time_proper_Myr shock_radius_proper_kpc\n")
-        for time_proper_Myr, radius_proper_kpc in history:  # noqa: N806
+        for time_proper_Myr, radius_proper_kpc in history:
             stream.write(f"{time_proper_Myr:.8g} {radius_proper_kpc:.8g}\n")
         stream.write("\nfinal_cooling_diagnostics\n")
         if cooling is None:
@@ -196,7 +196,7 @@ def main(config_filename=DEFAULT_CONFIG):
             ),
         )
         sample_times = result["history"][sample_indices, 0]
-        for index, _time_proper_Myr in zip(sample_indices, sample_times, strict=False):  # noqa: N806
+        for index, _time_proper_Myr in zip(sample_indices, sample_times, strict=False):
             snapshot = load_output_state(result["snapshots"][index], result["config"])
             radius_proper_cgs_cm = (
                 0.5

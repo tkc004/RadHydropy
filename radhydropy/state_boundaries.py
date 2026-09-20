@@ -7,7 +7,7 @@ unit contract that solver and source-process callers can adopt incrementally:
 Representation-specific code states contain numeric code-unit arrays, while
 ``CgsSourceState`` contains numeric cgs arrays.  Physical inputs must cross
 the boundary as real ``unyt`` quantities.
-"""  # noqa: CPY001
+"""
 
 from dataclasses import dataclass, fields
 

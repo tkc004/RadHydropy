@@ -5,7 +5,7 @@
 Run without arguments to process every ``Output_*.hdf5`` in this directory.
 CSV files are written to the ``radial_profiles`` subdirectory. Pass one
 snapshot path to write the generic ``radial_profile.csv`` file there.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import sys
@@ -22,10 +22,10 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import tools as et  # noqa: E402
-from radhydropy.units import quantity_to_value  # noqa: E402
+import tools as et
+from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = EXAMPLE_DIR / ("dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml")
 
@@ -57,7 +57,7 @@ def process_snapshots(snapshot_directory=EXAMPLE_DIR, config_filename=DEFAULT_CO
 
     csv_files = []
     for snapshot in snapshots:
-        time_proper_Myr = snapshot_time_myr(snapshot, config)  # noqa: N806
+        time_proper_Myr = snapshot_time_myr(snapshot, config)
         time_label = f"{time_proper_Myr:.6g}"
         csv_filename = csv_directory / f"radial_profile_{time_label}Myr.csv"
         csv_files.append(write_snapshot_profile(snapshot, config, csv_filename))

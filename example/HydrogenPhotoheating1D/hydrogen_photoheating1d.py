@@ -7,7 +7,7 @@ to a spatially uniform ionizing radiation field. The radiation is treated as
 optically thin, so the photon density is fixed while the source is on and set
 to zero when the source switches off. The run writes HDF5 snapshots, reloads
 them, and plots the thermal and ionization history from those outputs.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -29,10 +29,10 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
+import radhydropy.io as rio
+import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_photoheating1d.yaml")
 

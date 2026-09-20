@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial conditions and diagnostics for the cosmological virial-shock test."""  # noqa: CPY001
+"""Initial conditions and diagnostics for the cosmological virial-shock test."""
 
 from math import erf
 
@@ -49,7 +49,7 @@ def _gaussian_correlation_mean(radius_comoving_code, correlation_length):
     integral = np.sqrt(np.pi) / 4.0 * erf_x - 0.5 * x * np.exp(-(x**2))
     result = np.divide(3.0 * integral, np.maximum(x**3, 1.0e-30))
     result = np.asarray(result, dtype=float)
-    result[x < 1.0e-4] = 1.0  # noqa: PLR2004
+    result[x < 1.0e-4] = 1.0
     return result
 
 
@@ -60,7 +60,7 @@ def _correlation_profile(radius_comoving_code, table, length_unit_mpc_h):
     table_correlation = np.asarray(table["correlation"], dtype=float)
     if table_radius.ndim != 1 or table_correlation.ndim != 1:
         raise ValueError("linear correlation table arrays must be one-dimensional")
-    if table_radius.size != table_correlation.size or table_radius.size < 2:  # noqa: PLR2004
+    if table_radius.size != table_correlation.size or table_radius.size < 2:
         raise ValueError("linear correlation table arrays have incompatible sizes")
     if np.any(np.diff(table_radius) <= 0.0):
         raise ValueError("linear correlation table radii must be increasing")
@@ -176,7 +176,7 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
 def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1.0e4):
     """Return the tabulated UVB PIE temperature (heating=cooling)."""
     logt = np.linspace(table.log_temperature[0], table.log_temperature[-1], 512)
-    temperature_proper_cgs_K = 10.0**logt  # noqa: N806
+    temperature_proper_cgs_K = 10.0**logt
     heating, cooling = table.rates(
         temperature_proper_cgs_K,
         hydrogen_number_density_cgs_cm3,
@@ -345,7 +345,7 @@ def splashback_radius(
     )
     radius_proper_code = radius_proper_code[valid]
     mass_comoving_code = mass_comoving_code[valid]
-    if radius_proper_code.size < 16:  # noqa: PLR2004
+    if radius_proper_code.size < 16:
         return float("nan")
     order = np.argsort(radius_proper_code)
     radius_proper_code = radius_proper_code[order]
@@ -363,7 +363,7 @@ def splashback_radius(
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
     rho_comoving_code = shell_mass_comoving_code / np.maximum(shell_volume, 1.0e-300)
     occupied = rho_comoving_code > 0.0
-    if np.count_nonzero(occupied) < 12:  # noqa: PLR2004
+    if np.count_nonzero(occupied) < 12:
         return float("nan")
     radii = np.sqrt(edges[:-1] * edges[1:])[occupied]
     rho_comoving_code = rho_comoving_code[occupied]
@@ -372,7 +372,7 @@ def splashback_radius(
     # A short boxcar suppresses individual-shell noise while retaining the
     # broad splashback trough.
     window = min(7, log_density.size if log_density.size % 2 else log_density.size - 1)
-    if window >= 3:  # noqa: PLR2004
+    if window >= 3:
         padded = np.pad(log_density, (window // 2,), mode="edge")
         log_density = np.convolve(
             padded,
@@ -387,7 +387,7 @@ def splashback_radius(
     if upper <= lower:
         return float("nan")
     candidates = np.flatnonzero((radii >= lower) & (radii <= upper))
-    if candidates.size < 3:  # noqa: PLR2004
+    if candidates.size < 3:
         return float("nan")
     # Avoid reporting a weak numerical edge as splashback.
     local = candidates[np.argmin(slope[candidates])]
@@ -487,7 +487,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
         dtype=float,
     )
     finite_temperature = np.isfinite(temp_phys) & (temp_phys > 0.0)
-    if np.count_nonzero(finite_temperature) >= 7:  # noqa: PLR2004
+    if np.count_nonzero(finite_temperature) >= 7:
         # A raw cell-to-cell derivative is dominated by the positivity floor
         # and by individual shell-scale oscillations.  Smooth log(T) over
         # five cells, then locate a resolved logarithmic jump in the halo.
@@ -523,7 +523,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
             # Across an accretion shock temperature falls outward, so retain
             # only negative outward gradients.  Positive gradients are inner
             # cooling transitions, not the outer shock.
-            shock_candidates = candidate[gradient[candidate] < -0.05]  # noqa: PLR2004
+            shock_candidates = candidate[gradient[candidate] < -0.05]
             resolved = []
             for local in shock_candidates:
                 inner = max(0, int(local) - 2)
@@ -540,7 +540,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
                     and downstream_velocity > upstream_velocity
                     and abs(downstream_velocity) < abs(upstream_velocity)
                 )
-                if compression >= 1.2 and heating >= 1.2 and decelerated:  # noqa: PLR2004
+                if compression >= 1.2 and heating >= 1.2 and decelerated:
                     resolved.append(int(local))
             if resolved:
                 resolved = np.asarray(resolved, dtype=int)

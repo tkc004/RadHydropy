@@ -11,7 +11,7 @@ This module provides a clear separation between composition presets:
 - ``HHeMMol`` for hydrogen + helium + metals + molecules
 
 The actual species microphysics lives in :mod:`radhydropy.chemistry_species`.
-"""  # noqa: CPY001
+"""
 
 from dataclasses import dataclass
 

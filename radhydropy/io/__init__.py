@@ -7,7 +7,7 @@ module preserves the established ``radhydropy.io`` public import surface.
 The first migration keeps the existing serializer together in ``hdf5``;
 metadata, cosmology, field, and scheduling helpers can be extracted without
 changing callers in subsequent steps.
-"""  # noqa: CPY001
+"""
 
 from radhydropy.io.cosmology_state import (
     read_supercomoving_state_hdf5,

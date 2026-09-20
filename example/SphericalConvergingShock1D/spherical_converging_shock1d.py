@@ -6,7 +6,7 @@ This is a controlled, gravity-free test of the spherical Euler/Riemann path.
 Uniform gas starts with inward radial velocity and reflects at the origin and
 outer wall.  Once the inward flow reaches the origin, a converging shock must
 convert kinetic energy into thermal energy while conserving total energy.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import sys
@@ -24,13 +24,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.eos import EOS  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.eos import EOS
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_converging_shock1d.yaml")
 
@@ -126,7 +126,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     sim = Rsim(config["par"])
     sim.RunAll(outputtime=0)
     outputs = sorted(Path(output["directory"]).glob("Output_*.hdf5"))
-    if len(outputs) < 2:  # noqa: PLR2004
+    if len(outputs) < 2:
         raise RuntimeError("spherical converging benchmark produced too few outputs")
 
     profiles = [_read_profile(filename, config) for filename in outputs]

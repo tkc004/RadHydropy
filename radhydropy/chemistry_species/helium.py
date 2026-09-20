@@ -3,4 +3,4 @@
 """Helium chemistry helpers.
 
 Placeholder for future helium microphysics.
-"""  # noqa: CPY001
+"""

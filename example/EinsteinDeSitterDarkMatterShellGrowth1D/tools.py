@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helpers for the Einstein--de Sitter dark-matter shell growth test."""  # noqa: CPY001
+"""Helpers for the Einstein--de Sitter dark-matter shell growth test."""
 
 import numpy as np
 

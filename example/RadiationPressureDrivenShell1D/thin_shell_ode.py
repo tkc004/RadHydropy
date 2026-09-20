@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Run the RadHydropy fixed-mass thin-shell radiation-pressure example."""  # noqa: CPY001
+"""Run the RadHydropy fixed-mass thin-shell radiation-pressure example."""
 
 import argparse
 import os
@@ -25,11 +25,11 @@ os.environ.setdefault(
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("thin_shell_ode.yaml")
 SPEED_OF_LIGHT = unyt.c.to_value(unyt.cm / unyt.s)

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Photoheated 20 pc Stromgren sphere with a central stellar wind."""  # noqa: CPY001
+"""Photoheated 20 pc Stromgren sphere with a central stellar wind."""
 
 import argparse
 import os
@@ -22,11 +22,11 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import tools as et  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import tools as et
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
 mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
@@ -75,9 +75,9 @@ def _pressure_diagnostic(snapshot, config):
     )
     # The photoheated ambient gas lies between the wind cavity and the shell.
     # Exclude the shocked wind interior and the dense shell itself.
-    ambient_ionized = (xhi < 0.5) & (radius_proper_pc < radius_shell_proper_pc)  # noqa: PLR2004
+    ambient_ionized = (xhi < 0.5) & (radius_proper_pc < radius_shell_proper_pc)
     if not np.any(ambient_ionized):
-        ambient_ionized = xhi < 0.5  # noqa: PLR2004
+        ambient_ionized = xhi < 0.5
     weighted_volume = float(np.sum(volume_cgs_cm3[ambient_ionized]))
     pressure_gas_proper_cgs_dyn_cm2 = (
         float(
@@ -89,7 +89,7 @@ def _pressure_diagnostic(snapshot, config):
         if weighted_volume > 0.0
         else 0.0
     )
-    time_proper_Myr = float(np.asarray(et.to_myr(fluid.time_proper_code, config)))  # noqa: N806
+    time_proper_Myr = float(np.asarray(et.to_myr(fluid.time_proper_code, config)))
     return (
         time_proper_Myr,
         wind_pressure_proper_cgs_dyn_cm2,
@@ -103,7 +103,7 @@ def pressure_diagnostic_from_profile(profile, config):
     fields = np.genfromtxt(profile, delimiter=",", names=True)
     radius_proper_pc = np.asarray(fields["RADIUS_PC"], dtype=float)
     hydrogen_number_density_cgs_cm3 = np.asarray(fields["DENSITY_CM3"], dtype=float)
-    temperature_proper_cgs_K = np.asarray(fields["TEMP_cgs_K"], dtype=float)  # noqa: N806
+    temperature_proper_cgs_K = np.asarray(fields["TEMP_cgs_K"], dtype=float)
     shell_index = 2 + int(np.argmax(hydrogen_number_density_cgs_cm3[2:]))
     radius_shell_proper_pc = float(radius_proper_pc[shell_index])
     example = config["example"]
@@ -114,9 +114,9 @@ def pressure_diagnostic_from_profile(profile, config):
         mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * radius_shell_proper_cgs_cm**2)
     )
     photoheated = (
-        (np.arange(radius_proper_pc.size) >= 2)  # noqa: PLR2004
+        (np.arange(radius_proper_pc.size) >= 2)
         & (np.arange(radius_proper_pc.size) < shell_index)
-        & (temperature_proper_cgs_K > 500.0)  # noqa: PLR2004
+        & (temperature_proper_cgs_K > 500.0)
     )
     pressure_gas_proper_cgs_dyn_cm2 = (
         float(
@@ -129,7 +129,7 @@ def pressure_diagnostic_from_profile(profile, config):
         if np.any(photoheated)
         else 0.0
     )
-    time_proper_Myr = float(Path(profile).stem.rsplit("_", 1)[-1].replace("Myr", ""))  # noqa: N806
+    time_proper_Myr = float(Path(profile).stem.rsplit("_", 1)[-1].replace("Myr", ""))
     return (
         time_proper_Myr,
         wind_pressure_proper_cgs_dyn_cm2,
@@ -143,7 +143,7 @@ def save_pressure_ratio_plot(diagnostics, output_dir):
     diagnostics = np.asarray(diagnostics, dtype=float)
     diagnostics = diagnostics[np.argsort(diagnostics[:, 0])]
     (
-        time_proper_Myr,  # noqa: N806
+        time_proper_Myr,
         pressure_wind_proper_dyn_cm2,
         pressure_gas_proper_dyn_cm2,
         radius_shell_proper_pc,
@@ -238,7 +238,7 @@ def main(config_filename=None):
     )
     snapshots = [_pressure_diagnostic(filename, config) for filename in output_files]
     diagnostics = np.asarray(snapshots, dtype=float)
-    time_proper_Myr = diagnostics[:, 0]  # noqa: N806
+    time_proper_Myr = diagnostics[:, 0]
     pressure_wind_proper_dyn_cm2 = diagnostics[:, 1]
     pressure_gas_proper_dyn_cm2 = diagnostics[:, 2]
     radius_shell_proper_pc = diagnostics[:, 3]

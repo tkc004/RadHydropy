@@ -5,7 +5,7 @@
 The network evolves H I, He I, and He III; H II and He II are constrained by
 element conservation.  It uses the shared multigroup radiation field and a
 local implicit Euler/fixed-point substep with an explicit small-change path.
-"""  # noqa: CPY001
+"""
 
 import numpy as np
 
@@ -38,52 +38,52 @@ from radhydropy.units import (
 
 def _alpha_heii(T):
     """He II radiative recombination, Hummer & Storey (1998)."""
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 1.26e-14 * (570670.0 / T) ** 0.750
 
 
 def _alpha_heii_dielectronic(T):
     """He II dielectronic recombination, Aldrovandi & Pequignot (1973)."""
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 1.9e-3 * T**-1.5 * np.exp(-4.7e5 / T) * (1.0 + 0.3 * np.exp(-9.4e4 / T))
 
 
 def _alpha_heiii(T):
     """He III case-B recombination, Hui & Gnedin (1997)."""
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     lam = 1263030.0 / T
     return 5.506e-14 * lam**1.5 * (1.0 + (460960.0 / T) ** 0.407) ** -2.242
 
 
 def _beta_hei(T):
     """He I collisional ionization, Theuns et al. (1998)."""
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 4.76e-11 * np.sqrt(T) * np.exp(-285335.4 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
 def _beta_heii(T):
     """He II collisional ionization, Theuns et al. (1998)."""
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 1.14e-11 * np.sqrt(T) * np.exp(-631515.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
 def _gamma_ion_hei(T):
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 1.88e-21 * np.sqrt(T) * np.exp(-285335.4 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
 def _gamma_ion_heii(T):
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 9.90e-22 * np.sqrt(T) * np.exp(-631515.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
 def _gamma_line_hei(T):
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 9.10e-27 * T**-0.1687 * np.exp(-13179.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
 def _gamma_line_heii(T):
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 5.54e-17 * T**-0.397 * np.exp(-473638.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
@@ -97,7 +97,7 @@ def _gamma_rec_heii(T, case="B"):
 
 def _gamma_rec_heiii(T, case="B"):
     """He III recombination cooling, Hui & Gnedin (1997)."""
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     lam = 1263030.0 / T
     if case.upper() == "A":
         return 1.4224e-28 * T * lam**1.965 * (1.0 + (lam / 0.522) ** 0.470) ** -1.923
@@ -105,27 +105,27 @@ def _gamma_rec_heiii(T, case="B"):
 
 
 def _gamma_dielectronic_heii(T):
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 1.24e-13 * T**-1.5 * np.exp(-4.7e5 / T) * (1.0 + 0.3 * np.exp(-9.4e4 / T))
 
 
 def _gamma_bremsstrahlung(T):
-    T = np.maximum(np.asarray(T, float), 1.0)  # noqa: N806
+    T = np.maximum(np.asarray(T, float), 1.0)
     return 1.42e-27 * np.sqrt(T) * (1.1 + 0.34 * np.exp(-((5.5 - np.log10(T)) ** 2) / 3.0))
 
 
 def _state_density(state):
     rho = state["rho_cgs_g_cm3"]
-    nH = state["hydrogen_mass_fraction"] * rho / PROTON_MASS_CGS  # noqa: N806
-    nHe = state["helium_mass_fraction"] * rho / (4.0 * PROTON_MASS_CGS)  # noqa: N806
+    nH = state["hydrogen_mass_fraction"] * rho / PROTON_MASS_CGS
+    nHe = state["helium_mass_fraction"] * rho / (4.0 * PROTON_MASS_CGS)
     return nH, nHe
 
 
 def _closure(state):
-    nH, nHe = _state_density(state)  # noqa: N806
-    xHI, xHeI, xHeIII = state["xHI"], state["xHeI"], state["xHeIII"]  # noqa: N806
-    xHII = 1.0 - xHI  # noqa: N806
-    xHeII = np.clip(1.0 - xHeI - xHeIII, 0.0, 1.0)  # noqa: N806
+    nH, nHe = _state_density(state)
+    xHI, xHeI, xHeIII = state["xHI"], state["xHeI"], state["xHeIII"]
+    xHII = 1.0 - xHI
+    xHeII = np.clip(1.0 - xHeI - xHeIII, 0.0, 1.0)
     ne = nH * xHII + nHe * (xHeII + 2.0 * xHeIII)
     nt = nH + nHe + ne
     state["xHII"], state["xHeII"] = xHII, xHeII
@@ -135,22 +135,22 @@ def _closure(state):
 
 def _rates(state, ngamma_cgs_cm3):
     _closure(state)
-    nH, nHe = _state_density(state)  # noqa: N806
-    T = state["temperature_cgs_K"]  # noqa: N806
+    nH, nHe = _state_density(state)
+    T = state["temperature_cgs_K"]
     ne = state["ne_cgs_cm3"]
     sigma = state["sigma_gamma_cgs_cm2"]
     eps = state["epsilon_gamma_cgs_erg"]
     photo = rrt.species_photoionization_rates(ngamma_cgs_cm3, sigma)
     photo_heat = rrt.species_photoionization_heating(ngamma_cgs_cm3, sigma, eps)
-    xHI, xHII = state["xHI"], state["xHII"]  # noqa: N806
-    xHeI, xHeII, xHeIII = state["xHeI"], state["xHeII"], state["xHeIII"]  # noqa: N806
-    aH, bH = _cgs_alpha_B(T), _cgs_beta(T)  # noqa: N806
+    xHI, xHII = state["xHI"], state["xHII"]
+    xHeI, xHeII, xHeIII = state["xHeI"], state["xHeII"], state["xHeIII"]
+    aH, bH = _cgs_alpha_B(T), _cgs_beta(T)
     a2 = _alpha_heii(T) + _alpha_heii_dielectronic(T)
     a3 = _alpha_heiii(T)
     b1, b2 = _beta_hei(T), _beta_heii(T)
-    dHI = ne * aH * xHII - ne * bH * xHI - photo["HI"] * xHI  # noqa: N806
-    dHeI = ne * a2 * xHeII - ne * b1 * xHeI - photo["HeI"] * xHeI  # noqa: N806
-    dHeIII = ne * b2 * xHeII - ne * a3 * xHeIII + photo["HeII"] * xHeII  # noqa: N806
+    dHI = ne * aH * xHII - ne * bH * xHI - photo["HI"] * xHI
+    dHeI = ne * a2 * xHeII - ne * b1 * xHeI - photo["HeI"] * xHeI
+    dHeIII = ne * b2 * xHeII - ne * a3 * xHeIII + photo["HeII"] * xHeII
     heating = (
         nH * xHI * photo_heat["HI"]
         + nHe * xHeI * photo_heat["HeI"]
@@ -246,7 +246,7 @@ def source_state(mesh, fluid, par):
         density_runtime_code = runtime.rho_proper_code
     else:
         density_runtime_code = runtime.rho_comoving_code
-    xHI = np.asarray(  # noqa: N806
+    xHI = np.asarray(
         getattr(
             fluid,
             "xHI",
@@ -256,19 +256,19 @@ def source_state(mesh, fluid, par):
         )[interior],
         float,
     ).copy()
-    xHeI = np.asarray(  # noqa: N806
+    xHeI = np.asarray(
         getattr(fluid, "xHeI", np.ones_like(xHI))[interior]
         if hasattr(fluid, "xHeI")
         else np.ones_like(xHI),
         float,
     ).copy()
-    xHeII = np.asarray(  # noqa: N806
+    xHeII = np.asarray(
         getattr(fluid, "xHeII", np.zeros_like(xHI))[interior]
         if hasattr(fluid, "xHeII")
         else np.zeros_like(xHI),
         float,
     ).copy()
-    xHeIII = np.clip(1.0 - xHeI - xHeII, 0.0, 1.0)  # noqa: N806
+    xHeIII = np.clip(1.0 - xHeI - xHeII, 0.0, 1.0)
     sigma = {
         "HI": quantity_or_code_to_cgs(
             par.radiation_group_sigma_gamma,
@@ -422,7 +422,7 @@ def source_state(mesh, fluid, par):
 
 
 def ionization_fraction_rate(state, ngamma_cgs_cm3):
-    dHI, dHeI, dHeIII, _ = _rates(state, ngamma_cgs_cm3)  # noqa: N806
+    dHI, dHeI, dHeIII, _ = _rates(state, ngamma_cgs_cm3)
     return np.maximum(np.abs(dHI), np.maximum(np.abs(dHeI), np.abs(dHeIII)))
 
 
@@ -562,7 +562,7 @@ def apply_state(state, fluid, par):
     fluid.mu[i] = state["mu"]
     if hasattr(fluid, "ngamma_code") and state.get("ngamma_cgs_cm3") is not None:
         target = from_unit_value(state["ngamma_cgs_cm3"], code.number_density_unit)
-        if np.ndim(target) == 2:  # noqa: PLR2004
+        if np.ndim(target) == 2:
             fluid.ngamma_code[:, i] = target
         else:
             fluid.ngamma_code[i] = target

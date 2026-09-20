@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Run RadHydropy and compare it with the standalone Bertschinger solution."""  # noqa: CPY001
+"""Run RadHydropy and compare it with the standalone Bertschinger solution."""
 
 import argparse
 import os
@@ -17,26 +17,26 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import unyt  # noqa: E402
-from bertschinger_gas import solve_bertschinger_gas  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import unyt
+from bertschinger_gas import solve_bertschinger_gas
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.dark_matter import DarkMatterShells  # noqa: E402
-from radhydropy.gravity import Gravity  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.runtime_fields import (  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.gravity import Gravity
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import (
     SUPERCOMOVING_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
 )
-from radhydropy.solver import Solver  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_gas_radhydropy.yaml")
 

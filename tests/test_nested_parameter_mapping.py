@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Regression tests for nested YAML settings reaching the runtime parameter object."""  # noqa: CPY001
+"""Regression tests for nested YAML settings reaching the runtime parameter object."""
 
 from types import SimpleNamespace
 
@@ -70,15 +70,15 @@ def test_nested_runtime_settings_are_copied_to_par():
     assert par.radiation_pressure is True
     assert par.radiation_pressure_efficiency == pytest.approx(0.8)
     assert par.radiation_pressure_source_luminosity == pytest.approx(9.0)
-    assert par.radiative_transfer_c2ray_ode_max_iterations == 19  # noqa: PLR2004
+    assert par.radiative_transfer_c2ray_ode_max_iterations == 19
     assert par.radiative_transfer_c2ray_ode_tolerance == pytest.approx(2.0e-7)
     assert par.absolute_tolerance == pytest.approx(2.0e-11)
     assert par.relative_tolerance == pytest.approx(2.0e-4)
     assert par.explicit_tolerance == pytest.approx(0.2)
     assert par.hydrogen_initial_collisional_equilibrium is True
     assert par.hydrogen_photon_energy == pytest.approx(21.0)
-    assert par.pie_uvbg_implicit_max_iterations == 17  # noqa: PLR2004
-    assert par.pie_uvbg_implicit_max_retries == 3  # noqa: PLR2004
+    assert par.pie_uvbg_implicit_max_iterations == 17
+    assert par.pie_uvbg_implicit_max_retries == 3
     assert par.pie_uvbg_implicit_step_doubling is False
     assert par.pie_uvbg_implicit_tolerance == pytest.approx(4.0e-4)
 

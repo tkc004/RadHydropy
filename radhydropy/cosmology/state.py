@@ -5,7 +5,7 @@
 The solver-side state is expressed in comoving/supercomoving code variables.
 Physics source terms cross this module once and receive proper CGS values.
 Representation and unit names are deliberately part of every public field.
-"""  # noqa: CPY001
+"""
 
 from dataclasses import dataclass
 

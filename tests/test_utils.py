@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import unittest  # noqa: CPY001
+import unittest
 
 import numpy as np
 import unyt
@@ -118,7 +118,7 @@ class Testing(unittest.TestCase):
 
     def test_hydrogen_radiation_attenuation_matches_analytic_solution(self):
         rho = np.ones(1) * unyt.mp / unyt.cm**3
-        xHI = np.array([0.25])  # noqa: N806
+        xHI = np.array([0.25])
         ngamma_cgs_cm3 = np.ones(1) * 12.0 / unyt.cm**3
         sigma_gamma = 3.0e-18 * unyt.cm**2
         dt = 2.0e6 * unyt.s

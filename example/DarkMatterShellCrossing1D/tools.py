@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helpers for the pure dark-matter shell-crossing example."""  # noqa: CPY001
+"""Helpers for the pure dark-matter shell-crossing example."""
 
 import numpy as np
 

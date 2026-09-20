@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""HM12 PIE diagnostics for an NFW hydrostatic atmosphere."""  # noqa: CPY001
+"""HM12 PIE diagnostics for an NFW hydrostatic atmosphere."""
 
 import matplotlib as mpl
 
@@ -87,7 +87,7 @@ def load_output_state(filename, config):
         boundary_proper_code * code_units.length_unit,
     ).to_value(unyt.kpc)
     rho_proper_cgs_g_cm3 = snapshot.fluid.rho_radarray.to(unyt.g / unyt.cm**3).value[physical]
-    temperature_proper_cgs_K = snapshot.fluid.temp_radarray.to(unyt.K).value[physical]  # noqa: N806
+    temperature_proper_cgs_K = snapshot.fluid.temp_radarray.to(unyt.K).value[physical]
     vel_peculiar_proper_km_s = snapshot.fluid.vel_radarray.to(unyt.km / unyt.s).value[physical]
     time_proper_code = float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
     return {
@@ -104,7 +104,7 @@ def analyze_snapshot(filename, config, halo, temperature_virial_unyt):
     time_proper_code = snapshot["time_proper_code"]
     radius_proper_kpc = snapshot["radius_proper_kpc"]
     rho_proper_cgs_g_cm3 = snapshot["rho_proper_cgs_g_cm3"]
-    temperature_proper_cgs_K = snapshot["temperature_proper_cgs_K"]  # noqa: N806
+    temperature_proper_cgs_K = snapshot["temperature_proper_cgs_K"]
     vel_peculiar_proper_km_s = snapshot["vel_peculiar_proper_km_s"]
     radius_proper_cgs_cm = radius_proper_kpc * (1.0 * unyt.kpc).to_value(unyt.cm)
     mu = float(config["initial_condition"]["mu"])

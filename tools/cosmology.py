@@ -5,7 +5,7 @@
 Times are in Gyr, Hubble parameters in km/s/Mpc, and densities in
 ``Msun/Mpc**3``.  The default factory returns an Einstein--de Sitter model;
 select ``cosmology_type='lambda_cdm'`` for a flat matter--Lambda model.
-"""  # noqa: CPY001
+"""
 
 from dataclasses import dataclass
 

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Numerical solver subsystem helpers."""  # noqa: CPY001
+"""Numerical solver subsystem helpers."""
 
 import numpy as np
 import unyt
@@ -28,7 +28,7 @@ def _boundary_field_names(solver, fluid):
 def _copy_boundary_state(solver, fluid, target_slice, values):
     for attr, value in values.items():
         target = getattr(fluid, attr)
-        if attr == "ngamma_code" and np.ndim(target) == 2:  # noqa: PLR2004
+        if attr == "ngamma_code" and np.ndim(target) == 2:
             value_array = np.asarray(value)
             if value_array.ndim == 1:
                 value_array = value_array[:, None]
@@ -60,7 +60,7 @@ def _boundary_state(
     if hasattr(fluid, "xHI"):
         state["xHI"] = fluid.xHI[source]
     if hasattr(fluid, "ngamma_code"):
-        if np.ndim(fluid.ngamma_code) == 2:  # noqa: PLR2004
+        if np.ndim(fluid.ngamma_code) == 2:
             state["ngamma_code"] = fluid.ngamma_code[:, source]
         else:
             state["ngamma_code"] = fluid.ngamma_code[source]
@@ -81,7 +81,7 @@ def _apply_periodic_boundary(solver, fluid, interior, left_ghost, right_ghost, n
     fields = solver.boundary_field_names(fluid)
     for attr in fields:
         quan = getattr(fluid, attr)
-        if attr == "ngamma_code" and np.ndim(quan) == 2:  # noqa: PLR2004
+        if attr == "ngamma_code" and np.ndim(quan) == 2:
             quan[:, left_ghost] = quan[:, interior][:, -noghost:]
             quan[:, right_ghost] = quan[:, interior][:, :noghost]
         else:
@@ -93,7 +93,7 @@ def _apply_open_boundary(solver, fluid, first, nolast, left_ghost, right_ghost):
     fields = solver.boundary_field_names(fluid)
     for attr in fields:
         quan = getattr(fluid, attr)
-        if attr == "ngamma_code" and np.ndim(quan) == 2:  # noqa: PLR2004
+        if attr == "ngamma_code" and np.ndim(quan) == 2:
             quan[:, left_ghost] = quan[:, first]
             quan[:, right_ghost] = quan[:, nolast]
         else:

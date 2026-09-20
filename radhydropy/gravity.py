@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Gravity helpers for optional self-gravity and external potentials."""  # noqa: CPY001
+"""Gravity helpers for optional self-gravity and external potentials."""
 
 import numpy as np
 import unyt
@@ -231,7 +231,7 @@ class Gravity:
 
         coord = quantity_to_value(coordinate, code_units.length_unit)
         potential = self.potential_on(coord)
-        if potential.size < 2:  # noqa: PLR2004
+        if potential.size < 2:
             raise ValueError(
                 "At least two coordinate points are required to differentiate the potential",
             )

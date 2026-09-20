@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Plotting helpers for RadHydropy outputs."""  # noqa: CPY001
+"""Plotting helpers for RadHydropy outputs."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -67,7 +67,7 @@ def rplot1d(rsim, yquan=None, showfig=1, showhalf=0, **kwargs):
     plt.ylabel(ylabel, fontsize=24)
     if showhalf == 1:
         plt.xlim(xmax=0.5 * np.amax(xq))
-    if showhalf == 2:  # noqa: PLR2004
+    if showhalf == 2:
         plt.xlim(xmin=0.5 * np.amax(xq))
     if showfig == 1:
         plt.show()

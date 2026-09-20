@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helper utilities for the optically thin photoheating example."""  # noqa: CPY001
+"""Helper utilities for the optically thin photoheating example."""
 
 import glob
 
@@ -61,10 +61,10 @@ def reference_values(
     photon_number_density_cgs_cm3_unyt = hpr.photon_number_density_from_flux(
         photon_flux_cgs_cm2_s,
     )
-    temperature_photoionization_cgs_K_unyt = hpr.photoionization_equilibrium_temperature(  # noqa: N806
+    temperature_photoionization_cgs_K_unyt = hpr.photoionization_equilibrium_temperature(
         excess_photoionization_energy_cgs_erg,
     )
-    temperature_thermal_equilibrium_cgs_K_unyt = hpr.thermal_equilibrium_temperature(  # noqa: N806
+    temperature_thermal_equilibrium_cgs_K_unyt = hpr.thermal_equilibrium_temperature(
         temperature_photoionization_cgs_K_unyt,
     )
     time_ionization_proper_unyt = hpr.photoionization_timescale(
@@ -245,18 +245,18 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
 
 def save_history_plot(history, filename, reference):
     time_proper_yr = np.asarray(history["time_proper_yr"])
-    temperature_proper_cgs_K = np.asarray(history["temperature_proper_cgs_K"])  # noqa: N806
-    xHI = np.maximum(np.asarray(history["xHI"]), 1.0e-12)  # noqa: N806
+    temperature_proper_cgs_K = np.asarray(history["temperature_proper_cgs_K"])
+    xHI = np.maximum(np.asarray(history["xHI"]), 1.0e-12)
     plot_time_yr = np.maximum(time_proper_yr, 1.0e-6)
-    xHI_reference = hpr.neutral_fraction_reference(  # noqa: N806
+    xHI_reference = hpr.neutral_fraction_reference(
         reference["hydrogen_number_density_cgs_cm3_unyt"],
         reference["sigma_gamma_cgs_cm2"],
         reference["photon_number_density_cgs_cm3_unyt"],
         reference["temperature_photoionization_cgs_K_unyt"],
     )
-    xHI_reference_log = np.log10(xHI_reference["xHI"])  # noqa: N806
+    xHI_reference_log = np.log10(xHI_reference["xHI"])
 
-    fig, (ax_temp, ax_xHI) = plt.subplots(  # noqa: N806
+    fig, (ax_temp, ax_xHI) = plt.subplots(
         2,
         1,
         figsize=(8.0, 6.4),

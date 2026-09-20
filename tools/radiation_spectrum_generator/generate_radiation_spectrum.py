@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Generate a blackbody radiation-spectrum HDF5 file independently."""  # noqa: CPY001
+"""Generate a blackbody radiation-spectrum HDF5 file independently."""
 
 from __future__ import annotations
 
@@ -17,9 +17,9 @@ package_root = Path(__file__).resolve().parents[2]
 if str(package_root) not in sys.path:
     sys.path.insert(0, str(package_root))
 
-import itertools  # noqa: E402
+import itertools
 
-from radhydropy.radiation_spectrum import (  # noqa: E402
+from radhydropy.radiation_spectrum import (
     SPECTRUM_DATASET_EPSILON,
     SPECTRUM_DATASET_GROUP_EDGES,
     SPECTRUM_DATASET_IONIZING_ENERGY,
@@ -61,9 +61,9 @@ def verner96_sigma(energy_ev: np.ndarray, parameters: np.ndarray) -> np.ndarray:
 
 
 def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
-    if len(edges_ev) < 2 or np.any(np.diff(edges_ev) <= 0.0):  # noqa: PLR2004
+    if len(edges_ev) < 2 or np.any(np.diff(edges_ev) <= 0.0):
         raise ValueError("group edges must be strictly increasing")
-    if temperature_k <= 0.0 or samples_per_group < 2:  # noqa: PLR2004
+    if temperature_k <= 0.0 or samples_per_group < 2:
         raise ValueError("temperature must be positive and samples_per_group >= 2")
 
     blackbody = BlackBody(temperature=temperature_k * units.K)

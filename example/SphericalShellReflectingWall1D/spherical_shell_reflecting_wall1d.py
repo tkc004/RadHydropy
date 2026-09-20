@@ -5,7 +5,7 @@
 This is deliberately a short, order-zero HLLC validation problem.  Unlike a
 spherical mesh that touches ``r=0``, the inner face has finite area, so the
 reflected Riemann problem is retained and can be diagnosed directly.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import sys
@@ -23,13 +23,13 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.solver import Solver  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.rsim import Rsim
+from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_shell_reflecting_wall1d.yaml")
 

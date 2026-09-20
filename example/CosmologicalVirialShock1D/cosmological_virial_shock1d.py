@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Cosmological spherical-collapse comparison: adiabatic versus PIE cooling."""  # noqa: CPY001
+"""Cosmological spherical-collapse comparison: adiabatic versus PIE cooling."""
 
 import argparse
 import copy
@@ -18,12 +18,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et  # noqa: E402
-from example_utils import load_nested_example_config  # noqa: E402
+import virial_shock_tools as et
+from example_utils import load_nested_example_config
 
-from radhydropy.gravity import Gravity  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from radhydropy.gravity import Gravity
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_virial_shock1d_smoke.yaml",

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Source-level contracts for production runtime representation boundaries."""  # noqa: CPY001
+"""Source-level contracts for production runtime representation boundaries."""
 
 import re
 from pathlib import Path

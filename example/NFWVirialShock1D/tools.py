@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial conditions and plotting for the NFW virial-shock example."""  # noqa: CPY001
+"""Initial conditions and plotting for the NFW virial-shock example."""
 
 import matplotlib as mpl
 
@@ -54,7 +54,7 @@ def build_initial_condition(config):
         "cmb_temperature_0",
         initial_condition["temperature_proper"],
     )
-    temperature_proper_cgs_K = cmb_temperature * (  # noqa: N806
+    temperature_proper_cgs_K = cmb_temperature * (
         1.0 + float(initial_condition["initial_redshift"])
     )
     writer = InitialConditionWriter(
@@ -79,10 +79,10 @@ def _snapshot_profiles(filename, config):
     active_slice = slice(nghost, -nghost if nghost else None)
     radius_proper_cgs_cm = radius_proper_cgs_cm[active_slice]
     density_proper_cgs_g_cm3 = rout.fluid.rho_radarray.to(unyt.g / unyt.cm**3).value[active_slice]
-    temperature_proper_cgs_K = rout.fluid.temp_radarray.to(unyt.K).value[active_slice]  # noqa: N806
+    temperature_proper_cgs_K = rout.fluid.temp_radarray.to(unyt.K).value[active_slice]
     vel_peculiar_proper_km_s = rout.fluid.vel_radarray.to(unyt.km / unyt.s).value[active_slice]
     code_units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    time_proper_Myr = time_seconds(rout.fluid.time_proper_code, code_units) / float(  # noqa: N806
+    time_proper_Myr = time_seconds(rout.fluid.time_proper_code, code_units) / float(
         (1.0 * unyt.Myr).to_value(unyt.s),
     )
     radius_proper_kpc = radius_proper_cgs_cm.to_value(unyt.kpc)
@@ -106,13 +106,13 @@ def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
 def rankine_hugoniot_diagnostics(filenames, config):
     """Compare detected shock jumps with Rankine--Hugoniot predictions."""
     profiles = [_snapshot_profiles(filename, config) for filename in filenames]
-    if len(profiles) < 3:  # noqa: PLR2004
+    if len(profiles) < 3:
         return []
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     mu = float(config["initial_condition"]["mu"])
     shock_positions = []
     shock_indices = []
-    for _, radius_proper_cgs_cm, _, temperature_proper_cgs_K, _ in profiles:  # noqa: N806
+    for _, radius_proper_cgs_cm, _, temperature_proper_cgs_K, _ in profiles:
         gradient = np.abs(
             np.diff(np.log(np.maximum(temperature_proper_cgs_K, 1.0)))
             / np.diff(radius_proper_cgs_cm),
@@ -130,10 +130,10 @@ def rankine_hugoniot_diagnostics(filenames, config):
     kpc_per_myr_to_km_s = 977.792221
     for snapshot_index in range(1, len(profiles) - 1):
         (
-            time_proper_Myr,  # noqa: N806
+            time_proper_Myr,
             radius_proper_cgs_cm,
             density_proper_cgs_g_cm3,
-            temperature_proper_cgs_K,  # noqa: N806
+            temperature_proper_cgs_K,
             vel_peculiar_proper_cgs_cm_s,
         ) = profiles[snapshot_index]
         previous_time = profiles[snapshot_index - 1][0]
@@ -147,14 +147,14 @@ def rankine_hugoniot_diagnostics(filenames, config):
             * kpc_per_myr_to_km_s
         )
         index = shock_indices[snapshot_index]
-        if index < 5 or index + 5 > len(radius_proper_cgs_cm):  # noqa: PLR2004
+        if index < 5 or index + 5 > len(radius_proper_cgs_cm):
             continue
         upstream = slice(index + 2, index + 5)
         downstream = slice(index - 4, index - 1)
         density_upstream_proper_cgs_g_cm3 = float(np.median(density_proper_cgs_g_cm3[upstream]))
         density_downstream_proper_cgs_g_cm3 = float(np.median(density_proper_cgs_g_cm3[downstream]))
-        temperature_upstream_proper_cgs_K = float(np.median(temperature_proper_cgs_K[upstream]))  # noqa: N806
-        temperature_downstream_proper_cgs_K = float(np.median(temperature_proper_cgs_K[downstream]))  # noqa: N806
+        temperature_upstream_proper_cgs_K = float(np.median(temperature_proper_cgs_K[upstream]))
+        temperature_downstream_proper_cgs_K = float(np.median(temperature_proper_cgs_K[downstream]))
         vel_upstream_peculiar_proper_cgs_cm_s = float(
             np.median(vel_peculiar_proper_cgs_cm_s[upstream]),
         )
@@ -229,10 +229,10 @@ def plot_snapshots(filenames, config, figure_filename):
     virial_radius_proper_kpc = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
     for color, filename in zip(colors, filenames, strict=False):
         (
-            time_proper_Myr,  # noqa: N806
+            time_proper_Myr,
             radius_proper_kpc,
             density_proper_cgs_g_cm3,
-            temperature_proper_cgs_K,  # noqa: N806
+            temperature_proper_cgs_K,
             _,
         ) = _snapshot_profiles(
             filename,

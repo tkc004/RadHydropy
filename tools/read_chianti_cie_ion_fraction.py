@@ -9,7 +9,7 @@ For a hydrogen-nuclei density nH, the calculation is
 
 The ion fractions are in collisional ionization equilibrium, so they do not
 explicitly depend on density. Metallicity scales elements heavier than He.
-"""  # noqa: CPY001
+"""
 
 import argparse
 from pathlib import Path
@@ -63,7 +63,7 @@ def read_abundances(filename):
 
     for line in filename.read_text().splitlines():
         fields = line.split()
-        if len(fields) < 3 or not fields[0].isdigit():  # noqa: PLR2004
+        if len(fields) < 3 or not fields[0].isdigit():
             continue
         atomic_number.append(int(fields[0]))
         log_abundance.append(float(fields[1]))
@@ -117,7 +117,7 @@ def calculate_electron_density(table_file, abundance_file, metallicity, nH, temp
         element_fractions /= element_fractions.sum(axis=1, keepdims=True)
         mean_charge = element_fractions @ ion_stage
 
-        scale = 1.0 if element_index < 2 else metallicity  # noqa: PLR2004
+        scale = 1.0 if element_index < 2 else metallicity
         contributions[:, element_index] = scale * solar_ratio * mean_charge
 
     electron_fraction = contributions.sum(axis=1)

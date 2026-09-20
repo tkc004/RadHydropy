@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Run a spherical gas simulation coupled to live dark-matter shells."""  # noqa: CPY001
+"""Run a spherical gas simulation coupled to live dark-matter shells."""
 
 import argparse
 import os
@@ -16,17 +16,17 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.gravity import Gravity  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.gravity import Gravity
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -117,7 +117,7 @@ def main(config_filename=DEFAULT_CONFIG):
     dm_mass_error_dimensionless = (
         abs(final_dm_mass_cgs_g - initial_dm_mass_cgs_g) / initial_dm_mass_cgs_g
     )
-    if gas_mass_error_dimensionless > 1.0e-12 or dm_mass_error_dimensionless > 1.0e-12:  # noqa: PLR2004
+    if gas_mass_error_dimensionless > 1.0e-12 or dm_mass_error_dimensionless > 1.0e-12:
         raise RuntimeError(
             f"mass conservation failed: gas {gas_mass_error_dimensionless:.6g}, dark matter {dm_mass_error_dimensionless:.6g}",
         )

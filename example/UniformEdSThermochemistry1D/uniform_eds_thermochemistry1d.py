@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Few-cell uniform EdS Compton/atomic thermo-chemistry comparison."""  # noqa: CPY001
+"""Few-cell uniform EdS Compton/atomic thermo-chemistry comparison."""
 
 import sys
 from pathlib import Path
@@ -17,14 +17,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT.parent))
 
-import copy  # noqa: E402
+import copy
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
-from tools import analytic_compton_temperature, build_initial_condition  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
+from tools import analytic_compton_temperature, build_initial_condition
 
 CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 
@@ -224,7 +224,7 @@ def main():
     for _label, history in (("Compton-only", compton), ("atomic+Compton", atomic)):
         choices, counts = np.unique(history["source_solver"], return_counts=True)
         ", ".join(f"{choice}={count}" for choice, count in zip(choices, counts, strict=False))
-    if temperature_relative_error_dimensionless > 2.0e-3:  # noqa: PLR2004
+    if temperature_relative_error_dimensionless > 2.0e-3:
         raise RuntimeError("Compton-only EdS comparison failed")
     if not np.all(np.isfinite(atomic["temperature_proper_cgs_K"])):
         raise RuntimeError("atomic+Compton run produced non-finite temperature")

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Uniform spherical HM12 PIE cooling/heating hydro test."""  # noqa: CPY001
+"""Uniform spherical HM12 PIE cooling/heating hydro test."""
 
 import argparse
 import copy
@@ -21,14 +21,14 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path("/tmp/radhydropy-matplotlib")))
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
-from tools import build_initial_condition  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits
+from tools import build_initial_condition
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_cooling_uniform_sph1d.yaml"
 CASES = {"diffuse": 1.0, "self_shielded": 100.0}
@@ -86,10 +86,10 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
     sim.SetInitFluid()
     sim.Run(outputtime=0, mode="hydro")
     snapshots = sorted(output_dir.glob(f"{case_config['par']['output']['filename_prefix']}_*.hdf5"))
-    if len(snapshots) < 2:  # noqa: PLR2004
+    if len(snapshots) < 2:
         raise RuntimeError(f"expected initial and final snapshots in {output_dir}")
 
-    temperature_proper_cgs_K = float(  # noqa: N806
+    temperature_proper_cgs_K = float(
         case_config["initial_condition"]["temperature_proper"].to_value(unyt.K),
     )
     _heating, _cooling = table.rates(

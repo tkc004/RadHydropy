@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Convergence study for the Bertschinger shell-ensemble caustic estimate."""  # noqa: CPY001
+"""Convergence study for the Bertschinger shell-ensemble caustic estimate."""
 
 import tempfile
 from copy import deepcopy
@@ -59,7 +59,7 @@ def main():
                     Path(config["par"]["output"]["directory"])
                     / "BertschingerDarkMatterCaustic.npz",
                 )
-                selected = data["lambda_caustic"][data["xi"] >= 3.0]  # noqa: PLR2004
+                selected = data["lambda_caustic"][data["xi"] >= 3.0]
                 rows.append(
                     (
                         parameter,

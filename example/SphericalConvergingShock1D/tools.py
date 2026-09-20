@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial-condition and output helpers for the spherical shock example."""  # noqa: CPY001
+"""Initial-condition and output helpers for the spherical shock example."""
 
 import numpy as np
 

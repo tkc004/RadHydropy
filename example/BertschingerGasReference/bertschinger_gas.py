@@ -6,7 +6,7 @@ This module deliberately has no dependency on :mod:`radhydropy`.  It solves
 the pressureless exterior from the spherical-collapse parametric solution,
 applies the strong accretion-shock jump, and integrates the gas solution
 inwards until the regular central boundary condition is met.
-"""  # noqa: CPY001
+"""
 
 from dataclasses import dataclass
 from pathlib import Path

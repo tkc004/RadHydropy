@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Base interface for thermo-chemistry networks."""  # noqa: CPY001
+"""Base interface for thermo-chemistry networks."""
 
 
 class ThermochemistryNetwork:

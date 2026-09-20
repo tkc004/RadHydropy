@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Einstein--de Sitter linear growth of collisionless dark-matter shells."""  # noqa: CPY001
+"""Einstein--de Sitter linear growth of collisionless dark-matter shells."""
 
 import argparse
 import os
@@ -14,16 +14,16 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
 
-import tools as et  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.units import quantity_to_value  # noqa: E402
+import tools as et
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("einstein_de_sitter_dark_matter_shell_growth1d.yaml")
 

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial-condition helper for the isochoric PIE parcel benchmark."""  # noqa: CPY001
+"""Initial-condition helper for the isochoric PIE parcel benchmark."""
 
 import numpy as np
 import unyt

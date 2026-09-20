@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""HDF5 metadata, provenance, and configuration serialization helpers."""  # noqa: CPY001
+"""HDF5 metadata, provenance, and configuration serialization helpers."""
 
 import hashlib
 from pathlib import Path

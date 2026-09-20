@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Plot and verify a generated z=100 correlation-function IC file."""  # noqa: CPY001
+"""Plot and verify a generated z=100 correlation-function IC file."""
 
 import argparse
 import sys
@@ -18,12 +18,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et  # noqa: E402
-from example_utils import load_nested_example_config  # noqa: E402
+import virial_shock_tools as et
+from example_utils import load_nested_example_config
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_dark_matter_correlation_z100.yaml",
@@ -119,7 +119,7 @@ def main(config_filename=DEFAULT_CONFIG):
     ) / (rho_background * scale_factor**3 * fb * target_volume)
 
     rho_proper_cgs_g_cm3 = rho_comoving_code * float(units.density_unit) / scale_factor**3
-    temperature_proper_cgs_K = (  # noqa: N806
+    temperature_proper_cgs_K = (
         temp_supercomoving_code * float(units.temperature_unit) / scale_factor**2
     )
     hubble_vel_proper_cgs_cm_s = (
@@ -138,11 +138,11 @@ def main(config_filename=DEFAULT_CONFIG):
     density_error = np.max(np.abs(actual_delta - expected_delta))
     velocity_error = np.max(np.abs(vel_supercomoving_code - expected_velocity))
     temperature_error = np.max(np.abs(temperature_proper_cgs_K - expected_temperature))
-    if density_error > 1.0e-10 or velocity_error > 1.0e-10:  # noqa: PLR2004
+    if density_error > 1.0e-10 or velocity_error > 1.0e-10:
         raise RuntimeError("stored density or velocity does not match the IC construction")
-    if temperature_error > 1.0e-10:  # noqa: PLR2004
+    if temperature_error > 1.0e-10:
         raise RuntimeError("stored temperature does not match the requested cold IC")
-    if abs(target_mean_delta - float(initial_condition["initial_overdensity"])) > 2.0e-4:  # noqa: PLR2004
+    if abs(target_mean_delta - float(initial_condition["initial_overdensity"])) > 2.0e-4:
         raise RuntimeError(
             "stored target overdensity is inconsistent with the requested normalization",
         )

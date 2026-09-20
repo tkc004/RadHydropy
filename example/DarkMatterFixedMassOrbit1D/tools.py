@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helpers for the fixed-enclosed-mass dark-matter orbit benchmark."""  # noqa: CPY001
+"""Helpers for the fixed-enclosed-mass dark-matter orbit benchmark."""
 
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.initial_condition_writer import InitialConditionWriter

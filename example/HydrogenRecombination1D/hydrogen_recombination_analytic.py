@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Analytic fixed-temperature hydrogen recombination solution."""  # noqa: CPY001
+"""Analytic fixed-temperature hydrogen recombination solution."""
 
 import numpy as np
 import unyt
@@ -10,8 +10,8 @@ import radhydropy.thermo_networks.hydrogen as rth
 
 def recombination_rate_cgs_s(temperature_proper_cgs_K_unyt, hydrogen_number_density_cgs_cm3_unyt):
     """Return ``nH alpha_B`` for case-B recombination."""
-    alpha_B = rth.cgs_alpha_B(temperature_proper_cgs_K_unyt.to_value(unyt.K))  # noqa: N806
-    nH = hydrogen_number_density_cgs_cm3_unyt.to_value(1.0 / unyt.cm**3)  # noqa: N806
+    alpha_B = rth.cgs_alpha_B(temperature_proper_cgs_K_unyt.to_value(unyt.K))
+    nH = hydrogen_number_density_cgs_cm3_unyt.to_value(1.0 / unyt.cm**3)
     return alpha_B * nH / unyt.s
 
 

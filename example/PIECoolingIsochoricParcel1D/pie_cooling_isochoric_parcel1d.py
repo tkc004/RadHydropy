@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Isochoric HM12 PIE heating/cooling parcel benchmark."""  # noqa: CPY001
+"""Isochoric HM12 PIE heating/cooling parcel benchmark."""
 
 import argparse
 import copy
@@ -21,13 +21,13 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
-from tools import build_initial_condition  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits
+from tools import build_initial_condition
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_isochoric_parcel1d.yaml"
 CASES = (
@@ -81,7 +81,7 @@ def _snapshot(filename, config, time_proper_Myr=None):
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
     code_units = snapshot.par.units.CodeUnits
-    snapshot_time_proper_Myr = float(  # noqa: N806
+    snapshot_time_proper_Myr = float(
         snapshot.fluid.time_proper_code,
     ) * code_units.time_unit.to_value(unyt.Myr)
     return {
@@ -147,7 +147,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
     # mode so no hydro flux gradient is evaluated on the single active cell.
     sim.Run(outputtime=0, mode="sources")
     snapshots = sorted(output_dir.glob(f"{output_prefix}_*.hdf5"))
-    if len(snapshots) < 2:  # noqa: PLR2004
+    if len(snapshots) < 2:
         raise RuntimeError(f"expected snapshots in {output_dir}")
     initial_net_rate_cgs_erg_cm3_s = float(
         _net_rate(
@@ -167,7 +167,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
         * temperature_proper_cgs_K
         / ((hydro["gamma"] - 1.0) * initial_condition["mean_molecular_weight"] * PROTON_MASS_G)
     )
-    thermal_time_proper_Myr = (  # noqa: N806
+    thermal_time_proper_Myr = (
         thermal_energy / max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99) / SECONDS_PER_MYR
     )
     equilibrium = _equilibrium_temperature(
@@ -280,7 +280,7 @@ def _plot(results, config, filename):
                 line.get_color(),
             ),
         )
-    for temperature_proper_cgs_K, rate, color in right_markers:  # noqa: N806
+    for temperature_proper_cgs_K, rate, color in right_markers:
         axes[1].plot(
             temperature_proper_cgs_K,
             rate,
@@ -329,7 +329,7 @@ def main(config_filename=DEFAULT_CONFIG):
     METALLICITY = float(thermo["metallicity"])
     REDSHIFT = float(thermo["metal_pie_redshift"])
     results = []
-    for label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K in CASES:  # noqa: N806
+    for label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K in CASES:
         results.append(
             _run_case(
                 config,

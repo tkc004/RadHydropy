@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Small IC helper for the fixed-density CMB Compton example."""  # noqa: CPY001
+"""Small IC helper for the fixed-density CMB Compton example."""
 
 import numpy as np
 import unyt

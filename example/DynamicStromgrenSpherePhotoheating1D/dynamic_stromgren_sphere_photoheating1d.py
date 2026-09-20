@@ -5,7 +5,7 @@
 The example is configured from YAML, writes HDF5 snapshots during the run,
 reloads those saved outputs, and plots the final profiles and ionization-front
 history from the on-disk snapshots rather than from live simulation state.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -27,11 +27,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import tools as et  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import tools as et
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = (
     Path(__file__)

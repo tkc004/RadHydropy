@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial-condition and snapshot helpers for multifrequency examples."""  # noqa: CPY001
+"""Initial-condition and snapshot helpers for multifrequency examples."""
 
 from pathlib import Path
 
@@ -46,9 +46,9 @@ def build_initial_condition(config):
     )
     writer.fluid.temp_radarray = writer.radarray(temperature_proper_unyt)
 
-    hydrogen_xHI_initial = float(chemistry.get("hydrogen_xHI_initial", 1.0))  # noqa: N806
+    hydrogen_xHI_initial = float(chemistry.get("hydrogen_xHI_initial", 1.0))
     if thermochemistry.get("hydrogen_initial_collisional_equilibrium", False):
-        hydrogen_xHI_initial = collisional_equilibrium_neutral_fraction(  # noqa: N806
+        hydrogen_xHI_initial = collisional_equilibrium_neutral_fraction(
             temperature_proper_unyt.to_value(unyt.K),
         )
     writer.simulation.fluid.xHI = as_named_array(

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import argparse  # noqa: CPY001
+import argparse
 import os
 import sys
 import tempfile
@@ -14,20 +14,20 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
 
-import tools as et  # noqa: E402
+import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("InflowSph1d.yaml")
 

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Utilities for the dynamic photoheated Stromgren sphere example."""  # noqa: CPY001
+"""Utilities for the dynamic photoheated Stromgren sphere example."""
 
 import glob
 import os
@@ -241,7 +241,7 @@ def ionization_front_position(
         0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
         config,
     )
-    xHI = np.asarray(fluid.xHI[interior], dtype=float)  # noqa: N806
+    xHI = np.asarray(fluid.xHI[interior], dtype=float)
 
     if np.all(xHI > neutral_fraction):
         return 0.0
@@ -265,8 +265,8 @@ def ionization_front_position(
 
 def mean_ionized_temperature(fluid, config):
     interior = interior_slice(config)
-    xHI = np.asarray(fluid.xHI[interior], dtype=float)  # noqa: N806
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)  # noqa: N806
+    xHI = np.asarray(fluid.xHI[interior], dtype=float)
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)
     ionized_weight = 1.0 - xHI
     if np.sum(ionized_weight) <= 0.0:
         return 0.0
@@ -313,13 +313,13 @@ def stromgren_radius(config):
 
 def recombination_time(config):
     initial = config["initial_condition"]
-    alpha_B = config["par"]["chemistry"]["hydrogen_alpha_B"]  # noqa: N806
+    alpha_B = config["par"]["chemistry"]["hydrogen_alpha_B"]
     return (1.0 / (initial["hydrogen_number_density"] * alpha_B)).to(unyt.Myr)
 
 
 def ionized_sound_speed(gamma):
     """Return the Spitzer ionized-gas sound speed at 10^4 K."""
-    temperature_proper_cgs_K = 1.0e4 * unyt.K  # noqa: N806
+    temperature_proper_cgs_K = 1.0e4 * unyt.K
     mu_ionized = 0.5
     return np.sqrt(gamma * unyt.kboltz * temperature_proper_cgs_K / (mu_ionized * unyt.mp)).to(
         unyt.km / unyt.s,
@@ -370,7 +370,7 @@ def scatter_reference(ax, reference, label="ZEUS-MP"):
 
 def save_front_plot(history, config, figure_filename):
     example = config.get("example", {})
-    time_proper_Myr = np.asarray(history["time_proper_Myr"]) * unyt.Myr  # noqa: N806
+    time_proper_Myr = np.asarray(history["time_proper_Myr"]) * unyt.Myr
     front_radius_proper_kpc = np.asarray(history["front_radius_proper_kpc"])
     radius_stromgren = stromgren_radius(config)
     tau_recombination = recombination_time(config)
@@ -444,7 +444,7 @@ def save_plot(mesh, fluid, config, figure_filename):
     vel_peculiar_proper_km_s = _to_km_s(fluid.vel_radarray[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
     pressure_proper_cgs_erg_cm3 = pressure_from_radarrays(fluid, config)[interior]
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)  # noqa: N806
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)
     plot_radius_max = example["plot_radius_max"].to_value(unyt.pc)
     radius_unit = example.get("reference_radius_unit", 15.0 * unyt.kpc)
     density_reference = load_reference_profile(

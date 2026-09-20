@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Hydro control case without gas angular-momentum storage or advection."""  # noqa: CPY001
+"""Hydro control case without gas angular-momentum storage or advection."""
 
 import argparse
 import os
@@ -19,12 +19,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("gas_hydro_control1d.yaml")
 

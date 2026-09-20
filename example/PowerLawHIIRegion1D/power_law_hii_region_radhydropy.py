@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""RadHydropy power-law H II region versus the analytic solution."""  # noqa: CPY001
+"""RadHydropy power-law H II region versus the analytic solution."""
 
 import argparse
 import sys
@@ -20,13 +20,13 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu  # noqa: E402
-import power_law_hii_region_analytic as analytic  # noqa: E402
+import example_utils as eu
+import power_law_hii_region_analytic as analytic
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.arrays import as_named_array  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.arrays import as_named_array
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "power_law_hii_region_radhydropy.yaml"
 
@@ -205,14 +205,14 @@ def shock_radius_cgs_cm(
         density_power_law_exponent,
     )
     compression = rho_proper_cgs_g_cm3 / (initial_nh * (1.0 * unyt.mp).to_value(unyt.g))
-    neutral = (radius_proper_cgs_cm > front) & (xhi > 0.5)  # noqa: PLR2004
-    candidates = np.where(neutral & (compression > 1.05))[0]  # noqa: PLR2004
+    neutral = (radius_proper_cgs_cm > front) & (xhi > 0.5)
+    candidates = np.where(neutral & (compression > 1.05))[0]
     if candidates.size == 0:
         return np.nan
 
     peak = candidates[np.argmax(compression[candidates])]
     shell = np.where(
-        neutral & (np.arange(radius_proper_cgs_cm.size) >= peak) & (compression > 1.05),  # noqa: PLR2004
+        neutral & (np.arange(radius_proper_cgs_cm.size) >= peak) & (compression > 1.05),
     )[0]
     if shell.size == 0:
         return np.nan

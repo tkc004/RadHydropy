@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Relax a perturbed self-gravitating n=1 polytrope toward equilibrium."""  # noqa: CPY001
+"""Relax a perturbed self-gravitating n=1 polytrope toward equilibrium."""
 
 import argparse
 import os
@@ -16,20 +16,20 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.eos import EOS  # noqa: E402
-from radhydropy.gravity import Gravity  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.solver import Solver  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.eos import EOS
+from radhydropy.gravity import Gravity
+from radhydropy.rsim import Rsim
+from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = (
     Path(__file__)

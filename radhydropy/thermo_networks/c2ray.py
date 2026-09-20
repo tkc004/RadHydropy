@@ -10,7 +10,7 @@ The hydrogen path retains its analytic local update.  The optional H/He path
 uses the same causal transport ordering with a coupled implicit local solve.
 C²-Ray is the default radiative-transfer temporal scheme; the ordinary
 instantaneous path remains available when explicitly selected.
-"""  # noqa: CPY001
+"""
 
 import warnings
 from dataclasses import dataclass
@@ -330,7 +330,7 @@ def _advance(state, par, dt_s, update_chemistry):
     volume = geometry.volume_cgs_cm3
     ncell = width.size
     ngroup = sigma.size
-    nH = (  # noqa: N806
+    nH = (
         np.asarray(state["rho_cgs_g_cm3"], dtype=float)
         * float(
             state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 1.0)),
@@ -402,7 +402,7 @@ def _advance(state, par, dt_s, update_chemistry):
                 exponent = total_rate * dt_s
                 decay = np.exp(-exponent)
                 xfinal = equilibrium + (x0 - equilibrium) * decay
-                if exponent > 1.0e-12:  # noqa: PLR2004
+                if exponent > 1.0e-12:
                     xnew_mean = equilibrium + (x0 - equilibrium) * (-np.expm1(-exponent)) / exponent
                 else:
                     xnew_mean = x0
@@ -586,7 +586,7 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
         jacobian = np.empty((4, 4), dtype=float)
         for column in range(4):
             perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e-8)
-            if column == 3:  # noqa: PLR2004
+            if column == 3:
                 perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e3)
             # Neutral fractions and He III can start on a physical boundary.
             # Use a one-sided finite difference there; projecting a positive
@@ -597,11 +597,11 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
                 column == 1 and trial[column] >= 1.0 - 2.0e-12
             ):
                 direction = -1.0
-            elif column == 2 and trial[column] <= 2.0e-12:  # noqa: PLR2004
+            elif column == 2 and trial[column] <= 2.0e-12:
                 direction = 1.0
             perturbed = trial.copy()
             perturbed[column] += direction * perturbation
-            if column == 2 and trial[column] <= 2.0e-12 and trial[1] >= 1.0 - 2.0e-12:  # noqa: PLR2004
+            if column == 2 and trial[column] <= 2.0e-12 and trial[1] >= 1.0 - 2.0e-12:
                 # At initially neutral helium, He III can only appear after
                 # He I is converted into He II. Perturb both coordinates so
                 # the finite-difference state enters the simplex rather than
@@ -888,7 +888,7 @@ def _ensure_fluid_photon_shape(fluid, photon_density, par):
         density = fluid.rho_proper_code
     fluid.ngamma_code = (
         np.zeros((target[0], len(density)), dtype=float)
-        if len(target) == 2  # noqa: PLR2004
+        if len(target) == 2
         else np.zeros(len(density), dtype=float)
     )
 
@@ -901,7 +901,7 @@ def sync_fluid_photon_density(fluid, photon_density, par, interior):
         photon_density,
         code.number_density_unit,
     )
-    if np.ndim(photon_density_code) == 2:  # noqa: PLR2004
+    if np.ndim(photon_density_code) == 2:
         destination = fluid.ngamma_code
         if destination.shape[-1] == photon_density_code.shape[-1]:
             destination[...] = photon_density_code

@@ -6,7 +6,7 @@ RadHydropy provides small building blocks for constructing idealized
 one-dimensional hydrodynamics simulations, including mesh generation, fluid
 state handling, equation-of-state helpers, finite-volume updates, HDF5 I/O,
 and plotting utilities.
-"""  # noqa: CPY001
+"""
 
 __all__ = [
     "analysis",

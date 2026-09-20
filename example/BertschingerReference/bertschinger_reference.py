@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Generate a collisionless Bertschinger (1985) similarity reference profile."""  # noqa: CPY001
+"""Generate a collisionless Bertschinger (1985) similarity reference profile."""
 
 import argparse
 import os
@@ -21,17 +21,17 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from bertschinger_ode import (  # noqa: E402
+from bertschinger_ode import (
     first_outer_caustic,
     first_post_centre_apocentre,
     plot_xi_lambda,
     solve_eq41_self_similar,
 )
 
-import tools as et  # noqa: E402
-from example import example_utils as eu  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import tools as et
+from example import example_utils as eu
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_reference.yaml")
 

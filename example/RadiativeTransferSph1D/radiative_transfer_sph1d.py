@@ -12,7 +12,7 @@ The example builds the static spherical problem from YAML parameters, applies
 the long-characteristic radiative-transfer update once through ``Rsim``, writes
 an HDF5 snapshot, reloads that snapshot, and compares the result with the
 analytic optically thin spherical dilution solution.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -34,11 +34,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("radiative_transfer_sph1d.yaml")
 

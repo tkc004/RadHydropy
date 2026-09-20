@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Analytic spherical self-gravity diagnostic for a uniform gas sphere."""  # noqa: CPY001
+"""Analytic spherical self-gravity diagnostic for a uniform gas sphere."""
 
 import argparse
 import os
@@ -19,18 +19,18 @@ os.environ.setdefault(
     "MPLCONFIGDIR",
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.gravity import Gravity  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.gravity import Gravity
+from radhydropy.rsim import Rsim
+from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -96,7 +96,7 @@ def main(config_filename=DEFAULT_CONFIG):
     max_relative_error = float(np.max(relative_error))
     if not np.all(np.isfinite(numerical_cgs)):
         raise RuntimeError("self-gravity acceleration contains non-finite values")
-    if max_relative_error > 5.0e-3:  # noqa: PLR2004
+    if max_relative_error > 5.0e-3:
         raise RuntimeError(
             f"uniform-sphere self-gravity relative error {max_relative_error:.6g} exceeds tolerance",
         )

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-from types import SimpleNamespace  # noqa: CPY001
+from types import SimpleNamespace
 
 import numpy as np
 import pytest

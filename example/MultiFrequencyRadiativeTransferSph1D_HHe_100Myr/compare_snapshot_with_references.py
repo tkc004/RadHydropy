@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Plot the H/He snapshot against the supplied reference profiles."""  # noqa: CPY001
+"""Plot the H/He snapshot against the supplied reference profiles."""
 
 import argparse
 import sys
@@ -19,8 +19,8 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, SOURCE_EXAMPLE):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu  # noqa: E402
-from multifrequency_tools import active_radarray, load_snapshot  # noqa: E402
+import example_utils as eu
+from multifrequency_tools import active_radarray, load_snapshot
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOT = HERE / "Output_000.hdf5"
@@ -43,7 +43,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE, config_filename=CON
         active_cells,
         ghost_cells,
     )
-    temperature_cgs_K = temperature_proper_radarray.to("K").value  # noqa: N806
+    temperature_cgs_K = temperature_proper_radarray.to("K").value
     xhi = np.asarray(
         active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
         dtype=float,

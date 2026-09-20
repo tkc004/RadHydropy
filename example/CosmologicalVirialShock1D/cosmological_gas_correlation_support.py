@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Plotting and numerical helper functions for the cosmological gas example."""  # noqa: CPY001
+"""Plotting and numerical helper functions for the cosmological gas example."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -619,7 +619,7 @@ def plot_baryon_fraction_evolution(
     mass_axis.grid(alpha=0.3, which="both")
     mass_axis.legend(frameon=False)
     finite = np.isfinite(times) & np.isfinite(scale_factors) & (scale_factors > 0.0)
-    if np.count_nonzero(finite) >= 2:  # noqa: PLR2004
+    if np.count_nonzero(finite) >= 2:
         # Place redshift ticks at the actual saved cosmic-time snapshots.
         # This avoids treating code time as Gyr and avoids an interpolated
         # redshift transform whose labels can be misleading between outputs.
@@ -1014,7 +1014,7 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     )
     rho_comoving_code = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
     specific_energy = np.asarray(state["specific_energy_cgs_erg_g"], dtype=float)
-    temperature_proper_cgs_K = np.asarray(state["temperature_cgs_K"], dtype=float)  # noqa: N806
+    temperature_proper_cgs_K = np.asarray(state["temperature_cgs_K"], dtype=float)
     mu = np.asarray(
         state.get(
             "mu",

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Sod shock tube in an expanding Einstein--de Sitter background."""  # noqa: CPY001
+"""Sod shock tube in an expanding Einstein--de Sitter background."""
 
 import argparse
 import copy
@@ -20,13 +20,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
-from tools import shocktubeanalyticgraph, shocktubecal  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits, quantity_to_value
+from tools import shocktubeanalyticgraph, shocktubecal
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
 
@@ -266,7 +266,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     )
     central = (radius_comoving_code > interface - 2.0) & (radius_comoving_code < interface + 2.0)
     density_l1 = float(np.mean(np.abs(rho_comoving_code[central] - rho_exact[central])))
-    if density_l1 > 0.04:  # noqa: PLR2004
+    if density_l1 > 0.04:
         raise RuntimeError(
             f"cosmological Sod density profile misses exact solution: L1={density_l1:.6g}",
         )

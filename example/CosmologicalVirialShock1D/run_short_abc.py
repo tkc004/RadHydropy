@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Run short central-boundary wall/origin comparisons in isolated directories."""  # noqa: CPY001
+"""Run short central-boundary wall/origin comparisons in isolated directories."""
 
 import argparse
 import os

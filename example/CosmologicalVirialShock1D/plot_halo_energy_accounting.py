@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Plot energy accounting inside an evolving multiple of the virial radius."""  # noqa: CPY001
+"""Plot energy accounting inside an evolving multiple of the virial radius."""
 
 import argparse
 from pathlib import Path
@@ -91,14 +91,14 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
     axes[1].set_ylabel("energy change [code units]")
     axes[1].set_title("Cell-wise balance residual inside aperture")
     axes[1].legend(frameon=False, fontsize=9)
-    if time_cosmic_code.size >= 2:  # noqa: PLR2004
+    if time_cosmic_code.size >= 2:
         for axis in axes:
             axis.set_xlim(float(time_cosmic_code[0]), float(time_cosmic_code[-1]))
     scale_factor = np.asarray(profiles["scale_factor"], dtype=float)
     finite = np.isfinite(time_cosmic_code) & np.isfinite(scale_factor) & (scale_factor > 0.0)
     time_valid = time_cosmic_code[finite]
     redshift_valid = 1.0 / scale_factor[finite] - 1.0
-    if time_valid.size >= 2:  # noqa: PLR2004
+    if time_valid.size >= 2:
         # Use exact snapshot locations.  A secondary-axis interpolation
         # extrapolates the final point when its locator requests z=0, even
         # though this run stops at z~5; explicit ticks prevent that error.

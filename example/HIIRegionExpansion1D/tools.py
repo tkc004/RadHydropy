@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Utilities for the early isothermal H II region expansion example."""  # noqa: CPY001
+"""Utilities for the early isothermal H II region expansion example."""
 
 import glob
 import os
@@ -297,7 +297,7 @@ def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
     interior = interior_slice(config)
     boundary_proper_pc = mesh.boundary_radarray.to(unyt.pc).value
     radius_proper_pc = 0.5 * (boundary_proper_pc[:-1] + boundary_proper_pc[1:])[interior]
-    xHII = 1.0 - np.asarray(fluid.xHI[interior], dtype=float)  # noqa: N806
+    xHII = 1.0 - np.asarray(fluid.xHI[interior], dtype=float)
 
     ionized = xHII >= ionized_fraction
     if not np.any(ionized):
@@ -319,7 +319,7 @@ def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
 
 def append_history(history, mesh, fluid, config):
     par = config["_output_par"]
-    time_proper_Myr = (  # noqa: N806
+    time_proper_Myr = (
         (np.asarray(fluid.time_proper_code).flat[0] * par.units.CodeUnits.time_unit)
         .to(unyt.Myr)
         .value
@@ -348,7 +348,7 @@ def density_snapshot(mesh, fluid, config):
     ngamma_radarray = fluid.ngamma_radarray[interior]
     if ngamma_radarray.ndim > 1:
         ngamma_radarray = np.sum(ngamma_radarray, axis=0)
-    time_proper_Myr = (  # noqa: N806
+    time_proper_Myr = (
         (np.asarray(fluid.time_proper_code).flat[0] * par.units.CodeUnits.time_unit)
         .to(unyt.Myr)
         .value
@@ -368,7 +368,7 @@ def density_snapshot(mesh, fluid, config):
 
 
 def front_radius_at_time(history, time_proper_code):
-    time_proper_Myr = np.asarray(history["time_proper_Myr"])  # noqa: N806
+    time_proper_Myr = np.asarray(history["time_proper_Myr"])
     front_radius_pc = np.asarray(history["front_radius_proper_pc"])
     target_time_myr = time_proper_code.to_value(unyt.Myr)
     if time_proper_Myr.size == 0:
@@ -382,7 +382,7 @@ def front_radius_at_time(history, time_proper_code):
 
 def stromgren_radius(config):
     config = config["initial_condition"]
-    nH = rth.cgs_hydrogen_number_density(  # noqa: N806
+    nH = rth.cgs_hydrogen_number_density(
         config["rho_proper"].to_value(unyt.g / unyt.cm**3),
         hydrogen_mass_fraction=1.0,
     ) * (1.0 / unyt.cm**3)
@@ -431,7 +431,7 @@ def hosokawa_inutsuka_radius(time_proper_code, config):
 def save_front_plot(history, config, figure_filename):
     initial_condition = config["initial_condition"]
     time_proper_unyt = np.asarray(history["time_proper_Myr"]) * unyt.Myr
-    time_proper_Myr = time_proper_unyt.to_value(unyt.Myr)  # noqa: N806
+    time_proper_Myr = time_proper_unyt.to_value(unyt.Myr)
     front_radius_pc = np.asarray(history["front_radius_proper_pc"])
     stromgren_radius_pc = stromgren_radius(config).to_value(unyt.pc)
     radius_spitzer_pc = spitzer_radius(time_proper_unyt, config).to_value(unyt.pc)

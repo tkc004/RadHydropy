@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Generate the z=100 correlation-function cosmological initial condition."""  # noqa: CPY001
+"""Generate the z=100 correlation-function cosmological initial condition."""
 
 import argparse
 import sys
@@ -18,11 +18,11 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et  # noqa: E402
-from example_utils import load_nested_example_config  # noqa: E402
+import virial_shock_tools as et
+from example_utils import load_nested_example_config
 
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_dark_matter_correlation_z100.yaml",

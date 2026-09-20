@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Compare total gas energy with and without direct radiation pressure."""  # noqa: CPY001
+"""Compare total gas energy with and without direct radiation pressure."""
 
 import argparse
 import sys
@@ -21,9 +21,9 @@ if str(EXAMPLE_DIR) not in sys.path:
 if str(PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(PACKAGE_DIR))
 
-from example_utils import load_nested_example_config  # noqa: E402
+from example_utils import load_nested_example_config
 
-from radhydropy.units import CodeUnits  # noqa: E402
+from radhydropy.units import CodeUnits
 
 NO_PRESSURE_DIR = HERE.parent / "DynamicStromgrenSpherePhotoheating20pc1D"
 NO_PRESSURE_CONFIG = NO_PRESSURE_DIR / "dynamic_stromgren_sphere_photoheating20pc1d.yaml"
@@ -64,7 +64,7 @@ def _snapshot_energy(snapshot, config, tools):
     kinetic_energy_cgs_erg = float(
         np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3),
     )
-    time_proper_Myr = float(  # noqa: N806
+    time_proper_Myr = float(
         np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr),
     )
     return (

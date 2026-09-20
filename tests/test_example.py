@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import importlib.util  # noqa: CPY001
+import importlib.util
 import sys
 import tempfile
 import unittest
@@ -26,7 +26,7 @@ from tests.parameter_fixtures import parameter_namespace
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / "example"
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
-import example_utils  # noqa: E402
+import example_utils
 
 HII_EXAMPLE_ROOT = EXAMPLE_ROOT / "HIIRegionExpansion1D"
 if str(HII_EXAMPLE_ROOT) not in sys.path:

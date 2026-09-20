@@ -12,7 +12,7 @@ R proportional to t**(4/(7-2*w)) scaling.
 Run from this directory with::
 
     python power_law_hii_region_analytic.py
-"""  # noqa: CPY001
+"""
 
 from __future__ import annotations
 
@@ -141,7 +141,7 @@ def matched_expansion(time_proper_cgs_s, radius_w_proper_cgs_cm, w):
     the paper's power-law exponent.  The transition itself is not analytic in
     the paper, so the formation solution is joined continuously at R_w.
     """
-    if w > 1.5:  # noqa: PLR2004
+    if w > 1.5:
         raise ValueError("the trapped D-type approximation is only for w <= 3/2")
     exponent = 4.0 / (7.0 - 2.0 * w)
     return (
@@ -169,7 +169,7 @@ def champagne_expansion(
             ** (2/(delta+2-w)).
     """
     time_proper_cgs_s = np.asarray(time_proper_cgs_s, dtype=float)
-    if 1.5 < w < 3.0:  # noqa: PLR2004
+    if 1.5 < w < 3.0:
         velocity_factor = 1.0 + np.sqrt(3.0 / (3.0 - w))
         return radius_start_proper_cgs_cm + velocity_factor * CI * time_proper_cgs_s
     if np.isclose(w, 3.0):
@@ -202,7 +202,7 @@ def calculate_front(q_star, nc, rc, w, end_time_yr):
     # The paper defines the end of formation when the R-type front slows to
     # approximately 2 c_i.  If it never does, the cloud is density bounded in
     # the formation phase and the formation curve is returned unchanged.
-    if w > 1.5:  # noqa: PLR2004
+    if w > 1.5:
         # Equations (24)--(26) use t measured from the start of the analytic
         # expansion. Do not shift time to an arbitrary plotting radius; the
         # y-axis lower limit simply hides the smaller-radius part.
@@ -303,7 +303,7 @@ def main():
             end_time_yr,
         )
         label = rf"$w={w:g}$"
-        if not trapped and w > 1.5:  # noqa: PLR2004
+        if not trapped and w > 1.5:
             label += " (champagne)"
         axis.plot(
             time_proper_cgs_s[1:] / SECONDS_PER_YEAR,

@@ -5,7 +5,7 @@
 The incoming photon flux is transported from the left boundary.  The example
 records the gas momentum and compares it with the momentum carried by the
 absorbed photons, ``E_absorbed / c``.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -29,11 +29,11 @@ if str(example_root) not in sys.path:
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("radiation_pressure_slab1d.yaml")
 

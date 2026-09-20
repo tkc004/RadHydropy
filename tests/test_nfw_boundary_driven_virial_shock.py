@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Focused checks for the boundary-driven NFW virial-shock example."""  # noqa: CPY001
+"""Focused checks for the boundary-driven NFW virial-shock example."""
 
 import importlib.util
 import sys
@@ -12,7 +12,7 @@ import unyt
 EXAMPLE = Path(__file__).parents[1] / "example" / "NFWBoundaryDrivenVirialShock1D"
 if str(EXAMPLE.parent) not in sys.path:
     sys.path.insert(0, str(EXAMPLE.parent))
-import example_utils  # noqa: E402
+import example_utils
 
 SPEC = importlib.util.spec_from_file_location("nfw_boundary_shock_tools", EXAMPLE / "tools.py")
 TOOLS = importlib.util.module_from_spec(SPEC)
@@ -33,8 +33,8 @@ def test_shock_locator_selects_hot_compressed_inner_state():
     radius = np.geomspace(5.0, 500.0, 128)
     density = np.ones(128) * 1.0e-28
     temperature = np.ones(128) * 1.0e4
-    density[radius < 180.0] *= 4.0  # noqa: PLR2004
-    temperature[radius < 180.0] *= 40.0  # noqa: PLR2004
+    density[radius < 180.0] *= 4.0
+    temperature[radius < 180.0] *= 40.0
     snapshot = {
         "radius_proper_kpc": radius,
         "rho_proper_cgs_g_cm3": density,
@@ -49,8 +49,8 @@ def test_shock_locator_rejects_cold_inner_cooling_front():
     radius = np.geomspace(5.0, 500.0, 128)
     density = np.ones(128) * 1.0e-28
     temperature = np.ones(128) * 2.0e5
-    density[radius < 180.0] *= 4.0  # noqa: PLR2004
-    temperature[radius < 180.0] = 1.0e4  # noqa: PLR2004
+    density[radius < 180.0] *= 4.0
+    temperature[radius < 180.0] = 1.0e4
     snapshot = {
         "radius_proper_kpc": radius,
         "rho_proper_cgs_g_cm3": density,
@@ -72,7 +72,7 @@ def test_lower_mass_configs_use_isolated_output_directories():
         masses.append(config["initial_condition"]["halo_mass"].to_value(unyt.Msun))
         output_directories.append(config["par"]["output"]["directory"])
     assert np.allclose(masses, [1.0e12, 3.0e11, 1.0e11])
-    assert len(set(output_directories)) == 3  # noqa: PLR2004
+    assert len(set(output_directories)) == 3
 
 
 def test_long_case_requests_high_cadence_and_longer_pie_stage():
@@ -83,7 +83,7 @@ def test_long_case_requests_high_cadence_and_longer_pie_stage():
     schedule = EXAMPLE / config["example"]["pie_time_list_filename"]
     with schedule.open(encoding="utf-8") as stream:
         values = [float(line) for line in stream if line.strip() and line.strip() != "Myr"]
-    assert len(values) == 65  # noqa: PLR2004
+    assert len(values) == 65
     assert np.isclose(np.diff(values).min(), 50.0)
 
 

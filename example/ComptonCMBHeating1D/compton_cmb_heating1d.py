@@ -5,7 +5,7 @@
 The example runs a hot cooling parcel and a cold heating parcel at fixed
 redshift, then compares both source integrations with the analytic exponential
 solution for Compton coupling to an isotropic CMB background.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import copy
@@ -30,18 +30,18 @@ if str(EXAMPLE_ROOT) not in sys.path:
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import unyt  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
+import unyt
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.thermo_networks.compton import cmb_compton_rate  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
-from tools import build_initial_condition  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.thermo_networks.compton import cmb_compton_rate
+from radhydropy.units import CodeUnits
+from tools import build_initial_condition
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("compton_cmb_heating1d.yaml")
 
@@ -161,7 +161,7 @@ def _run_case(
     }
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history["time_proper_Myr"]) * myr_seconds
-    temperature_cgs_K = np.asarray(history["mean_temperature_proper_cgs_K"])  # noqa: N806
+    temperature_cgs_K = np.asarray(history["mean_temperature_proper_cgs_K"])
     if example.get("compare_compton_analytic", True):
         analytic = _analytic_temperature(
             time_s,
@@ -244,7 +244,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 temperature_proper_unyt,
             )
 
-    cmb_temperature_0_cgs_K = float(  # noqa: N806
+    cmb_temperature_0_cgs_K = float(
         config["par"]["thermochemistry"]["cmb_temperature_0"].to_value(unyt.K),
     )
     cmb_temperature = cmb_temperature_0_cgs_K * (
@@ -260,7 +260,7 @@ def main(config_filename=DEFAULT_CONFIG):
         gridspec_kw={"height_ratios": (2.0, 1.0)},
     )
     for label, (time_s, temperature, analytic) in histories.items():
-        time_proper_Myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))  # noqa: N806
+        time_proper_Myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))
         temperature_axis.plot(
             time_proper_Myr,
             temperature,

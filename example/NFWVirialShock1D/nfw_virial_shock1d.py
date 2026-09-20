@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Cold gas shell infall and virial shock in a fixed NFW halo."""  # noqa: CPY001
+"""Cold gas shell infall and virial shock in a fixed NFW halo."""
 
 import argparse
 import os
@@ -24,13 +24,13 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from example.NFWVirialShock1D import tools as et  # noqa: E402
-from radhydropy.gravity import Gravity, nfw_potential  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from example.NFWVirialShock1D import tools as et
+from radhydropy.gravity import Gravity, nfw_potential
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("nfw_virial_shock1d.yaml")
 

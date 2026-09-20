@@ -6,7 +6,7 @@ The calculation evolves a low-amplitude copy of the LCDM correlation-function
 perturbation with negligible gas pressure.  It compares enclosed gas and dark
 matter overdensities and peculiar velocities with the Einstein--de Sitter
 growing mode, while aborting before the first collisionless-shell crossing.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import copy
@@ -30,15 +30,15 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et  # noqa: E402
-from example_utils import load_nested_example_config  # noqa: E402
+import virial_shock_tools as et
+from example_utils import load_nested_example_config
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass  # noqa: E402
-from radhydropy.gravity import Gravity  # noqa: E402
-from radhydropy.solver import Solver  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass
+from radhydropy.gravity import Gravity
+from radhydropy.solver import Solver
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_gas_dm_linear_growth.yaml",
@@ -163,7 +163,7 @@ def _set_background_state(
     index = first + int(sim.par.mesh.grid_cells) - 1
     rho_comoving_code = float(sim.par.boundary.rho_inflow_proper)
     vel_supercomoving_code = float(sim.par.boundary.vel_inflow_proper)
-    temperature_proper_cgs_K = float(sim.par.boundary.temperature_inflow_proper)  # noqa: N806
+    temperature_proper_cgs_K = float(sim.par.boundary.temperature_inflow_proper)
     boundary_mu = float(sim.par.boundary.inflow_mu)
     pre_supercomoving_code = float(
         np.asarray(
@@ -381,7 +381,7 @@ def _snapshot(
     dm_velocity = np.asarray(dm.velocity, dtype=float) / scale_factor
     dm_velocity_analytic = -(scale_factor * hubble * dm_x * growth * dm_mean_delta_initial / 3.0)
 
-    density_signal = np.abs(delta_analytic) > 1.0e-7  # noqa: PLR2004
+    density_signal = np.abs(delta_analytic) > 1.0e-7
     gas_valid = (
         (x >= diagnostic_radius_inner_comoving_code)
         & (x <= diagnostic_radius_outer_comoving_code)
@@ -391,14 +391,14 @@ def _snapshot(
     dm_density_valid = (
         (dm_x >= diagnostic_radius_inner_comoving_code)
         & (dm_x <= diagnostic_radius_outer_comoving_code)
-        & (np.abs(dm_density_analytic) > 1.0e-7)  # noqa: PLR2004
+        & (np.abs(dm_density_analytic) > 1.0e-7)
     )
     dm_velocity_valid = (
         (dm_x >= diagnostic_radius_inner_comoving_code)
         & (dm_x <= diagnostic_radius_outer_comoving_code)
-        & (np.abs(dm_velocity_analytic) > 1.0e-12)  # noqa: PLR2004
+        & (np.abs(dm_velocity_analytic) > 1.0e-12)
     )
-    velocity_valid = gas_valid & (np.abs(gas_velocity_analytic) > 1.0e-12)  # noqa: PLR2004
+    velocity_valid = gas_valid & (np.abs(gas_velocity_analytic) > 1.0e-12)
     gas_density_amplitude = _fit_amplitude(
         delta_gas,
         delta_analytic,
@@ -586,13 +586,13 @@ def run(
     example = config["example"]
     if resolution_override is not None:
         resolution = int(resolution_override)
-        if resolution < 8 or resolution > 1024:  # noqa: PLR2004
+        if resolution < 8 or resolution > 1024:
             raise ValueError("resolution must be between 8 and 1024")
         initial_condition = dict(initial_condition)
         par = copy.deepcopy(par)
         par["mesh"]["grid_cells"] = resolution
         initial_condition["dark_matter_shells"] = resolution
-    if int(initial_condition["dark_matter_shells"]) > 1024 or int(par["mesh"]["grid_cells"]) > 1024:  # noqa: PLR2004
+    if int(initial_condition["dark_matter_shells"]) > 1024 or int(par["mesh"]["grid_cells"]) > 1024:
         raise ValueError("linear-growth test is limited to at most 1024 gas cells and shells")
     if int(initial_condition["dark_matter_shells"]) != int(par["mesh"]["grid_cells"]):
         raise ValueError("linear-growth quadrature requires one DM shell per gas cell")

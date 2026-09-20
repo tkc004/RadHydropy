@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import numpy as np  # noqa: CPY001
+import numpy as np
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.cosmology.state import (

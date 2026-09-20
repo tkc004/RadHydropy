@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial conditions and plotting for the Sod shock tube."""  # noqa: CPY001
+"""Initial conditions and plotting for the Sod shock tube."""
 
 import matplotlib as mpl
 
@@ -141,8 +141,8 @@ def analytic_density_profile(config, state):
         ic["rho_proper"].to_value(unyt.g / unyt.cm**3),
     )
     rho_low_proper_cgs_g_cm3 = rho_high_proper_cgs_g_cm3 * ic["density_ratio"]
-    temp_high_cgs_K = float(ic["temperature_proper"].to_value(unyt.K))  # noqa: N806
-    temp_low_cgs_K = temp_high_cgs_K * ic["temperature_ratio"]  # noqa: N806
+    temp_high_cgs_K = float(ic["temperature_proper"].to_value(unyt.K))
+    temp_low_cgs_K = temp_high_cgs_K * ic["temperature_ratio"]
     mu_dimensionless = float(ic["mean_molecular_weight"])
     pressure_low_proper_cgs_erg_cm3 = float(
         (

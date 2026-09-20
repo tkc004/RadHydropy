@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Compton heating and cooling from an isotropic CMB background."""  # noqa: CPY001
+"""Compton heating and cooling from an isotropic CMB background."""
 
 import numpy as np
 import unyt
@@ -32,7 +32,7 @@ def cmb_compton_rate(
     A positive result heats the gas.  The source is disabled unless
     ``enabled`` is true, so existing runs are unchanged by the new option.
     """
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     electron_density_cgs_cm3 = np.asarray(electron_density_cgs_cm3, dtype=float)
     if not enabled:
         return np.zeros_like(temperature_cgs_K)

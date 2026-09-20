@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Shell-orbit event tracking for the Bertschinger splashback study."""  # noqa: CPY001
+"""Shell-orbit event tracking for the Bertschinger splashback study."""
 
 import numpy as np
 

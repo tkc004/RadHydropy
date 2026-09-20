@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial conditions and plotting for the cartesian Sedov benchmark."""  # noqa: CPY001
+"""Initial conditions and plotting for the cartesian Sedov benchmark."""
 
 import matplotlib as mpl
 

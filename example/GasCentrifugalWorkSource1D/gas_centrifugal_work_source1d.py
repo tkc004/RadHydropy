@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Source-only centrifugal work benchmark."""  # noqa: CPY001
+"""Source-only centrifugal work benchmark."""
 
 import os
 import sys
@@ -13,18 +13,18 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.arrays import as_named_array  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.arrays import as_named_array
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits, quantity_to_value
 
 CONFIG = ROOT / "gas_centrifugal_work_source1d.yaml"
 
@@ -189,14 +189,14 @@ def main(config_filename=CONFIG):
     )
     momentum_error = abs(final_momentum - expected_momentum[-1])
     energy_error = abs(final_energy - expected_energy[-1])
-    if momentum_error > 1.0e-11 or energy_error > 1.0e-11:  # noqa: PLR2004
+    if momentum_error > 1.0e-11 or energy_error > 1.0e-11:
         raise RuntimeError(
             "centrifugal source disagrees with exact work solution: "
             f"momentum error={momentum_error:g} energy error={energy_error:g}",
         )
-    if abs(final_j - j) > 1.0e-12:  # noqa: PLR2004
+    if abs(final_j - j) > 1.0e-12:
         raise RuntimeError("centrifugal source changed signed specific angular momentum")
-    if abs(final_internal - initial_internal) > 1.0e-11:  # noqa: PLR2004
+    if abs(final_internal - initial_internal) > 1.0e-11:
         raise RuntimeError("centrifugal work changed cold internal energy")
 
     figure = ROOT / par["output"]["directory"] / "GasCentrifugalWorkSource1D.jpg"

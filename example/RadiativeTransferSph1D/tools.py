@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helper utilities for the spherical radiative-transfer example."""  # noqa: CPY001
+"""Helper utilities for the spherical radiative-transfer example."""
 
 import matplotlib as mpl
 

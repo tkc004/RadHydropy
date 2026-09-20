@@ -7,7 +7,7 @@ source update heat and cool the gas. Hydrodynamic motion is disabled: density
 is fixed and only radiative transfer, chemistry, and thermal source terms are
 advanced. The example is configured from YAML, writes HDF5 snapshots, reloads
 the final snapshot, and plots from the saved output rather than live state.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -32,11 +32,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.rsim import Rsim
 
 DEFAULT_CONFIG = (
     Path(__file__)

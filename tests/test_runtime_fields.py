@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-from types import SimpleNamespace  # noqa: CPY001
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -69,7 +69,7 @@ def test_runtime_selectors_choose_matching_proper_and_supercomoving_arrays():
     proper_geometry_arrays = select_mesh_geometry_arrays(proper_geometry, proper_par)
     assert [array[0] for array in proper_arrays[:4]] == [1.0, 2.0, 3.0, 4.0]
     assert [array[0] for array in proper_geometry_arrays] == [1.0, 0.0, 2.0, 3.0, 4.0]
-    assert proper_arrays[4] == 5.0  # noqa: PLR2004
+    assert proper_arrays[4] == 5.0
 
     supercomoving_par = _cosmological_par()
     supercomoving_fluid = FluidRuntimeState.from_arrays(
@@ -98,7 +98,7 @@ def test_runtime_selectors_choose_matching_proper_and_supercomoving_arrays():
     )
     assert [array[0] for array in supercomoving_arrays[:4]] == [6.0, 7.0, 8.0, 9.0]
     assert [array[0] for array in supercomoving_geometry_arrays] == [6.0, 5.0, 2.0, 8.0, 9.0]
-    assert supercomoving_arrays[4] == 10.0  # noqa: PLR2004
+    assert supercomoving_arrays[4] == 10.0
 
 
 def test_cosmological_runtime_rejects_incomplete_representation():

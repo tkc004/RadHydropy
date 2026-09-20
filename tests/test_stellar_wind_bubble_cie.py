@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-from pathlib import Path  # noqa: CPY001
+from pathlib import Path
 
 import example_utils
 
@@ -18,7 +18,7 @@ def test_stellar_wind_cie_and_no_metal_configs_select_distinct_physics():
     assert with_metal["par"]["thermochemistry"]["network"] == "cie_cooling"
     assert with_metal["par"]["thermochemistry"]["cie_cooling"] is True
     assert with_metal["par"]["chemistry"]["metallicity"] == 1.0
-    assert with_metal["par"]["chemistry"]["hydrogen_mass_fraction"] == 0.7  # noqa: PLR2004
+    assert with_metal["par"]["chemistry"]["hydrogen_mass_fraction"] == 0.7
     assert with_metal["example"]["figure_prefix"].endswith("with_metal")
 
     assert no_metal["par"]["thermochemistry"]["network"] == "hydrogen"
@@ -28,7 +28,7 @@ def test_stellar_wind_cie_and_no_metal_configs_select_distinct_physics():
     assert (
         with_metal["initial_condition"]["grid_cells"]
         == no_metal["initial_condition"]["grid_cells"]
-        == 1024  # noqa: PLR2004
+        == 1024
     )
     assert (
         with_metal["initial_condition"]["coordinate_system"]

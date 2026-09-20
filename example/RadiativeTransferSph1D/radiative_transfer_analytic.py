@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Analytic optically thin spherical radiation-density profiles."""  # noqa: CPY001
+"""Analytic optically thin spherical radiation-density profiles."""
 
 import numpy as np
 import unyt

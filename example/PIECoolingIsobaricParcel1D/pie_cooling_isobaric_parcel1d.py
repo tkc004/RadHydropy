@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Constant-pressure HM12 PIE thermal-instability benchmark."""  # noqa: CPY001
+"""Constant-pressure HM12 PIE thermal-instability benchmark."""
 
 import argparse
 import csv
@@ -20,10 +20,10 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from example_utils import load_nested_example_config  # noqa: E402
+from example_utils import load_nested_example_config
 
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from tools import integrate_isobaric_case, isobaric_growth_rate, net_rate  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable
+from tools import integrate_isobaric_case, isobaric_growth_rate, net_rate
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_isobaric_parcel1d.yaml"
 
@@ -92,7 +92,7 @@ def _plot_rate(results, table, metallicity, redshift, filename):
         result for result in results if not result["label"].endswith("_cold")
     ]
     for result in rate_results:
-        density_nH_cgs_cm3 = (  # noqa: N806
+        density_nH_cgs_cm3 = (
             result["density_nH_cgs_cm3"][0] * result["temperature_proper_cgs_K"][0] / temperatures
         )
         rate = net_rate(table, temperatures, density_nH_cgs_cm3, metallicity, redshift)
@@ -159,11 +159,11 @@ def main(config_filename=DEFAULT_CONFIG):
     output_dir.mkdir(exist_ok=True)
     for stale_csv in output_dir.glob("*.csv"):
         stale_csv.unlink()
-    for index, (label, density_initial_cgs_cm3, temperature_initial_cgs_K) in enumerate(  # noqa: N806
+    for index, (label, density_initial_cgs_cm3, temperature_initial_cgs_K) in enumerate(
         thermo["cases"],
     ):
         density_initial_cgs_cm3 = float(density_initial_cgs_cm3)
-        temperature_initial_cgs_K = float(temperature_initial_cgs_K)  # noqa: N806
+        temperature_initial_cgs_K = float(temperature_initial_cgs_K)
         result = integrate_isobaric_case(
             table,
             density_initial_cgs_cm3,

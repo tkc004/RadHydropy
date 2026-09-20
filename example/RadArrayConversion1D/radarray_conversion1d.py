@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Executable conversion checks for RadHydropy's representation-aware arrays."""  # noqa: CPY001
+"""Executable conversion checks for RadHydropy's representation-aware arrays."""
 
 import sys
 from pathlib import Path
@@ -11,18 +11,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-from radhydropy.cosmology.context import CosmologyContext  # noqa: E402
-from radhydropy.field_metadata import field_spec  # noqa: E402
-from radhydropy.radarray import RadArray, RepresentationMismatchError  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+from radhydropy.cosmology.context import CosmologyContext
+from radhydropy.field_metadata import field_spec
+from radhydropy.radarray import RadArray, RepresentationMismatchError
+from radhydropy.units import CodeUnits
 
 CONFIG_FILE = Path(__file__).with_name("radarray_conversion1d.yaml")
 
 
 def _rad_array(values, field_name, code_units, cosmology):
-    hubble_parameter_km_s_Mpc = (  # noqa: N806
+    hubble_parameter_km_s_Mpc = (
         cosmology.hubble_parameter_km_s_Mpc if field_name == "vel_supercomoving_code" else None
     )
     return RadArray(
@@ -45,7 +45,7 @@ def run(config_file=CONFIG_FILE):
     code_units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     scale_factor = float(config["example"]["scale_factor"])
-    hubble_parameter_km_s_Mpc = float(  # noqa: N806
+    hubble_parameter_km_s_Mpc = float(
         config["example"]["hubble_parameter"].to_value("km/(s*Mpc)"),
     )
     cosmology = CosmologyContext(

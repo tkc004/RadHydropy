@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Equation-of-state definitions."""  # noqa: CPY001
+"""Equation-of-state definitions."""
 
 import numpy as np
 import unyt
@@ -136,18 +136,18 @@ class EOS:
 
     def fluxes(self, rho, vel, pressure):
         """Return conserved densities and Euler fluxes for the selected EOS."""
-        Fmass = rho * vel  # noqa: N806
+        Fmass = rho * vel
         qmass = rho
-        Fmom = rho * vel * vel  # noqa: N806
+        Fmom = rho * vel * vel
         Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0
-        Fmom += pressure  # noqa: N806
+        Fmom += pressure
         qmom = rho * vel
         if self.is_isothermal:
             zero_energy_flux = as_named_array(np.zeros_like(np.asarray(Fmass, dtype=float)))
             zero_energy_density = as_named_array(np.zeros_like(np.asarray(qmass, dtype=float)))
             return Fmass, qmass, Fmom, qmom, zero_energy_flux, zero_energy_density
-        FEn = vel * (self.gamma * pressure / (self.gamma - 1.0) + 0.5 * rho * vel**2)  # noqa: N806
-        qEn = pressure / (self.gamma - 1.0) + rho * vel**2 * 0.5  # noqa: N806
+        FEn = vel * (self.gamma * pressure / (self.gamma - 1.0) + 0.5 * rho * vel**2)
+        qEn = pressure / (self.gamma - 1.0) + rho * vel**2 * 0.5
         return Fmass, qmass, Fmom, qmom, FEn, qEn
 
     def apply_piecewise_isothermal_state(

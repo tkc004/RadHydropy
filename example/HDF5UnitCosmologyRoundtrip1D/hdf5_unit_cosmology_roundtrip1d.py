@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Write and read only initial-condition HDF5 files under several contracts."""  # noqa: CPY001
+"""Write and read only initial-condition HDF5 files under several contracts."""
 
 import sys
 import tempfile
@@ -14,20 +14,20 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology.context import CosmologyContext  # noqa: E402
-from radhydropy.field_metadata import field_spec  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.radarray import RadArray, RadQuantity  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology.context import CosmologyContext
+from radhydropy.field_metadata import field_spec
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.radarray import RadArray, RadQuantity
+from radhydropy.units import CodeUnits
 
 CONFIG_FILE = Path(__file__).with_name("hdf5_unit_cosmology_roundtrip1d.yaml")
 
 
 def _radarray(code_values, field_name, code_units, cosmology_context):
-    hubble_parameter_km_s_Mpc = (  # noqa: N806
+    hubble_parameter_km_s_Mpc = (
         cosmology_context.hubble_parameter_km_s_Mpc
         if field_name == "vel_supercomoving_code"
         else None
@@ -109,7 +109,7 @@ def _build_initial_condition(case_config):
         cosmology = sim.par.cosmology.model
         scale_factor = float(cosmology.scale_factor(time_cosmic_code))
         hubble_parameter_code = float(cosmology.hubble(time_cosmic_code))
-        hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(  # noqa: N806
+        hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
             "km/s",
         ) / code_units.length_unit.to_value("Mpc")
         cosmology_context = CosmologyContext(

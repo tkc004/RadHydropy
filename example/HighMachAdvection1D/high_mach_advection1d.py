@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Run a uniform high-Mach advection test for the dual-energy scheme."""  # noqa: CPY001
+"""Run a uniform high-Mach advection test for the dual-energy scheme."""
 
 import argparse
 import sys
@@ -15,12 +15,12 @@ EXAMPLE_ROOT = HERE.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = HERE / "high_mach_advection1d.yaml"
 

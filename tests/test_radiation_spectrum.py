@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import h5py  # noqa: CPY001
+import h5py
 import numpy as np
 import pytest
 

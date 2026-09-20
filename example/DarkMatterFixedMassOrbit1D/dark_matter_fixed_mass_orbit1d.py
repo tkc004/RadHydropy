@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Compare a dark-matter shell orbit with its fixed-mass analytic ODE."""  # noqa: CPY001
+"""Compare a dark-matter shell orbit with its fixed-mass analytic ODE."""
 
 import argparse
 import os
@@ -16,16 +16,16 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-from scipy.integrate import solve_ivp  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.integrate import solve_ivp
 
-import tools as et  # noqa: E402
-from radhydropy.units import quantity_to_value  # noqa: E402
+import tools as et
+from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -139,7 +139,7 @@ def main(config_filename=DEFAULT_CONFIG):
         "pc",
     )
     reference_pc = quantity_to_value(reference_radius * code_units.length_unit, "pc")
-    time_proper_Myr = quantity_to_value(numerical_time * code_units.time_unit, "Myr")  # noqa: N806
+    time_proper_Myr = quantity_to_value(numerical_time * code_units.time_unit, "Myr")
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(time_proper_Myr, radius_proper_pc, label="shell integrator")
     axes[0].plot(time_proper_Myr, reference_pc, "--", label="fixed-mass reference")

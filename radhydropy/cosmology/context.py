@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Immutable cosmological state used by representation-aware fields."""  # noqa: CPY001
+"""Immutable cosmological state used by representation-aware fields."""
 
 import math
 from dataclasses import dataclass

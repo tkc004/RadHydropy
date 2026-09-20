@@ -5,7 +5,7 @@
 The solver operates on one explicit representation at a time.  This module
 contains the naming contract used while migrating solver consumers; it does
 not provide legacy aliases or fallback lookups.
-"""  # noqa: CPY001
+"""
 
 from dataclasses import dataclass
 from typing import Any, cast

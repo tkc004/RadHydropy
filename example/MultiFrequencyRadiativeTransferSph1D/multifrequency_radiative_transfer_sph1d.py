@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Pure-hydrogen multifrequency long-characteristic radiation example."""  # noqa: CPY001
+"""Pure-hydrogen multifrequency long-characteristic radiation example."""
 
 import argparse
 import os
@@ -29,17 +29,17 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu  # noqa: E402
-from example_utils import load_nested_example_config  # noqa: E402
-from multifrequency_tools import (  # noqa: E402
+import example_utils as eu
+from example_utils import load_nested_example_config
+from multifrequency_tools import (
     active_radarray,
     build_initial_condition,
     load_log_reference_profile,
     load_snapshot,
 )
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "multifrequency_radiative_transfer_sph1d.yaml",
@@ -71,17 +71,17 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     )
     radius_proper_radarray = 0.5 * (boundary_proper_radarray[:-1] + boundary_proper_radarray[1:])
     radius_proper_kpc = radius_proper_radarray.to("kpc").value
-    xHI = np.asarray(  # noqa: N806
+    xHI = np.asarray(
         active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
         dtype=float,
     )
-    xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)  # noqa: N806
+    xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)
     temperature_proper_radarray = active_radarray(
         snapshot.fluid.temp_radarray,
         active_cells,
         ghost_cells,
     )
-    temperature_cgs_K = temperature_proper_radarray.to("K").value  # noqa: N806
+    temperature_cgs_K = temperature_proper_radarray.to("K").value
     ngamma_radarray = active_radarray(
         snapshot.fluid.ngamma_radarray,
         active_cells,

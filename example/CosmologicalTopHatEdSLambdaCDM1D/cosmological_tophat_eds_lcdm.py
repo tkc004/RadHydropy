@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Compare cosmological dark-matter top-hat trajectories: EdS versus LCDM."""  # noqa: CPY001
+"""Compare cosmological dark-matter top-hat trajectories: EdS versus LCDM."""
 
 import copy
 import sys
@@ -21,13 +21,13 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 sys.path.insert(0, str(REFERENCE_ROOT))
 
-import cosmological_dark_matter_only as reference_example  # noqa: E402
-import example_utils as eu  # noqa: E402
+import cosmological_dark_matter_only as reference_example
+import example_utils as eu
 
-from radhydropy.cosmology import EinsteinDeSitter as CodeEdS  # noqa: E402
-from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM  # noqa: E402
-from radhydropy.dark_matter import DarkMatterShells  # noqa: E402
-from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
+from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
+from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 TARGET_MASS = 1000.0  # 10^13 Msun in the reference code units
@@ -293,7 +293,7 @@ def run_case(
     _, _final_a, _final_h = cosmology.background_state_from_supercomoving(
         tau_supercomoving_code,
     )
-    if maximum_error > 2.0e-5:  # noqa: PLR2004
+    if maximum_error > 2.0e-5:
         raise RuntimeError(f"{label}: RadHydropy disagrees with reference integration")
     if analytic is None:
         pass

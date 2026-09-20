@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-from types import SimpleNamespace  # noqa: CPY001
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -73,7 +73,7 @@ def test_hydrostatic_core_is_opt_in_and_masks_only_inner_cells():
     mesh, fluid, par = _core_problem()
     solver.InitializeHydrostaticCore(mesh, fluid, par)
 
-    assert par.hydrostatic_core_face == 4  # noqa: PLR2004
+    assert par.hydrostatic_core_face == 4
     np.testing.assert_array_equal(
         par.hydrostatic_core_mask,
         [False, True, True, True, False, False],

@@ -6,7 +6,7 @@ This is the gas-bearing companion to ``cosmological_dark_matter_only.py``.
 It starts at z=100 with the tabulated LCDM correlation-function perturbation,
 evolves 1024 live dark-matter shells and the Eulerian gas mesh, and saves the
 gas density profile at regular cosmic-time intervals.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import sys
@@ -23,13 +23,13 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et  # noqa: E402
-from example_utils import load_nested_example_config  # noqa: E402
+import virial_shock_tools as et
+from example_utils import load_nested_example_config
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.gravity import Gravity  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.gravity import Gravity
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_adiabatic_gas_correlation_z100.yaml",

@@ -7,7 +7,7 @@ emits ionizing photons at a constant rate, the long-characteristic
 radiative-transfer update supplies ``n_gamma``, and the hydrogen neutral
 fraction is advanced with the implicit chemistry solver. Hydrodynamics,
 heating, and cooling are disabled.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -29,11 +29,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.rsim import Rsim
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("static_stromgren_sphere1d.yaml")
 

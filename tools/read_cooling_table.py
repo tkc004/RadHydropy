@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Read and plot a CHIANTI cooling table for a selected electron density."""  # noqa: CPY001
+"""Read and plot a CHIANTI cooling table for a selected electron density."""
 
 import argparse
 from pathlib import Path

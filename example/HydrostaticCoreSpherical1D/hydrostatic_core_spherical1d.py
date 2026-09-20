@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Analytic pressure-supported central-core hydrostatic test."""  # noqa: CPY001
+"""Analytic pressure-supported central-core hydrostatic test."""
 
 import argparse
 import sys
@@ -18,12 +18,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from example_utils import load_nested_example_config  # noqa: E402
+from example_utils import load_nested_example_config
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
-from radhydropy.gravity import Gravity, point_mass_potential  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+import tools as et
+from radhydropy.gravity import Gravity, point_mass_potential
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("hydrostatic_core_spherical1d.yaml")
 

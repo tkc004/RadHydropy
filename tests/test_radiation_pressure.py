@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Tests for momentum deposition from absorbed radiation."""  # noqa: CPY001
+"""Tests for momentum deposition from absorbed radiation."""
 
 from types import SimpleNamespace
 

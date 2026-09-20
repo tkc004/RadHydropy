@@ -11,7 +11,7 @@ plots the rates at a requested hydrogen density.
 Net cooling is defined as ``cooling - photoheating``.  The plotted net-rate
 quantity is ``log10(abs(cooling - photoheating))``; the absolute value keeps
 both net cooling and net heating visible on the logarithmic plot.
-"""  # noqa: CPY001
+"""
 
 from __future__ import annotations
 

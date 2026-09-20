@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Analytic time-evolution benchmark for a shell in a gas+DM background."""  # noqa: CPY001
+"""Analytic time-evolution benchmark for a shell in a gas+DM background."""
 
 import argparse
 import os
@@ -16,17 +16,17 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-from scipy.integrate import solve_ivp  # noqa: E402
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.integrate import solve_ivp
 
-import tools as et  # noqa: E402
-from example import example_utils as eu  # noqa: E402
-from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS  # noqa: E402
-from radhydropy.units import quantity_to_value  # noqa: E402
+import tools as et
+from example import example_utils as eu
+from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
+from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -111,7 +111,7 @@ def main(config_filename=DEFAULT_CONFIG):
     np.max(np.abs(numerical_radius_code - reference_state[0]))
     np.max(np.abs(numerical_velocity_code - reference_state[1]))
 
-    time_proper_Myr = quantity_to_value(numerical_time_code * code_units.time_unit, "Myr")  # noqa: N806
+    time_proper_Myr = quantity_to_value(numerical_time_code * code_units.time_unit, "Myr")
     radius_proper_pc = quantity_to_value(numerical_radius_code * code_units.length_unit, "pc")
     reference_pc = quantity_to_value(reference_state[0] * code_units.length_unit, "pc")
     velocity_kms = quantity_to_value(numerical_velocity_code * code_units.velocity_unit, "km/s")

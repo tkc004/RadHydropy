@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""High-level simulation runner."""  # noqa: CPY001
+"""High-level simulation runner."""
 
 import copy
 import time

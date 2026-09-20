@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""High-level simulation runner and its execution components."""  # noqa: CPY001
+"""High-level simulation runner and its execution components."""
 
 from radhydropy import io as rio
 

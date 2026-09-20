@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial-condition builder for the passive gas angular-momentum example."""  # noqa: CPY001
+"""Initial-condition builder for the passive gas angular-momentum example."""
 
 import numpy as np
 

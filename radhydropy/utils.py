@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Numerical and thermodynamic helper functions."""  # noqa: CPY001
+"""Numerical and thermodynamic helper functions."""
 
 import numpy as np
 import unyt
@@ -149,9 +149,9 @@ def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cm
     """Calculate a Lax-Friedrichs interface flux."""
     # Global Lax Friedrich function
     # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)
-    InterFaceFlux = 0.5 * (flux_L + flux_R)  # noqa: N806
+    InterFaceFlux = 0.5 * (flux_L + flux_R)
     # apply artifical diffusion +0.5*cmax*(q_L-q_R)
-    InterFaceFlux += 0.5 * cmax * (q_L - q_R)  # noqa: N806
+    InterFaceFlux += 0.5 * cmax * (q_L - q_R)
     return InterFaceFlux
 
 
@@ -182,13 +182,13 @@ def extrapolateToFace(fluxarray: float, xb: float, fgrad: float, order=1):
     """Extrapolate cell-centered values to left and right faces."""
     # numpy roll Rroll, put the right value to this cell
     if order == 0:
-        flux_R = fluxarray  # noqa: N806
-        flux_L = periodic_roll(fluxarray, 1)  # noqa: N806
+        flux_R = fluxarray
+        flux_L = periodic_roll(fluxarray, 1)
     elif order == 1:
         xdhalf = 0.5 * (xb[1:] - xb[:-1])
-        flux_R = fluxarray - fgrad * xdhalf  # noqa: N806
+        flux_R = fluxarray - fgrad * xdhalf
         # the following is correct in the first order case
-        flux_L = periodic_roll(fluxarray + fgrad * xdhalf, 1)  # noqa: N806
+        flux_L = periodic_roll(fluxarray + fgrad * xdhalf, 1)
     else:
         raise ValueError(f"order unknown: {order}")
     return flux_L, flux_R
@@ -196,26 +196,26 @@ def extrapolateToFace(fluxarray: float, xb: float, fgrad: float, order=1):
 
 def GetFQ(rho, vel, pre, gamma):
     """Return Euler fluxes and conserved densities for mass, momentum, and energy."""
-    Fmass = rho * vel  # noqa: N806
+    Fmass = rho * vel
     qmass = rho
-    Fmom = rho * vel * vel  # noqa: N806
+    Fmom = rho * vel * vel
     # Fmom  = rho * vel**2
     Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0 * rho[0] * vel[0] ** 2
-    Fmom += pre  # noqa: N806
+    Fmom += pre
     qmom = rho * vel
-    FEn = vel * (gamma * pre / (gamma - 1.0) + 0.5 * rho * vel**2)  # noqa: N806
-    qEn = pre / (gamma - 1.0) + rho * vel**2 * 0.5  # noqa: N806
+    FEn = vel * (gamma * pre / (gamma - 1.0) + 0.5 * rho * vel**2)
+    qEn = pre / (gamma - 1.0) + rho * vel**2 * 0.5
     return Fmass, qmass, Fmom, qmom, FEn, qEn
 
 
 def CalFluxFromLR(rho_L, rho_R, u_L, u_R, p_L, p_R, gamma, cmax):
     """Calculate Rusanov/GLF fluxes from left and right primitive states."""
-    Fmass_L, qmass_L, Fmom_L, qmom_L, FEn_L, qEn_L = GetFQ(rho_L, u_L, p_L, gamma)  # noqa: N806
-    Fmass_R, qmass_R, Fmom_R, qmom_R, FEn_R, qEn_R = GetFQ(rho_R, u_R, p_R, gamma)  # noqa: N806
+    Fmass_L, qmass_L, Fmom_L, qmom_L, FEn_L, qEn_L = GetFQ(rho_L, u_L, p_L, gamma)
+    Fmass_R, qmass_R, Fmom_R, qmom_R, FEn_R, qEn_R = GetFQ(rho_R, u_R, p_R, gamma)
 
-    Mass_flux = CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, cmax)  # noqa: N806
-    Mom_flux = CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, cmax)  # noqa: N806
-    Energy_flux = CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, cmax)  # noqa: N806
+    Mass_flux = CalInterFaceFluxGLF(Fmass_L, Fmass_R, qmass_L, qmass_R, cmax)
+    Mom_flux = CalInterFaceFluxGLF(Fmom_L, Fmom_R, qmom_L, qmom_R, cmax)
+    Energy_flux = CalInterFaceFluxGLF(FEn_L, FEn_R, qEn_L, qEn_R, cmax)
     return Mass_flux, Mom_flux, Energy_flux
 
 

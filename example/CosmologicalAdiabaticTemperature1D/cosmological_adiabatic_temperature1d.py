@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Compare homogeneous adiabatic temperature evolution with cosmology tools."""  # noqa: CPY001
+"""Compare homogeneous adiabatic temperature evolution with cosmology tools."""
 
 import copy
 import sys
@@ -16,19 +16,19 @@ sys.path.insert(0, str(TOOLS_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(DENSITY_EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
-from cosmological_density_evolution1d import (  # noqa: E402
+import example_utils as eu
+from cosmological_density_evolution1d import (
     CODE_TIME_S,
     SECONDS_PER_GYR,
 )
-from cosmological_initial_condition import build_initial_condition  # noqa: E402
-from cosmology import EinsteinDeSitter as PhysicalEdS  # noqa: E402
-from cosmology import LambdaCDM as PhysicalLambdaCDM  # noqa: E402
+from cosmological_initial_condition import build_initial_condition
+from cosmology import EinsteinDeSitter as PhysicalEdS
+from cosmology import LambdaCDM as PhysicalLambdaCDM
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter as CodeEdS  # noqa: E402
-from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
+from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
+from radhydropy.units import CodeUnits
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 CONFIG_FILE = Path(__file__).with_name("cosmological_adiabatic_temperature1d.yaml")

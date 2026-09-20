@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helpers for the 20 pc dynamic Stromgren-sphere example."""  # noqa: CPY001
+"""Helpers for the 20 pc dynamic Stromgren-sphere example."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,7 +30,7 @@ def save_plot(mesh, fluid, config, figure_filename):
     vel_peculiar_proper_km_s = _to_km_s(fluid.vel_radarray[interior], config)
     neutral_fraction = np.asarray(fluid.xHI[interior], dtype=float)
     pre_proper_cgs_erg_cm3 = pressure_from_radarrays(fluid, config)[interior]
-    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)  # noqa: N806
+    temperature_proper_cgs_K = _to_temperature(fluid.temp_radarray[interior], config)
     plot_radius_max = example_config["plot_radius_max"].to_value(unyt.pc)
     radius_unit = example_config.get("reference_radius_unit", 15.0 * unyt.kpc)
     density_reference = load_reference_profile(

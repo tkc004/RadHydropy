@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Inject a spherical outflow into an initially exact vacuum."""  # noqa: CPY001
+"""Inject a spherical outflow into an initially exact vacuum."""
 
 import argparse
 import sys
@@ -17,12 +17,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from example.OutflowSphVacuum1D import tools  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from example.OutflowSphVacuum1D import tools
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).with_name("outflow_sph_vacuum1d.yaml")
 

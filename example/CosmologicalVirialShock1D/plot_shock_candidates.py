@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Plot saved shock-candidate indicators versus time and comoving radius."""  # noqa: CPY001
+"""Plot saved shock-candidate indicators versus time and comoving radius."""
 
 import argparse
 from pathlib import Path
@@ -99,10 +99,10 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, mu=0.59, exclude_outer_c
     comoving_radius = np.asarray(data["radius_comoving_kpc"], dtype=float)
     proper_radius = comoving_radius[None, :] * scale[:, None]
     rho_comoving_code = np.asarray(data["rho_proper_code"], dtype=float)
-    temperature_proper_cgs_K = np.asarray(data["temperature_proper_cgs_K"], dtype=float)  # noqa: N806
+    temperature_proper_cgs_K = np.asarray(data["temperature_proper_cgs_K"], dtype=float)
     vel_proper_km_s = np.asarray(data["radial_velocity_proper_km_s"], dtype=float)
     count = max(3, comoving_radius.size - max(0, int(exclude_outer_cells)))
-    comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_proper_km_s = (  # noqa: N806
+    comoving_radius, proper_radius, rho_comoving_code, temperature_proper_cgs_K, vel_proper_km_s = (
         array[..., :count]
         for array in (
             comoving_radius,

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""20 pc dynamic Stromgren sphere with direct radiation pressure."""  # noqa: CPY001
+"""20 pc dynamic Stromgren sphere with direct radiation pressure."""
 
 import argparse
 import sys
@@ -20,11 +20,11 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import tools as et  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import tools as et
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -221,7 +221,7 @@ def main(config_filename=DEFAULT_CONFIG):
         Path(output["directory"]) / f"{figure_stem}_IFront.jpg",
     )
 
-    time_proper_Myr = np.asarray(momentum_history["time_proper_cgs_s"]) / (1.0 * unyt.Myr).to_value(  # noqa: N806
+    time_proper_Myr = np.asarray(momentum_history["time_proper_cgs_s"]) / (1.0 * unyt.Myr).to_value(
         unyt.s,
     )
     momentum_unit = unyt.g * unyt.cm / unyt.s

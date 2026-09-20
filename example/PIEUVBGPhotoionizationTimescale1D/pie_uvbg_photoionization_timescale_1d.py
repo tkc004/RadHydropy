@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Test thermal approach to HM12 PIE equilibrium over an ionization timescale."""  # noqa: CPY001
+"""Test thermal approach to HM12 PIE equilibrium over an ionization timescale."""
 
 import argparse
 import os
@@ -21,14 +21,14 @@ sys.path.insert(0, str(EXAMPLE_DIR.parent))
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
-from tools import build_initial_condition, clean_outputs, load_history  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits
+from tools import build_initial_condition, clean_outputs, load_history
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_photoionization_timescale_1d.yaml"
 
@@ -124,7 +124,7 @@ def main(config_filename=DEFAULT_CONFIG):
     hydrogen_number_densities_cgs_cm3 = (0.1, 1.0, 10.0)
     results = []
     for hydrogen_number_density_cgs_cm3 in hydrogen_number_densities_cgs_cm3:
-        temperature_equilibrium_cgs_K = _equilibrium_temperature(  # noqa: N806
+        temperature_equilibrium_cgs_K = _equilibrium_temperature(
             table,
             hydrogen_number_density_cgs_cm3,
             redshift,
@@ -165,14 +165,14 @@ def main(config_filename=DEFAULT_CONFIG):
             # be evaluated on its single active cell.
             sim.Run(outputtime=0, mode="sources")
             history = load_history(case_dir, case_config)
-            if len(history) < 2:  # noqa: PLR2004
+            if len(history) < 2:
                 raise RuntimeError(f"expected evolved snapshots in {case_dir}")
             # The legacy HDF5 time attribute is zero in this cgs setup. The
             # output list is explicit, so reconstruct the physical times of
             # the saved snapshots from that list.
             scheduled_times = np.concatenate(([0.0], output_times_yr, [timesim_yr]))
             time_yr = scheduled_times[: len(history)]
-            temperature_proper_cgs_K = np.array(  # noqa: N806
+            temperature_proper_cgs_K = np.array(
                 [item["temperature_proper_cgs_K"] for item in history],
             )
             time_over_photoionization_timescale_dimensionless = (
@@ -210,7 +210,7 @@ def main(config_filename=DEFAULT_CONFIG):
             for result in results
             if result["hydrogen_number_density_cgs_cm3"] == hydrogen_number_density_cgs_cm3
         ]
-        temperature_equilibrium_cgs_K = density_results[0]["temperature_equilibrium_cgs_K"]  # noqa: N806
+        temperature_equilibrium_cgs_K = density_results[0]["temperature_equilibrium_cgs_K"]
         fig, (ax_temp, ax_error) = plt.subplots(
             2,
             1,

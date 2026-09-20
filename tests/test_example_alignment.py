@@ -5,7 +5,7 @@
 These checks are intentionally source-oriented.  The ordinary example tests
 exercise selected workflows; this module makes the conventions from the
 example-maintenance skill fail fast for every example and every YAML file.
-"""  # noqa: CPY001
+"""
 
 from __future__ import annotations
 
@@ -349,7 +349,7 @@ def test_every_example_yaml_is_a_complete_loadable_config():
     for filename in _yaml_files():
         try:
             config = load_nested_example_config(filename)
-        except Exception as exc:  # noqa: BLE001 - report every bad config at once
+        except Exception as exc:
             failures.append(f"{filename.relative_to(REPO_ROOT)}: {exc}")
             continue
         if set(config) != {"par", "initial_condition", "example"}:
@@ -628,7 +628,7 @@ def test_physical_get_fallbacks_are_not_unitless():
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                 continue
-            if node.func.attr != "get" or len(node.args) < 2:  # noqa: PLR2004
+            if node.func.attr != "get" or len(node.args) < 2:
                 continue
             key = _literal_string(node.args[0])
             fallback = node.args[1]

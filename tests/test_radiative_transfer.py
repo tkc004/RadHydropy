@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import unittest  # noqa: CPY001
+import unittest
 from types import SimpleNamespace
 
 import numpy as np
@@ -29,7 +29,7 @@ class Testing(unittest.TestCase):
             face_area_cgs_cm2=np.ones(3, dtype=float),
         )
         rho = np.ones(3, dtype=float) * unyt.mp.to_value(unyt.g)
-        xHI = np.ones(3)  # noqa: N806
+        xHI = np.ones(3)
         boundary_flux = 10.0 / (unyt.cm**2 * unyt.s)
 
         result = rrt.trace_long_characteristics(
@@ -65,7 +65,7 @@ class Testing(unittest.TestCase):
             face_area_cgs_cm2=np.ones(2, dtype=float),
         )
         rho = np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g)
-        xHI = np.array([1.0, 0.5])  # noqa: N806
+        xHI = np.array([1.0, 0.5])
         result = rrt.trace_long_characteristics(
             mesh,
             group_edges_eV=[13.6, 24.6],
@@ -197,7 +197,7 @@ class Testing(unittest.TestCase):
             face_area_cgs_cm2=np.array([0.0, 4.0 * np.pi], dtype=float),
         )
         rho = np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g)
-        xHI = np.ones(2)  # noqa: N806
+        xHI = np.ones(2)
         source_photon_rate = 12.0 / unyt.s
 
         result = rrt.trace_long_characteristics(

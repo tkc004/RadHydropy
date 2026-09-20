@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Cosmological virial-shock runtime physics hooks."""  # noqa: CPY001
+"""Cosmological virial-shock runtime physics hooks."""
 
 import numpy as np
 
@@ -68,7 +68,7 @@ class CosmologicalVirialShockPhysics:
         background_physical = float(
             self.cosmology.background_density(time_cosmic_code),
         )
-        temperature_initial_cgs_K = self.cmb_temperature_0_cgs_K / self.initial_a  # noqa: N806
+        temperature_initial_cgs_K = self.cmb_temperature_0_cgs_K / self.initial_a
         temperature_physical = temperature_initial_cgs_K * (self.initial_a / scale_factor) ** 2
         self.sim.par.boundary.rho_inflow_proper = (
             self.baryon_fraction * background_physical * scale_factor**3

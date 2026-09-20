@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Focused checks for the standalone Bertschinger gas reference."""  # noqa: CPY001
+"""Focused checks for the standalone Bertschinger gas reference."""
 
 import importlib.util
 import sys
@@ -18,15 +18,15 @@ SPEC.loader.exec_module(MODULE)
 
 def test_transonic_shock_location():
     shock = MODULE.shoot_shock_lambda()
-    assert abs(shock - 0.33897694) < 3.0e-7  # noqa: PLR2004
+    assert abs(shock - 0.33897694) < 3.0e-7
 
 
 def test_shock_jump_and_standalone_solution():
     shock = MODULE.shoot_shock_lambda()
     exterior = MODULE.exterior_solution([shock])
     postshock = MODULE.shock_jump((exterior[0][0], exterior[1][0], exterior[2][0]), shock)
-    assert abs(postshock[0] / exterior[0][0] - 4.0) < 1.0e-10  # noqa: PLR2004
+    assert abs(postshock[0] / exterior[0][0] - 4.0) < 1.0e-10
     solution = MODULE.solve_bertschinger_gas(points=128)
     assert solution.shock_lambda == shock
     assert solution.lambda_in[0] < shock
-    assert solution.velocity_in[0] < 1.0e-8  # noqa: PLR2004
+    assert solution.velocity_in[0] < 1.0e-8

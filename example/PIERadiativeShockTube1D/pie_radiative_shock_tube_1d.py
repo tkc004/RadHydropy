@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""HM12 PIE radiative colliding-flow shock-tube benchmark."""  # noqa: CPY001
+"""HM12 PIE radiative colliding-flow shock-tube benchmark."""
 
 import argparse
 import copy
@@ -21,13 +21,13 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
-from tools import (  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits
+from tools import (
     PROTON_MASS_G,
     build_initial_condition,
     cooling_length_estimate,
@@ -86,7 +86,7 @@ def _run_case(
     sim.SetInitFluid()
     sim.Run(outputtime=0, mode="hydro" if adiabatic else "hydro_sources")
     snapshots = sorted(output_dir.glob(f"{output_prefix}_*.hdf5"))
-    if len(snapshots) < 2:  # noqa: PLR2004
+    if len(snapshots) < 2:
         raise RuntimeError(f"expected snapshots in {output_dir}")
     return {
         "label": label,
@@ -113,7 +113,7 @@ def _shock_diagnostics(result, table, config):
     # barely developed initial transient rather than the displayed shock.
     shock_snapshot = snapshot
     rho_proper_cgs_g_cm3 = shock_snapshot["rho_proper_cgs_g_cm3"]
-    temperature_proper_cgs_K = shock_snapshot["temperature_proper_cgs_K"]  # noqa: N806
+    temperature_proper_cgs_K = shock_snapshot["temperature_proper_cgs_K"]
     vel_proper_cgs_cm_s = shock_snapshot["vel_peculiar_proper_cgs_cm_s"]
     boundary_proper_cgs_cm = shock_snapshot["boundary_proper_cgs_cm"]
     centers_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[1:] + boundary_proper_cgs_cm[:-1])

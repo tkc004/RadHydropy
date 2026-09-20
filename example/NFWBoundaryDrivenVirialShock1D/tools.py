@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helpers for a boundary-driven virial shock in a fixed NFW halo."""  # noqa: CPY001
+"""Helpers for a boundary-driven virial shock in a fixed NFW halo."""
 
 from pathlib import Path
 
@@ -39,8 +39,8 @@ def pie_equilibrium_temperature(
     hydrogen_number_density_cgs_cm3 = (
         hydrogen_mass_fraction * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
     )
-    log_temperature_proper_K = np.asarray(table.log_temperature, dtype=float)  # noqa: N806
-    temperature_proper_cgs_K = 10.0**log_temperature_proper_K  # noqa: N806
+    log_temperature_proper_K = np.asarray(table.log_temperature, dtype=float)
+    temperature_proper_cgs_K = 10.0**log_temperature_proper_K
     heating, cooling = table.rates(
         temperature_proper_cgs_K[:, None],
         hydrogen_number_density_cgs_cm3[None, :],
@@ -261,7 +261,7 @@ def locate_shock(snapshot, r200_kpc):
     """Locate the strongest entropy-producing compression near the halo."""
     radius_proper_kpc = snapshot["radius_proper_kpc"]
     rho_proper_cgs_g_cm3 = np.maximum(snapshot["rho_proper_cgs_g_cm3"], 1.0e-99)
-    temperature_proper_cgs_K = np.maximum(snapshot["temperature_proper_cgs_K"], 1.0)  # noqa: N806
+    temperature_proper_cgs_K = np.maximum(snapshot["temperature_proper_cgs_K"], 1.0)
     pressure_proper_cgs_arb = rho_proper_cgs_g_cm3 * temperature_proper_cgs_K
     entropy_proper_cgs_arb = pressure_proper_cgs_arb / rho_proper_cgs_g_cm3 ** (5.0 / 3.0)
     # Radius increases with array index, so a compressed downstream (inner)
@@ -281,15 +281,15 @@ def locate_shock(snapshot, r200_kpc):
     candidate = (
         (radius_proper_kpc[:-1] > 0.1 * r200_kpc)
         & (radius_proper_kpc[:-1] < 2.0 * r200_kpc)
-        & (density_ratio_dimensionless > 1.02)  # noqa: PLR2004
-        & (temperature_ratio_dimensionless > 1.02)  # noqa: PLR2004
+        & (density_ratio_dimensionless > 1.02)
+        & (temperature_ratio_dimensionless > 1.02)
         & decelerating
     )
     if not np.any(candidate):
         return None
     indices = np.flatnonzero(candidate)
     index = int(indices[np.argmax(score[candidate])])
-    if score[index] < 0.08:  # noqa: PLR2004
+    if score[index] < 0.08:
         return None
     return index
 
@@ -303,16 +303,16 @@ def shock_history(filenames, halo, config, times_myr=None):
         if times_myr is not None:
             snapshot["time_proper_Myr"] = float(times_myr[file_index])
         index = locate_shock(snapshot, r200)
-        if index is None or index < 3 or index + 4 >= len(snapshot["radius_proper_kpc"]):  # noqa: PLR2004
+        if index is None or index < 3 or index + 4 >= len(snapshot["radius_proper_kpc"]):
             continue
         inner = slice(index - 3, index)
         outer = slice(index + 1, index + 4)
         density_inner_proper_cgs_g_cm3 = float(np.median(snapshot["rho_proper_cgs_g_cm3"][inner]))
         density_outer_proper_cgs_g_cm3 = float(np.median(snapshot["rho_proper_cgs_g_cm3"][outer]))
-        temperature_inner_proper_cgs_K = float(  # noqa: N806
+        temperature_inner_proper_cgs_K = float(
             np.median(snapshot["temperature_proper_cgs_K"][inner]),
         )
-        temperature_outer_proper_cgs_K = float(  # noqa: N806
+        temperature_outer_proper_cgs_K = float(
             np.median(snapshot["temperature_proper_cgs_K"][outer]),
         )
         rows.append(
@@ -396,12 +396,12 @@ def pie_stability_diagnostics(
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     downstream = []
     for profile, index in zip(profiles, indices, strict=False):
-        if index is None or index < 8 or index + 5 >= len(profile["radius_proper_kpc"]):  # noqa: PLR2004
+        if index is None or index < 8 or index + 5 >= len(profile["radius_proper_kpc"]):
             downstream.append(None)
             continue
         band = slice(index - 8, index - 3)
         rho_postshock_cgs_g_cm3 = float(np.median(profile["rho_proper_cgs_g_cm3"][band]))
-        temperature_postshock_cgs_K = float(np.median(profile["temperature_proper_cgs_K"][band]))  # noqa: N806
+        temperature_postshock_cgs_K = float(np.median(profile["temperature_proper_cgs_K"][band]))
         downstream.append(
             (
                 rho_postshock_cgs_g_cm3,
@@ -441,7 +441,7 @@ def pie_stability_diagnostics(
         index = indices[i]
         upstream = slice(index + 2, index + 5)
         float(np.median(profile["rho_proper_cgs_g_cm3"][upstream]))
-        temperature_upstream_proper_cgs_K = float(  # noqa: N806
+        temperature_upstream_proper_cgs_K = float(
             np.median(profile["temperature_proper_cgs_K"][upstream]),
         )
         velocity_upstream_proper_km_s = float(
@@ -508,13 +508,13 @@ def pie_stability_diagnostics(
         specific_energy_analytic = energy_analytic / max(rho_analytic, 1.0e-99)
         gamma_eff = (
             gamma - rho1 * net_rate / (density_rate * specific_energy1)
-            if compression_rate > 1.0e-30  # noqa: PLR2004
+            if compression_rate > 1.0e-30
             else np.nan
         )
         gamma_eff_analytic = (
             gamma
             - rho_analytic * analytic_net_rate / (analytic_density_rate * specific_energy_analytic)
-            if compression_rate > 1.0e-30  # noqa: PLR2004
+            if compression_rate > 1.0e-30
             else np.nan
         )
         rows.append(
@@ -576,7 +576,7 @@ def plot_stability_diagnostics(rows, filename):
         for axis in axes.flat:
             axis.set_axis_off()
     else:
-        time_proper_Myr = np.asarray([row["time_proper_Myr"] for row in rows])  # noqa: N806
+        time_proper_Myr = np.asarray([row["time_proper_Myr"] for row in rows])
         panels = (
             (
                 "postshock_pressure_proper_cgs_erg_cm3",
@@ -657,7 +657,7 @@ def plot_comparison(
             snapshot = load_output_state(files[index], config)
             if times_myr is not None:
                 snapshot["time_proper_Myr"] = float(times_myr[index])
-            radius_proper_over_R200_dimensionless = snapshot["radius_proper_kpc"] / r200  # noqa: N806
+            radius_proper_over_R200_dimensionless = snapshot["radius_proper_kpc"] / r200
             plot_label = f"{snapshot['time_proper_Myr']:.0f} Myr"
             axes[row, 0].plot(
                 radius_proper_over_R200_dimensionless,

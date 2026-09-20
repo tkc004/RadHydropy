@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Thermo-chemistry network implementations."""  # noqa: CPY001
+"""Thermo-chemistry network implementations."""
 
 from radhydropy.thermo_networks.cie import CIECoolingNetwork
 from radhydropy.thermo_networks.hydrogen import HydrogenNetwork

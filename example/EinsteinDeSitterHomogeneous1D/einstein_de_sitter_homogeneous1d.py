@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Phase 1 Einstein--de Sitter homogeneous expansion diagnostic."""  # noqa: CPY001
+"""Phase 1 Einstein--de Sitter homogeneous expansion diagnostic."""
 
 import sys
 from pathlib import Path
@@ -12,12 +12,12 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
-import numpy as np  # noqa: E402
+import example_utils as eu
+import numpy as np
 
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")):

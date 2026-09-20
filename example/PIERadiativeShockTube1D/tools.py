@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial conditions and diagnostics for the PIE radiative shock tube."""  # noqa: CPY001
+"""Initial conditions and diagnostics for the PIE radiative shock tube."""
 
 import numpy as np
 import unyt

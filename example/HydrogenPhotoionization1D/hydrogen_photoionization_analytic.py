@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Analytic fixed-field hydrogen photoionization solution."""  # noqa: CPY001
+"""Analytic fixed-field hydrogen photoionization solution."""
 
 import numpy as np
 import unyt
@@ -10,12 +10,12 @@ import radhydropy.thermo_networks.hydrogen as rth
 
 def recombination_rate(temperature_proper_unyt, hydrogen_number_density_proper_unyt):
     """Return ``nH alpha_B``."""
-    alpha_B = rth.cgs_alpha_B(temperature_proper_unyt.to_value(unyt.K))  # noqa: N806
-    nH = hydrogen_number_density_proper_unyt.to(1.0 / unyt.cm**3)  # noqa: N806
+    alpha_B = rth.cgs_alpha_B(temperature_proper_unyt.to_value(unyt.K))
+    nH = hydrogen_number_density_proper_unyt.to(1.0 / unyt.cm**3)
     # `_cgs_alpha_B` returns a bare recombination coefficient in cm^3/s.
     # Attach the missing units before multiplying by the number density so the
     # result carries a rate dimension and can be safely converted to 1/s.
-    alpha_B = alpha_B * unyt.cm**3 / unyt.s  # noqa: N806
+    alpha_B = alpha_B * unyt.cm**3 / unyt.s
     return (alpha_B * nH).to(1.0 / unyt.s)
 
 

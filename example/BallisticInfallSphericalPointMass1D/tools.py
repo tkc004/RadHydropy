@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helpers for spherical ballistic infall."""  # noqa: CPY001
+"""Helpers for spherical ballistic infall."""
 
 import matplotlib as mpl
 

@@ -6,7 +6,7 @@ This is a homogeneous, source-only benchmark.  It integrates the same
 hydrogen chemistry rate used by RadHydropy after z=100, with Compton heating
 and atomic cooling enabled.  There is deliberately no radiation field or
 photoionization/reionization source.
-"""  # noqa: CPY001
+"""
 
 import sys
 from pathlib import Path
@@ -22,8 +22,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS  # noqa: E402
-from radhydropy.thermo_networks.hydrogen import (  # noqa: E402
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
+from radhydropy.thermo_networks.hydrogen import (
     ionization_fraction_rate,
     thermal_rate,
 )
@@ -37,7 +37,7 @@ def evolve(config):
     initial_condition = config["initial_condition"]
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     hydrogen_fraction = float(config["par"]["chemistry"]["hydrogen_mass_fraction"])
-    nH0 = float(initial_condition["hydrogen_number_density"].to_value("1/cm**3"))  # noqa: N806
+    nH0 = float(initial_condition["hydrogen_number_density"].to_value("1/cm**3"))
     t_ref_s = float(config["par"]["cosmology"]["cosmology_t_ref"].to_value("s"))
     cmb0 = float(config["par"]["thermochemistry"]["cmb_temperature_0"].to_value("K"))
     z_initial = float(initial_condition["initial_redshift"])
@@ -45,14 +45,14 @@ def evolve(config):
     t_initial = t_ref_s * (1.0 / (1.0 + z_initial)) ** 1.5
     t_final = t_ref_s * (1.0 / (1.0 + z_final)) ** 1.5
     initial_xe = float(initial_condition["initial_xe"])
-    temperature_proper_cgs_K = float(initial_condition["temperature_proper"].to_value("K"))  # noqa: N806
+    temperature_proper_cgs_K = float(initial_condition["temperature_proper"].to_value("K"))
 
     def rates(time_cosmic_cgs_s, values):
-        xHI = float(np.clip(values[0], 1.0e-12, 1.0 - 1.0e-12))  # noqa: N806
-        temperature_proper_cgs_K = max(float(values[1]), 1.0e-6)  # noqa: N806
+        xHI = float(np.clip(values[0], 1.0e-12, 1.0 - 1.0e-12))
+        temperature_proper_cgs_K = max(float(values[1]), 1.0e-6)
         scale_factor = (time_cosmic_cgs_s / t_ref_s) ** (2.0 / 3.0)
         redshift = 1.0 / scale_factor - 1.0
-        nH = nH0 * scale_factor**-3  # noqa: N806
+        nH = nH0 * scale_factor**-3
         rho_proper_cgs_g_cm3 = nH * PROTON_MASS_CGS / hydrogen_fraction
         state = {
             "rho_cgs_g_cm3": np.asarray([rho_proper_cgs_g_cm3]),
@@ -101,7 +101,7 @@ def evolve(config):
     scale_factor = (time_cosmic_cgs_s / t_ref_s) ** (2.0 / 3.0)
     redshift = 1.0 / scale_factor - 1.0
     xe = 1.0 - np.clip(solution.y[0], 0.0, 1.0)
-    temperature_proper_cgs_K = np.maximum(solution.y[1], 0.0)  # noqa: N806
+    temperature_proper_cgs_K = np.maximum(solution.y[1], 0.0)
     return redshift, xe, temperature_proper_cgs_K
 
 
@@ -109,11 +109,11 @@ def main():
     from example import example_utils as eu
 
     config = eu.load_nested_example_config(CONFIG)
-    redshift, xe, temperature_proper_cgs_K = evolve(config)  # noqa: N806
+    redshift, xe, temperature_proper_cgs_K = evolve(config)
     # The integration proceeds from high to low redshift; retain that order
     # so the horizontal axis also reads forward in cosmic time.
     order = np.argsort(-redshift)
-    redshift, xe, temperature_proper_cgs_K = (  # noqa: N806
+    redshift, xe, temperature_proper_cgs_K = (
         redshift[order],
         xe[order],
         temperature_proper_cgs_K[order],

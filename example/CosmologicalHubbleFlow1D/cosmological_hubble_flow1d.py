@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Test homogeneous Hubble flow against the standalone cosmology tool."""  # noqa: CPY001
+"""Test homogeneous Hubble flow against the standalone cosmology tool."""
 
 import copy
 import sys
@@ -20,22 +20,22 @@ sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
-from cosmological_density_evolution1d import (  # noqa: E402
+import example_utils as eu
+from cosmological_density_evolution1d import (
     CODE_LENGTH_CM,
     CODE_TIME_S,
     CODE_VELOCITY_CM_S,
     SECONDS_PER_GYR,
     density_msun_mpc3_to_cgs,
 )
-from cosmological_initial_condition import build_initial_condition  # noqa: E402
-from cosmology import EinsteinDeSitter as PhysicalEdS  # noqa: E402
-from cosmology import LambdaCDM as PhysicalLambdaCDM  # noqa: E402
+from cosmological_initial_condition import build_initial_condition
+from cosmology import EinsteinDeSitter as PhysicalEdS
+from cosmology import LambdaCDM as PhysicalLambdaCDM
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter as CodeEdS  # noqa: E402
-from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
+from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
+from radhydropy.units import CodeUnits
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 CONFIG_FILE = Path(__file__).with_name("cosmological_hubble_flow1d.yaml")
@@ -46,7 +46,7 @@ def code_values(value, unit):
         return np.asarray(value.to_value(unit), dtype=float)
     raw = np.asarray(value, dtype=float)
     unit_value = float(unit)
-    if unit_value != 1.0 and np.max(np.abs(raw), initial=0.0) > 1.0e6:  # noqa: PLR2004
+    if unit_value != 1.0 and np.max(np.abs(raw), initial=0.0) > 1.0e6:
         raw = raw / unit_value
     return raw
 
@@ -189,9 +189,9 @@ def run():
         )
         if not np.isclose(final_a, final_scale_factor, rtol=2.0e-8):
             raise RuntimeError(f"{label}: scale factor disagrees")
-        if peculiar_error > 2.0e-12:  # noqa: PLR2004
+        if peculiar_error > 2.0e-12:
             raise RuntimeError(f"{label}: homogeneous peculiar velocity changed")
-        if velocity_error > 2.0e-8:  # noqa: PLR2004
+        if velocity_error > 2.0e-8:
             raise RuntimeError(f"{label}: Hubble velocity disagrees")
     figure = OUTPUT_ROOT / "CosmologicalHubbleFlow1D.jpg"
     figure.parent.mkdir(parents=True, exist_ok=True)

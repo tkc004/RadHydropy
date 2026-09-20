@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Initial conditions and diagnostics for a gravity-free spherical PIE shock."""  # noqa: CPY001
+"""Initial conditions and diagnostics for a gravity-free spherical PIE shock."""
 
 import numpy as np
 import unyt
@@ -94,7 +94,7 @@ def shock_history(filenames, config, output_interval_myr=None):
     for filename in filenames:
         snapshot = load_output_state(filename, config)
         if output_interval_myr is None:
-            time_proper_Myr = snapshot["time_proper_Myr"]  # noqa: N806
+            time_proper_Myr = snapshot["time_proper_Myr"]
         else:
             # Current HDF5 output headers do not preserve the evolving time
             # for this non-cosmological run.  The numbered output and the
@@ -103,7 +103,7 @@ def shock_history(filenames, config, output_interval_myr=None):
                 output_index = int(filename.stem.rsplit("_", 1)[1])
             except (AttributeError, IndexError, ValueError):
                 output_index = len(rows)
-            time_proper_Myr = output_index * float(output_interval_myr)  # noqa: N806
+            time_proper_Myr = output_index * float(output_interval_myr)
         rows.append((time_proper_Myr, shock_radius(snapshot)))
     return np.asarray(rows, dtype=float)
 
@@ -120,7 +120,7 @@ def estimate_cooling_length(snapshot, table, metallicity, hydrogen_mass_fraction
     right_temperature = float(np.median(snapshot["temperature_proper_cgs_K"][right]))
     post_slice = right if right_temperature >= left_temperature else left
     density_proper_cgs_g_cm3 = float(np.median(snapshot["rho_proper_cgs_g_cm3"][post_slice]))
-    temperature_proper_cgs_K = float(np.median(snapshot["temperature_proper_cgs_K"][post_slice]))  # noqa: N806
+    temperature_proper_cgs_K = float(np.median(snapshot["temperature_proper_cgs_K"][post_slice]))
     vel_peculiar_proper_cgs_cm_s = float(
         np.median(np.abs(snapshot["vel_peculiar_proper_cgs_cm_s"][post_slice])),
     )

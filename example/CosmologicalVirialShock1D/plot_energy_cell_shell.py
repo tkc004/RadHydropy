@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Plot snapshot-resolved gas-cell and dark-matter-shell energies."""  # noqa: CPY001
+"""Plot snapshot-resolved gas-cell and dark-matter-shell energies."""
 
 from pathlib import Path
 
@@ -60,7 +60,7 @@ def main():
     profiles = np.load(OUTPUT / (PREFIX + ".npz"))
     scale = np.asarray(profiles["scale_factor"], dtype=float)
 
-    gas_time_cosmic_Gyr = np.asarray(data["gas_time_cosmic_Gyr"], dtype=float)  # noqa: N806
+    gas_time_cosmic_Gyr = np.asarray(data["gas_time_cosmic_Gyr"], dtype=float)
     gas_radius_proper_kpc = (
         np.asarray(profiles["radius_comoving_kpc"], dtype=float)[None, :] * scale[:, None]
     )
@@ -78,7 +78,7 @@ def main():
         "proper radius [kpc]",
     )
 
-    dm_time_cosmic_Gyr = np.asarray(data["dm_time_cosmic_Gyr"], dtype=float)  # noqa: N806
+    dm_time_cosmic_Gyr = np.asarray(data["dm_time_cosmic_Gyr"], dtype=float)
     dm_radius_proper_kpc = np.asarray(data["dm_radius_comoving_code"], dtype=float) * scale[:, None]
     _plot(
         [

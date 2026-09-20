@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Reference quantities for the hydrogen photoheating example."""  # noqa: CPY001
+"""Reference quantities for the hydrogen photoheating example."""
 
 import numpy as np
 import unyt

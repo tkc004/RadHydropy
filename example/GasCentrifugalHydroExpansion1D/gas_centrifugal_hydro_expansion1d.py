@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Hydro plus centrifugal-source expansion benchmark."""  # noqa: CPY001
+"""Hydro plus centrifugal-source expansion benchmark."""
 
 import os
 import sys
@@ -13,18 +13,18 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-from shell_remap import centrifugal_shell_reference  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
+from shell_remap import centrifugal_shell_reference
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.arrays import as_named_array  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.arrays import as_named_array
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 CONFIG = ROOT / "gas_centrifugal_hydro_expansion1d.yaml"
 
@@ -207,13 +207,13 @@ def main(config_filename=CONFIG):
     mass_error = float(
         abs(np.sum(saved_mass) - np.sum(initial_mass)) / max(abs(np.sum(initial_mass)), 1.0e-300),
     )
-    if velocity_error > 0.08:  # noqa: PLR2004
+    if velocity_error > 0.08:
         raise RuntimeError(
             f"hydro expansion velocity disagrees with shell ODE: {velocity_error:.6g}",
         )
     if not np.all(np.isfinite(saved_j)):
         raise RuntimeError("hydro expansion produced invalid specific angular momentum")
-    if mass_error > 1.0e-10:  # noqa: PLR2004
+    if mass_error > 1.0e-10:
         raise RuntimeError(f"closed hydro expansion lost mass: relative error {mass_error:.6g}")
 
     # Cell-centered potential energy uses the extensive cell mass, which
@@ -231,7 +231,7 @@ def main(config_filename=CONFIG):
     ode_total_energy = np.sum(reference["energy_proper_code"])
     energy_error = float(abs(saved_total_energy - ode_total_energy))
     energy_scale = max(abs(float(ode_total_energy)), 1.0e-12)
-    if energy_error / energy_scale > 2.0e-3:  # noqa: PLR2004
+    if energy_error / energy_scale > 2.0e-3:
         raise RuntimeError(
             "hydro expansion total-energy audit failed: relative error %.6g"
             % (energy_error / energy_scale),

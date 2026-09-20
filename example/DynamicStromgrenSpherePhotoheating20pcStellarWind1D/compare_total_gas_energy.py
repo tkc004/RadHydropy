@@ -5,7 +5,7 @@
 The comparison uses matched snapshot times when available and integrates over
 physical cells only.  Gas energy is the sum of thermal and radial kinetic
 energy.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import sys
@@ -25,9 +25,9 @@ if str(_EXAMPLE_DIR) not in sys.path:
 if str(_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(_PACKAGE_DIR))
 
-from example_utils import load_nested_example_config  # noqa: E402
+from example_utils import load_nested_example_config
 
-from radhydropy.units import CodeUnits  # noqa: E402
+from radhydropy.units import CodeUnits
 
 HERE = Path(__file__).resolve().parent
 NO_WIND_DIR = HERE.parent / "DynamicStromgrenSpherePhotoheating20pc1D"
@@ -69,7 +69,7 @@ def _snapshot_energy(snapshot, config, tools):
     )
     thermal = float(np.sum(pressure_cgs_erg_cm3 / (par.hydrodynamics.gamma - 1.0) * volume_cgs_cm3))
     kinetic = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
-    time_proper_Myr = float(  # noqa: N806
+    time_proper_Myr = float(
         np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr),
     )
     return time_proper_Myr, thermal, kinetic, thermal + kinetic

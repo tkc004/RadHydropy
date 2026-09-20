@@ -5,7 +5,7 @@
 This is a one-dimensional spherical centrifugal-barrier benchmark.  It is not
 a multidimensional disk-formation calculation: each shell carries its own
 conserved signed specific angular momentum.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import copy
@@ -19,18 +19,18 @@ PROJECT_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-from cosmological_initial_condition import build_initial_condition  # noqa: E402
-from scipy.integrate import solve_ivp  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
+from cosmological_initial_condition import build_initial_condition
+from scipy.integrate import solve_ivp
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_rotating_collapse1d.yaml")
 
@@ -461,7 +461,7 @@ def main(
     for label, (_, history, _) in by_label.items():
         total_j = np.asarray(history["total_j"], dtype=float)
         scale = max(1.0, abs(total_j[0]))
-        if np.max(np.abs(total_j - total_j[0])) / scale > 1.0e-10:  # noqa: PLR2004
+        if np.max(np.abs(total_j - total_j[0])) / scale > 1.0e-10:
             raise RuntimeError(f"total angular momentum is not conserved for {label}")
 
     saved_histories = {

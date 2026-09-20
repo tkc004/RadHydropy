@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Rsim execution subsystem helpers."""  # noqa: CPY001
+"""Rsim execution subsystem helpers."""
 
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
@@ -318,7 +318,7 @@ def _require_unitless_runtime_parameters(sim):
 
     if leaked:
         names = ", ".join(leaked[:20])
-        if len(leaked) > 20:  # noqa: PLR2004
+        if len(leaked) > 20:
             names += f", ... ({len(leaked)} total)"
         raise TypeError(
             "runtime parameters must be unitless code values after startup "

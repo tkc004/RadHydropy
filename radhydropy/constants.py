@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Shared physical constants used across the codebase."""  # noqa: CPY001
+"""Shared physical constants used across the codebase."""
 
 import unyt
 

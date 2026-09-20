@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Invariant-domain and dual-energy positivity helpers."""  # noqa: CPY001
+"""Invariant-domain and dual-energy positivity helpers."""
 
 import numpy as np
 

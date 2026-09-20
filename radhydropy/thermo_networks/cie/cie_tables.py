@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Cached CHIANTI CIE ion-fraction and cooling-table interpolation."""  # noqa: CPY001
+"""Cached CHIANTI CIE ion-fraction and cooling-table interpolation."""
 
 from pathlib import Path
 
@@ -46,7 +46,7 @@ def _read_abundance_file(filename):
     log_abundance = []
     for line in Path(filename).read_text().splitlines():
         fields = line.split()
-        if len(fields) >= 3 and fields[0].isdigit():  # noqa: PLR2004
+        if len(fields) >= 3 and fields[0].isdigit():
             atomic_number.append(int(fields[0]))
             log_abundance.append(float(fields[1]))
     return np.asarray(atomic_number), 10.0 ** (np.asarray(log_abundance) - 12.0)
@@ -87,7 +87,7 @@ class CIETable:
 
     def electron_fraction(self, temperature_cgs_K, metallicity):
         """Return ``ne / nH`` for temperature and metallicity arrays."""
-        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
+        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
         log_temperature = np.log10(np.maximum(temperature_cgs_K, 1.0))
         key = float(metallicity)
         if key not in self._electron_fraction_cache:
@@ -106,7 +106,7 @@ class CIETable:
 
     def cooling_coefficient(self, temperature_cgs_K, electron_density, metallicity):
         """Return Lambda in erg cm^3 s^-1 using log-space interpolation."""
-        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
+        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
         electron_density = np.asarray(electron_density, dtype=float)
         log_temperature = np.log10(np.maximum(temperature_cgs_K, 1.0))
         log_density = np.log10(np.maximum(electron_density, 1.0e-99))

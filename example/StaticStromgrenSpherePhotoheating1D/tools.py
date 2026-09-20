@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helper utilities for the photoheated static Stromgren sphere example."""  # noqa: CPY001
+"""Helper utilities for the photoheated static Stromgren sphere example."""
 
 import os
 import sys
@@ -33,7 +33,7 @@ static_stromgren_dir = os.path.abspath(
 if static_stromgren_dir not in sys.path:
     sys.path.append(static_stromgren_dir)
 
-import stromgren_analytic as sa  # noqa: E402
+import stromgren_analytic as sa
 
 
 def _attach_proper_runtime_states(mesh, fluid):
@@ -234,7 +234,7 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
         / (1.0 * unyt.kpc).to_value(unyt.cm)
         * unyt.kpc
     )
-    xHI = np.asarray(fluid.xHI[interior])  # noqa: N806
+    xHI = np.asarray(fluid.xHI[interior])
 
     ionized = xHI <= neutral_fraction
     if not np.any(ionized):
@@ -267,8 +267,8 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
 def mean_ionized_temperature(fluid, config):
     par = config["_output_par"]
     interior = interior_slice(config)
-    xHI = np.asarray(fluid.xHI[interior])  # noqa: N806
-    temperature_proper_cgs_K = code_quantity_to_cgs(  # noqa: N806
+    xHI = np.asarray(fluid.xHI[interior])
+    temperature_proper_cgs_K = code_quantity_to_cgs(
         fluid.temp_proper_code[interior],
         par.units.CodeUnits,
         "temperature_cgs_K",
@@ -330,21 +330,21 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     radius_proper_cgs_kpc_unyt = radius_proper_cgs_kpc * unyt.kpc
     snapshot = history.get("reference_snapshot", None)
     if snapshot is None:
-        xHI = np.asarray(fluid.xHI[interior], dtype=float)  # noqa: N806
-        temperature_cgs_K = code_quantity_to_cgs(  # noqa: N806
+        xHI = np.asarray(fluid.xHI[interior], dtype=float)
+        temperature_cgs_K = code_quantity_to_cgs(
             fluid.temp_proper_code[interior],
             code_units_obj,
             "temperature_cgs_K",
         )
-        profile_time_proper_Myr = float(  # noqa: N806
+        profile_time_proper_Myr = float(
             fluid.time_proper_code * code_units_obj.time_unit.to_value(unyt.Myr),
         )
     else:
         radius_proper_cgs_kpc = snapshot["radius_proper_kpc"]
-        xHI = snapshot["xHI"]  # noqa: N806
-        temperature_cgs_K = snapshot["temperature_cgs_K"]  # noqa: N806
-        profile_time_proper_Myr = snapshot["time_proper_Myr"]  # noqa: N806
-    xHII = 1.0 - xHI  # noqa: N806
+        xHI = snapshot["xHI"]
+        temperature_cgs_K = snapshot["temperature_cgs_K"]
+        profile_time_proper_Myr = snapshot["time_proper_Myr"]
+    xHII = 1.0 - xHI
     plot_radius_max = example.get("plot_radius_max", initial["box_size_proper"]).to_value(unyt.kpc)
     reference_radius_unit = example.get("reference_radius_unit", 5.4 * unyt.kpc)
     temperature_reference = load_log_reference_profile(
@@ -355,9 +355,9 @@ def save_plot(mesh, fluid, history, config, figure_filename):
         example.get("neutral_fraction_reference_filename", None),
         reference_radius_unit,
     )
-    alpha_B = thermo.get("hydrogen_alpha_B")  # noqa: N806
+    alpha_B = thermo.get("hydrogen_alpha_B")
     if alpha_B is not None:
-        xHI_analytic = sa.neutral_fraction_profile(  # noqa: N806
+        xHI_analytic = sa.neutral_fraction_profile(
             radius_proper_cgs_kpc_unyt,
             initial["hydrogen_number_density"],
             thermo["hydrogen_sigma_gamma"],
@@ -365,7 +365,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
             radiation["source_photon_rate"],
             inner_radius_proper_unyt=example["analytic_inner_radius"],
         )
-        xHII_analytic = 1.0 - xHI_analytic  # noqa: N806
+        xHII_analytic = 1.0 - xHI_analytic
         radius_stromgren = sa.stromgren_radius(
             radiation["source_photon_rate"],
             initial["hydrogen_number_density"],
@@ -378,7 +378,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
             alpha_B,
         ).to_value(unyt.kpc)
     else:
-        xHI_analytic = xHII_analytic = None  # noqa: N806
+        xHI_analytic = xHII_analytic = None
         radius_stromgren = None
         analytic_front = None
 

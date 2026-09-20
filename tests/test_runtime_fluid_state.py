@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-from types import SimpleNamespace  # noqa: CPY001
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -30,7 +30,7 @@ def test_supercomoving_fluid_runtime_state_has_explicit_fields():
     assert state.vel_supercomoving_code is not None
     assert state.pre_supercomoving_code is not None
     assert state.temp_supercomoving_code is not None
-    assert state.tau_supercomoving_code == 0.5  # noqa: PLR2004
+    assert state.tau_supercomoving_code == 0.5
     assert state.rho_proper_code is None
 
 

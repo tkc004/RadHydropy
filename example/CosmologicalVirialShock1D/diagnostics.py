@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Snapshot diagnostics for the cosmological virial-shock example."""  # noqa: CPY001
+"""Snapshot diagnostics for the cosmological virial-shock example."""
 
 from pathlib import Path
 
@@ -358,7 +358,7 @@ class CosmologicalVirialShockDiagnostics:
         ]
         entropy_plotter = context["entropy_plotter"]
         energy_plotter = context["energy_plotter"]
-        PROTON_MASS_CGS = context["PROTON_MASS_CGS"]  # noqa: N806
+        PROTON_MASS_CGS = context["PROTON_MASS_CGS"]
         quantity_to_value = context["quantity_to_value"]
         _pad_energy_history = context["_pad_energy_history"]
         _pad_profile_history = context["_pad_profile_history"]
@@ -374,7 +374,7 @@ class CosmologicalVirialShockDiagnostics:
         times = np.asarray([item["time_cosmic_Gyr"] for item in gas_profiles])
         radius_comoving_code = np.asarray(gas_profiles[0]["radius_comoving_kpc"])
         rho_comoving_code = np.asarray([item["rho_proper_code"] for item in gas_profiles])
-        temperature_proper_cgs_K = np.asarray(  # noqa: N806
+        temperature_proper_cgs_K = np.asarray(
             [item["temperature_proper_cgs_K"] for item in gas_profiles],
         )
         vel_supercomoving_code = np.asarray(

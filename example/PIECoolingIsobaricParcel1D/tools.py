@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Numerical tools for the constant-pressure HM12 PIE parcel benchmark."""  # noqa: CPY001
+"""Numerical tools for the constant-pressure HM12 PIE parcel benchmark."""
 
 import numpy as np
 import unyt
@@ -69,8 +69,8 @@ def integrate_isobaric_case(
     """
 
     def rhs(time_proper_Myr, state):
-        temperature_proper_cgs_K = max(float(state[0]), temperature_floor)  # noqa: N806
-        density_nH_cgs_cm3 = hydrogen_number_density_isobaric_cgs_cm3(  # noqa: N806
+        temperature_proper_cgs_K = max(float(state[0]), temperature_floor)
+        density_nH_cgs_cm3 = hydrogen_number_density_isobaric_cgs_cm3(
             temperature_proper_cgs_K,
             density_initial_proper_cgs_cm3,
             temperature_initial_proper_cgs_K,
@@ -97,7 +97,7 @@ def integrate_isobaric_case(
         )
         return [dtemperature_dt]
 
-    time_proper_Myr = np.linspace(0.0, time_final_proper_Myr, output_count)  # noqa: N806
+    time_proper_Myr = np.linspace(0.0, time_final_proper_Myr, output_count)
     solution = solve_ivp(
         rhs,
         (time_proper_Myr[0], time_proper_Myr[-1]),
@@ -109,8 +109,8 @@ def integrate_isobaric_case(
     )
     if not solution.success:
         raise RuntimeError(solution.message)
-    temperature_proper_cgs_K = np.maximum(solution.y[0], temperature_floor)  # noqa: N806
-    density_nH_cgs_cm3 = hydrogen_number_density_isobaric_cgs_cm3(  # noqa: N806
+    temperature_proper_cgs_K = np.maximum(solution.y[0], temperature_floor)
+    density_nH_cgs_cm3 = hydrogen_number_density_isobaric_cgs_cm3(
         temperature_proper_cgs_K,
         density_initial_proper_cgs_cm3,
         temperature_initial_proper_cgs_K,
@@ -147,7 +147,7 @@ def isobaric_growth_rate(
     perturbations; negative values indicate local thermal stability.
     """
     grid = np.logspace(2, 8, 4096)
-    density_nH_cgs_cm3 = hydrogen_number_density_isobaric_cgs_cm3(  # noqa: N806
+    density_nH_cgs_cm3 = hydrogen_number_density_isobaric_cgs_cm3(
         grid,
         density_initial_proper_cgs_cm3,
         temperature_initial_proper_cgs_K,

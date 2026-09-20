@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import importlib.util  # noqa: CPY001
+import importlib.util
 import sys
 import unittest
 from pathlib import Path
@@ -343,7 +343,7 @@ class Testing(unittest.TestCase):
             sim.mesh.x_proper_code,
             dtype=float,
         )
-        dPdx = np.gradient(pressure, coordinate)  # noqa: N806
+        dPdx = np.gradient(pressure, coordinate)
         gravity_strength = _to_float(
             initial_condition["gravity_strength"],
             code_units.length_unit / code_units.time_unit**2,

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Reference helpers for the collisionless Bertschinger epsilon=1 problem."""  # noqa: CPY001
+"""Reference helpers for the collisionless Bertschinger epsilon=1 problem."""
 
 import h5py
 import numpy as np

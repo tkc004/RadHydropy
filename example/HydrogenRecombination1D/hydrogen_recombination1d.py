@@ -6,7 +6,7 @@ The gas starts fully ionized at ``T = 2e4 K``. Hydrogen cooling/heating terms
 and collisional ionization are disabled, leaving pure case-B recombination.
 The run stops once the gas is 99 percent neutral and writes a JPG comparing
 the ionized fraction against the analytic case-B expectation.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -31,10 +31,10 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
+import radhydropy.io as rio
+import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_recombination1d.yaml")
 

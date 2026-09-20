@@ -3,4 +3,4 @@
 """Molecule chemistry helpers.
 
 Placeholder for future molecular microphysics.
-"""  # noqa: CPY001
+"""

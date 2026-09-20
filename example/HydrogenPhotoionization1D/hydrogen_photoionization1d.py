@@ -8,7 +8,7 @@ radiation-field evolution and thermal source update are disabled. The run
 stops once the gas is 99 percent ionized, writes HDF5 snapshots, reloads them,
 and plots the neutral-fraction evolution against the analytic fixed-field
 solution.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -30,10 +30,10 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-import tools as et  # noqa: E402
+import radhydropy.io as rio
+import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_photoionization1d.yaml")
 

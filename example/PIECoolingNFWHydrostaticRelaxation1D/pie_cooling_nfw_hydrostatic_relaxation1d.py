@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""HM12 PIE relaxation of a hydrostatic atmosphere in a fixed NFW halo."""  # noqa: CPY001
+"""HM12 PIE relaxation of a hydrostatic atmosphere in a fixed NFW halo."""
 
 import argparse
 import sys
@@ -16,13 +16,13 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import radhydropy.io as rio  # noqa: E402
-from example.PIECoolingNFWHydrostaticRelaxation1D import tools as et  # noqa: E402
-from radhydropy.gravity import Gravity, nfw_potential  # noqa: E402
-from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from example.PIECoolingNFWHydrostaticRelaxation1D import tools as et
+from radhydropy.gravity import Gravity, nfw_potential
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_nfw_hydrostatic_relaxation1d.yaml"
 
@@ -94,7 +94,7 @@ def main(config_filename=DEFAULT_CONFIG):
         for value in Path(par["output"]["time_list_filename"]).read_text().splitlines()[1:]
     ]
     outputs = all_outputs[: len(scheduled_times)]
-    if len(outputs) < 2:  # noqa: PLR2004
+    if len(outputs) < 2:
         raise RuntimeError("expected at least two saved snapshots")
     results = [et.analyze_snapshot(name, config, halo, temperature_virial_unyt) for name in outputs]
     for result, scheduled_time in zip(results, scheduled_times, strict=False):

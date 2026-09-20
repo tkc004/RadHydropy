@@ -6,7 +6,7 @@ The package façade keeps the public ``radhydropy.cosmology`` import focused
 on the background models while exposing the representation-aware runtime
 types and conversion helpers from their responsibility-specific modules.
 Persisted HDF5 schema remains under :mod:`radhydropy.io`.
-"""  # noqa: CPY001
+"""
 
 from radhydropy.cosmology.background import EinsteinDeSitter, LambdaCDM
 from radhydropy.cosmology.context import CosmologyContext

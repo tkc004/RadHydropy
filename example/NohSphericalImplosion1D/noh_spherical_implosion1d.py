@@ -6,7 +6,7 @@ Uniform cold gas moves inward in a spherical domain and reflects at the
 origin.  The converging flow produces a central shock and converts kinetic
 energy into thermal energy.  The runner repeats the problem at several
 resolutions and compares final radial profiles.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import copy
@@ -18,18 +18,18 @@ PROJECT_ROOT = HERE.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(HERE.parent))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.eos import EOS  # noqa: E402
-from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.eos import EOS
+from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = HERE / "noh_spherical_implosion1d.yaml"
 
@@ -153,7 +153,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         sim = Rsim(resolution_config["par"])
         sim.RunAll(outputtime=0)
         snapshots = sorted(output.glob("Output_*.hdf5"))
-        if len(snapshots) < 2:  # noqa: PLR2004
+        if len(snapshots) < 2:
             raise RuntimeError(f"Noh resolution {resolution} produced too few outputs")
         profiles = [read_profile(filename, resolution_config) for filename in snapshots]
         all_profiles[resolution] = profiles

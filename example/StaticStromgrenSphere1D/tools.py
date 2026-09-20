@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Helper utilities for the static Stromgren sphere example."""  # noqa: CPY001
+"""Helper utilities for the static Stromgren sphere example."""
 
 import matplotlib as mpl
 
@@ -213,7 +213,7 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
     config["_output_par"]
     interior = interior_slice(config)
     radius_proper_kpc = _radius_kpc(mesh.x_proper_code[interior], config) * unyt.kpc
-    xHI = np.asarray(fluid.xHI[interior])  # noqa: N806
+    xHI = np.asarray(fluid.xHI[interior])
 
     ionized = xHI <= neutral_fraction
     if not np.any(ionized):
@@ -236,7 +236,7 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
 def ionized_hydrogen_atoms(mesh, fluid, config):
     par = config["_output_par"]
     interior = interior_slice(config)
-    nH = rth.cgs_hydrogen_number_density(  # noqa: N806
+    nH = rth.cgs_hydrogen_number_density(
         _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
         par.chemistry.hydrogen_mass_fraction,
     )
@@ -260,7 +260,7 @@ def photons_in_volume(mesh, fluid, config):
 def total_recombination_rate(mesh, fluid, config):
     par = config["_output_par"]
     interior = interior_slice(config)
-    nH = rth.cgs_hydrogen_number_density(  # noqa: N806
+    nH = rth.cgs_hydrogen_number_density(
         _density_cgs_g_cm3(fluid.rho_proper_code[interior], config),
         par.chemistry.hydrogen_mass_fraction,
     )
@@ -277,7 +277,7 @@ def total_recombination_rate(mesh, fluid, config):
 def append_history(history, mesh, fluid, config, recombined_photons):
     par = config["_output_par"]
     radiation = config["par"]["radiation"]
-    time_proper_Myr = float(  # noqa: N806
+    time_proper_Myr = float(
         fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr),
     )
     history["time_proper_Myr"].append(time_proper_Myr)
@@ -306,9 +306,9 @@ def save_plot(mesh, fluid, config, figure_filename):
     interior = interior_slice(config)
     radius_proper_kpc = _radius_kpc(mesh.x_proper_code[interior], config) * unyt.kpc
     plot_radius_max = example.get("plot_radius_max", initial["box_size_proper"]).to_value(unyt.kpc)
-    xHI = np.asarray(fluid.xHI[interior], dtype=float)  # noqa: N806
-    xHII = 1.0 - xHI  # noqa: N806
-    xHI_analytic = sa.neutral_fraction_profile(  # noqa: N806
+    xHI = np.asarray(fluid.xHI[interior], dtype=float)
+    xHII = 1.0 - xHI
+    xHI_analytic = sa.neutral_fraction_profile(
         radius_proper_kpc,
         initial["hydrogen_number_density"],
         thermo["hydrogen_sigma_gamma"],
@@ -316,7 +316,7 @@ def save_plot(mesh, fluid, config, figure_filename):
         radiation["source_photon_rate"],
         inner_radius_proper_unyt=example["analytic_inner_radius"],
     )
-    xHII_analytic = 1.0 - xHI_analytic  # noqa: N806
+    xHII_analytic = 1.0 - xHI_analytic
     radius_stromgren = sa.stromgren_radius(
         radiation["source_photon_rate"],
         initial["hydrogen_number_density"],
@@ -378,7 +378,7 @@ def save_front_history_plot(history, config, figure_filename):
     initial = config["initial_condition"]
     thermo = config["par"]["thermochemistry"]
     example = config.get("example", {})
-    time_proper_Myr = np.asarray(history["time_proper_Myr"])  # noqa: N806
+    time_proper_Myr = np.asarray(history["time_proper_Myr"])
     front_radius_proper_kpc = np.asarray(history["front_radius_proper_kpc"])
     plot_radius_max = example.get("plot_radius_max", initial["box_size_proper"]).to_value(unyt.kpc)
     time_proper_unyt = time_proper_Myr * unyt.Myr
@@ -429,7 +429,7 @@ def save_front_history_plot(history, config, figure_filename):
 
 
 def save_photon_budget_plot(history, figure_filename):
-    time_proper_Myr = np.asarray(history["time_proper_Myr"])  # noqa: N806
+    time_proper_Myr = np.asarray(history["time_proper_Myr"])
     injected = np.asarray(history["injected_photons"])
     ionized = np.asarray(history["ionized_atoms"])
     recombined = np.asarray(history["recombined_photons"])

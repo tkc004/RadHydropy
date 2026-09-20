@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Compare C²-Ray and instantaneous Strömgren-sphere front propagation."""  # noqa: CPY001
+"""Compare C²-Ray and instantaneous Strömgren-sphere front propagation."""
 
 import argparse
 import csv
@@ -35,11 +35,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu  # noqa: E402
-import stromgren_analytic as sa  # noqa: E402
+import example_utils as eu
+import stromgren_analytic as sa
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.rsim import Rsim
 
 STATIC_EXAMPLE = static_example
 
@@ -109,11 +109,11 @@ def _plot(histories, config, filename):
             label=legend,
         )
     reference = histories["instantaneous_100000"]
-    reference_time_proper_Myr = np.asarray(reference["time_proper_Myr"])  # noqa: N806
+    reference_time_proper_Myr = np.asarray(reference["time_proper_Myr"])
     reference_radius_proper_kpc = np.asarray(reference["front_radius_proper_kpc"])
     for label, history in histories.items():
         color, linestyle, _ = styles[label]
-        time_samples_proper_Myr = np.asarray(history["time_proper_Myr"])  # noqa: N806
+        time_samples_proper_Myr = np.asarray(history["time_proper_Myr"])
         radius_samples_proper_kpc = np.asarray(history["front_radius_proper_kpc"])
         reference_at_time = np.interp(
             time_samples_proper_Myr,
@@ -135,7 +135,7 @@ def _plot(histories, config, filename):
         )
     initial = config["initial_condition"]
     example = config["example"]
-    time_proper_Myr = (  # noqa: N806
+    time_proper_Myr = (
         np.linspace(0.0, config["par"]["simulation"]["final_time"].to_value(unyt.Myr), 1200)
         * unyt.Myr
     )
@@ -192,7 +192,7 @@ def _write_summary(histories, config, filename):
             ],
         )
         for label, history in histories.items():
-            for time_proper_Myr, radius_proper_kpc in zip(  # noqa: N806
+            for time_proper_Myr, radius_proper_kpc in zip(
                 history["time_proper_Myr"],
                 history["front_radius_proper_kpc"],
                 strict=False,

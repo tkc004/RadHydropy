@@ -5,7 +5,7 @@
 This is a compact variant of the DynamicStromgrenSpherePhotoheating1D
 example.  It uses the same tested workflow and helper implementation while
 keeping its configuration and generated outputs separate.
-"""  # noqa: CPY001
+"""
 
 import argparse
 import os
@@ -27,11 +27,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu  # noqa: E402
+import example_utils as eu
 
-import tools as et  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.units import CodeUnits  # noqa: E402
+import tools as et
+from radhydropy.rsim import Rsim
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = (
     Path(__file__)

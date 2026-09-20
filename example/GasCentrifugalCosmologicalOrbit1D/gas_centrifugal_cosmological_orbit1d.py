@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Supercomoving eccentric-orbit benchmark with centrifugal support."""  # noqa: CPY001
+"""Supercomoving eccentric-orbit benchmark with centrifugal support."""
 
 import os
 import sys
@@ -13,29 +13,29 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-from scipy.integrate import solve_ivp  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.integrate import solve_ivp
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.arrays import as_named_array  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.cosmology.variables import (  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.arrays import as_named_array
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.cosmology.variables import (
     physical_radius,
     physical_velocity,
 )
-from radhydropy.eos import EOS  # noqa: E402
-from radhydropy.rsim import Rsim  # noqa: E402
-from radhydropy.runtime_fields import (  # noqa: E402
+from radhydropy.eos import EOS
+from radhydropy.rsim import Rsim
+from radhydropy.runtime_fields import (
     SUPERCOMOVING_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
 )
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value
 
 CONFIG = ROOT / "gas_centrifugal_cosmological_orbit1d.yaml"
 
@@ -303,7 +303,7 @@ def main(config_filename=CONFIG):
     )
     physical_tangential_velocity = j / proper_radius
     reconstructed_j = proper_radius * physical_tangential_velocity
-    if radius_error > 1.0e-8 or velocity_error > 1.0e-8:  # noqa: PLR2004
+    if radius_error > 1.0e-8 or velocity_error > 1.0e-8:
         raise RuntimeError("cosmological orbit disagrees with analytic ODE")
     if not np.allclose(reconstructed_j, j, rtol=1.0e-12, atol=1.0e-12):
         raise RuntimeError("specific angular momentum changed under conversion")
@@ -392,12 +392,12 @@ def main(config_filename=CONFIG):
     )
     # The 32-cell Eulerian run is intentionally lightweight; retain a
     # regression tolerance that reflects its finite-volume shell mixing.
-    if simulation_velocity_error > 3.0e-1:  # noqa: PLR2004
+    if simulation_velocity_error > 3.0e-1:
         raise RuntimeError(
             "saved cosmological Rsim velocity disagrees with Eulerian-mapped "
             f"ODE: max error = {simulation_velocity_error:.6g}",
         )
-    if simulation_j_error > 3.0e-3:  # noqa: PLR2004
+    if simulation_j_error > 3.0e-3:
         raise RuntimeError(
             "saved cosmological Rsim J/M drifted from the initialized profile: "
             f"max error = {simulation_j_error:.6g}",

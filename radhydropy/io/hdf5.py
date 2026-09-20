@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""HDF5 input and output helpers for simulations."""  # noqa: CPY001
+"""HDF5 input and output helpers for simulations."""
 
 import logging
 from pathlib import Path
@@ -75,7 +75,7 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
     The output file contains a ``Header`` group for metadata and a ``Data``
     group for mesh and fluid arrays. Units are stored as HDF5 attributes.
     """
-    ICfilename = str(ICfilename)  # noqa: N806
+    ICfilename = str(ICfilename)
     cosmological_schema = bool(
         getattr(ric.par, "cosmological_expansion", False)
         and getattr(ric.par, "supercomoving_coordinates", False),
@@ -470,7 +470,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
     Canonical representation-specific datasets are restored into the runtime
     code-unit system when ``CodeUnits`` is available in the file header.
     """
-    ICfilename = str(ICfilename)  # noqa: N806
+    ICfilename = str(ICfilename)
     log_diagnostic(logging.INFO, "hdf5_read", filename=ICfilename)
     with h5py.File(ICfilename, "r") as fic:
         expected_coordsys = par.simulation.coordinate_system

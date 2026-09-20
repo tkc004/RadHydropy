@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Finite-volume hydrodynamics solver operations."""  # noqa: CPY001
+"""Finite-volume hydrodynamics solver operations."""
 
 import logging
 import math
@@ -172,7 +172,7 @@ class Solver:
             submesh.face_area_cgs_cm2 = (
                 np.asarray(area_field[interior], dtype=float) * scales["area_cgs_cm2"]
             )
-        group_edges_eV = getattr(par, "radiation_group_edges_eV", None)  # noqa: N806
+        group_edges_eV = getattr(par, "radiation_group_edges_eV", None)
         if group_edges_eV is not None:
             sigma_groups = getattr(par, "radiation_group_sigma_gamma", None)
             if sigma_groups is None:
@@ -233,7 +233,7 @@ class Solver:
                 np.asarray(result.cell_photon_density, dtype=float)
                 / scales["number_density_cgs_cm3"]
             )
-            if np.ndim(photon_density_code) != 2:  # noqa: PLR2004
+            if np.ndim(photon_density_code) != 2:
                 raise ValueError(
                     "radiative-transfer result must have shape (ngroup, ncell)",
                 )
@@ -289,7 +289,7 @@ class Solver:
         photon_density_code = (
             np.asarray(result.cell_photon_density, dtype=float) / scales["number_density_cgs_cm3"]
         )
-        if np.ndim(photon_density_code) != 2:  # noqa: PLR2004
+        if np.ndim(photon_density_code) != 2:
             raise ValueError(
                 "radiative-transfer result must have shape (ngroup, ncell)",
             )
@@ -709,7 +709,7 @@ class Solver:
         else:
             pre_runtime_code[invalid_pressure & ~numerical_vacuum] = 0.0
         pre_runtime_code[numerical_vacuum] = 0.0
-        if verbose >= 2:  # noqa: PLR2004
+        if verbose >= 2:
             log_diagnostic(
                 logging.DEBUG,
                 "primitive_state_reconstructed",
@@ -922,7 +922,7 @@ class Solver:
             )
             fluid.InternalEnergy_code[sync] = total_thermal[sync]
             self.dual_energy_synchronization_count += int(np.count_nonzero(sync))
-        if verbose >= 2:  # noqa: PLR2004
+        if verbose >= 2:
             log_diagnostic(
                 logging.DEBUG,
                 "conserved_state_synchronized",
@@ -1528,7 +1528,7 @@ class Solver:
                         low = middle
                     else:
                         high = middle
-                    if high - low <= 1.0e-13:  # noqa: PLR2004
+                    if high - low <= 1.0e-13:
                         break
                 geometry_fraction[index] = low
 
@@ -1618,7 +1618,7 @@ class Solver:
                 invalid_faces = invalid | ru.periodic_roll(invalid, 1)
                 updated_factors = factors.copy()
                 updated_factors[invalid_faces] *= 0.5
-                near_zero = invalid_faces & (updated_factors < 1.0e-12)  # noqa: PLR2004
+                near_zero = invalid_faces & (updated_factors < 1.0e-12)
                 updated_factors[near_zero] = 0.0
                 if np.array_equal(updated_factors, factors):
                     raise ValueError(
@@ -2385,7 +2385,7 @@ class Solver:
             self._zero_spherical_origin_flux(mesh, fluid)
         else:
             raise ValueError(f"Interface flux method unknown: {method}")
-        if verbose >= 2:  # noqa: PLR2004
+        if verbose >= 2:
             log_diagnostic(
                 logging.DEBUG,
                 "interface_fluxes_constructed",
@@ -2421,7 +2421,7 @@ class Solver:
             fluid.Mass_code.flux * area_runtime_code,
             -1,
         )
-        df_Mom_code = fluid.Mom_code.flux * area_runtime_code - ru.periodic_roll(  # noqa: N806
+        df_Mom_code = fluid.Mom_code.flux * area_runtime_code - ru.periodic_roll(
             fluid.Mom_code.flux * area_runtime_code,
             -1,
         )
@@ -2429,10 +2429,10 @@ class Solver:
             fluid.Energy_code.flux * area_runtime_code,
             -1,
         )
-        df_AngularMomentum = None  # noqa: N806
+        df_AngularMomentum = None
         if hasattr(fluid, "AngularMomentum_code"):
             angular_flux_area = fluid.AngularMomentum_code.flux * area_runtime_code
-            df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)  # noqa: N806
+            df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
         potential_face = self._gravity_potential_faces(mesh, getattr(mesh, "_par", None))
         df_potential = None
         if potential_face is not None:
@@ -2442,14 +2442,14 @@ class Solver:
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.
             area_right = ru.periodic_roll(area_runtime_code, -1)
-            df_Mom_code += pressure_runtime_code * (area_right - area_runtime_code)  # noqa: N806
+            df_Mom_code += pressure_runtime_code * (area_right - area_runtime_code)
 
         dual_energy = (
             self._dual_energy_enabled(getattr(mesh, "_par", None))
             and hasattr(fluid, "InternalEnergy_code")
             and getattr(fluid.eos, "is_polytropic", False)
         )
-        df_InternalEnergy = None  # noqa: N806
+        df_InternalEnergy = None
         if dual_energy:
             velocity_left = np.asarray(velocity_runtime_code.L, dtype=float)
             velocity_right = np.asarray(velocity_runtime_code.R, dtype=float)
@@ -2479,14 +2479,14 @@ class Solver:
             origin_face = self._spherical_origin_face_index(mesh)
             if origin_face is not None:
                 internal_flux[origin_face] = 0.0
-            df_InternalEnergy = internal_flux * area_runtime_code - ru.periodic_roll(  # noqa: N806
+            df_InternalEnergy = internal_flux * area_runtime_code - ru.periodic_roll(
                 internal_flux * area_runtime_code,
                 -1,
             )
             if getattr(mesh, "coordsys", None) == "spherical":
                 # Account for spherical pressure work using the same
                 # interface pressure implied by the Riemann momentum flux.
-                df_InternalEnergy -= (  # noqa: N806
+                df_InternalEnergy -= (
                     ru.periodic_roll(face_pressure * face_velocity * area_runtime_code, -1)
                     - face_pressure * face_velocity * area_runtime_code
                 )
@@ -2690,7 +2690,7 @@ class Solver:
                     out=np.ones_like(old_density),
                     where=old_density > 0.0,
                 )
-                moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)  # noqa: PLR2004
+                moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)
                 isentropic_internal = previous_internal * np.maximum(
                     density_ratio,
                     0.0,

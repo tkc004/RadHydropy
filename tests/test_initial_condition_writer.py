@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-import tempfile  # noqa: CPY001
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 
@@ -276,7 +276,7 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
         simulation.par.cosmology.model.cosmic_time_from_scale_factor(scale_factor),
     )
     hubble_code = float(simulation.par.cosmology.model.hubble(time_cosmic_code))
-    hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(  # noqa: N806
+    hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
         "km/s",
     ) / code_units.length_unit.to_value("Mpc")
     context = CosmologyContext(
@@ -373,7 +373,7 @@ def test_writer_cosmological_prepare_and_hdf5_roundtrip():
         simulation.par.cosmology.model.cosmic_time_from_scale_factor(scale_factor),
     )
     hubble_code = float(simulation.par.cosmology.model.hubble(time_cosmic_code))
-    hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(  # noqa: N806
+    hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
         "km/s",
     ) / code_units.length_unit.to_value("Mpc")
     context = CosmologyContext(

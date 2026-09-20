@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Gas-free DM control for the z=100 correlation-function IC."""  # noqa: CPY001
+"""Gas-free DM control for the z=100 correlation-function IC."""
 
 import sys
 from pathlib import Path
@@ -16,11 +16,11 @@ EXAMPLE_ROOT = EXAMPLE_DIR.parent
 PROJECT_ROOT = EXAMPLE_ROOT.parent
 sys.path[:0] = [str(EXAMPLE_DIR), str(EXAMPLE_ROOT), str(PROJECT_ROOT)]
 
-import virial_shock_tools as et  # noqa: E402
-from example_utils import load_nested_example_config  # noqa: E402
+import virial_shock_tools as et
+from example_utils import load_nested_example_config
 
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 CONFIG = Path(__file__).with_name("dark_matter_only_correlation_control.yaml")
 

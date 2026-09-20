@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-from types import SimpleNamespace  # noqa: CPY001
+from types import SimpleNamespace
 
 import h5py
 import numpy as np
@@ -109,7 +109,7 @@ def make_network_state(paths, temperature=1.0e5, rho_code=1.0e-20, metallicity=1
         hydrogen_mass_fraction=1.0,
         cooling_safety_factor=0.1,
     )
-    nH = rho_code / PROTON_MASS_CGS  # noqa: N806
+    nH = rho_code / PROTON_MASS_CGS
     return {
         "par": par,
         "metallicity": metallicity,

@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Compare live ``DarkMatterShells`` with the Bertschinger Eq. (4.1) curve."""  # noqa: CPY001
+"""Compare live ``DarkMatterShells`` with the Bertschinger Eq. (4.1) curve."""
 
 import argparse
 import os
@@ -22,16 +22,16 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from bertschinger_ode import (  # noqa: E402
+from bertschinger_ode import (
     first_outer_caustic,
     first_post_centre_apocentre,
     solve_eq41_self_similar,
 )
-from shell_orbit_tracker import ShellOrbitTracker  # noqa: E402
+from shell_orbit_tracker import ShellOrbitTracker
 
-import tools as example_tools  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.units import quantity_to_value  # noqa: E402
+import tools as example_tools
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_reference.yaml")
 
@@ -160,7 +160,7 @@ def _density_slope_profile(
     log_density = np.full_like(log_radius, np.nan)
     log_density[valid] = np.log(density_proper_code[valid])
     valid_indices = np.flatnonzero(valid)
-    if valid_indices.size < 8:  # noqa: PLR2004
+    if valid_indices.size < 8:
         return None
     slope = np.gradient(log_density, log_radius)
 
@@ -413,7 +413,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     # each event with r_ta at that same time, not with the later output
     # turnaround radius.
     apocentre_events = tracker.first_apocenter_events()
-    if apocentre_events.size and len(turnaround_values) >= 2:  # noqa: PLR2004
+    if apocentre_events.size and len(turnaround_values) >= 2:
         ta_history = np.asarray(turnaround_values, dtype=float)
         event_time = apocentre_events[:, 0]
         event_ta = np.interp(event_time, ta_history[:, 0], ta_history[:, 1])

@@ -5,7 +5,7 @@
 This is a source-only companion to the rotating-collapse example.  Mass,
 angular momentum, radius, and radial velocity are held fixed; only the
 thermal chemistry source is applied.
-"""  # noqa: CPY001
+"""
 
 import sys
 from pathlib import Path
@@ -17,13 +17,13 @@ PROJECT_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import example_utils as eu  # noqa: E402
-from cosmological_initial_condition import build_initial_condition  # noqa: E402
-from cosmological_rotating_collapse1d import DEFAULT_CONFIG, spherical_centers  # noqa: E402
+import example_utils as eu
+from cosmological_initial_condition import build_initial_condition
+from cosmological_rotating_collapse1d import DEFAULT_CONFIG, spherical_centers
 
-import radhydropy.io as rio  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+import radhydropy.io as rio
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def main(output_root=None):

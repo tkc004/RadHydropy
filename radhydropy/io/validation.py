@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Validation of persisted HDF5 state against a runtime configuration."""  # noqa: CPY001
+"""Validation of persisted HDF5 state against a runtime configuration."""
 
 import numpy as np
 

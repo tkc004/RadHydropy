@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Pre-crossing Lagrangian-shell comparison with Bertschinger Eq. (4.1)."""  # noqa: CPY001
+"""Pre-crossing Lagrangian-shell comparison with Bertschinger Eq. (4.1)."""
 
 import argparse
 import os
@@ -21,12 +21,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from bertschinger_ode import solve_eq41_self_similar  # noqa: E402
+from bertschinger_ode import solve_eq41_self_similar
 
-import tools as example_tools  # noqa: E402
-from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
-from radhydropy.dark_matter import DarkMatterShells  # noqa: E402
-from radhydropy.units import quantity_to_value  # noqa: E402
+import tools as example_tools
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.dark_matter import DarkMatterShells
+from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_reference.yaml")
 

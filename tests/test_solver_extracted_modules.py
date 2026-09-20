@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-from types import SimpleNamespace  # noqa: CPY001
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -26,7 +26,7 @@ def test_set_boundary_dispatches_periodic_conditions_at_module_boundary():
     solver.apply_periodic_boundary.assert_called_once()
     args = solver.apply_periodic_boundary.call_args.args
     assert args[1:3] == (slice(2, 6), slice(0, 2))
-    assert args[4] == 2  # noqa: PLR2004
+    assert args[4] == 2
 
 
 def test_apply_radiation_pressure_updates_conserved_arrays_at_module_boundary():

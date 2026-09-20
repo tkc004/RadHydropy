@@ -1,6 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
-"""Pure dark-matter spherical shells with self-gravity and crossings."""  # noqa: CPY001
+"""Pure dark-matter spherical shells with self-gravity and crossings."""
 
 import argparse
 import os
@@ -16,15 +16,15 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
-import matplotlib as mpl  # noqa: E402
+import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import example_utils as eu
+import matplotlib.pyplot as plt
+import numpy as np
 
-import tools as et  # noqa: E402
-from radhydropy.units import quantity_to_value  # noqa: E402
+import tools as et
+from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -87,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     radius_unit = code_units.length_unit
     radius_proper_pc = quantity_to_value(history_radius * radius_unit, "pc")
-    time_proper_Myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value("Myr")  # noqa: N806
+    time_proper_Myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value("Myr")
     energy_fractional_change = np.abs(
         (history_energy - history_energy[0]) / max(abs(history_energy[0]), np.finfo(float).tiny),
     )
