@@ -12,12 +12,12 @@ from radhydropy.io.cosmology_state import (
     write_supercomoving_state_hdf5,
 )
 from radhydropy.io.hdf5 import (
-    SnapshotConfigurationError,
     loadhdf5,
     readhdf5,
     write_snapshot_hdf5,
     writehdf5,
 )
+from radhydropy.io.validation import SnapshotConfigurationError
 from radhydropy.io.metadata import (
     parameter_tree,
     update_used_parameters_yaml,
