@@ -15,26 +15,26 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import unyt
-from bertschinger_gas import solve_bertschinger_gas
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import unyt  # noqa: E402
+from bertschinger_gas import solve_bertschinger_gas  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import (
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.dark_matter import DarkMatterShells  # noqa: E402
+from radhydropy.gravity import Gravity  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.runtime_fields import (  # noqa: E402
     SUPERCOMOVING_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
 )
-from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.solver import Solver  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_gas_radhydropy.yaml")
 
@@ -152,7 +152,7 @@ def build_initial_condition(config):
         a_ref=1.0,
     )
     sim.par.tau_supercomoving_code = np.ones(1) * sim.par.cosmology.model.supercomoving_time(
-        initial_time
+        initial_time,
     )
     sim.par.coordinate_frame = "comoving"
     sim.par.time_coordinate = "supercomoving"
@@ -163,7 +163,7 @@ def build_initial_condition(config):
     sim.par.perturbation_amplitude = float(initial_condition["perturbation_amplitude"])
     sim.par.simulation.tau_supercomoving_code = sim.par.tau_supercomoving_code.copy()
     sim.par.simulation.box_size_comoving_code = initial_condition["box_size_comoving"].to_value(
-        code_units.length_unit
+        code_units.length_unit,
     )
     sim.par.simulation.coordinate_system = simulation["coordinate_system"]
     sim.par.mesh.grid_cells = grid_cells
@@ -365,6 +365,7 @@ def _plot_comparison(numerical, reference, output, numerical_label):
             "pressure_scaled_dimensionless",
         ),
         ("loglog", "semilogx", "loglog"),
+        strict=False,
     ):
         getattr(axis, scale)(lam, numerical[name], label=numerical_label)
         getattr(axis, scale)(lam, analytic_profiles[name], "--", label="standalone")
@@ -397,7 +398,7 @@ def _plot_comparison(numerical, reference, output, numerical_label):
 def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
-    initial_condition = config["initial_condition"]
+    config["initial_condition"]
     output = config["par"]["output"]
     eu.clean_previous_outputs(config)
     reference = solve_bertschinger_gas()
@@ -421,7 +422,8 @@ def main(config_filename=DEFAULT_CONFIG):
         np.allclose(sim.par.tau_supercomoving_code, initial_tau)
         and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
         and np.isclose(
-            float(np.asarray(sim.fluid.tau_supercomoving_code)), float(initial_tau.flat[0])
+            float(np.asarray(sim.fluid.tau_supercomoving_code)),
+            float(initial_tau.flat[0]),
         )
     ):
         raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
@@ -451,8 +453,8 @@ def main(config_filename=DEFAULT_CONFIG):
     report = Path(output["directory"]) / "BertschingerGasReference_RadHydroComparison.txt"
     lam = numerical["lambda_dimensionless"]
     with report.open("w", encoding="utf-8") as stream:
-        stream.write("final_time_cosmic_code %.12g\n" % numerical["time_cosmic_code"])
-        stream.write("standalone_shock_lambda %.12g\n" % reference.shock_lambda)
+        stream.write("final_time_cosmic_code {:.12g}\n".format(numerical["time_cosmic_code"]))
+        stream.write(f"standalone_shock_lambda {reference.shock_lambda:.12g}\n")
         for name in (
             "density_contrast_dimensionless",
             "velocity_scaled_dimensionless",
@@ -462,24 +464,20 @@ def main(config_filename=DEFAULT_CONFIG):
             error = np.sqrt(
                 np.mean(
                     (numerical[name][valid] - analytic_profiles[name][valid]) ** 2,
-                )
+                ),
             )
-            stream.write("%s_rms_error %.12g\n" % (name, error))
+            stream.write(f"{name}_rms_error {error:.12g}\n")
         outer = lam > 1.0
         outer_density_contrast_dimensionless = numerical["density_contrast_dimensionless"][outer]
         stream.write(
-            "outer_density_contrast_mean %.12g\n" % np.mean(outer_density_contrast_dimensionless),
+            f"outer_density_contrast_mean {np.mean(outer_density_contrast_dimensionless):.12g}\n",
         )
         stream.write(
-            "outer_density_contrast_min %.12g\n" % np.min(outer_density_contrast_dimensionless),
+            f"outer_density_contrast_min {np.min(outer_density_contrast_dimensionless):.12g}\n",
         )
         stream.write(
-            "outer_density_contrast_max %.12g\n" % np.max(outer_density_contrast_dimensionless),
+            f"outer_density_contrast_max {np.max(outer_density_contrast_dimensionless):.12g}\n",
         )
-    print("shock lambda = %.8f" % reference.shock_lambda)
-    print("initial-condition figure = %s" % initial_output)
-    print("comparison figure = %s" % comparison_output)
-    print("comparison report = %s" % report)
 
 
 if __name__ == "__main__":

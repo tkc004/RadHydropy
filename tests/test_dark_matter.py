@@ -330,7 +330,7 @@ def test_dark_matter_shell_force_includes_enclosed_gas_mass():
 
 def test_cosmological_shell_force_subtracts_background_and_scales_with_a():
     units = code_units()
-    cosmology = EinsteinDeSitter.from_code_units(units)
+    EinsteinDeSitter.from_code_units(units)
     shells = DarkMatterShells(
         radius=[2.0],
         velocity=[0.0],

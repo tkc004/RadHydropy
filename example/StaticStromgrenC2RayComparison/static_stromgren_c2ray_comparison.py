@@ -9,9 +9,9 @@ import tempfile
 from copy import deepcopy
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -33,11 +33,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
-import stromgren_analytic as sa
+import example_utils as eu  # noqa: E402
+import stromgren_analytic as sa  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.rsim import Rsim
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
 
 STATIC_EXAMPLE = static_example
 
@@ -114,7 +114,9 @@ def _plot(histories, config, filename):
         time_samples_proper_Myr = np.asarray(history["time_proper_Myr"])
         radius_samples_proper_kpc = np.asarray(history["front_radius_proper_kpc"])
         reference_at_time = np.interp(
-            time_samples_proper_Myr, reference_time_proper_Myr, reference_radius_proper_kpc
+            time_samples_proper_Myr,
+            reference_time_proper_Myr,
+            reference_radius_proper_kpc,
         )
         relative_difference = np.zeros_like(radius_samples_proper_kpc)
         nonzero = reference_at_time > 0.0
@@ -185,11 +187,13 @@ def _write_summary(histories, config, filename):
                 "front_radius_proper_kpc",
                 "analytic_radius_proper_kpc",
                 "absolute_error_proper_kpc",
-            ]
+            ],
         )
         for label, history in histories.items():
             for time_proper_Myr, radius_proper_kpc in zip(
-                history["time_proper_Myr"], history["front_radius_proper_kpc"]
+                history["time_proper_Myr"],
+                history["front_radius_proper_kpc"],
+                strict=False,
             ):
                 analytic = sa.ionization_front_radius(
                     time_proper_Myr * unyt.Myr,
@@ -204,13 +208,9 @@ def _write_summary(histories, config, filename):
                         radius_proper_kpc,
                         analytic,
                         abs(radius_proper_kpc - analytic),
-                    ]
+                    ],
                 )
-            final_error = abs(history["front_radius_proper_kpc"][-1] - analytic_final)
-            print(
-                f"{label}: final front = {history['front_radius_proper_kpc'][-1]:.6f} kpc, "
-                f"absolute error = {final_error:.6e} kpc"
-            )
+            abs(history["front_radius_proper_kpc"][-1] - analytic_final)
 
 
 def main(config_filename=Path(__file__).with_name("static_stromgren_c2ray_comparison.yaml")):
@@ -249,14 +249,13 @@ def main(config_filename=Path(__file__).with_name("static_stromgren_c2ray_compar
     )
     _plot(histories, config, figure)
     _write_summary(histories, config, summary)
-    print(f"comparison figure = {figure}")
-    print(f"comparison data = {summary}")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--config", default=Path(__file__).with_name("static_stromgren_c2ray_comparison.yaml")
+        "--config",
+        default=Path(__file__).with_name("static_stromgren_c2ray_comparison.yaml"),
     )
     return parser.parse_args()
 

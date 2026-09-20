@@ -801,13 +801,6 @@ class Par:
                 "hydrogen_xHI_inflow": "hydrogen_xHI_inflow",
                 "hydrogen_xHI_outflow": "hydrogen_xHI_outflow",
                 "metallicity": "metallicity",
-                "hydrogen_xHI_initial": "hydrogen_xHI_initial",
-                "hydrogen_xHI_inflow": "hydrogen_xHI_inflow",
-                "hydrogen_xHI_outflow": "hydrogen_xHI_outflow",
-                "hydrogen_update_mu": "hydrogen_update_mu",
-                "hydrogen_thermal_coupling": "hydrogen_thermal_coupling",
-                "hydrogen_recombination": "hydrogen_recombination",
-                "hydrogen_collisional_ionization": "hydrogen_collisional_ionization",
                 "hydrogen_alpha_B": "hydrogen_alpha_B",
                 "hydrogen_beta": "hydrogen_beta",
                 "helium_mass_fraction": "helium_mass_fraction",
@@ -1249,7 +1242,7 @@ class Par:
                     "omega_m": self.cosmology_omega_m,
                     "omega_lambda": self.cosmology_omega_lambda,
                     "hubble_ref": self.cosmology_hubble_ref,
-                }
+                },
             )
         self.cosmology.model = cosmology_class.from_code_units(
             self.units.CodeUnits,

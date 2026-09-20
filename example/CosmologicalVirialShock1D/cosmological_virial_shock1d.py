@@ -5,9 +5,9 @@ import copy
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -16,12 +16,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et
-from example_utils import load_nested_example_config
+import virial_shock_tools as et  # noqa: E402
+from example_utils import load_nested_example_config  # noqa: E402
 
-from radhydropy.gravity import Gravity
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.gravity import Gravity  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_virial_shock1d_smoke.yaml",
@@ -43,7 +43,7 @@ def run_case(config, radiative):
     initial_condition = config["initial_condition"]
     code_unit_system = config["_code_unit_system"]
     cosmology = config["_cosmology"]
-    table = config.get("_pie_table")
+    config.get("_pie_table")
     case = "radiative" if radiative else "adiabatic"
     output = par["output"]
     case_dir = Path(output["directory"]) / case
@@ -53,7 +53,7 @@ def run_case(config, radiative):
     case_par["output"].update(
         {
             "directory": str(case_dir),
-        }
+        },
     )
     case_par["simulation"]["initial_condition_filename"] = str(case_dir / "InitialCondition.hdf5")
     case_par["thermochemistry"].update(
@@ -63,10 +63,9 @@ def run_case(config, radiative):
             "metal_pie_enabled": bool(radiative),
             "cie_cooling": bool(radiative),
             "thermochemistry_network": "cie_cooling" if radiative else "hydrogen",
-        }
+        },
     )
     initial_writer = et.build_initial_condition(case_config)
-    initial = initial_writer.simulation
     initial_writer.write(case_par["simulation"]["initial_condition_filename"])
     case_config["_dark_matter_softening"] = case_par.get("dark_matter", {}).get("softening", 0.0)
     dm = et.make_dark_matter(case_config)
@@ -123,7 +122,7 @@ def run_case(config, radiative):
         dt = min(dt, target - tau)
         sim.Step(dt=dt, mode="hydro_sources" if radiative else "hydro")
         time_cosmic_code = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code))
+            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code)),
         )
         if time_cosmic_code >= next_output or time_cosmic_code >= tf - 1.0e-10:
             history.append(et.profiles(sim, dm, time_cosmic_code, config))
@@ -139,12 +138,17 @@ def run_case(config, radiative):
 def plot_histories(histories, filename):
     fig, axes = plt.subplots(2, 1, figsize=(7.2, 7.0), sharex=True)
     for axis, (label, history) in zip(
-        axes, (("Adiabatic", histories["adiabatic"]), ("Radiative PIE", histories["radiative"]))
+        axes,
+        (("Adiabatic", histories["adiabatic"]), ("Radiative PIE", histories["radiative"])),
+        strict=False,
     ):
         time_cosmic_code = history["time_cosmic_Gyr"]
         axis.plot(time_cosmic_code, history["mvir"], color="black", label=r"$M(<r_{\rm vir})$")
         axis.plot(
-            time_cosmic_code, history["mshock"], color="tab:red", label=r"$M(<r_{\rm shock})$"
+            time_cosmic_code,
+            history["mshock"],
+            color="tab:red",
+            label=r"$M(<r_{\rm shock})$",
         )
         axis.plot(time_cosmic_code, history["mdisc"], color="tab:blue", label=r"$M(<r_{\rm disc})$")
         axis.set_yscale("log")
@@ -165,6 +169,7 @@ def plot_radius_histories(histories, filename):
     for axis, (label, history) in zip(
         axes,
         (("Adiabatic", histories["adiabatic"]), ("Radiative CIE → PIE", histories["radiative"])),
+        strict=False,
     ):
         time_cosmic_code = history["time_cosmic_Gyr"]
         # The virial and disc radii can coincide when the centrifugal
@@ -225,9 +230,13 @@ def plot_density_profiles(profiles, filename):
     for axis, (label, profile) in zip(
         axes,
         (("Adiabatic", profiles["adiabatic"]), ("Radiative CIE → PIE", profiles["radiative"])),
+        strict=False,
     ):
         axis.loglog(
-            profile["gas_radius_kpc"], profile["gas_rho_proper_code"], color="tab:red", label="gas"
+            profile["gas_radius_kpc"],
+            profile["gas_rho_proper_code"],
+            color="tab:red",
+            label="gas",
         )
         axis.loglog(
             profile["dm_radius_proper_kpc"],
@@ -239,7 +248,7 @@ def plot_density_profiles(profiles, filename):
             label="dark matter shells",
         )
         axis.set_ylabel(r"density [code mass / kpc$^3$]")
-        axis.set_title(label + " at t = %.2f Gyr" % profile["time_cosmic_Gyr"])
+        axis.set_title(label + " at t = {:.2f} Gyr".format(profile["time_cosmic_Gyr"]))
         axis.grid(alpha=0.25, which="both")
         axis.legend(loc="best", fontsize=9)
     axes[-1].set_xlabel("proper radius [kpc]")
@@ -252,11 +261,12 @@ def plot_density_profiles(profiles, filename):
 def main(config_filename=DEFAULT_CONFIG):
     config = load_nested_example_config(config_filename)
     par = config["par"]
-    initial_condition = config["initial_condition"]
+    config["initial_condition"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     cosmology_config = par["cosmology"]
     cosmology = __import__(
-        "radhydropy.cosmology", fromlist=["EinsteinDeSitter"]
+        "radhydropy.cosmology",
+        fromlist=["EinsteinDeSitter"],
     ).EinsteinDeSitter.from_code_units(
         units,
         t_ref=quantity_to_value(cosmology_config["cosmology_t_ref"], units.time_unit),
@@ -284,13 +294,6 @@ def main(config_filename=DEFAULT_CONFIG):
     plot_radius_histories(histories, radius_figure)
     density_figure = Path(par["output"]["directory"]) / "CosmologicalVirialShock1D_Densities.jpg"
     plot_density_profiles(density_profiles, density_figure)
-    print("figure = %s" % figure)
-    print("radius figure = %s" % radius_figure)
-    print("density figure = %s" % density_figure)
-    print(
-        "histories = %s"
-        % (Path(par["output"]["directory"]) / "{adiabatic,radiative}" / "mass_radius_history.npz")
-    )
 
 
 if __name__ == "__main__":

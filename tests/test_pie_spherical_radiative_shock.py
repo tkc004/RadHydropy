@@ -53,7 +53,7 @@ def test_spherical_ic_density_is_mass_density():
                 "UnitCurrent_in_cgs": 1.0,
                 "UnitTemp_in_cgs": 1.0,
             },
-        }
+        },
     )
     initial = TOOLS.build_initial_condition(
         {
@@ -65,7 +65,7 @@ def test_spherical_ic_density_is_mass_density():
             "initial_condition": initial_condition,
             "example": {},
             "_code_units": code_units,
-        }
+        },
     )
     initial.prepare()
     assert np.isclose(

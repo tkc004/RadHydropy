@@ -70,14 +70,14 @@ def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
             rho_L * vel_L,
             rho_L * vel_L**2 + pre_L,
             vel_L * (gamma * pre_L / (gamma - 1.0) + 0.5 * rho_L * vel_L**2),
-        )
+        ),
     )
     flux_R = np.stack(
         (
             rho_R * vel_R,
             rho_R * vel_R**2 + pre_R,
             vel_R * (gamma * pre_R / (gamma - 1.0) + 0.5 * rho_R * vel_R**2),
-        )
+        ),
     )
     result = 0.5 * (flux_L + flux_R)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -140,7 +140,7 @@ def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
                 (states[2], states_R[2], states[3], states_R[3]),
                 (states[4], states_R[4], states[5], states_R[5]),
             )
-        )
+        ),
     )
     flux = np.where(valid[None, :], hllc, rusanov)
     return tuple(flux[index] for index in range(3))
@@ -235,6 +235,7 @@ def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
         for state_density, state_pressure in zip(
             reconstructed_density,
             reconstructed_pressure,
+            strict=False,
         ):
             vacuum_face |= (
                 ~np.isfinite(state_density)
@@ -248,7 +249,7 @@ def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
         fluid.Mom_code.flux[vacuum_face] = Mom_flux_0[vacuum_face]
         fluid.Energy_code.flux[vacuum_face] = Energy_flux_0[vacuum_face]
     else:
-        raise ValueError("order unknown: %s" % order)
+        raise ValueError(f"order unknown: {order}")
 
 
 def set_face_lr(solver, mesh, fluid, order=0):
@@ -257,7 +258,7 @@ def set_face_lr(solver, mesh, fluid, order=0):
     geometry = solver._geometry_state(mesh, par)
     density_code, velocity_code, pressure_code, _ = solver._active_primitive_arrays(fluid, par)
     if order not in (0, 1):
-        raise ValueError("order unknown: %s" % order)
+        raise ValueError(f"order unknown: {order}")
 
     density_code.R = as_named_array(np.asarray(density_code, dtype=float).copy())
     density_code.L = ru.periodic_roll(density_code, 1)

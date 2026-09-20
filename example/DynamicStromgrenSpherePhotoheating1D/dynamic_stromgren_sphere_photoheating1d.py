@@ -25,11 +25,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import tools as et
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -41,11 +41,10 @@ DEFAULT_CONFIG = (
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
     output = config["par"]["output"]
-    example = config.get("example", {})
+    config.get("example", {})
     config["_code_units"] = CodeUnits.from_mapping(
         config["par"]["units"]["CodeUnits"],
     )
@@ -71,15 +70,8 @@ def main(config_filename=DEFAULT_CONFIG):
     et.save_plot(out_mesh, out_fluid, config, figure_filename)
     et.save_front_plot(history, config, front_figure_filename)
 
-    print("time = %s" % out_fluid.time_proper_code)
-    print("output files = %d" % len(outputfilenames))
-    print("final front radius = %.3e kpc" % history["front_radius_proper_kpc"][-1])
-    print("mean ionized temperature = %.3e K" % history["mean_ionized_temperature_cgs_K"][-1])
-    print("IC file = %s" % config["par"]["simulation"]["initial_condition_filename"])
-    for outputfilename in outputfilenames:
-        print("output file = %s" % outputfilename)
-    print("figure = %s" % figure_filename)
-    print("front figure = %s" % front_figure_filename)
+    for _outputfilename in outputfilenames:
+        pass
 
 
 def parse_args():

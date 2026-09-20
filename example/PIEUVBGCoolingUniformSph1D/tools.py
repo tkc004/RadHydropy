@@ -13,7 +13,9 @@ def build_initial_condition(config):
     box_size_proper_unyt = initial["box_size_proper"]
     dx_proper_unyt = box_size_proper_unyt / grid_cells
     boundary_proper_unyt = np.linspace(
-        dx_proper_unyt, box_size_proper_unyt + dx_proper_unyt, grid_cells + 1
+        dx_proper_unyt,
+        box_size_proper_unyt + dx_proper_unyt,
+        grid_cells + 1,
     )
     hydrogen_number_density_cgs_cm3_unyt = initial["hydrogen_number_density"]
     hydrogen_mass_fraction = float(config["par"]["thermochemistry"]["hydrogen_mass_fraction"])
@@ -32,7 +34,7 @@ def build_initial_condition(config):
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_units.velocity_unit)
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial["temperature_proper"]
+        np.ones(grid_cells) * initial["temperature_proper"],
     )
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.mu = np.full(grid_cells, initial["mean_molecular_weight"])

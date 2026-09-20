@@ -14,17 +14,17 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.integrate import solve_ivp
+mpl.use("Agg")
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+from scipy.integrate import solve_ivp  # noqa: E402
 
-import tools as et
-from example import example_utils as eu
-from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
-from radhydropy.units import quantity_to_value
+import tools as et  # noqa: E402
+from example import example_utils as eu  # noqa: E402
+from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS  # noqa: E402
+from radhydropy.units import quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -51,7 +51,7 @@ def main(config_filename=DEFAULT_CONFIG):
     gas_density_dimensionless = float(initial_condition["uniform_gas_density_dimensionless"])
     softening_length_dimensionless = float(initial_condition["softening_dimensionless"])
     specific_angular_momentum_dimensionless = float(
-        initial_condition["specific_angular_momentum_dimensionless"]
+        initial_condition["specific_angular_momentum_dimensionless"],
     )
     initial_radius_code = float(initial_condition["radius_initial_orbit_dimensionless"])
     initial_velocity_code = quantity_to_value(
@@ -106,10 +106,8 @@ def main(config_filename=DEFAULT_CONFIG):
     numerical_radius_code = np.asarray(numerical_radius_code)
     numerical_velocity_code = np.asarray(numerical_velocity_code)
     reference_state = reference.sol(numerical_time_code)
-    radius_error = np.max(np.abs(numerical_radius_code - reference_state[0]))
-    velocity_error = np.max(np.abs(numerical_velocity_code - reference_state[1]))
-    print("maximum radius error = %.6g code lengths" % radius_error)
-    print("maximum velocity error = %.6g code velocities" % velocity_error)
+    np.max(np.abs(numerical_radius_code - reference_state[0]))
+    np.max(np.abs(numerical_velocity_code - reference_state[1]))
 
     time_proper_Myr = quantity_to_value(numerical_time_code * code_units.time_unit, "Myr")
     radius_proper_pc = quantity_to_value(numerical_radius_code * code_units.length_unit, "pc")
@@ -132,7 +130,6 @@ def main(config_filename=DEFAULT_CONFIG):
     figure = Path(config["par"]["output"]["directory"]) / "GasDarkMatterAnalyticOrbit1D.jpg"
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-    print("figure = %s" % figure)
 
 
 def parse_args():

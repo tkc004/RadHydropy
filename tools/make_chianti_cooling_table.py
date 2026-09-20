@@ -333,11 +333,6 @@ def _compute_density_column(task):
         do_continuum,
     ) = task
 
-    print(
-        f"  started density {index + 1:4d}: ne = {electron_density:.6e} cm^-3",
-        flush=True,
-    )
-
     rate = compute_cooling_vs_T_for_density(
         temperatures=temperatures,
         electron_density=electron_density,
@@ -377,17 +372,7 @@ def compute_cooling_grid(
 
     cooling = np.zeros((nT, nne), dtype=float)
 
-    print()
-    print(f"Computing {label} cooling grid")
-    print(f"  abundance  = {abundance}")
-    print(f"  minAbund   = {min_abund:g}")
-    print(f"  continuum  = {do_continuum}")
-    print(f"  nT         = {nT}")
-    print(f"  nne        = {nne}")
-    print(f"  workers    = {workers}")
-    print()
-
-    start = time.time()
+    time.time()
 
     if workers == 1:
         for j, ne in enumerate(electron_densities):
@@ -399,11 +384,6 @@ def compute_cooling_grid(
                 do_continuum=do_continuum,
             )
             cooling[:, j] = rate
-            print(
-                f"  density {j + 1:4d}/{nne:4d}: "
-                f"ne = {ne:.6e} cm^-3, "
-                f"total = {time.time() - start:.2f} s",
-            )
     else:
         tasks = (
             (
@@ -427,17 +407,9 @@ def compute_cooling_grid(
             initargs=(xuvtop,),
         ) as executor:
             futures = {executor.submit(_compute_density_column, task): task[0] for task in tasks}
-            print(f"  submitted {len(futures)} density calculations", flush=True)
-            for completed, future in enumerate(as_completed(futures), start=1):
+            for _completed, future in enumerate(as_completed(futures), start=1):
                 j, ne, rate = future.result()
                 cooling[:, j] = rate
-                print(
-                    f"  density column {j + 1:4d}/{nne:4d}: "
-                    f"ne = {ne:.6e} cm^-3, "
-                    f"completed = {completed:4d}/{nne:4d}, "
-                    f"total = {time.time() - start:.2f} s",
-                    flush=True,
-                )
 
     return cooling
 
@@ -563,10 +535,6 @@ def main():
     args = parse_args()
 
     if os.path.exists(args.output) and not args.overwrite:
-        print()
-        print(f"ERROR: output file already exists: {args.output}")
-        print("Use --overwrite to replace it.")
-        print()
         sys.exit(1)
 
     xuvtop = check_environment(args.xuvtop)
@@ -576,19 +544,6 @@ def main():
     metallicities = np.asarray(args.metallicities, dtype=float)
 
     do_continuum = not args.no_continuum
-
-    print()
-    print("CHIANTI cooling-table generation")
-    print("================================")
-    print(f"XUVTOP                  = {xuvtop}")
-    print(f"Output file             = {args.output}")
-    print(f"Abundance               = {args.abundance}")
-    print(f"log10(T/K) range         = {args.logT_min} to {args.logT_max}")
-    print(f"log10(ne/cm^-3) range    = {args.logne_min} to {args.logne_max}")
-    print(f"Metallicities Z/Zsun    = {metallicities}")
-    print(f"Include continuum       = {do_continuum}")
-    print(f"Worker processes        = {args.workers}")
-    print()
 
     cooling_solar = compute_cooling_grid(
         temperatures=temperatures,
@@ -631,17 +586,6 @@ def main():
         args=args,
         xuvtop=xuvtop,
     )
-
-    print()
-    print("Done.")
-    print(f"Wrote: {args.output}")
-    print()
-    print("Main dataset:")
-    print("  cooling_erg_cm3_s[metallicity, temperature, electron_density]")
-    print()
-    print("Use as:")
-    print("  volumetric_cooling_rate = ne * nH * Lambda")
-    print()
 
 
 if __name__ == "__main__":

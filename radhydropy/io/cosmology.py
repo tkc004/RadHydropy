@@ -36,7 +36,9 @@ def write_cosmology_header(header, par, output_time, code_units):
     header.attrs["DensityRepresentation"] = getattr(par, "density_representation", "physical")
     header.attrs["PressureRepresentation"] = getattr(par, "pressure_representation", "physical")
     header.attrs["TemperatureRepresentation"] = getattr(
-        par, "temperature_representation", "physical"
+        par,
+        "temperature_representation",
+        "physical",
     )
     header.attrs["ScaleFactor"] = float(cosmology.scale_factor(cosmic_time))
     header.attrs["CosmicTime"] = cosmic_time
@@ -48,7 +50,7 @@ def write_cosmology_header(header, par, output_time, code_units):
     header.attrs["HubbleParameter"] = float(cosmology.hubble(cosmic_time))
     header.attrs["HubbleParameterUnits"] = str(1.0 / code_units.time_unit)
     hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
-        unyt.km / unyt.s
+        unyt.km / unyt.s,
     ) / code_units.length_unit.to_value(unyt.Mpc)
     header.attrs["HubbleParameterKmS_Mpc"] = (
         float(cosmology.hubble(cosmic_time)) * hubble_unit_km_s_Mpc
@@ -63,7 +65,7 @@ def restore_cosmology_from_header(par, header, code_units):
     if not enabled and cosmology_type is None:
         return
     if cosmology_type not in (None, "einstein_de_sitter", "lambda_cdm"):
-        raise ValueError("unsupported CosmologyType in HDF5 header: %s" % cosmology_type)
+        raise ValueError(f"unsupported CosmologyType in HDF5 header: {cosmology_type}")
     t_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyTRef", 1.0)))
     a_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyARef", 1.0)))
     par.cosmological_expansion = True
@@ -74,7 +76,7 @@ def restore_cosmology_from_header(par, header, code_units):
     if is_lcdm:
         omega_m = float(_restore_header_attr_value(header.attrs.get("CosmologyOmegaM", 0.3)))
         omega_lambda = float(
-            _restore_header_attr_value(header.attrs.get("CosmologyOmegaLambda", 0.7))
+            _restore_header_attr_value(header.attrs.get("CosmologyOmegaLambda", 0.7)),
         )
         hubble_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyHubbleRef", 0.0)))
         if hubble_ref <= 0.0:
@@ -141,7 +143,7 @@ def runtime_field_spec(field_name, par, code_units, output_time):
     if field_name == "vel_supercomoving_code":
         hubble_code = float(cosmology.hubble(cosmic_time))
         hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
-            unyt.km / unyt.s
+            unyt.km / unyt.s,
         ) / code_units.length_unit.to_value(unyt.Mpc)
         hubble_parameter_km_s_Mpc = hubble_code * hubble_unit_km_s_Mpc
     return field_spec(

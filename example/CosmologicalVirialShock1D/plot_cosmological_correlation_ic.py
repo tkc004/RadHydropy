@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -16,12 +16,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et
-from example_utils import load_nested_example_config
+import virial_shock_tools as et  # noqa: E402
+from example_utils import load_nested_example_config  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_dark_matter_correlation_z100.yaml",
@@ -75,7 +75,7 @@ def main(config_filename=DEFAULT_CONFIG):
     radius_comoving_code = et.cell_centres(boundary_comoving_code)
     initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     scale_factor = float(cosmology.scale_factor(initial_time))
-    redshift = 1.0 / scale_factor - 1.0
+    1.0 / scale_factor - 1.0
     length_unit_mpc_h = (
         float(units.length_in_cgs)
         / float((1.0 * unyt.Mpc).to_value("cm"))
@@ -142,7 +142,7 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError("stored temperature does not match the requested cold IC")
     if abs(target_mean_delta - float(initial_condition["initial_overdensity"])) > 2.0e-4:
         raise RuntimeError(
-            "stored target overdensity is inconsistent with the requested normalization"
+            "stored target overdensity is inconsistent with the requested normalization",
         )
 
     output = filename.with_name("CosmologicalCorrelationInitialCondition.jpg")
@@ -183,27 +183,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(output, dpi=200)
     plt.close(fig)
-
-    print("figure = %s" % output)
-    print("scale factor = %.12g, redshift = %.8g" % (scale_factor, redshift))
-    print("target radius = %.8g code lengths" % radius_perturbation_comoving_code)
-    print(
-        "target enclosed overdensity = %.12g (requested %.12g)"
-        % (
-            target_mean_delta,
-            float(initial_condition["initial_overdensity"]),
-        )
-    )
-    print("max density-profile error = %.6e" % density_error)
-    print("max peculiar-velocity error = %.6e code velocity" % velocity_error)
-    print(
-        "temperature range = [%.8g, %.8g] K"
-        % (
-            temperature_physical.min(),
-            temperature_physical.max(),
-        )
-    )
-    print("verification = PASS")
 
 
 if __name__ == "__main__":

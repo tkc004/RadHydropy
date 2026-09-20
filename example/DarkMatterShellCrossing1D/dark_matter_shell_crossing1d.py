@@ -14,15 +14,15 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import tools as et
-from radhydropy.units import quantity_to_value
+import tools as et  # noqa: E402
+from radhydropy.units import quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -102,9 +102,6 @@ def main(config_filename=DEFAULT_CONFIG):
     figure = Path(output["directory"]) / "DarkMatterShellCrossing1D.jpg"
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-    print("crossing-limited steps = %d" % crossings)
-    print("maximum fractional diagnostic energy change = %.6g" % np.max(energy_fractional_change))
-    print("figure = %s" % figure)
 
 
 def parse_args():

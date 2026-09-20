@@ -21,7 +21,7 @@ def make_shells(config):
         initial_condition["velocity_scale_dimensionless"] * radius_dimensionless
     )
     angular_momentum_dimensionless = initial_condition["angular_momentum_fraction"] * np.sqrt(
-        radius_dimensionless
+        radius_dimensionless,
     )
     writer = InitialConditionWriter(
         ic_config=config["initial_condition"],

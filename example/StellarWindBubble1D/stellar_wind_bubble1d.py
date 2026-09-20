@@ -12,20 +12,20 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
-import tools as et
+import tools as et  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -50,8 +50,7 @@ def load_snapshots(config, max_outputs=10, start_index=1):
 
 def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     et.set_plot_style()
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
 
     example_config = config["example"]
@@ -80,7 +79,6 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     )
     profile_figure.savefig(profile_figure_filename, dpi=200)
     plt.close(profile_figure)
-    print("figure = %s" % profile_figure_filename)
 
     radius_figure = et.make_radius_figure(snapshots, config)
     radius_figure_filename = os.path.join(
@@ -89,7 +87,6 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     )
     radius_figure.savefig(radius_figure_filename, dpi=200)
     plt.close(radius_figure)
-    print("figure = %s" % radius_figure_filename)
 
     velocity_figure = et.make_velocity_figure(snapshots, config)
     if velocity_figure is not None:
@@ -99,7 +96,6 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
         )
         velocity_figure.savefig(velocity_figure_filename, dpi=200)
         plt.close(velocity_figure)
-        print("figure = %s" % velocity_figure_filename)
 
     pressure_figure = et.make_pressure_figure(snapshots, config)
     if pressure_figure is not None:
@@ -109,7 +105,6 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
         )
         pressure_figure.savefig(pressure_figure_filename, dpi=200)
         plt.close(pressure_figure)
-        print("figure = %s" % pressure_figure_filename)
 
 
 def parse_args():

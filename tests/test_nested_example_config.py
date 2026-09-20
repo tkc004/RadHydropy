@@ -6,7 +6,7 @@ from pathlib import Path
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / "example"
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
-from radhydropy.example_config import load_example_config
+from radhydropy.example_config import load_example_config  # noqa: E402
 
 
 def test_example_config_is_consumed_as_nested_mapping():

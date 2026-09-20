@@ -518,18 +518,16 @@ def readhdf5(par, mesh, fluid, ICfilename):
         coordinate_system = par.simulation.coordinate_system
         if expected_coordsys is not None and coordinate_system != expected_coordsys:
             raise Exception(
-                "Coordinate systems in IC (%s) and run (%s) do not agree!"
-                % (coordinate_system, expected_coordsys),
+                f"Coordinate systems in IC ({coordinate_system}) and run ({expected_coordsys}) do not agree!",
             )
         grid_cells = par.mesh.grid_cells
         if expected_nogrid is not None and grid_cells != expected_nogrid:
             raise Exception(
-                "Number of grids in IC (%s) and run (%s) do not agree!"
-                % (grid_cells, expected_nogrid),
+                f"Number of grids in IC ({grid_cells}) and run ({expected_nogrid}) do not agree!",
             )
         gdata = fic["Data"]
         generic_header_names = _GENERIC_HEADER_DATASETS.intersection(
-            header.keys()
+            header.keys(),
         ) or _GENERIC_HEADER_DATASETS.intersection(header.attrs.keys())
         if generic_header_names:
             names = ", ".join(sorted(generic_header_names))
@@ -754,7 +752,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
         if canonical_cosmological_schema:
             if "boundary_comoving_code" not in gdata:
                 raise ValueError(
-                    "canonical cosmological HDF5 file is missing Data/boundary_comoving_code"
+                    "canonical cosmological HDF5 file is missing Data/boundary_comoving_code",
                 )
             for name in (
                 "rho_comoving_code",

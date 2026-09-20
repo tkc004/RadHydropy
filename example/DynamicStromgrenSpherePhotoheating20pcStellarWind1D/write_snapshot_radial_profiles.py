@@ -20,10 +20,10 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import tools as et
-from radhydropy.units import quantity_to_value
+import tools as et  # noqa: E402
+from radhydropy.units import quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = EXAMPLE_DIR / ("dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml")
 
@@ -59,7 +59,6 @@ def process_snapshots(snapshot_directory=EXAMPLE_DIR, config_filename=DEFAULT_CO
         time_label = f"{time_proper_Myr:.6g}"
         csv_filename = csv_directory / f"radial_profile_{time_label}Myr.csv"
         csv_files.append(write_snapshot_profile(snapshot, config, csv_filename))
-        print(f"{snapshot.name} -> {csv_filename.name}")
     return csv_files
 
 
@@ -91,7 +90,6 @@ def main():
         output_directory.mkdir(parents=True, exist_ok=True)
         output = output_directory / "radial_profile.csv"
         write_snapshot_profile(snapshot, config, output)
-        print(f"{snapshot.name} -> {output.name}")
     else:
         process_snapshots(args.directory)
 

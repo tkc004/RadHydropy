@@ -1,8 +1,8 @@
 """Initial conditions and plotting for the Sod shock tube."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -51,7 +51,7 @@ def shocktubeanalyticgraph(
 ):
     """Evaluate the analytic Sod solution at the supplied coordinates."""
     mu2 = (gamma - 1.0) / (gamma + 1.0)
-    c1 = np.sqrt(gamma * p1 / rho1)
+    np.sqrt(gamma * p1 / rho1)
     c5 = np.sqrt(gamma * p5 / rho5)
     xnor = np.asarray(xcor) - xint
     rho_ana = np.zeros(len(xnor))
@@ -173,7 +173,7 @@ def analytic_density_profile(config, state):
     )
     time_proper_cgs_s = float(
         (float(np.asarray(state.fluid.time_proper_code).flat[0]) * units.time_unit).to_value(
-            unyt.s
+            unyt.s,
         ),
     )
     if time_proper_cgs_s <= 0.0:

@@ -198,8 +198,8 @@ class CosmologicalVirialShockDiagnostics:
                     np.asarray(
                         sim.fluid.AngularMomentum_code[first:last],
                         dtype=float,
-                    )
-                )
+                    ),
+                ),
             )
             if hasattr(sim.fluid, "AngularMomentum_code")
             else 0.0
@@ -310,8 +310,8 @@ class CosmologicalVirialShockDiagnostics:
                         np.asarray(
                             sim.fluid.AngularMomentum_code[first:last],
                             dtype=float,
-                        )
-                    )
+                        ),
+                    ),
                 )
                 if hasattr(sim.fluid, "AngularMomentum_code")
                 else 0.0
@@ -339,7 +339,7 @@ class CosmologicalVirialShockDiagnostics:
         baryon_fraction = context["baryon_fraction"]
         configured_temperature_plot_ymin = context["configured_temperature_plot_ymin"]
         minimum_temperature = context["minimum_temperature"]
-        measured_fraction = context["measured_fraction"]
+        context["measured_fraction"]
         plot_mass_history = context["plot_mass_history"]
         plot_radius_history = context["plot_radius_history"]
         plot_temperature_evolution = context["plot_temperature_evolution"]
@@ -381,7 +381,8 @@ class CosmologicalVirialShockDiagnostics:
         specific_angular_momentum_comoving_code = np.asarray(
             [
                 item.get(
-                    "specific_angular_momentum_comoving_code", np.zeros_like(radius_comoving_code)
+                    "specific_angular_momentum_comoving_code",
+                    np.zeros_like(radius_comoving_code),
                 )
                 for item in gas_profiles
             ],
@@ -435,7 +436,7 @@ class CosmologicalVirialShockDiagnostics:
             q_cgs_erg_cm3_s=np.asarray([item["q_cgs_erg_cm3_s"] for item in gas_profiles]),
             rho_dot_cgs_g_cm3_s=np.asarray([item["rho_dot_cgs_g_cm3_s"] for item in gas_profiles]),
             specific_energy_cgs_erg_g=np.asarray(
-                [item["specific_energy_cgs_erg_g"] for item in gas_profiles]
+                [item["specific_energy_cgs_erg_g"] for item in gas_profiles],
             ),
             local_mach=np.asarray([item["local_mach"] for item in gas_profiles]),
             gamma_eff=np.asarray([item["gamma_eff"] for item in gas_profiles]),
@@ -577,12 +578,14 @@ class CosmologicalVirialShockDiagnostics:
             "shell_id": _pad_energy_history(dm_energy_history, "id", fill=-1),
             "radius_comoving_code": _pad_energy_history(dm_energy_history, "radius_comoving_code"),
             "vel_supercomoving_code": _pad_energy_history(
-                dm_energy_history, "vel_supercomoving_code"
+                dm_energy_history,
+                "vel_supercomoving_code",
             ),
             "mass_code": _pad_energy_history(dm_energy_history, "mass_code"),
             "kinetic_energy_code": _pad_energy_history(dm_energy_history, "kinetic_energy_code"),
             "potential_energy_code": _pad_energy_history(
-                dm_energy_history, "potential_energy_code"
+                dm_energy_history,
+                "potential_energy_code",
             ),
             "total_energy_code": _pad_energy_history(dm_energy_history, "total_energy_code"),
         }
@@ -608,11 +611,11 @@ class CosmologicalVirialShockDiagnostics:
                 energy_balance_figure = output_dir / (
                     figure_prefix + "_2RvirEnergyBalance_TimeEvolution.jpg"
                 )
-            except RuntimeError as error:
+            except RuntimeError:
                 # A developing perturbation may not yet have a resolved r200.
                 # Keep the run and its ordinary diagnostics usable; the energy
                 # plot will be generated automatically once a resolved halo exists.
-                print("energy-balance figure skipped: %s" % error)
+                pass
         figure = output_dir / (figure_prefix + ".jpg")
         radius_figure = output_dir / (figure_prefix + "_Radii.jpg")
         plot_mass_history(history, figure)
@@ -641,7 +644,8 @@ class CosmologicalVirialShockDiagnostics:
             minimum_temperature=temperature_plot_ymin,
             inner_radius=quantity_to_value(
                 initial_condition.get(
-                    "inner_wall_radius_comoving", initial_condition["radius_inner_comoving"]
+                    "inner_wall_radius_comoving",
+                    initial_condition["radius_inner_comoving"],
                 ),
                 units.length_unit,
             ),
@@ -723,77 +727,46 @@ class CosmologicalVirialShockDiagnostics:
             time_cosmic_Gyr=np.asarray([item["time_cosmic_Gyr"] for item in dm_profiles]),
             scale_factor=np.asarray([item["scale_factor"] for item in dm_profiles]),
             mean_rho_comoving_code=np.asarray(
-                [item.get("dm_mean_density_code", np.nan) for item in dm_profiles]
+                [item.get("dm_mean_density_code", np.nan) for item in dm_profiles],
             ),
             radius_proper_kpc=_pad_profile_history(dm_profiles, "dm_radius_proper_kpc"),
             rho_proper_code=_pad_profile_history(dm_profiles, "dm_rho_proper_code"),
             mass_code=_pad_profile_history(dm_profiles, "dm_mass_comoving_code"),
             softening_comoving_code=np.asarray(
-                [item.get("dm_softening_comoving_code", np.nan) for item in dm_profiles]
+                [item.get("dm_softening_comoving_code", np.nan) for item in dm_profiles],
             ),
             total_mass=np.asarray(
-                [item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles]
+                [item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles],
             ),
             crossing_events=np.asarray(
-                [item.get("dm_crossing_events", 0) for item in dm_profiles], dtype=int
+                [item.get("dm_crossing_events", 0) for item in dm_profiles],
+                dtype=int,
             ),
             origin_reflections=np.asarray(
-                [item.get("dm_origin_reflections", 0) for item in dm_profiles], dtype=int
+                [item.get("dm_origin_reflections", 0) for item in dm_profiles],
+                dtype=int,
             ),
             central_core_mass=np.asarray(
-                [item.get("dm_central_core_mass", 0.0) for item in dm_profiles]
+                [item.get("dm_central_core_mass", 0.0) for item in dm_profiles],
             ),
             central_core_radius_kpc=np.asarray(
-                [item.get("dm_central_core_radius_kpc", 0.0) for item in dm_profiles]
+                [item.get("dm_central_core_radius_kpc", 0.0) for item in dm_profiles],
             ),
         )
-        print("initial gas fraction = %.8g" % measured_fraction)
-        print("initial gas temperature = %.8g K" % np.median(temperature_proper_cgs_K))
-        print("final cosmic time = %.8g Gyr" % times[-1])
         dm_substeps = np.asarray(sim.dark_matter_substep_history, dtype=int)
         dm_total_mass = np.asarray(
-            [item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles]
+            [item.get("dm_total_mass_comoving_code", np.nan) for item in dm_profiles],
         )
         if dm_total_mass.size and np.isfinite(dm_total_mass[0]):
             mass_error = np.max(np.abs(dm_total_mass - dm_total_mass[0]))
             if mass_error > 1.0e-10 * max(abs(dm_total_mass[0]), 1.0):
                 raise RuntimeError(
-                    "live dark-matter mass is not conserved: maximum error %.8g" % mass_error,
+                    f"live dark-matter mass is not conserved: maximum error {mass_error:.8g}",
                 )
-            print("dark-matter total mass = %.8g code masses" % dm_total_mass[-1])
-            print(
-                "dark-matter shell crossings = %d, origin reflections = %d"
-                % (
-                    sum(item.get("dm_crossing_events", 0) for item in dm_profiles),
-                    sum(item.get("dm_origin_reflections", 0) for item in dm_profiles),
-                ),
-            )
         if dm_substeps.size:
-            print(
-                "dark-matter substeps per hydro step = %.8g mean, %d max, %d total"
-                % (
-                    np.mean(dm_substeps),
-                    np.max(dm_substeps),
-                    np.sum(dm_substeps),
-                ),
-            )
-        print("data = %s" % data_file)
-        print("figure = %s" % figure)
-        print("radius figure = %s" % radius_figure)
-        print("temperature figure = %s" % temperature_figure)
-        print("specific-angular-momentum figure = %s" % specific_angular_momentum_figure)
-        print("entropy figure = %s" % (output_dir / (figure_prefix + "_Entropy.jpg")))
-        print("temperature-density figure = %s" % temperature_density_figure)
-        print("velocity figure = %s" % velocity_figure)
-        print("dark-matter figure = %s" % dm_figure)
-        print("dark-matter data = %s" % dm_data_file)
-        print("HDF5 snapshots = %s" % output_dir)
-        print("gas/DM density comparison = %s" % density_comparison_figure)
-        print("energy audit = %s" % energy_audit_file)
-        print("per-cell/shell energy history = %s" % energy_entity_file)
-        print("baryon mass fraction figure = %s" % baryon_fraction_figure)
+            pass
         if energy_balance_figure is not None:
-            print("2-rvir energy balance figure = %s" % energy_balance_figure)
+            pass
         return data_file
 
 

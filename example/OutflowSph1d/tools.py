@@ -1,8 +1,8 @@
 """Helper utilities for the spherical outflow example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -84,7 +84,8 @@ def plot_snapshot(outfilename, config, **kwargs):
     )
     radius_values = radius_proper_unyt.to_value(initial["box_size_proper"].units)
     rho_values = np.asarray(
-        rho_num.to_value(config["par"]["boundary"]["rho_outflow_proper"].units), dtype=float
+        rho_num.to_value(config["par"]["boundary"]["rho_outflow_proper"].units),
+        dtype=float,
     )
     rho_ana_values = np.asarray(
         rho_ana_proper_unyt.to_value(config["par"]["boundary"]["rho_outflow_proper"].units),

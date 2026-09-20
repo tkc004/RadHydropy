@@ -2,9 +2,9 @@
 
 import glob
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import hydrogen_photoionization_analytic as hpa
 import matplotlib.pyplot as plt
 import numpy as np
@@ -81,10 +81,10 @@ def load_history_from_outputs(outputfiles, config):
         "xHI": [],
         "ngamma_proper_cgs_cm3": [],
     }
-    initial = config["initial_condition"]
+    config["initial_condition"]
 
     interior = slice(0, config["par"]["mesh"]["grid_cells"])
-    code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
     for outfilename in sorted(outputfiles):
         rout = rio.loadhdf5(config, outfilename)

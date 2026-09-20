@@ -8,9 +8,9 @@ from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
@@ -20,16 +20,16 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from bertschinger_ode import (
+from bertschinger_ode import (  # noqa: E402
     first_outer_caustic,
     first_post_centre_apocentre,
     solve_eq41_self_similar,
 )
-from shell_orbit_tracker import ShellOrbitTracker
+from shell_orbit_tracker import ShellOrbitTracker  # noqa: E402
 
-import tools as example_tools
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import quantity_to_value
+import tools as example_tools  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.units import quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_reference.yaml")
 
@@ -39,7 +39,9 @@ def _radius_turnaround_proper_code(shells, time_cosmic_code, config):
     cosmology = config["_cosmology"]
     radius_proper_code = float(cosmology.scale_factor(time_cosmic_code)) * shells.radius
     velocity_proper_code = example_tools.peculiar_velocity_proper_code(
-        shells, time_cosmic_code, config
+        shells,
+        time_cosmic_code,
+        config,
     )
     crossing = np.flatnonzero(velocity_proper_code[:-1] * velocity_proper_code[1:] <= 0.0)
     if crossing.size == 0:
@@ -54,12 +56,17 @@ def _radius_turnaround_proper_code(shells, time_cosmic_code, config):
     fraction = velocity_proper_code[index] / denominator
     return float(
         radius_proper_code[index]
-        + fraction * (radius_proper_code[index + 1] - radius_proper_code[index])
+        + fraction * (radius_proper_code[index + 1] - radius_proper_code[index]),
     )
 
 
 def _outer_lagrangian_caustic_radius(
-    shells, initial_q, time_cosmic_code, config, turnaround, smoothing_bins=2.0
+    shells,
+    initial_q,
+    time_cosmic_code,
+    config,
+    turnaround,
+    smoothing_bins=2.0,
 ):
     """Find the outer fold of the Lagrangian map ``r(q)``.
 
@@ -74,10 +81,13 @@ def _outer_lagrangian_caustic_radius(
     q = initial_q[np.asarray(shells.shell_id, dtype=int)]
     cosmology = config["_cosmology"]
     radius_proper_code = float(cosmology.scale_factor(time_cosmic_code)) * np.asarray(
-        shells.radius, dtype=float
+        shells.radius,
+        dtype=float,
     )
     vel_peculiar_proper_code = example_tools.peculiar_velocity_proper_code(
-        shells, time_cosmic_code, config
+        shells,
+        time_cosmic_code,
+        config,
     )
     order = np.argsort(q)
     q = q[order]
@@ -110,7 +120,12 @@ def _outer_lagrangian_caustic_radius(
 
 
 def _density_slope_profile(
-    shells, time_cosmic_code, config, turnaround, bins=192, smoothing_bins=3.0
+    shells,
+    time_cosmic_code,
+    config,
+    turnaround,
+    bins=192,
+    smoothing_bins=3.0,
 ):
     """Return rho(r), its logarithmic slope, and profile splashback radii."""
     cosmology = config["_cosmology"]
@@ -121,17 +136,22 @@ def _density_slope_profile(
     edges = np.geomspace(radius_proper_code.min(), radius_proper_code.max(), int(bins) + 1)
     index = np.clip(np.searchsorted(edges, radius_proper_code) - 1, 0, len(edges) - 2)
     deposited_mass_comoving_code = np.bincount(
-        index, weights=mass_comoving_code, minlength=len(edges) - 1
+        index,
+        weights=mass_comoving_code,
+        minlength=len(edges) - 1,
     )
     shell_volume_proper_code = 4.0 * np.pi / 3.0 * np.diff(edges**3)
     density_proper_code = deposited_mass_comoving_code / np.maximum(
-        shell_volume_proper_code, 1.0e-300
+        shell_volume_proper_code,
+        1.0e-300,
     )
     # First smooth the density profile itself, then differentiate its
     # logarithm. Smoothing deposited mass instead changes the radial measure
     # before the density is formed.
     density_proper_code = gaussian_filter1d(
-        density_proper_code, float(smoothing_bins), mode="nearest"
+        density_proper_code,
+        float(smoothing_bins),
+        mode="nearest",
     )
     valid = density_proper_code > 0.0
     log_radius = np.log(np.sqrt(edges[:-1] * edges[1:]))
@@ -148,7 +168,7 @@ def _density_slope_profile(
     )
     crossing = np.flatnonzero(
         (mean_density_proper_code[:-1] >= 200.0 * rho_background)
-        & (mean_density_proper_code[1:] < 200.0 * rho_background)
+        & (mean_density_proper_code[1:] < 200.0 * rho_background),
     )
     if not crossing.size:
         return None
@@ -159,7 +179,7 @@ def _density_slope_profile(
                 np.log(200.0 * rho_background),
                 np.log(mean_density_proper_code[virial_index : virial_index + 2][::-1]),
                 np.log(radius_proper_code[virial_index : virial_index + 2][::-1]),
-            )
+            ),
         ),
     )
     candidates = (
@@ -284,7 +304,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         radius_proper_code = float(cosmology.scale_factor(time_cosmic_code)) * shells.radius
         selected = slice(None, None, shell_stride)
         xi_values.extend(
-            np.full(radius_proper_code[selected].shape, np.log(time_cosmic_code / initial_time))
+            np.full(radius_proper_code[selected].shape, np.log(time_cosmic_code / initial_time)),
         )
         lambda_values.extend((radius_proper_code[selected] / turnaround).tolist())
         turnaround_values.append((time_cosmic_code, turnaround))
@@ -399,7 +419,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         apocentre_event_xi = np.log(event_time / initial_time)
         apocentre_event_lambda = event_lambda
         bins = []
-        for lower, upper in zip(ta_history[:-1, 0], ta_history[1:, 0]):
+        for lower, upper in zip(ta_history[:-1, 0], ta_history[1:, 0], strict=False):
             selected = (event_time >= lower) & (event_time < upper)
             if not np.any(selected):
                 continue
@@ -412,7 +432,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                     np.percentile(values, 84.0),
                     values.size,
                     np.interp(0.5 * (lower + upper), ta_history[:, 0], ta_history[:, 1]),
-                )
+                ),
             )
         apocentre_values = np.asarray(bins)
     if len(apocentre_values):
@@ -444,7 +464,10 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             label="16--84 percentile",
         )
         orbit_axis.axhline(
-            caustic_lambda, color="tab:green", linestyle="--", label="ODE fixed-time caustic"
+            caustic_lambda,
+            color="tab:green",
+            linestyle="--",
+            label="ODE fixed-time caustic",
         )
         orbit_axis.set_xlabel(r"$\xi=\ln(t/t_{\rm ref})$")
         orbit_axis.set_ylabel(r"$R_{\rm apo}/r_{\rm ta}(t)$")
@@ -453,7 +476,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         orbit_axis.legend(fontsize=8)
         orbit_figure.tight_layout()
         orbit_figure.savefig(
-            Path(config["par"]["output"]["directory"]) / "BertschingerRecentApocenters.jpg", dpi=200
+            Path(config["par"]["output"]["directory"]) / "BertschingerRecentApocenters.jpg",
+            dpi=200,
         )
         plt.close(orbit_figure)
     if slope_profiles:
@@ -463,7 +487,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                 profile["radius_proper_code"] / profile["radius_virial_proper_code"],
                 profile["rho_proper_code"] / profile["rho_background_proper_code"],
                 linewidth=1.6,
-                label=r"$\xi=%.2f$" % profile["xi"],
+                label=r"$\xi={:.2f}$".format(profile["xi"]),
             )
         density_axis.axvline(1.0, color="black", linestyle=":", label=r"$R_{200m}$")
         density_axis.set_xscale("log")
@@ -484,11 +508,14 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         for profile in slope_profiles:
             x = np.log10(profile["radius_proper_code"] / profile["radius_virial_proper_code"])
             (line,) = slope_axis.plot(
-                x, profile["slope"], linewidth=1.6, label=r"$\xi=%.2f$" % profile["xi"]
+                x,
+                profile["slope"],
+                linewidth=1.6,
+                label=r"$\xi={:.2f}$".format(profile["xi"]),
             )
             slope_axis.plot(
                 np.log10(
-                    profile["radius_splashback_proper_code"] / profile["radius_virial_proper_code"]
+                    profile["radius_splashback_proper_code"] / profile["radius_virial_proper_code"],
                 ),
                 np.interp(
                     profile["radius_splashback_proper_code"],
@@ -515,20 +542,22 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
             Path(config["par"]["output"]["directory"]) / "BertschingerDarkMatterDensitySlope.npz",
             xi=np.asarray([p["xi"] for p in slope_profiles]),
             radius_proper_code=np.asarray(
-                [p["radius_proper_code"] for p in slope_profiles], dtype=object
+                [p["radius_proper_code"] for p in slope_profiles],
+                dtype=object,
             ),
             rho_proper_code=np.asarray(
-                [p["rho_proper_code"] for p in slope_profiles], dtype=object
+                [p["rho_proper_code"] for p in slope_profiles],
+                dtype=object,
             ),
             slope=np.asarray([p["slope"] for p in slope_profiles], dtype=object),
             radius_virial_proper_code=np.asarray(
-                [p["radius_virial_proper_code"] for p in slope_profiles]
+                [p["radius_virial_proper_code"] for p in slope_profiles],
             ),
             radius_splashback_proper_code=np.asarray(
-                [p["radius_splashback_proper_code"] for p in slope_profiles]
+                [p["radius_splashback_proper_code"] for p in slope_profiles],
             ),
             radius_turnaround_proper_code=np.asarray(
-                [p["radius_turnaround_proper_code"] for p in slope_profiles]
+                [p["radius_turnaround_proper_code"] for p in slope_profiles],
             ),
         )
     if len(caustic_values) or slope_profiles or len(apocentre_values):
@@ -540,7 +569,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                 [
                     p["radius_splashback_proper_code"] / p["radius_turnaround_proper_code"]
                     for p in slope_profiles
-                ]
+                ],
             )
             comparison_axis.plot(
                 slope_xi,
@@ -561,7 +590,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                 label=r"Lagrangian caustic $R_{\rm c}/R_{\rm ta}$",
             )
             comparison_data.update(
-                caustic_xi=caustic_array[:, 0], caustic_lambda=caustic_array[:, 1]
+                caustic_xi=caustic_array[:, 0],
+                caustic_lambda=caustic_array[:, 1],
             )
         if len(apocentre_values):
             apo_array = np.asarray(apocentre_values)
@@ -603,29 +633,32 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
                 label=r"individual events at $\xi_{\rm apo}$",
             )
             comparison_data.update(
-                apocentre_event_xi=apocentre_event_xi, apocentre_event_lambda=apocentre_event_lambda
+                apocentre_event_xi=apocentre_event_xi,
+                apocentre_event_lambda=apocentre_event_lambda,
             )
         comparison_axis.axhline(
             caustic_lambda,
             color="black",
             linestyle="--",
             linewidth=1.2,
-            label=r"ODE envelope $R_{\rm c}/R_{\rm ta}=%.3f$" % caustic_lambda,
+            label=rf"ODE envelope $R_{{\rm c}}/R_{{\rm ta}}={caustic_lambda:.3f}$",
         )
         comparison_axis.axhline(
             splashback_lambda,
             color="tab:red",
             linestyle=":",
             linewidth=1.5,
-            label=r"ODE first apocentre $R_{\rm sp}/R_{\rm ta}=%.3f$" % splashback_lambda,
+            label=rf"ODE first apocentre $R_{{\rm sp}}/R_{{\rm ta}}={splashback_lambda:.3f}$",
         )
         comparison_data.update(
-            ode_splashback_lambda=splashback_lambda, ode_outer_caustic_lambda=caustic_lambda
+            ode_splashback_lambda=splashback_lambda,
+            ode_outer_caustic_lambda=caustic_lambda,
         )
         comparison_axis.set_xlabel(r"$\xi=\ln(t/t_{\rm ref})$")
         comparison_axis.set_ylabel(r"$R/r_{\rm ta}(t)$")
         time_axis = comparison_axis.secondary_xaxis(
-            "top", functions=(np.exp, lambda value: np.log(np.maximum(value, np.finfo(float).tiny)))
+            "top",
+            functions=(np.exp, lambda value: np.log(np.maximum(value, np.finfo(float).tiny))),
         )
         time_axis.set_xlabel(r"$t_{\rm apo}/t_{\rm ref}$")
         comparison_axis.set_title("Splashback-radius comparison")
@@ -654,30 +687,8 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         raise RuntimeError("dark-matter shell radii became non-finite")
     if not np.all(np.diff(shells.radius) >= 0.0):
         raise RuntimeError("dark-matter shells are not sorted after evolution")
-    print("DarkMatterShells/ODE comparison generated")
-    print("simulation snapshots = %d" % len(turnaround_values))
-    print("outer-caustic samples = %d" % len(caustic_values))
-    print("density-slope profiles = %d" % len(slope_profiles))
-    print("recent-apocentre samples = %d" % len(apocentre_values))
     for profile in slope_profiles:
-        print(
-            "xi = %.4g: R200m = %.8g, Rsp(slope) = %.8g"
-            % (
-                profile["xi"],
-                profile["radius_virial_proper_code"],
-                profile["radius_splashback_proper_code"],
-            )
-        )
-    print("ODE splashback: xi = %.8g, lambda = %.8g" % (splashback_xi, splashback_lambda))
-    print("ODE outer caustic: xi = %.8g, lambda = %.8g" % (caustic_xi, caustic_lambda))
-    print(
-        "simulation time range = %.8g .. %.8g"
-        % (
-            initial_time,
-            time_comparison_final_cosmic_code,
-        )
-    )
-    print("figure = %s" % figure)
+        pass
     return figure
 
 

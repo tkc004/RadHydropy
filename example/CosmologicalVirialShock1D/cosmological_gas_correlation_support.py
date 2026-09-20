@@ -51,13 +51,13 @@ def plot_density_evolution(
         figsize=(8.0, 8.0),
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
-    for color, index in zip(colors, selected):
+    for color, index in zip(colors, selected, strict=False):
         axes[0].loglog(
             radius_comoving_code,
             np.maximum(rho_comoving_code[index], 1.0e-30),
             color=color,
             lw=1.7,
-            label="t = %.2f Gyr" % times[index],
+            label=f"t = {times[index]:.2f} Gyr",
         )
         if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
             axes[0].axvline(
@@ -107,10 +107,18 @@ def plot_mass_history(history, filename):
     fig, axis = plt.subplots(figsize=(8.0, 5.8))
     axis.plot(time_cosmic_code, history["mvir"], color="black", lw=1.8, label=r"$M(<r_{\rm vir})$")
     axis.plot(
-        time_cosmic_code, history["mshock"], color="tab:red", lw=1.8, label=r"$M(<r_{\rm shock})$"
+        time_cosmic_code,
+        history["mshock"],
+        color="tab:red",
+        lw=1.8,
+        label=r"$M(<r_{\rm shock})$",
     )
     axis.plot(
-        time_cosmic_code, history["mdisc"], color="tab:blue", lw=1.8, label=r"$M(<r_{\rm disc})$"
+        time_cosmic_code,
+        history["mdisc"],
+        color="tab:blue",
+        lw=1.8,
+        label=r"$M(<r_{\rm disc})$",
     )
     axis.set_yscale("log")
     axis.set_xlabel("cosmic time [Gyr]")
@@ -118,7 +126,7 @@ def plot_mass_history(history, filename):
     axis.set_ylabel(r"total mass [$10^{10}\,M_\odot$]")
     axis.set_title(
         "Mass interior to virial, shock, and centrifugal/disc radii\n"
-        "adiabatic gas + live dark matter"
+        "adiabatic gas + live dark matter",
     )
     axis.grid(alpha=0.25)
     axis.legend(loc="best", fontsize=9)
@@ -132,10 +140,18 @@ def plot_radius_history(history, filename):
     time_cosmic_code = history["time_cosmic_Gyr"]
     fig, axis = plt.subplots(figsize=(8.0, 5.8))
     axis.plot(
-        time_cosmic_code, history["rshock_kpc"], color="tab:red", lw=1.8, label=r"$r_{\rm shock}$"
+        time_cosmic_code,
+        history["rshock_kpc"],
+        color="tab:red",
+        lw=1.8,
+        label=r"$r_{\rm shock}$",
     )
     axis.plot(
-        time_cosmic_code, history["rdisc_kpc"], color="tab:blue", lw=1.8, label=r"$r_{\rm disc}$"
+        time_cosmic_code,
+        history["rdisc_kpc"],
+        color="tab:blue",
+        lw=1.8,
+        label=r"$r_{\rm disc}$",
     )
     axis.plot(
         time_cosmic_code,
@@ -169,7 +185,11 @@ def plot_radius_history(history, filename):
 
 
 def _log_radial_bin_profile(
-    radius_comoving_code, values, weights=None, bin_count=48, log_weighted=False
+    radius_comoving_code,
+    values,
+    weights=None,
+    bin_count=48,
+    log_weighted=False,
 ):
     """Return mass-weighted mean values in logarithmic radial bins."""
     radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
@@ -207,7 +227,7 @@ def _log_radial_bin_profile(
                     ** np.average(
                         np.log10(np.maximum(selected_values, 1.0e-30)),
                         weights=selected_weights,
-                    )
+                    ),
                 )
             else:
                 binned.append(np.average(selected_values, weights=selected_weights))
@@ -240,7 +260,7 @@ def plot_temperature_evolution(
         figsize=(8.0, 8.0),
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
-    for color, index in zip(colors, selected):
+    for color, index in zip(colors, selected, strict=False):
         comoving_radius = radius_comoving_code
         # Reconstruct spherical cell volumes from neighboring cell centers;
         # the common scale-factor volume_comoving_code cancels in the mass weighting.
@@ -265,7 +285,7 @@ def plot_temperature_evolution(
             np.maximum(binned_temperature, 1.0e-30),
             color=color,
             lw=1.7,
-            label="t = %.2f Gyr" % times[index],
+            label=f"t = {times[index]:.2f} Gyr",
         )
         if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
             axes[0].axvline(
@@ -369,7 +389,7 @@ def plot_specific_angular_momentum_evolution(
         figsize=(8.0, 8.0),
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
-    for color, index in zip(colors, selected):
+    for color, index in zip(colors, selected, strict=False):
         values = np.asarray(specific_angular_momentum[index], dtype=float)
         cell_edges = np.empty(radius_comoving_code.size + 1, dtype=float)
         if radius_comoving_code.size > 1:
@@ -394,7 +414,7 @@ def plot_specific_angular_momentum_evolution(
             binned_j,
             color=color,
             lw=1.7,
-            label="t = %.2f Gyr" % times[index],
+            label=f"t = {times[index]:.2f} Gyr",
         )
         if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
             axes[0].axvline(
@@ -496,7 +516,7 @@ def plot_velocity_evolution(
     )
     colors = plt.get_cmap("cividis")(np.linspace(0.05, 0.95, selected.size))
     fig, axis = plt.subplots(figsize=(8.0, 5.8))
-    for color, index in zip(colors, selected):
+    for color, index in zip(colors, selected, strict=False):
         proper_radius = radius_comoving_code * scale_factors[index]
         cell_edges = np.empty(proper_radius.size + 1, dtype=float)
         if proper_radius.size > 1:
@@ -520,7 +540,7 @@ def plot_velocity_evolution(
             np.maximum(binned_velocity, 1.0e-12),
             color=color,
             lw=1.7,
-            label="t = %.2f Gyr" % times[index],
+            label=f"t = {times[index]:.2f} Gyr",
         )
         if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
             axis.axvline(
@@ -570,7 +590,7 @@ def plot_baryon_fraction_evolution(
         color="black",
         ls="--",
         lw=1.0,
-        label=r"cosmic fraction ($f_b=%.3f$)" % cosmic_baryon_fraction,
+        label=rf"cosmic fraction ($f_b={cosmic_baryon_fraction:.3f}$)",
     )
     # ``times`` is already converted to physical Gyr by the caller.  Use an
     # explicit unit-bearing label here so this diagnostic cannot silently
@@ -604,12 +624,12 @@ def plot_baryon_fraction_evolution(
         time_valid = times[finite]
         redshift_valid = 1.0 / scale_factors[finite] - 1.0
         selected = np.unique(
-            np.linspace(0, time_valid.size - 1, min(6, time_valid.size), dtype=int)
+            np.linspace(0, time_valid.size - 1, min(6, time_valid.size), dtype=int),
         )
         top_axis = axis.twiny()
         top_axis.set_xlim(axis.get_xlim())
         top_axis.set_xticks(time_valid[selected])
-        top_axis.set_xticklabels(["%.0f" % value for value in redshift_valid[selected]])
+        top_axis.set_xticklabels([f"{value:.0f}" for value in redshift_valid[selected]])
         top_axis.set_xlabel("redshift z (from saved scale factor)")
     fig.tight_layout()
     fig.savefig(filename, dpi=220)
@@ -647,7 +667,7 @@ def plot_dark_matter_density_evolution(
     )
     bin_edges = np.geomspace(gas_radius[0], gas_radius[-1], bin_count + 1)
     bin_radii = np.sqrt(bin_edges[:-1] * bin_edges[1:])
-    for index, color in zip(selected, colors):
+    for index, color in zip(selected, colors, strict=False):
         profile = dm_profiles[index]
         scale_factor = float(profile["scale_factor"])
         radius_proper_kpc = np.asarray(profile["dm_radius_proper_kpc"], dtype=float)
@@ -688,7 +708,7 @@ def plot_dark_matter_density_evolution(
             density_contrast[valid_bins],
             color=color,
             lw=1.6,
-            label="t = %.2f" % profile["time_cosmic_Gyr"],
+            label="t = {:.2f}".format(profile["time_cosmic_Gyr"]),
         )
         cumulative_mass_comoving_code = np.cumsum(shell_mass_comoving_code)
         if mass_core_comoving_code > 0.0:
@@ -699,7 +719,7 @@ def plot_dark_matter_density_evolution(
             where="post",
             color=color,
             lw=1.6,
-            label="t = %.2f" % profile["time_cosmic_Gyr"],
+            label="t = {:.2f}".format(profile["time_cosmic_Gyr"]),
         )
     density_axis.axhline(1.0, color="black", lw=0.8, ls="--")
     density_axis.set_xlabel("comoving radius [kpc]")
@@ -737,7 +757,7 @@ def plot_baryon_normalized_density_comparison(
             np.asarray(profile["dm_radius_proper_kpc"], dtype=float)
             / float(profile["scale_factor"])
             for profile in dm_profiles
-        ]
+        ],
     )
     bin_edges = np.geomspace(
         max(1.0e-8, np.nanmin(all_comoving) * 0.9),
@@ -746,7 +766,7 @@ def plot_baryon_normalized_density_comparison(
     )
     bin_radii = np.sqrt(bin_edges[:-1] * bin_edges[1:])
     fig, axes = plt.subplots(2, 1, figsize=(8.0, 8.0), sharex=True)
-    for color, index in zip(colors, selected):
+    for color, index in zip(colors, selected, strict=False):
         gas = gas_profiles[index]
         dm = dm_profiles[index]
         scale_factor = float(gas["scale_factor"])
@@ -778,7 +798,7 @@ def plot_baryon_normalized_density_comparison(
             dm_mass_comoving_code_bin / np.maximum(bin_volume, 1.0e-300) / (1.0 - fb)
         )
         valid = (gas_density_comoving_code > 0.0) & (dm_density_comoving_code > 0.0)
-        label = "t = %.2f Gyr" % gas["time_cosmic_Gyr"]
+        label = "t = {:.2f} Gyr".format(gas["time_cosmic_Gyr"])
         axes[0].loglog(
             bin_radii[valid],
             gas_density_comoving_code[valid],
@@ -908,7 +928,9 @@ def _energy_cell_state(sim):
         ).copy(),
         "thermochemistry_energy_change": np.asarray(
             getattr(
-                sim, "cumulative_thermochemistry_energy_change_by_cell", np.zeros(last - first)
+                sim,
+                "cumulative_thermochemistry_energy_change_by_cell",
+                np.zeros(last - first),
             ),
             dtype=float,
         ).copy(),

@@ -60,7 +60,9 @@ def _group_parameters(par):
         epsilon_value = getattr(par, "hydrogen_epsilon_gamma", None)
         if epsilon_value is None:
             epsilon_value = getattr(
-                radiation, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG
+                radiation,
+                "hydrogen_epsilon_gamma",
+                DEFAULT_EPSILON_GAMMA_CGS_ERG,
             )
     else:
         edges = np.asarray(edges, dtype=float)
@@ -79,7 +81,9 @@ def _group_parameters(par):
             epsilon_value = getattr(par, "hydrogen_epsilon_gamma", None)
         if epsilon_value is None:
             epsilon_value = getattr(
-                radiation, "hydrogen_epsilon_gamma", DEFAULT_EPSILON_GAMMA_CGS_ERG
+                radiation,
+                "hydrogen_epsilon_gamma",
+                DEFAULT_EPSILON_GAMMA_CGS_ERG,
             )
 
     code = _code_units(par)
@@ -180,8 +184,7 @@ def _cell_values(value, ncell):
 
 def trace_initial_state(state, par):
     """Trace the current state without changing its chemistry."""
-    result = _advance(state, par, dt_s=0.0, update_chemistry=False)
-    return result
+    return _advance(state, par, dt_s=0.0, update_chemistry=False)
 
 
 def advance_state(state, par, dt_s):
@@ -685,7 +688,7 @@ def _hhe_group_parameters(state, par):
 def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
     """Advance coupled H/He chemistry with causal multigroup C²-Ray transport."""
     geometry = _state_geometry(state, par)
-    sigma_species, epsilon_species, boundary_flux, source_rate = _hhe_group_parameters(
+    sigma_species, _epsilon_species, boundary_flux, source_rate = _hhe_group_parameters(
         state,
         par,
     )
@@ -816,7 +819,8 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
         )
         if update_chemistry:
             state["specific_energy_cgs_erg_g"][cell] = max(
-                float(local["specific_energy_cgs_erg_g"][0]), 1.0e6
+                float(local["specific_energy_cgs_erg_g"][0]),
+                1.0e6,
             )
             state["temperature_cgs_K"][cell] = float(local["temperature_cgs_K"][0])
             state["mu"][cell] = float(local["mu"][0])

@@ -17,7 +17,6 @@ from radhydropy.io.hdf5 import (
     write_snapshot_hdf5,
     writehdf5,
 )
-from radhydropy.io.validation import SnapshotConfigurationError
 from radhydropy.io.metadata import (
     parameter_tree,
     update_used_parameters_yaml,
@@ -29,6 +28,7 @@ from radhydropy.io.scheduling import (
     run_with_output_times,
     write_numbered_hdf5,
 )
+from radhydropy.io.validation import SnapshotConfigurationError
 
 __all__ = [
     "SnapshotConfigurationError",

@@ -4,11 +4,11 @@ import copy
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 import numpy as np
 import unyt
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -18,22 +18,22 @@ sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
-from cosmological_density_evolution1d import (
+import example_utils as eu  # noqa: E402
+from cosmological_density_evolution1d import (  # noqa: E402
     CODE_LENGTH_CM,
     CODE_TIME_S,
     CODE_VELOCITY_CM_S,
     SECONDS_PER_GYR,
     density_msun_mpc3_to_cgs,
 )
-from cosmological_initial_condition import build_initial_condition
-from cosmology import EinsteinDeSitter as PhysicalEdS
-from cosmology import LambdaCDM as PhysicalLambdaCDM
+from cosmological_initial_condition import build_initial_condition  # noqa: E402
+from cosmology import EinsteinDeSitter as PhysicalEdS  # noqa: E402
+from cosmology import LambdaCDM as PhysicalLambdaCDM  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
-from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter as CodeEdS  # noqa: E402
+from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 CONFIG_FILE = Path(__file__).with_name("cosmological_hubble_flow1d.yaml")
@@ -159,7 +159,7 @@ def run():
         final_tau_sim = float(
             np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).flat[0],
         )
-        time_cosmic_code, final_a, final_hubble = (
+        _time_cosmic_code, final_a, final_hubble = (
             code_cosmology.background_state_from_supercomoving(final_tau_sim)
         )
         first = int(sim.par.mesh.ghost_cells)
@@ -183,12 +183,7 @@ def run():
                 "radius_proper_kpc": radius_proper_kpc,
                 "velocity_proper_km_s": proper_velocity_kms,
                 "expected_velocity_proper_km_s": expected_velocity_kms,
-            }
-        )
-        print(
-            f"{label}: a={final_a:.12g}, H={final_hubble:.12g}, "
-            f"max|v_peculiar|={peculiar_error:.6e}, "
-            f"max|u-u_Hubble|={velocity_error:.6e}",
+            },
         )
         if not np.isclose(final_a, final_scale_factor, rtol=2.0e-8):
             raise RuntimeError(f"{label}: scale factor disagrees")
@@ -206,7 +201,7 @@ def run():
             [
                 physical.cosmic_time_from_scale_factor(float(scale_factor))
                 for scale_factor in scale_factors
-            ]
+            ],
         )
         hubble = np.asarray([physical.hubble(float(time_gyr)) for time_gyr in times_gyr])
         radius_proper_mpc = history["radius_proper_kpc"][[-1]][0] / 1000.0
@@ -217,7 +212,10 @@ def run():
             / np.maximum(np.abs(history["expected_velocity_proper_km_s"]), 1.0e-30),
         )
         error_axis.plot(
-            history["radius_proper_kpc"], relative_error, marker="o", label=history["label"]
+            history["radius_proper_kpc"],
+            relative_error,
+            marker="o",
+            label=history["label"],
         )
     flow_axis.set_ylabel("proper Hubble velocity [km/s]")
     flow_axis.set_title("Homogeneous Hubble-flow evolution")
@@ -231,7 +229,6 @@ def run():
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print(f"figure = {figure}")
     return OUTPUT_ROOT
 
 

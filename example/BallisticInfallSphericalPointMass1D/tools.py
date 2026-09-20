@@ -1,8 +1,8 @@
 """Helpers for spherical ballistic infall."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -61,7 +61,11 @@ def ballistic_density_profile(x_proper_code, rho_reference_proper_code):
 
 
 def ballistic_velocity_profile(
-    x_proper_code, point_mass, time_proper_code, softening=0.0, code_unit_system=None
+    x_proper_code,
+    point_mass,
+    time_proper_code,
+    softening=0.0,
+    code_unit_system=None,
 ):
     t = (
         time_seconds(time_proper_code, code_unit_system) * unyt.s
@@ -81,10 +85,12 @@ def build_initial_condition(config):
         n + 1,
     ) * (ic["radius_outer_proper"] - ic["radius_inner_proper"])
     boundary_proper_unyt += ic["radius_inner_proper"]
-    coordinate_proper_unyt = 0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
+    0.5 * (boundary_proper_unyt[:-1] + boundary_proper_unyt[1:])
     rho_proper_unyt = np.ones(n) * ic["rho_reference_proper"]
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=units,
+        ic_config=config["initial_condition"],
     )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)

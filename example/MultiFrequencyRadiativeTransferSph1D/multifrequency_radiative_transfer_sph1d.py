@@ -6,9 +6,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -27,17 +27,17 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
-from example_utils import load_nested_example_config
-from multifrequency_tools import (
+import example_utils as eu  # noqa: E402
+from example_utils import load_nested_example_config  # noqa: E402
+from multifrequency_tools import (  # noqa: E402
     active_radarray,
     build_initial_condition,
     load_log_reference_profile,
     load_snapshot,
 )
 
-import radhydropy.io as rio
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "multifrequency_radiative_transfer_sph1d.yaml",
@@ -58,7 +58,7 @@ def _resolve_reference(config, config_filename, key):
 
 def _save_plot(output_filename, config, figure_filename, config_filename):
     snapshot = load_snapshot(output_filename, config)
-    code = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     active_cells = int(snapshot.par.mesh.grid_cells)
     ghost_cells = int(snapshot.par.mesh.ghost_cells)
     boundary_proper_radarray = active_radarray(
@@ -215,8 +215,6 @@ def main(config_filename=DEFAULT_CONFIG):
         "MultiFrequencyRadiativeTransferSph1D.jpg",
     )
     _save_plot(output_filename, config, figure_filename, config_filename)
-    print(f"output file = {output_filename}")
-    print(f"figure = {figure_filename}")
 
 
 if __name__ == "__main__":

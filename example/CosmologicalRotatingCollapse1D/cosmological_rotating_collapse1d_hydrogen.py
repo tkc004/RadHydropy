@@ -15,13 +15,13 @@ PROJECT_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import example_utils as eu
-from cosmological_initial_condition import build_initial_condition
-from cosmological_rotating_collapse1d import DEFAULT_CONFIG, spherical_centers
+import example_utils as eu  # noqa: E402
+from cosmological_initial_condition import build_initial_condition  # noqa: E402
+from cosmological_rotating_collapse1d import DEFAULT_CONFIG, spherical_centers  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 
 def main(output_root=None):
@@ -39,7 +39,7 @@ def main(output_root=None):
             "hydrogen_source_solver": "coupled_implicit",
             "hydrogen_implicit_fallback": "error",
             "cooling_temperature_floor": {"value": 1.0e-3, "unit": "K"},
-        }
+        },
     )
     if output_root is not None:
         config["par"]["output"]["directory"] = str(output_root)
@@ -177,9 +177,6 @@ def main(output_root=None):
     np.testing.assert_allclose(total_change, thermal_change, rtol=1.0e-10, atol=1.0e-14)
 
     rio._writehdf5(sim, output_dir / "Output_final.hdf5")
-    print("rotating hydrogen source-energy check passed")
-    print("maximum |d E_rot| = %s" % np.max(np.abs(rotational_after - rotational_before)))
-    print("maximum |d E_total - d E_thermal| = %s" % np.max(np.abs(total_change - thermal_change)))
     return sim
 
 

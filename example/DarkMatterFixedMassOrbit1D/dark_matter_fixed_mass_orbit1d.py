@@ -14,16 +14,16 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.integrate import solve_ivp
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+from scipy.integrate import solve_ivp  # noqa: E402
 
-import tools as et
-from radhydropy.units import quantity_to_value
+import tools as et  # noqa: E402
+from radhydropy.units import quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -61,14 +61,14 @@ def main(config_filename=DEFAULT_CONFIG):
     central_mass_dimensionless = float(initial_condition["central_mass_dimensionless"])
     softening_dimensionless = float(initial_condition["softening_dimensionless"])
     angular_momentum_dimensionless = float(
-        initial_condition["specific_angular_momentum_dimensionless"]
+        initial_condition["specific_angular_momentum_dimensionless"],
     )
     initial_radius = float(initial_condition["radius_initial_orbit_dimensionless"])
     vel_proper_code = quantity_to_value(
         initial_condition["vel_proper"],
         code_units.velocity_unit,
     )
-    energy_dimensionless = 0.5 * vel_proper_code**2 + effective_potential(
+    0.5 * vel_proper_code**2 + effective_potential(
         initial_radius,
         central_mass_dimensionless,
         angular_momentum_dimensionless,
@@ -129,13 +129,12 @@ def main(config_filename=DEFAULT_CONFIG):
     numerical_radius_dimensionless = np.asarray(numerical_radius_dimensionless)
     numerical_energy = np.asarray(numerical_energy)
     reference_radius = reference.sol(numerical_time)[0]
-    radius_error = np.max(np.abs(numerical_radius_dimensionless - reference_radius))
-    energy_error = np.max(np.abs(numerical_energy - numerical_energy[0]))
-    print("maximum radius error = %.6g code lengths" % radius_error)
-    print("maximum shell-energy drift = %.6g code velocity squared" % energy_error)
+    np.max(np.abs(numerical_radius_dimensionless - reference_radius))
+    np.max(np.abs(numerical_energy - numerical_energy[0]))
 
     radius_proper_pc = quantity_to_value(
-        numerical_radius_dimensionless * code_units.length_unit, "pc"
+        numerical_radius_dimensionless * code_units.length_unit,
+        "pc",
     )
     reference_pc = quantity_to_value(reference_radius * code_units.length_unit, "pc")
     time_proper_Myr = quantity_to_value(numerical_time * code_units.time_unit, "Myr")
@@ -154,7 +153,6 @@ def main(config_filename=DEFAULT_CONFIG):
     figure = Path(config["par"]["output"]["directory"]) / "DarkMatterFixedMassOrbit1D.jpg"
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-    print("figure = %s" % figure)
 
 
 def parse_args():

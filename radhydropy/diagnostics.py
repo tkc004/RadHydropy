@@ -19,7 +19,8 @@ def temperature_physical_cgs_K(sim):
     runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
     try:
         _, _, _, temperature_field, time_runtime_code = select_fluid_primitive_arrays(
-            runtime_state, sim.par
+            runtime_state,
+            sim.par,
         )
     except AttributeError:
         # Some controlled solver tests use a partially initialized fluid and
@@ -244,18 +245,9 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
             index,
             time_runtime_code,
         ),
-        "cell: radius=%s T_before=%s K T_after=%s K rho=%s vel=%s "
-        "pressure=%s cs=%s mass=%s energy=%s"
-        % (
-            radius[index],
-            before[index],
-            temperature_after[index],
-            density[index],
-            velocity[index],
-            pressure[index],
-            sound_speed[index],
-            mass[index],
-            energy[index],
+        (
+            f"cell: radius={radius[index]} T_before={before[index]} K T_after={temperature_after[index]} K rho={density[index]} vel={velocity[index]} "
+            f"pressure={pressure[index]} cs={sound_speed[index]} mass={mass[index]} energy={energy[index]}"
         ),
         "neighborhood: idx radius T_before[K] T_after[K] rho vel pressure cs mass energy",
     ]
@@ -277,8 +269,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
         )
     if source_result:
         lines.append(
-            "source solver: %s relative_change=%s source_steps=%s"
-            % (
+            "source solver: {} relative_change={} source_steps={}".format(
                 source_result.get("source_solver", "unknown"),
                 source_result.get("relative_change", "unknown"),
                 source_result.get("source_steps", "unknown"),

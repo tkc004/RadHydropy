@@ -17,18 +17,18 @@ os.environ.setdefault(
     "MPLCONFIGDIR",
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
-from radhydropy.units import quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.gravity import Gravity  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -96,8 +96,7 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError("self-gravity acceleration contains non-finite values")
     if max_relative_error > 5.0e-3:
         raise RuntimeError(
-            "uniform-sphere self-gravity relative error %.6g exceeds tolerance"
-            % max_relative_error,
+            f"uniform-sphere self-gravity relative error {max_relative_error:.6g} exceeds tolerance",
         )
 
     figure_filename = os.path.join(
@@ -118,9 +117,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
-
-    print("maximum relative error = %.6g" % max_relative_error)
-    print("figure = %s" % figure_filename)
 
 
 def parse_args():

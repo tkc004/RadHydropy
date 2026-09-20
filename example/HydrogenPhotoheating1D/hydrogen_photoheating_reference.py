@@ -39,7 +39,7 @@ def photoionization_timescale(sigma_gamma_cgs_cm2, photon_number_density_cgs_cm3
     sigma_gamma_cgs_cm2 = sigma_gamma_cgs_cm2.to(unyt.cm**2)
     speed_of_light = SPEED_OF_LIGHT_CGS * unyt.cm / unyt.s
     return (1.0 / (speed_of_light * sigma_gamma_cgs_cm2 * photon_number_density_cgs_cm3_unyt)).to(
-        unyt.yr
+        unyt.yr,
     )
 
 
@@ -69,4 +69,4 @@ def neutral_fraction_reference(
 def timescale_label(symbol, time_scale_proper_unyt):
     """Return a compact log10 timescale label."""
     exponent = np.log10(time_scale_proper_unyt.to_value(unyt.yr))
-    return r"$\tau_%s=10^{%.2f}\ {\rm yr}$" % (symbol, exponent)
+    return rf"$\tau_{symbol}=10^{{{exponent:.2f}}}\ {{\rm yr}}$"

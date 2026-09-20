@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -18,13 +18,13 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
-import power_law_hii_region_analytic as analytic
+import example_utils as eu  # noqa: E402
+import power_law_hii_region_analytic as analytic  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.arrays import as_named_array  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "power_law_hii_region_radhydropy.yaml"
 
@@ -361,7 +361,7 @@ def main(config_filename=DEFAULT_CONFIG):
             np.asarray(
                 snapshot.fluid.time_proper_code,
                 dtype=float,
-            ).flat[0]
+            ).flat[0],
         )
         time_proper_yr = (
             time_proper_code
@@ -446,13 +446,10 @@ def main(config_filename=DEFAULT_CONFIG):
     figure.savefig(output, dpi=180)
     profile_output = Path(output_config["directory"]) / example["profile_plot_filename"]
     save_profile_plot(snapshots, profile_output, exponent)
-    print(f"wrote {output}")
-    print(f"wrote {profile_output}")
-    print(f"snapshots = {len(times_yr)}")
     if np.any(valid):
-        print(f"final simulated front = {radii_cm[valid][-1]:.6e} cm")
+        pass
     else:
-        print("final simulated front = unavailable")
+        pass
 
 
 if __name__ == "__main__":

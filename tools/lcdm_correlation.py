@@ -185,7 +185,7 @@ def plot_linear_matter_power_spectrum(
     axis.loglog(k_hmpc, power, color="tab:green", linewidth=2.0)
     axis.set_xlabel(r"$k\ [h\,\mathrm{Mpc}^{-1}]$")
     axis.set_ylabel(r"$P(k)\ [(\mathrm{Mpc}/h)^3]$")
-    axis.set_title(r"Linear matter power spectrum ($\sigma_8=%.3f$)" % sigma8)
+    axis.set_title(rf"Linear matter power spectrum ($\sigma_8={sigma8:.3f}$)")
     axis.grid(True, which="both", alpha=0.25)
     figure.tight_layout()
 
@@ -284,14 +284,13 @@ def linear_correlation_from_power_spectrum(radius_mpc_h, k_hmpc, power):
 def load_lcdm_correlation_table(filename):
     """Load a previously generated correlation table from HDF5."""
     with h5py.File(filename, "r") as handle:
-        result = {
+        return {
             "radius_mpc_h": handle["radius_mpc_h"][:],
             "correlation": handle["correlation"][:],
             "k_hmpc": handle["k_hmpc"][:],
             "power": handle["power"][:],
             "attributes": dict(handle.attrs),
         }
-    return result
 
 
 def generate_lcdm_correlation_table(

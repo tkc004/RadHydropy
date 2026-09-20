@@ -115,7 +115,7 @@ def make_network_state(paths, temperature=1.0e5, rho_code=1.0e-20, metallicity=1
         "rho_cgs_g_cm3": np.array([rho_code]),
         "temperature_cgs_K": np.array([temperature]),
         "specific_energy_cgs_erg_g": np.array(
-            [BOLTZMANN_CONSTANT_CGS * temperature / (2.0 / 3.0 * PROTON_MASS_CGS)]
+            [BOLTZMANN_CONSTANT_CGS * temperature / (2.0 / 3.0 * PROTON_MASS_CGS)],
         ),
         "gamma": 5.0 / 3.0,
         "mu": np.array([1.0]),
@@ -177,7 +177,7 @@ def test_cie_apply_fast_subcycles_and_enforces_temperature_floor(tmp_path):
             coordinate_frame="physical",
             time_coordinate="proper",
             velocity_representation="proper",
-        )
+        ),
     )
     fluid.runtime_state = FluidRuntimeState.from_arrays(
         fluid.runtime_fields,
@@ -254,7 +254,7 @@ def test_cie_state_converts_supercomoving_hydro_fields_to_physical():
     fluid.Energy_code = np.array(
         [
             8.0 * (specific_internal * scale_factor**2 + 0.5 * velocity_supercomoving**2),
-        ]
+        ],
     )
     fluid.eos = SimpleNamespace(gamma=gamma)
     fluid.pre_supercomoving_code = np.zeros_like(fluid.rho_comoving_code)

@@ -105,6 +105,7 @@ def coupled_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
     if hasattr(network, "coupled_implicit_update"):
         return network.coupled_implicit_update(state, ngamma_cgs_cm3, dt_s)
     network.ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s)
+    return None
 
 
 def apply_state(state, fluid, par):

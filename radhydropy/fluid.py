@@ -220,7 +220,7 @@ class Fluid:
 
     def SetHydrogenHeliumMu(self, hydrogen_mass_fraction=0.75, helium_mass_fraction=0.25):
         xHI = np.asarray(self.xHI, dtype=float)
-        xHeI = np.asarray(self.xHeI, dtype=float)
+        np.asarray(self.xHeI, dtype=float)
         xHeII = np.asarray(self.xHeII, dtype=float)
         xHeIII = np.asarray(self.xHeIII, dtype=float)
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
@@ -240,7 +240,7 @@ class Fluid:
         ne = nH * (1.0 - xHI) + nHe * (xHeII + 2.0 * xHeIII)
         nt = nH + nHe + ne
         self.mu = as_named_array(
-            np.asarray(density, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99))
+            np.asarray(density, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99)),
         )
 
     def SetUpFluid(self, par, mesh=None):
@@ -317,7 +317,8 @@ class Fluid:
         if getattr(par, "hydrogen_chemistry", False) and not hasattr(self, "xHI"):
             self.xHI = as_named_array(
                 np.full(
-                    np.shape(self.rho_comoving_code), getattr(par, "hydrogen_xHI_initial", 1.0)
+                    np.shape(self.rho_comoving_code),
+                    getattr(par, "hydrogen_xHI_initial", 1.0),
                 ),
             )
         if hasattr(self, "xHI"):
@@ -328,7 +329,7 @@ class Fluid:
                         np.full(noghost, getattr(par, "hydrogen_xHI_initial", 1.0)),
                         values,
                         np.full(noghost, getattr(par, "hydrogen_xHI_initial", 1.0)),
-                    )
+                    ),
                 ),
             )
         if hasattr(self, "ngamma_code"):
@@ -418,7 +419,9 @@ class Fluid:
                     )
                 else:
                     setattr(
-                        self, attr, as_named_array(np.asarray(getattr(self, attr), dtype=float))
+                        self,
+                        attr,
+                        as_named_array(np.asarray(getattr(self, attr), dtype=float)),
                     )
 
         noghost = int(par.mesh.ghost_cells)

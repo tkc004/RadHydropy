@@ -10,7 +10,7 @@ def build_initial_condition(config):
     initial = config["initial_condition"]
 
     code_units = config["_code_units"]
-    simulation = config["par"]["simulation"]
+    config["par"]["simulation"]
     mesh = config["par"]["mesh"]
     writer = InitialConditionWriter(
         par_config=config["par"],

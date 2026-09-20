@@ -22,14 +22,14 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
-import unyt
+import example_utils as eu  # noqa: E402
+import unyt  # noqa: E402
 
-import radhydropy.io as rio
-from example.NFWVirialShockAdiabatic1D import tools as et
-from radhydropy.gravity import Gravity, nfw_potential
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from example.NFWVirialShockAdiabatic1D import tools as et  # noqa: E402
+from radhydropy.gravity import Gravity, nfw_potential  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -97,28 +97,14 @@ def main(config_filename=DEFAULT_CONFIG):
     et.plot_snapshots(output_files, config, halo, figure_filename)
     et.write_rankine_hugoniot_report(rows, report_filename)
 
-    virial_radius = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
-    virial_velocity = halo["vel_virial_proper_km_s_unyt"].to_value(unyt.km / unyt.s)
-    virial_temperature = et.virial_temperature(
+    halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
+    halo["vel_virial_proper_km_s_unyt"].to_value(unyt.km / unyt.s)
+    et.virial_temperature(
         halo,
         initial_condition["mu"],
     ).to_value(unyt.K)
-    print("halo mass = %.6g Msun" % halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun))
-    print("R200 = %.6g kpc" % virial_radius)
-    print("4 R200 = %.6g kpc" % (4.0 * virial_radius))
-    print("V200 = %.6g km/s" % virial_velocity)
-    print("Tvir = %.6g K" % virial_temperature)
-    print("snapshots = %d" % len(output_files))
-    print("Rankine-Hugoniot checks = %d" % len(rows))
-    for row in rows:
-        print(
-            "RH t=%(time_proper_Myr).0f Myr, r_shock=%(shock_radius_proper_kpc).3g kpc, "
-            "Mach=%(mach_number_dimensionless).3g, rho=%(density_ratio_measured_dimensionless).3g/"
-            "%(density_ratio_predicted_dimensionless).3g, T=%(temperature_ratio_measured_dimensionless).3g/"
-            "%(temperature_ratio_predicted_dimensionless).3g" % row,
-        )
-    print("Rankine-Hugoniot report = %s" % report_filename)
-    print("figure = %s" % figure_filename)
+    for _row in rows:
+        pass
 
 
 def parse_args():

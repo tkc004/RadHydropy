@@ -11,9 +11,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -27,11 +27,11 @@ if str(example_root) not in sys.path:
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("radiation_pressure_slab1d.yaml")
 
@@ -95,12 +95,12 @@ def _absorbed_momentum(source_result, mesh, config, dt):
     absorbed_energy = np.sum(absorbed * energies[:, None], axis=0)
     direction = float(source_result.get("direction", 1))
     return direction * float(
-        np.sum(absorbed_energy * volume_proper_code * dt) / unyt.c.to_value(unyt.cm / unyt.s)
+        np.sum(absorbed_energy * volume_proper_code * dt) / unyt.c.to_value(unyt.cm / unyt.s),
     )
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
     config["_code_units"] = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
@@ -175,11 +175,7 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.savefig(figure, dpi=180)
     plt.close()
 
-    relative_error = abs(gas[-1] - expected[-1]) / max(abs(expected[-1]), 1.0e-300 * gas[-1].units)
-    print("final gas momentum = %.6e g cm/s" % gas[-1].to_value(unyt.g * unyt.cm / unyt.s))
-    print("expected momentum = %.6e g cm/s" % expected[-1].to_value(unyt.g * unyt.cm / unyt.s))
-    print("relative error = %.6e" % float(relative_error))
-    print("figure = %s" % figure)
+    abs(gas[-1] - expected[-1]) / max(abs(expected[-1]), 1.0e-300 * gas[-1].units)
 
 
 if __name__ == "__main__":

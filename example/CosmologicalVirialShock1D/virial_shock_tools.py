@@ -90,7 +90,7 @@ def _correlation_profile(radius_comoving_code, table, length_unit_mpc_h):
                 )
                 * np.diff(integration_radius),
             ),
-        )
+        ),
     )
     xi = np.interp(
         radius_mpc_h,
@@ -123,7 +123,7 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
     """
     radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
     initial_condition = config["initial_condition"]
-    cosmology = config["_cosmology"]
+    config["_cosmology"]
     correlation_table = config.get("_correlation_table")
     radius_perturbation_comoving_code_value = radius_perturbation_comoving_code(config)
     overdensity = float(initial_condition["initial_overdensity"])
@@ -139,7 +139,7 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
         )
         return np.asarray(delta, dtype=float), np.asarray(mean_delta, dtype=float)
     if profile not in ("linear_correlation", "gaussian_correlation"):
-        raise ValueError("unknown rho_proper_profile %r" % profile)
+        raise ValueError(f"unknown rho_proper_profile {profile!r}")
 
     if profile == "linear_correlation":
         if correlation_table is None:
@@ -161,7 +161,8 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
     else:
         correlation_length = float(
             initial_condition.get(
-                "correlation_length", 0.5 * radius_perturbation_comoving_code_value
+                "correlation_length",
+                0.5 * radius_perturbation_comoving_code_value,
             ),
         )
         xi = np.exp(-((radius_comoving_code / max(correlation_length, 1.0e-30)) ** 2))
@@ -215,7 +216,7 @@ def build_initial_condition(config):
     code_unit_system = config["_code_unit_system"]
     cosmology = config["_cosmology"]
     pie_table = config.get("_pie_table")
-    correlation_table = config.get("_correlation_table")
+    config.get("_correlation_table")
     initial_condition = config["initial_condition"]
     par = config["par"]
     grid_cells = int(par["mesh"]["grid_cells"])
@@ -284,7 +285,8 @@ def build_initial_condition(config):
             cmb_temperature(redshift, initial_condition.get("cmb_temperature_0", 2.7255)),
         )
         electron_fraction = np.full(
-            grid_cells, cmb_equilibrium_electron_fraction(initial_condition)
+            grid_cells,
+            cmb_equilibrium_electron_fraction(initial_condition),
         )
         xHI = 1.0 - electron_fraction
         mu = 1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - xHI))
@@ -369,7 +371,7 @@ def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1
         fraction = abs(net[i]) / max(abs(net[i]) + abs(net[i + 1]), 1.0e-300)
         return float(
             temperature_proper_cgs_K[i]
-            * (temperature_proper_cgs_K[i + 1] / temperature_proper_cgs_K[i]) ** fraction
+            * (temperature_proper_cgs_K[i + 1] / temperature_proper_cgs_K[i]) ** fraction,
         )
     return float(np.clip(fallback, temperature_proper_cgs_K[0], temperature_proper_cgs_K[-1]))
 
@@ -397,7 +399,7 @@ def cmb_equilibrium_electron_fraction(initial_condition):
 def make_dark_matter(config):
     code_unit_system = config["_code_unit_system"]
     cosmology = config["_cosmology"]
-    correlation_table = config.get("_correlation_table")
+    config.get("_correlation_table")
     initial_condition = config["initial_condition"]
     softening = config.get("_dark_matter_softening")
     count = int(initial_condition["dark_matter_shells"])
@@ -542,7 +544,9 @@ def splashback_radius(
         int(max(32, bin_count)) + 1,
     )
     shell_mass_comoving_code, _ = np.histogram(
-        radius_proper_code, bins=edges, weights=mass_comoving_code
+        radius_proper_code,
+        bins=edges,
+        weights=mass_comoving_code,
     )
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
     rho_comoving_code = shell_mass_comoving_code / np.maximum(shell_volume, 1.0e-300)
@@ -604,7 +608,11 @@ def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
         comoving = np.asarray(proper_radius) / a
         cg = np.interp(comoving, edges, gas_cumulative, left=0.0, right=gas_cumulative[-1])
         cd = np.interp(
-            comoving, dm_radius_comoving_code, dm_cumulative, left=0.0, right=dm_cumulative[-1]
+            comoving,
+            dm_radius_comoving_code,
+            dm_cumulative,
+            left=0.0,
+            right=dm_cumulative[-1],
         )
         return cg + cd
 
@@ -776,7 +784,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
         rdisc = float(np.clip(rdisc, proper[0], max(rdisc_max, proper[0])))
     return {
         "time_cosmic_Gyr": float(
-            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr"),
         ),
         "rvir_kpc": rvir,
         "rtarget_kpc": rtarget,
@@ -809,7 +817,7 @@ def density_profiles(
     """
     cosmology = config["_cosmology"]
     first = int(sim.par.mesh.ghost_cells)
-    last = first + int(sim.par.mesh.grid_cells)
+    first + int(sim.par.mesh.grid_cells)
     a = float(cosmology.scale_factor(time_cosmic_code))
     gas = gas_density_profile(sim, time_cosmic_code, config)
 
@@ -839,7 +847,8 @@ def density_profiles(
     dm_radius_comoving_code = dm_radius_comoving_code[order]
     dm_mass_comoving_code = dm_mass_comoving_code[order]
     dm_radius_softened_comoving_code = dm_radius_comoving_code + max(
-        dm_softening_comoving_code, 0.0
+        dm_softening_comoving_code,
+        0.0,
     )
     dm_radius = a * dm_radius_softened_comoving_code
     if dm_radius.size > 1:
@@ -853,7 +862,7 @@ def density_profiles(
     dm_density_comoving_code = dm_mass_comoving_code / np.maximum(dm_volume, 1.0e-30)
     return {
         "time_cosmic_Gyr": float(
-            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr"),
         ),
         "dm_mean_density_code": float(cosmology.background_density(time_cosmic_code)),
         "gas_radius_kpc": gas["radius_proper_kpc"],
@@ -863,7 +872,7 @@ def density_profiles(
         "dm_mass_comoving_code": dm_mass_comoving_code,
         "dm_softening_comoving_code": dm_softening_comoving_code,
         "dm_total_mass_comoving_code": float(
-            np.sum(dm_mass_comoving_code) + getattr(dark_matter, "central_core_mass", 0.0)
+            np.sum(dm_mass_comoving_code) + getattr(dark_matter, "central_core_mass", 0.0),
         ),
         "dm_crossing_events": int(getattr(dark_matter, "total_crossing_event_count", 0)),
         "dm_origin_reflections": int(getattr(dark_matter, "total_origin_reflection_count", 0)),
@@ -897,7 +906,7 @@ def gas_density_profile(sim, time_cosmic_code, config):
     )
     return {
         "time_cosmic_Gyr": float(
-            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr"),
         ),
         "scale_factor": scale_factor,
         "radius_comoving_kpc": radius_comoving,
@@ -941,7 +950,9 @@ class VolumeSmoothedDarkMatter:
         return self.shells.total_origin_reflection_count
 
     def gravitating_enclosed_mass(
-        self, radius_comoving_code=None, include_shell_mass_with_fixed=False
+        self,
+        radius_comoving_code=None,
+        include_shell_mass_with_fixed=False,
     ):
         if radius_comoving_code is None:
             return self.shells.gravitating_enclosed_mass(

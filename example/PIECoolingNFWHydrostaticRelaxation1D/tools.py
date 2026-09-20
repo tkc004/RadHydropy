@@ -1,8 +1,8 @@
 """HM12 PIE diagnostics for an NFW hydrostatic atmosphere."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -28,7 +28,9 @@ def build_initial_condition(config):
     radius_inner_proper_unyt = initial["radius_inner_proper"]
     radius_outer_proper_unyt = initial["radius_outer_proper"]
     boundary_proper_unyt = np.linspace(
-        radius_inner_proper_unyt, radius_outer_proper_unyt, grid_cells + 1
+        radius_inner_proper_unyt,
+        radius_outer_proper_unyt,
+        grid_cells + 1,
     )
     boundary_proper_code = quantity_to_value(boundary_proper_unyt, code_units.length_unit)
     x_proper_code = (
@@ -45,7 +47,7 @@ def build_initial_condition(config):
     )
     temperature_virial_unyt = virial_temperature(halo, initial["mu"])
     radius_proper_unyt = spherical_cell_centers(
-        np.asarray(boundary_proper_code) * code_units.length_unit
+        np.asarray(boundary_proper_code) * code_units.length_unit,
     )
     rho_proper_cgs_g_cm3_unyt = hydrostatic_density_profile(
         radius_proper_unyt,
@@ -56,7 +58,9 @@ def build_initial_condition(config):
         initial["gas_fraction"],
     )
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code_units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=code_units,
+        ic_config=config["initial_condition"],
     )
     writer.box_size = writer.radquantity(initial["box_size_proper"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
@@ -118,7 +122,8 @@ def analyze_snapshot(filename, config, halo, temperature_virial_unyt):
     )
     dpdr_proper_cgs = np.gradient(pre_proper_cgs_erg_cm3, radius_proper_cgs_cm)
     force_residual = (dpdr_proper_cgs + rho_proper_cgs_g_cm3 * gravity) / np.maximum(
-        rho_proper_cgs_g_cm3 * gravity, 1.0e-99
+        rho_proper_cgs_g_cm3 * gravity,
+        1.0e-99,
     )
     r200 = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
     inside = radius_proper_kpc <= r200
@@ -129,8 +134,8 @@ def analyze_snapshot(filename, config, halo, temperature_virial_unyt):
             * np.pi
             * radius_proper_cgs_cm[inside] ** 2
             * shell_width_proper_cgs_cm[inside]
-            * rho_proper_cgs_g_cm3[inside]
-        )
+            * rho_proper_cgs_g_cm3[inside],
+        ),
     )
     central = radius_proper_kpc < 0.1 * r200
     return {
@@ -158,8 +163,7 @@ def write_report(results, filename, temperature_floor):
             "temperature_floor_reached\n",
         )
         report.writelines(
-            "%.8g %.8g %.8g %.8g %.8g %.8g %.8g %s\n"
-            % (
+            "{:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {}\n".format(
                 row["time_proper_Myr"],
                 row["central_rho_proper_cgs_g_cm3"],
                 row["central_temperature_proper_cgs_K"],
@@ -177,16 +181,25 @@ def plot_results(results, halo, filename):
     fig, axes = plt.subplots(2, 2, figsize=(11.5, 8.0))
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, len(results)))
     r200 = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
-    for color, row in zip(colors, results):
+    for color, row in zip(colors, results, strict=False):
         label = f"{row['time_proper_Myr']:.0f} Myr"
         axes[0, 0].plot(
-            row["radius_proper_kpc"], row["rho_proper_cgs_g_cm3"], color=color, label=label
+            row["radius_proper_kpc"],
+            row["rho_proper_cgs_g_cm3"],
+            color=color,
+            label=label,
         )
         axes[0, 1].plot(
-            row["radius_proper_kpc"], row["temperature_proper_cgs_K"], color=color, label=label
+            row["radius_proper_kpc"],
+            row["temperature_proper_cgs_K"],
+            color=color,
+            label=label,
         )
         axes[1, 0].plot(
-            row["radius_proper_kpc"], row["vel_peculiar_proper_km_s"], color=color, label=label
+            row["radius_proper_kpc"],
+            row["vel_peculiar_proper_km_s"],
+            color=color,
+            label=label,
         )
         axes[1, 1].plot(row["radius_proper_kpc"], row["force_residual"], color=color, label=label)
     axes[0, 0].set_ylabel(r"$\rho$ [g cm$^{-3}$]")

@@ -184,12 +184,6 @@ def main():
         table.attrs["axis_order"] = "ion_fraction[element, ion_stage, temperature]"
         table.attrs["maximum_ion_fraction_sum_error"] = maximum_sum_error
 
-    print(f"Read: {ioneq_file}")
-    print(f"Elements: {n_elements}")
-    print(f"Temperature grid: {temperature.size} points")
-    print(f"Maximum ion-fraction sum error: {maximum_sum_error:.3e}")
-    print(f"Wrote: {output_file}")
-
 
 if __name__ == "__main__":
     main()

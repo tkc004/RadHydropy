@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -16,11 +16,11 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et
-from example_utils import load_nested_example_config
+import virial_shock_tools as et  # noqa: E402
+from example_utils import load_nested_example_config  # noqa: E402
 
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_dark_matter_correlation_z100.yaml",
@@ -106,13 +106,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-
-    print("initial condition = %s" % output)
-    print("diagnostic figure = %s" % figure)
-    print("initial scale factor = %.8g" % scale_factor)
-    print("initial redshift = %.8g" % (1.0 / scale_factor - 1.0))
-    print("target enclosed overdensity = %.8g" % float(initial_condition["initial_overdensity"]))
-    print("mean overdensity at outermost cell = %.8g" % float(mean_delta[-1]))
 
 
 if __name__ == "__main__":

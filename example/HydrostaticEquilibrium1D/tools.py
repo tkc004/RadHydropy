@@ -1,8 +1,8 @@
 """Helper utilities for the hydrostatic-equilibrium check example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -24,12 +24,12 @@ ACCELERATION_UNIT = unyt.cm / unyt.s**2
 def _physical_value(value, unit, name):
     """Convert a physical IC quantity only at the IC/code-unit boundary."""
     if not hasattr(value, "to_value"):
-        raise TypeError("%s must be a unit-bearing physical quantity" % name)
+        raise TypeError(f"{name} must be a unit-bearing physical quantity")
     try:
         return value.to_value(unit)
     except (TypeError, ValueError) as error:
         raise ValueError(
-            "%s must have units equivalent to %s" % (name, unit),
+            f"{name} must have units equivalent to {unit}",
         ) from error
 
 
@@ -44,7 +44,7 @@ def sound_speed_squared(temperature_proper_code, mu, code_unit_system=None):
         )
     else:
         raise TypeError(
-            "temperature_proper_code must be unit-bearing or paired with code_unit_system"
+            "temperature_proper_code must be unit-bearing or paired with code_unit_system",
         )
     mu_value = float(np.asarray(mu, dtype=float))
     return (BOLTZMANN_CONSTANT_CGS * temp_value / (mu_value * PROTON_MASS_CGS)) * SPEED_SQUARED_UNIT
@@ -70,7 +70,7 @@ def hydrostatic_density_profile(
         )
     else:
         raise TypeError(
-            "coordinate_proper_code must be unit-bearing or paired with code_unit_system"
+            "coordinate_proper_code must be unit-bearing or paired with code_unit_system",
         )
     if hasattr(rho_reference_proper_unyt, "to_value"):
         rho_value = rho_reference_proper_unyt.to_value(unyt.g / unyt.cm**3)
@@ -81,7 +81,7 @@ def hydrostatic_density_profile(
         )
     else:
         raise TypeError(
-            "rho_reference_proper_unyt must be unit-bearing or paired with code_unit_system"
+            "rho_reference_proper_unyt must be unit-bearing or paired with code_unit_system",
         )
     if hasattr(gravity_strength, "to_value"):
         gravity_value = gravity_strength.to_value(unyt.cm / unyt.s**2)
@@ -140,13 +140,15 @@ def build_initial_condition(config):
         code_unit_system=code_units,
     )
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code_units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=code_units,
+        ic_config=config["initial_condition"],
     )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * code_units.velocity_unit)
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial_condition["temperature_proper"]
+        np.ones(grid_cells) * initial_condition["temperature_proper"],
     )
     writer.fluid.mu = np.full(grid_cells, initial_condition["mean_molecular_weight"])
     return writer
@@ -167,7 +169,7 @@ def plot_snapshot(outfilename, config, **kwargs):
                 "UnitVelocity_in_cgs": 1.0,
                 "UnitCurrent_in_cgs": 1.0,
                 "UnitTemp_in_cgs": 1.0,
-            }
+            },
         )
     )
     nested_config = dict(config)
@@ -218,10 +220,14 @@ def plot_snapshot(outfilename, config, **kwargs):
             * unyt.cm
         )
         rho_proper_cgs_g_cm3_unyt = code_quantity_to_cgs(
-            rho_proper_code, code_units_obj, "density_cgs_g_cm3"
+            rho_proper_code,
+            code_units_obj,
+            "density_cgs_g_cm3",
         ) * (unyt.g / unyt.cm**3)
         vel_proper_cgs_cm_s_unyt = code_quantity_to_cgs(
-            vel_proper_code, code_units_obj, "velocity_cgs_cm_s"
+            vel_proper_code,
+            code_units_obj,
+            "velocity_cgs_cm_s",
         ) * (unyt.cm / unyt.s)
     else:
         x_units = unyt.cm

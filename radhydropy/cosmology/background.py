@@ -249,8 +249,7 @@ class LambdaCDM:
     def cosmic_time_from_supercomoving(self, tau):
         tau = np.asarray(tau, dtype=float)
         target = tau * self.a_ref**2 * self._hubble_ref
-        result = np.vectorize(self._cosmic_time_from_supercomoving_scalar, otypes=[float])(target)
-        return result
+        return np.vectorize(self._cosmic_time_from_supercomoving_scalar, otypes=[float])(target)
 
     @lru_cache(maxsize=4096)
     def _cosmic_time_from_supercomoving_scalar(self, value):
@@ -277,7 +276,7 @@ class LambdaCDM:
         # d tau = d t / a^2 and d t = d a / (a H), hence
         # d tau / d u = 1 / [u^(3/2) H_ref sqrt(omega_m + omega_lambda u^3)].
         integral = half * np.sum(
-            weights / (values**1.5 * np.sqrt(self.omega_m + self.omega_lambda * values**3))
+            weights / (values**1.5 * np.sqrt(self.omega_m + self.omega_lambda * values**3)),
         )
         return -integral if u < 1.0 else integral
 

@@ -43,7 +43,9 @@ def shock_radius(
     time_proper_cgs_s = _to_value(time_proper_code, unyt.s)
     rho_ambient_proper_cgs_g_cm3 = _to_value(rho_ambient_proper_unyt, unyt.g / unyt.cm**3)
     luminosity_proper_cgs_erg_s = wind_luminosity(
-        rho_outflow_proper_unyt, vel_outflow_proper_unyt, radius_injection_proper_unyt
+        rho_outflow_proper_unyt,
+        vel_outflow_proper_unyt,
+        radius_injection_proper_unyt,
     ).to_value(
         unyt.erg / unyt.s,
     )
@@ -86,7 +88,9 @@ def bubble_pressure(
     time_proper_cgs_s = _to_value(time_proper_code, unyt.s)
     rho_ambient_proper_cgs_g_cm3 = _to_value(rho_ambient_proper_unyt, unyt.g / unyt.cm**3)
     luminosity_proper_cgs_erg_s = wind_luminosity(
-        rho_outflow_proper_unyt, vel_outflow_proper_unyt, radius_injection_proper_unyt
+        rho_outflow_proper_unyt,
+        vel_outflow_proper_unyt,
+        radius_injection_proper_unyt,
     ).to_value(
         unyt.erg / unyt.s,
     )

@@ -9,9 +9,9 @@ os.environ.setdefault(
     "MPLCONFIGDIR",
     os.path.join("/tmp", "radhydropy-matplotlib"),
 )
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -20,12 +20,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -51,7 +51,8 @@ def main(config_filename=DEFAULT_CONFIG):
     vel_proper_code = np.asarray(initial.fluid.vel_radarray.value, dtype=float)
     temperature_proper_code = np.asarray(initial.fluid.temp_radarray.value, dtype=float)
     boundary_proper_code = np.asarray(
-        initial.mesh.boundary_radarray.to_value(config["_code_units"].length_unit), dtype=float
+        initial.mesh.boundary_radarray.to_value(config["_code_units"].length_unit),
+        dtype=float,
     )
     initial_total_j = np.sum(
         rho_proper_code * initial_j * np.diff(boundary_proper_code),
@@ -106,13 +107,16 @@ def main(config_filename=DEFAULT_CONFIG):
     figure.parent.mkdir(parents=True, exist_ok=True)
     final_snapshot = rio.loadhdf5(config, str(outputs[-1]))
     final_density_proper_code = np.asarray(
-        final_snapshot.fluid.rho_radarray.value[interior], dtype=float
+        final_snapshot.fluid.rho_radarray.value[interior],
+        dtype=float,
     )
     final_velocity_proper_code = np.asarray(
-        final_snapshot.fluid.vel_radarray.value[interior], dtype=float
+        final_snapshot.fluid.vel_radarray.value[interior],
+        dtype=float,
     )
     final_temperature_proper_code = np.asarray(
-        final_snapshot.fluid.temp_radarray.value[interior], dtype=float
+        final_snapshot.fluid.temp_radarray.value[interior],
+        dtype=float,
     )
     conserved_j = np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float)
 
@@ -175,7 +179,8 @@ def main(config_filename=DEFAULT_CONFIG):
         snapshot_times = np.linspace(0.0, final_time_proper_code, snapshot_times.size)
     snapshot_total_j = np.asarray(snapshot_total_j)
     relative_conservation_error = (snapshot_total_j - initial_total_j) / max(
-        abs(initial_total_j), np.finfo(float).tiny
+        abs(initial_total_j),
+        np.finfo(float).tiny,
     )
     conservation_figure = (
         Path(config["par"]["output"]["directory"]) / "PassiveGasAngularMomentum1D_conservation.jpg"
@@ -195,9 +200,6 @@ def main(config_filename=DEFAULT_CONFIG):
     conservation_fig.tight_layout()
     conservation_fig.savefig(conservation_figure, dpi=180)
     plt.close(conservation_fig)
-    print("active angular-momentum transport, conservation, and restart checks passed")
-    print("figure = %s" % figure)
-    print("conservation figure = %s" % conservation_figure)
 
 
 if __name__ == "__main__":

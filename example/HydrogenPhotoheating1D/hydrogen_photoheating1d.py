@@ -27,18 +27,16 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
-import unyt
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_photoheating1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
 
     initial_condition = config["initial_condition"]
@@ -78,43 +76,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     figure_filename = Path(output["directory"]) / exampleparams["plot_filename"]
-    xHI_reference = et.save_history_plot(history, str(figure_filename), reference)
-
-    print("Hydrogen photoheating example finished")
-    print("time = %.3e yr" % et.time_value(sim, unyt.yr))
-    print("mean temperature = %.3e K" % et.mean_temperature(sim).to_value(unyt.K))
-    print("mean neutral fraction = %.3e" % et.mean_neutral_fraction(sim))
-    print(
-        "mean photon number density = %.3e cm^-3"
-        % et.mean_photon_number_density(sim).to_value(1.0 / unyt.cm**3),
-    )
-    print(
-        "sigma_gamma = %.3e cm^2" % exampleparams["sigma_gamma"].to_value(unyt.cm**2),
-    )
-    print(
-        "epsilon_gamma = %.3e eV"
-        % exampleparams["excess_photoionization_energy"].to_value(unyt.eV),
-    )
-    print(
-        "photoionization equilibrium temperature = %.3e K"
-        % reference["temperature_photoionization_cgs_K_unyt"].to_value(unyt.K),
-    )
-    print(
-        "thermal equilibrium reference temperature = %.3e K"
-        % reference["temperature_thermal_equilibrium_cgs_K_unyt"].to_value(unyt.K),
-    )
-    print(
-        "ionization time = %.3e yr"
-        % xHI_reference["time_ionization_proper_unyt"].to_value(unyt.yr),
-    )
-    print(
-        "recombination time at T_ion = %.3e yr"
-        % xHI_reference["time_recombination_proper_unyt"].to_value(unyt.yr),
-    )
-    print(
-        "ionization equilibrium neutral fraction = %.3e" % xHI_reference["xHI"],
-    )
-    print("figure = %s" % figure_filename)
+    et.save_history_plot(history, str(figure_filename), reference)
 
 
 def parse_args():

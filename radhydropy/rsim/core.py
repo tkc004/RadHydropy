@@ -26,8 +26,6 @@ class Rsim:
     def __init__(self, params) -> None:
         """Create a simulation from a run-parameter dictionary."""
         self._start_time = time.time()
-        print("--- Get simulation parameters ---")
-        print("--- %s seconds ---" % (time.time() - getattr(self, "_start_time", time.time())))
         self.fluid = Fluid()
         self.mesh = Mesh()
         self.par = Par(params)
@@ -109,7 +107,9 @@ class Rsim:
         from .sources import UpdateThermochemistryPrimitiveState
 
         return UpdateThermochemistryPrimitiveState(
-            self, update_pressure=update_pressure, fluid=fluid
+            self,
+            update_pressure=update_pressure,
+            fluid=fluid,
         )
 
     def _sync_hydro_state(self, fluid=None):
@@ -162,14 +162,21 @@ class Rsim:
         from .stepping import _hydro_step_once
 
         return _hydro_step_once(
-            self, dt, fluid=fluid, advect_chemistry=advect_chemistry, apply_gravity=apply_gravity
+            self,
+            dt,
+            fluid=fluid,
+            advect_chemistry=advect_chemistry,
+            apply_gravity=apply_gravity,
         )
 
     def _hydro_step_ssprk2(self, dt, advect_chemistry=True, apply_gravity=True):
         from .stepping import _hydro_step_ssprk2
 
         return _hydro_step_ssprk2(
-            self, dt, advect_chemistry=advect_chemistry, apply_gravity=apply_gravity
+            self,
+            dt,
+            advect_chemistry=advect_chemistry,
+            apply_gravity=apply_gravity,
         )
 
     def _accumulate_gravity_work(self):
@@ -354,8 +361,6 @@ class Rsim:
 
     def checkparams(self):
         """Validate dimensional consistency for selected parameters."""
-        print("--- Check parameters ---")
-        print("--- %s seconds ---" % (time.time() - getattr(self, "_start_time", time.time())))
         ru.CheckDimension(self.par.simulation.box_size_proper_code, 1.0 * unyt.pc)
         ru.CheckDimension(
             self.par.hydrodynamics.gamma,

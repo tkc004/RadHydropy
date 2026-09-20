@@ -1,6 +1,5 @@
 """Rsim execution subsystem helpers."""
 
-import time
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 
@@ -20,8 +19,6 @@ from radhydropy.units import (
 
 def Callreadhdf5(sim):
     """Read the configured initial-condition HDF5 file."""
-    print("--- Read Initial Condition ---")
-    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
     sim._require_code_units()
     rio.readhdf5(
         sim.par,
@@ -67,27 +64,20 @@ def Callreadhdf5(sim):
     sim.checkparams()
     time_field = runtime_fields(sim.par).time
     sim.fluid.SetFluidTime(getattr(sim.par, time_field))
-    print("--- Start Initial Time ---")
 
 
 def SetMesh(sim):
     """Initialize mesh geometry and ghost cells."""
-    print("--- Set up the Mesh ---")
-    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
     sim.mesh.SetUpMesh(sim.par)
 
 
 def SetFluid(sim):
     """Initialize fluid ghost cells and pressure."""
-    print("--- Set up the fluid ---")
-    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
     sim.fluid.SetUpFluid(sim.par, mesh=sim.mesh)
 
 
 def SetInitFluid(sim):
     """Apply initial boundaries and populate conserved variables."""
-    print("--- Fill up the fluid---")
-    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
     sim.ConvertParametersToCodeUnits()
     if getattr(sim.par, "supercomoving_coordinates", False):
         # The IC header is authoritative for cosmological startup time.  Keep

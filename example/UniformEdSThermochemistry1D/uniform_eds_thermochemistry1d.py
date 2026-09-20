@@ -3,9 +3,9 @@
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -15,14 +15,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT.parent))
 
-import copy
+import copy  # noqa: E402
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits, quantity_to_value
-from tools import analytic_compton_temperature, build_initial_condition
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from tools import analytic_compton_temperature, build_initial_condition  # noqa: E402
 
 CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 
@@ -32,7 +32,8 @@ def run_case(config, atomic_cooling):
     cosmology = EinsteinDeSitter.from_code_units(
         code_unit_system,
         t_ref=quantity_to_value(
-            config["par"]["cosmology"]["cosmology_t_ref"], code_unit_system.time_unit
+            config["par"]["cosmology"]["cosmology_t_ref"],
+            code_unit_system.time_unit,
         ),
         a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
@@ -42,7 +43,7 @@ def run_case(config, atomic_cooling):
     label = "atomic_compton" if atomic_cooling else "compton_only"
     case_config["par"]["simulation"]["name"] = f"UniformEdSThermochemistry1D_{label}"
     case_config["par"]["simulation"]["initial_condition_filename"] = str(
-        EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5"
+        EXAMPLE_ROOT / f"{label}_InitialCondition.hdf5",
     )
     case_config["par"]["output"]["filename_prefix"] = f"{label}_Output"
     case_config["par"]["thermochemistry"]["hydrogen_atomic_cooling"] = atomic_cooling
@@ -171,7 +172,7 @@ def main():
         a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
     )
 
-    compton, sim, physical = run_case(config, atomic_cooling=False)
+    compton, _sim, _physical = run_case(config, atomic_cooling=False)
     atomic, _, _ = run_case(config, atomic_cooling=True)
 
     initial_time_code = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
@@ -216,15 +217,11 @@ def main():
         ),
     )
     temperature_relative_error_dimensionless = np.max(
-        np.abs(compton["temperature_proper_cgs_K"] - analytic) / analytic
+        np.abs(compton["temperature_proper_cgs_K"] - analytic) / analytic,
     )
-    print(
-        f"Compton-only maximum relative error: {temperature_relative_error_dimensionless:.6e}",
-    )
-    for label, history in (("Compton-only", compton), ("atomic+Compton", atomic)):
+    for _label, history in (("Compton-only", compton), ("atomic+Compton", atomic)):
         choices, counts = np.unique(history["source_solver"], return_counts=True)
-        summary = ", ".join(f"{choice}={count}" for choice, count in zip(choices, counts))
-        print(f"{label} hybrid source choices: {summary}")
+        ", ".join(f"{choice}={count}" for choice, count in zip(choices, counts, strict=False))
     if temperature_relative_error_dimensionless > 2.0e-3:
         raise RuntimeError("Compton-only EdS comparison failed")
     if not np.all(np.isfinite(atomic["temperature_proper_cgs_K"])):
@@ -236,7 +233,10 @@ def main():
     figure.parent.mkdir(parents=True, exist_ok=True)
     plt.figure(figsize=(7.0, 4.5))
     plt.plot(
-        plot_time_s / (1.0e6 * 365.25 * 86400.0), analytic_plot, "k-", label="EdS analytic Compton"
+        plot_time_s / (1.0e6 * 365.25 * 86400.0),
+        analytic_plot,
+        "k-",
+        label="EdS analytic Compton",
     )
     plt.plot(
         compton["time_cosmic_cgs_s"] / (1.0e6 * 365.25 * 86400.0),
@@ -259,7 +259,6 @@ def main():
     plt.tight_layout()
     plt.savefig(figure, dpi=180)
     plt.close()
-    print(f"figure = {figure}")
 
 
 if __name__ == "__main__":

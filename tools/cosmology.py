@@ -178,4 +178,4 @@ def make_cosmology(cosmology_type="einstein_de_sitter", **kwargs):
         return EinsteinDeSitter(**kwargs)
     if cosmology_type in ("lambda_cdm", "LambdaCDM", "lcdm"):
         return LambdaCDM(**kwargs)
-    raise ValueError("unsupported cosmology_type: %s" % cosmology_type)
+    raise ValueError(f"unsupported cosmology_type: {cosmology_type}")

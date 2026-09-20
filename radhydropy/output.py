@@ -46,7 +46,7 @@ def hdf5_output_callback(
                 np.asarray(
                     getattr(sim.fluid, runtime_fields(sim.par).time),
                     dtype=float,
-                )
+                ),
             ),
         }
     else:
@@ -61,7 +61,7 @@ def hdf5_output_callback(
                 np.asarray(
                     getattr(sim.fluid, runtime_fields(sim.par).time),
                     dtype=float,
-                )
+                ),
             ),
         )
 
@@ -134,7 +134,7 @@ def run_with_output_times(
         np.asarray(
             getattr(sim.fluid, runtime_fields(sim.par).time),
             dtype=float,
-        )
+        ),
     )
     current_time = getattr(sim.fluid, runtime_fields(sim.par).time)
     final_time = sim.par.simulation.final_time
@@ -201,7 +201,7 @@ def run_with_output_times(
                 np.asarray(
                     getattr(sim.fluid, runtime_fields(sim.par).time),
                     dtype=float,
-                )
+                ),
             )
             >= target_time_value - time_tol
         ):
@@ -212,7 +212,7 @@ def run_with_output_times(
                 np.asarray(
                     getattr(sim.fluid, runtime_fields(sim.par).time),
                     dtype=float,
-                )
+                ),
             )
             outindex += 1
 
@@ -235,9 +235,9 @@ def run_with_output_times(
                 np.asarray(
                     getattr(sim.fluid, runtime_fields(sim.par).time),
                     dtype=float,
-                )
+                ),
             )
-            - last_output_time_s
+            - last_output_time_s,
         )
         > time_tol
     ):

@@ -6,9 +6,9 @@ import sys
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join("/tmp", "radhydropy-matplotlib"))
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -17,12 +17,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("gas_hydro_control1d.yaml")
 
@@ -96,8 +96,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print("hydro control without angular-momentum storage passed")
-    print("figure = %s" % figure)
 
 
 if __name__ == "__main__":

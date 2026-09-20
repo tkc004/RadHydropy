@@ -37,7 +37,7 @@ def code_units():
             "UnitVelocity_in_cgs": 1.0e5,
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
-        }
+        },
     )
 
 
@@ -149,7 +149,7 @@ def test_supercomoving_scale_uses_real_par_startup_clock():
             "cosmological_expansion": True,
             "supercomoving_coordinates": True,
             "cosmology_type": "einstein_de_sitter",
-        }
+        },
     )
     tau_supercomoving_code = par.cosmology.model.supercomoving_time(2.0)
     par.tau_supercomoving_code = tau_supercomoving_code
@@ -310,7 +310,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
     x = np.array([1.0, 2.0])
     j = np.array([0.6, -0.35])
     physical_density_at_a1 = np.array([2.0, 3.0])
-    physical_tangential_velocity_at_a1 = j / x
+    j / x
 
     rotational_energy_ratios = []
     centrifugal_accelerations = []
@@ -327,7 +327,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
         rotational_energy_ratios.append(energy_sc / energy_phys)
         centrifugal_accelerations.append(j**2 / x**3)
 
-    for cosmic_time, ratio in zip(cosmic_times, rotational_energy_ratios):
+    for cosmic_time, ratio in zip(cosmic_times, rotational_energy_ratios, strict=False):
         assert np.allclose(
             ratio,
             cosmology.scale_factor(cosmic_time) ** 5,
@@ -422,7 +422,7 @@ def test_cosmological_angular_momentum_evolution_and_restart():
             np.asarray(
                 angular_quantity.to_value(
                     units.mass_unit * units.length_unit**2 / units.time_unit,
-                )
+                ),
             ),
         )
         assert loaded_par.tau_supercomoving_code == pytest.approx(tau_initial)
@@ -595,7 +595,7 @@ def test_par_constructs_lambda_cdm_from_parameters():
             "cosmology_omega_m": 0.3,
             "cosmology_omega_lambda": 0.7,
             "cosmology_hubble_ref": 0.4,
-        }
+        },
     )
     assert par.cosmology.model.type_name == "lambda_cdm"
     assert par.cosmology.model._hubble_ref == pytest.approx(0.4)

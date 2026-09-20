@@ -9,9 +9,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -23,9 +23,9 @@ if str(_EXAMPLE_DIR) not in sys.path:
 if str(_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(_PACKAGE_DIR))
 
-from example_utils import load_nested_example_config
+from example_utils import load_nested_example_config  # noqa: E402
 
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 NO_WIND_DIR = HERE.parent / "DynamicStromgrenSpherePhotoheating20pc1D"
@@ -58,10 +58,12 @@ def _snapshot_energy(snapshot, config, tools):
     volume_cgs_cm3 = np.asarray(mesh.volume_radarray[interior].to_value(unyt.cm**3), dtype=float)
     pressure_cgs_erg_cm3 = tools._pressure_from_radarrays(fluid, config)[interior]
     density_cgs_g_cm3 = np.asarray(
-        fluid.rho_radarray[interior].to_value(unyt.g / unyt.cm**3), dtype=float
+        fluid.rho_radarray[interior].to_value(unyt.g / unyt.cm**3),
+        dtype=float,
     )
     velocity_cgs_cm_s = np.asarray(
-        fluid.vel_radarray[interior].to_value(unyt.cm / unyt.s), dtype=float
+        fluid.vel_radarray[interior].to_value(unyt.cm / unyt.s),
+        dtype=float,
     )
     thermal = float(np.sum(pressure_cgs_erg_cm3 / (par.hydrodynamics.gamma - 1.0) * volume_cgs_cm3))
     kinetic = float(np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3))
@@ -134,7 +136,7 @@ def main(no_wind_dir=NO_WIND_DIR, wind_dir=HERE):
                 wind[:, 3],
                 energy_difference,
                 relative_difference,
-            )
+            ),
         ),
         delimiter=",",
         header=(
@@ -144,10 +146,6 @@ def main(no_wind_dir=NO_WIND_DIR, wind_dir=HERE):
         ),
         comments="",
     )
-    print("final wind/no-wind total-energy difference = %.6e erg" % energy_difference[-1])
-    print("final relative difference = %.6e" % relative_difference[-1])
-    print("energy figure = %s" % figure)
-    print("energy data = %s" % data)
 
 
 if __name__ == "__main__":

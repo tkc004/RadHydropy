@@ -30,21 +30,21 @@ def enclosed_mass_radius(
         (
             [0.0],
             np.cumsum(np.asarray(rho_comoving_code) * volume_comoving_code),
-        )
+        ),
     )
     target_mass_comoving_code = float(
         np.clip(
             target_mass_comoving_code,
             cumulative_mass_comoving_code[0],
             cumulative_mass_comoving_code[-1],
-        )
+        ),
     )
     return float(
         np.interp(
             target_mass_comoving_code,
             cumulative_mass_comoving_code,
             np.asarray(boundary_comoving_code),
-        )
+        ),
     )
 
 
@@ -72,10 +72,12 @@ def build_initial_condition(config):
     sim.par.set_cosmology_model(cosmology)
 
     rmin_code = quantity_to_value(
-        initial_condition["radius_inner_comoving"], code_units.length_unit
+        initial_condition["radius_inner_comoving"],
+        code_units.length_unit,
     )
     rmax_code = quantity_to_value(
-        initial_condition["radius_outer_comoving"], code_units.length_unit
+        initial_condition["radius_outer_comoving"],
+        code_units.length_unit,
     )
     boundary = np.linspace(rmin_code, rmax_code, grid_cells + 1)
     x = spherical_cell_centers(boundary)

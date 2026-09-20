@@ -4,9 +4,9 @@ import glob
 import os
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -120,7 +120,7 @@ def load_output_state(outputfilename, config):
         )
         if np.any((boundary_proper_code[:-1] < 0.0) & (boundary_proper_code[1:] > 0.0)):
             crossing = np.where(
-                (boundary_proper_code[:-1] < 0.0) & (boundary_proper_code[1:] > 0.0)
+                (boundary_proper_code[:-1] < 0.0) & (boundary_proper_code[1:] > 0.0),
             )[0]
             for ig in crossing:
                 mesh.volume_proper_code[ig] = (
@@ -191,16 +191,16 @@ def print_startup_diagnostics(sim, config, initial_condition):
     config["_output_par"] = sim.par
     interior = interior_slice(config)
     rho_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
-    vel_proper_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
-    temp_proper_code = np.asarray(sim.fluid.temp_proper_code[interior], dtype=float)
-    xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
+    np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
+    np.asarray(sim.fluid.temp_proper_code[interior], dtype=float)
+    np.asarray(sim.fluid.xHI[interior], dtype=float)
     ngamma_code = (
         np.asarray(sim.fluid.ngamma_code[interior], dtype=float)
         if hasattr(sim.fluid, "ngamma_code")
         else None
     )
     code_units_obj = sim.par.units.CodeUnits
-    rho_proper_cgs_g_cm3 = code_quantity_to_cgs(
+    code_quantity_to_cgs(
         rho_proper_code,
         code_units_obj,
         "density_cgs_g_cm3",
@@ -209,61 +209,20 @@ def print_startup_diagnostics(sim, config, initial_condition):
     if ngamma_code is not None:
         ngamma_cgs = code_quantity_to_cgs(ngamma_code, code_units_obj, "number_density_cgs_cm3")
 
-    print("--- Startup diagnostics ---")
-    print("cells = %d" % sim.par.mesh.grid_cells)
-    print("time = %.6e Myr" % time_proper_Myr(sim.fluid.time_proper_code, code_units_obj))
-    print(
-        "rho range = [%.3e, %.3e] g/cm^3"
-        % (np.min(rho_proper_cgs_g_cm3), np.max(rho_proper_cgs_g_cm3))
-    )
-    print("vel max abs = %.3e km/s" % (np.max(np.abs(vel_proper_code)) / 1.0e5))
-    print(
-        "temperature range = [%.3e, %.3e] K" % (np.min(temp_proper_code), np.max(temp_proper_code))
-    )
-    print("neutral fraction range = [%.3e, %.3e]" % (np.min(xHI), np.max(xHI)))
-    if ngamma_code is not None:
-        print(
-            "ngamma_cgs_cm3 range = [%.3e, %.3e] code units"
-            % (np.min(ngamma_code), np.max(ngamma_code))
+    if ngamma_code is not None and ngamma_cgs is not None:
+        boundary_cgs_cm = code_quantity_to_cgs(
+            sim.mesh.boundary_proper_code[interior.start : interior.start + 2],
+            code_units_obj,
+            "length_cgs_cm",
         )
-        if ngamma_cgs is not None:
-            print(
-                "ngamma_cgs_cm3 range = [%.3e, %.3e] cm^-3"
-                % (np.min(ngamma_cgs), np.max(ngamma_cgs))
-            )
-            boundary_cgs_cm = code_quantity_to_cgs(
-                sim.mesh.boundary_proper_code[interior.start : interior.start + 2],
-                code_units_obj,
-                "length_cgs_cm",
-            )
-            inner_radius_cgs_cm = 0.5 * (boundary_cgs_cm[0] + boundary_cgs_cm[1])
-            thin_estimate = initial_condition["source_photon_rate"].to_value(1 / unyt.s) / (
-                4.0 * np.pi * inner_radius_cgs_cm**2 * unyt.c.to_value(unyt.cm / unyt.s)
-            )
-            print("optically thin inner-cell ngamma_cgs_cm3 estimate = %.3e cm^-3" % thin_estimate)
-    print(
-        "neutral sound speed = %.3e km/s" % neutral_sound_speed(config).to_value(unyt.km / unyt.s)
-    )
-    print(
-        "ionized sound speed (config) = %.3e km/s"
-        % initial_condition["ionized_sound_speed"].to_value(unyt.km / unyt.s),
-    )
-    print("stromgren radius = %.3e pc" % stromgren_radius(config).to_value(unyt.pc))
-    print("stagnation radius = %.3e pc" % stagnation_radius(config).to_value(unyt.pc))
-    print(
-        "Spitzer radius at final time = %.3e pc"
-        % spitzer_radius(initial_condition["final_time"], config).to_value(unyt.pc),
-    )
-    print(
-        "Hosokawa-Inutsuka radius at final time = %.3e pc"
-        % hosokawa_inutsuka_radius(initial_condition["final_time"], config).to_value(unyt.pc),
-    )
+        inner_radius_cgs_cm = 0.5 * (boundary_cgs_cm[0] + boundary_cgs_cm[1])
+        initial_condition["source_photon_rate"].to_value(1 / unyt.s) / (
+            4.0 * np.pi * inner_radius_cgs_cm**2 * unyt.c.to_value(unyt.cm / unyt.s)
+        )
     try:
         hydro_dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
         hydro_dt_s = hydro_dt.to_value(unyt.s) if hasattr(hydro_dt, "to_value") else float(hydro_dt)
-        print("hydro timestep estimate = %.3e s" % hydro_dt_s)
-    except Exception as exc:
-        print("hydro timestep estimate failed: %s" % exc)
+    except Exception:
         hydro_dt_s = None
     try:
         source_dt, thermal_rate = sim.solver.GetSourceTimestepFast(
@@ -275,25 +234,17 @@ def print_startup_diagnostics(sim, config, initial_condition):
         source_dt_s = (
             source_dt.to_value(unyt.s) if hasattr(source_dt, "to_value") else float(source_dt)
         )
-        print("source timestep estimate = %.3e s" % source_dt_s)
         if hydro_dt_s is not None and source_dt_s > 0.0:
-            print("estimated source substeps per hydro step = %.1f" % (hydro_dt_s / source_dt_s))
+            pass
         if thermal_rate is not None:
-            print(
-                "thermal rate range = [%.3e, %.3e]"
-                % (
-                    np.min(np.asarray(thermal_rate, dtype=float)),
-                    np.max(np.asarray(thermal_rate, dtype=float)),
-                ),
-            )
-    except Exception as exc:
-        print("source timestep estimate failed: %s" % exc)
+            pass
+    except Exception:
+        pass
 
 
 def make_logging_step_backend(sim, config, max_logged_steps=5):
     """Wrap the isothermal step backend with a short startup trace."""
     base_step_backend = make_piecewise_isothermal_step_backend(sim, config)
-    code_units_obj = sim.par.units.CodeUnits
     state = {"count": 0}
     config["_output_par"] = sim.par
     interior = interior_slice(config)
@@ -302,15 +253,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
         step_index = state["count"]
         should_log = step_index < max_logged_steps
         if should_log:
-            print(
-                "--- step %d begin: time=%.6e Myr dt=%s mode=%s ---"
-                % (
-                    step_index + 1,
-                    time_proper_Myr(sim.fluid.time_proper_code, code_units_obj),
-                    dt,
-                    mode,
-                ),
-            )
+            pass
         result = base_step_backend(
             dt=dt,
             mode=mode,
@@ -318,28 +261,13 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
         )
         if should_log:
             vel_proper_code = np.asarray(sim.fluid.vel_proper_code[interior], dtype=float)
-            rho_proper_code = np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
-            xHI = np.asarray(sim.fluid.xHI[interior], dtype=float)
-            vmax = np.max(np.abs(vel_proper_code)) / 1.0e5
+            np.asarray(sim.fluid.rho_proper_code[interior], dtype=float)
+            np.asarray(sim.fluid.xHI[interior], dtype=float)
+            np.max(np.abs(vel_proper_code)) / 1.0e5
             config["_output_par"] = sim.par
-            front_radius = ionization_front_position(sim.mesh, sim.fluid, config)
-            print(
-                "--- step %d end: time=%.6e Myr hydro_steps=%d source_steps=%d front=%.3e pc vmax=%.3e km/s rho=[%.3e, %.3e] xHI=[%.3e, %.3e] ---"
-                % (
-                    step_index + 1,
-                    time_proper_Myr(sim.fluid.time_proper_code, code_units_obj),
-                    result["hydro_steps"],
-                    result["source_steps"],
-                    front_radius,
-                    vmax,
-                    np.min(rho_proper_code),
-                    np.max(rho_proper_code),
-                    np.min(xHI),
-                    np.max(xHI),
-                ),
-            )
+            ionization_front_position(sim.mesh, sim.fluid, config)
             if step_index + 1 == max_logged_steps:
-                print("--- step logging disabled after %d steps ---" % max_logged_steps)
+                pass
         state["count"] += 1
         return result
 
@@ -363,7 +291,7 @@ def make_piecewise_isothermal_step_backend(sim, config):
 
 
 def ionization_front_position(mesh, fluid, config, ionized_fraction=0.5):
-    par = config["_output_par"]
+    config["_output_par"]
     interior = interior_slice(config)
     boundary_proper_pc = mesh.boundary_radarray.to(unyt.pc).value
     radius_proper_pc = 0.5 * (boundary_proper_pc[:-1] + boundary_proper_pc[1:])[interior]
@@ -531,8 +459,9 @@ def save_front_plot(history, config, figure_filename):
         lw=1.8,
         ls="--",
         label=(
-            r"Spitzer, $c_i=%.2f$ km s$^{-1}$"
-            % initial_condition["ionized_sound_speed"].to_value(unyt.km / unyt.s)
+            r"Spitzer, $c_i={:.2f}$ km s$^{{-1}}$".format(
+                initial_condition["ionized_sound_speed"].to_value(unyt.km / unyt.s)
+            )
         ),
     )
     ax.plot(
@@ -632,7 +561,7 @@ def save_density_profile_plot(snapshot, config, figure_filename):
     ax.set_yscale("log")
     ax.set_xlabel("Radius [pc]")
     ax.set_ylabel(r"Density [g cm$^{-3}$]")
-    ax.set_title("Density profile at %.3f Myr" % snapshot["time_proper_Myr"])
+    ax.set_title("Density profile at {:.3f} Myr".format(snapshot["time_proper_Myr"]))
     ax.set_xlim(0.0, config["initial_condition"]["box_size_proper"].to_value(unyt.pc))
     positive_density = rho_proper_cgs_g_cm3[rho_proper_cgs_g_cm3 > 0.0]
     if positive_density.size:
@@ -675,5 +604,5 @@ def save_density_profile_plot(snapshot, config, figure_filename):
 def save_density_profile_plots(snapshots, config, figure_filenames):
     if len(snapshots) != len(figure_filenames):
         raise ValueError("density snapshots and figure filenames differ in length")
-    for snapshot, figure_filename in zip(snapshots, figure_filenames):
+    for snapshot, figure_filename in zip(snapshots, figure_filenames, strict=False):
         save_density_profile_plot(snapshot, config, figure_filename)

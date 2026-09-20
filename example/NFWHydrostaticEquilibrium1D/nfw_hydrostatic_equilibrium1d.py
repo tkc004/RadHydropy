@@ -22,13 +22,12 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
-import unyt
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from example.NFWHydrostaticEquilibrium1D import tools as et
-from radhydropy.gravity import Gravity, nfw_potential
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from example.NFWHydrostaticEquilibrium1D import tools as et  # noqa: E402
+from radhydropy.gravity import Gravity, nfw_potential  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -85,20 +84,13 @@ def main(config_filename=DEFAULT_CONFIG):
         par["output"]["directory"],
         "NFWHydrostaticEquilibrium1D.jpg",
     )
-    max_relative_error = et.read_and_plot(
+    et.read_and_plot(
         final_outfile,
         config,
         halo,
         temperature_proper_unyt,
         figure_filename,
     )
-    print("halo mass = %.6g Msun" % halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun))
-    print("R200 = %.6g kpc" % halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc))
-    print("r_s = %.6g kpc" % halo["radius_scale_proper_kpc_unyt"].to_value(unyt.kpc))
-    print("V200 = %.6g km/s" % halo["vel_virial_proper_km_s_unyt"].to_value(unyt.km / unyt.s))
-    print("Tvir = %.6g K" % temperature_proper_unyt.to_value(unyt.K))
-    print("maximum density relative error = %.6g" % max_relative_error)
-    print("figure = %s" % figure_filename)
 
 
 def parse_args():

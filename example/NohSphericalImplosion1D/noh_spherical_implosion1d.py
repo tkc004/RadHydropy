@@ -16,18 +16,18 @@ PROJECT_ROOT = HERE.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(HERE.parent))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.eos import EOS
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.eos import EOS  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = HERE / "noh_spherical_implosion1d.yaml"
 
@@ -91,7 +91,8 @@ def read_profile(filename, config):
         code_units=code_unit_system,
     )
     pre_proper_code = np.asarray(
-        eos.pressure(rho_proper_code, temp_proper_code, mu_dimensionless), dtype=float
+        eos.pressure(rho_proper_code, temp_proper_code, mu_dimensionless),
+        dtype=float,
     )
     kinetic_energy_proper_code = (
         0.5 * rho_proper_code * vel_proper_code**2 * volume_proper_code[first:last]
@@ -137,7 +138,7 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         output.mkdir(parents=True, exist_ok=True)
         resolution_config["par"]["output"]["directory"] = str(output)
         resolution_config["par"]["simulation"]["initial_condition_filename"] = str(
-            output / "InitialCondition.hdf5"
+            output / "InitialCondition.hdf5",
         )
         initial_condition["grid_cells"] = resolution
         resolution_config["par"]["mesh"]["grid_cells"] = resolution
@@ -161,22 +162,9 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         ):
             raise RuntimeError(f"Noh resolution {resolution} did not heat")
         if not np.max(final_profile["temp_proper_code"]) > 10.0 * np.max(
-            initial_profile["temp_proper_code"]
+            initial_profile["temp_proper_code"],
         ):
             raise RuntimeError(f"Noh resolution {resolution} did not form a hot central shock")
-        print(
-            "resolution=%d thermal_ratio=%.6e Tmax=%.6e total_energy=(%.6e, %.6e)"
-            % (
-                resolution,
-                final_profile["thermal_energy_proper_code"]
-                / initial_profile["thermal_energy_proper_code"],
-                np.max(final_profile["temp_proper_code"]),
-                initial_profile["kinetic_energy_proper_code"]
-                + initial_profile["thermal_energy_proper_code"],
-                final_profile["kinetic_energy_proper_code"]
-                + final_profile["thermal_energy_proper_code"],
-            ),
-        )
 
     selected = sorted(all_profiles)
     final = {resolution: all_profiles[resolution][-1] for resolution in selected}
@@ -243,8 +231,6 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         plt.close(fig)
     else:
         convergence_figure = None
-    print(f"profile figure = {figure}")
-    print(f"convergence figure = {convergence_figure}")
     return figure
 
 

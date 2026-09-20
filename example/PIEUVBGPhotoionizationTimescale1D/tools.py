@@ -29,7 +29,7 @@ def build_initial_condition(config):
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.zeros(grid_cells) * initial["vel_proper"])
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial["temperature_proper"]
+        np.ones(grid_cells) * initial["temperature_proper"],
     )
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.ngamma_radarray = writer.radarray(
@@ -64,12 +64,12 @@ def load_history(output_dir, config):
                 "temperature_proper_cgs_K": float(
                     np.mean(
                         snapshot.fluid.temp_radarray.to(unyt.K).value[first:last],
-                    )
+                    ),
                 ),
                 "rho_proper_cgs_g_cm3": float(
                     np.mean(
                         snapshot.fluid.rho_radarray.to(unyt.g / unyt.cm**3).value[first:last],
-                    )
+                    ),
                 ),
             },
         )

@@ -67,7 +67,7 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
             np.asarray(
                 solver._geometry_state(mesh, par).coordinate_runtime_code,
                 dtype=float,
-            )
+            ),
         )
         rotational = np.zeros_like(energy)
         valid = (mass > 0.0) & (radius > 0.0) & np.isfinite(angular)
@@ -152,7 +152,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     # describe the post-hydro state.  Derive both quantities from the
     # current conserved fields so the gravity momentum and work updates
     # use the same state.
-    fields = runtime_fields(par)
+    runtime_fields(par)
     volume_runtime_code = np.asarray(
         solver._geometry_state(mesh, par).volume_runtime_code,
         dtype=float,
@@ -186,8 +186,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
     density_field = current_rho
     if np.shape(acceleration) != np.shape(density_field):
         raise ValueError(
-            "Gravity acceleration shape %s does not match fluid state shape %s"
-            % (np.shape(acceleration), np.shape(density_field)),
+            f"Gravity acceleration shape {np.shape(acceleration)} does not match fluid state shape {np.shape(density_field)}",
         )
     gravity_acceleration = acceleration.copy()
     rotational_acceleration = np.zeros_like(current_rho)
@@ -204,7 +203,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
             np.asarray(
                 solver._geometry_state(mesh, par).coordinate_runtime_code,
                 dtype=float,
-            )
+            ),
         )
         valid_radius = (radius > 0.0) & np.isfinite(radius) & np.isfinite(specific) & (mass > 0.0)
         rotational_acceleration[valid_radius] = (
@@ -231,7 +230,7 @@ def ApplyGravity(solver, dt, mesh, fluid, par):
             np.asarray(
                 solver._geometry_state(mesh, par).coordinate_runtime_code,
                 dtype=float,
-            )
+            ),
         )
         rotational_energy = np.zeros_like(mass)
         valid_rotational = (

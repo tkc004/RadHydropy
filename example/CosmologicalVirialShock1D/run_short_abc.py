@@ -63,8 +63,8 @@ def _case_config(base_config, case_name, final_time):
 
     initial_condition = config["initial_condition"]
 
-    output_dir = EXAMPLE_DIR / ("outputs_short_%s_%s" % (case_name, case["label"]))
-    figure_prefix = "CosmologicalGasCorrelationShort%s" % case_name
+    output_dir = EXAMPLE_DIR / ("outputs_short_{}_{}".format(case_name, case["label"]))
+    figure_prefix = f"CosmologicalGasCorrelationShort{case_name}"
     config["par"]["simulation"]["name"] = figure_prefix
     config["par"]["simulation"]["initial_condition_filename"] = str(
         output_dir / "InitialCondition.hdf5",
@@ -76,7 +76,7 @@ def _case_config(base_config, case_name, final_time):
             "directory": str(output_dir),
             # Keep the shared correlation table resolvable after placing the
             # effective YAML inside the case output directory.
-        }
+        },
     )
     config["example"]["linear_correlation_table_filename"] = str(
         EXAMPLE_DIR / "outputs_correlation" / "lcdm_linear_correlation.h5",
@@ -92,15 +92,6 @@ def run_case(base_config, case_name, final_time):
     with config_filename.open("w", encoding="utf-8") as stream:
         yaml.safe_dump(_yaml_value(config), stream, sort_keys=False)
 
-    print(
-        "short case %s: inner_wall=%g comoving kpc output=%s"
-        % (
-            case_name,
-            config["initial_condition"]["inner_wall_radius_comoving"],
-            output_dir,
-        ),
-        flush=True,
-    )
     return experiment.run(
         config_filename,
         final_time_override=float(final_time),

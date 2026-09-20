@@ -54,7 +54,7 @@ def test_nested_runtime_settings_are_copied_to_par():
                 "pie_uvbg_implicit_tolerance": 4.0e-4,
             },
             "units": {"CodeUnits": CODE_UNITS},
-        }
+        },
     )
 
     assert par.initial_time == pytest.approx(1.25)
@@ -99,7 +99,7 @@ def test_nested_group_aliases_are_not_dropped():
                 "hydrogen_radiation_evolution": False,
             },
             "units": {"CodeUnits": CODE_UNITS},
-        }
+        },
     )
 
     assert par.hydrogen_chemistry is True

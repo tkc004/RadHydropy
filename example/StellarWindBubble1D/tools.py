@@ -1,8 +1,8 @@
 """Helper utilities for the spherical stellar-wind bubble example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -91,7 +91,7 @@ def load_output_state(outfilename, config):
         .get(
             "grid_cells",
             initial_config["grid_cells"],
-        )
+        ),
     )
     boundary_count = len(rout.mesh.boundary_radarray) - 1
     # Output snapshots contain ghost cells; the initial-condition snapshot
@@ -205,7 +205,7 @@ def shell_inner_edge_radius(
         return None
 
     threshold = ambient_density.to_value(rho_proper_unyt.units) * float(
-        np.asarray(threshold_factor).reshape(-1)[0]
+        np.asarray(threshold_factor).reshape(-1)[0],
     )
     # Equality is the ambient state itself, not shell compression.  Using
     # ``>=`` makes an unperturbed ambient profile look like a shell beginning
@@ -272,7 +272,7 @@ def _snapshot_coordinate(rout, xunit=unyt.pc):
 def plot_density_snapshot(ax, rout, **kwargs):
     """Plot one density snapshot on a supplied axis."""
     plt.sca(ax)
-    x_proper_code, coordinate_values = _snapshot_coordinate(rout)
+    _x_proper_code, coordinate_values = _snapshot_coordinate(rout)
     rho_proper_unyt = _rho_proper_unyt(rout).to(unyt.g / unyt.cm**3)
     ax.plot(coordinate_values, rho_proper_unyt.to_value(unyt.g / unyt.cm**3), **kwargs)
     ax.set_yscale("log")
@@ -281,7 +281,7 @@ def plot_density_snapshot(ax, rout, **kwargs):
 def plot_temperature_snapshot(ax, rout, **kwargs):
     """Plot one temperature snapshot on a supplied axis."""
     plt.sca(ax)
-    x_proper_code, coordinate_values = _snapshot_coordinate(rout)
+    _x_proper_code, coordinate_values = _snapshot_coordinate(rout)
     temperature_proper_unyt = _temp_proper_unyt(rout).to(unyt.K)
     ax.plot(coordinate_values, temperature_proper_unyt.to_value(unyt.K), **kwargs)
     ax.set_yscale("log")
@@ -312,7 +312,7 @@ def make_profile_figure(snapshots, config):
     ax_density.set_yscale("log")
     ax_temperature.set_yscale("log")
 
-    for index, rout in enumerate(snapshots):
+    for _index, rout in enumerate(snapshots):
         color = next(ax_density._get_lines.prop_cycler)["color"]
         plot_profile_snapshot(
             ax_density,
@@ -337,7 +337,7 @@ def make_profile_figure(snapshots, config):
         if _time_proper(rout) > 0 * _time_proper(rout).units:
             shock_radius = weaver_forward_shock_radius(rout, config)
             shock_value = shock_radius.to_value(
-                config["initial_condition"]["radius_injection_proper"].units
+                config["initial_condition"]["radius_injection_proper"].units,
             ).item()
             for ax in (ax_density, ax_temperature):
                 ax.axvline(
@@ -443,7 +443,8 @@ def numerical_bubble_pressure(rout, radius_shell_proper_unyt):
         return None
 
     return unyt.unyt_quantity(
-        np.median(pressure_values[cavity_band]), pressure_bubble_proper_unyt.units
+        np.median(pressure_values[cavity_band]),
+        pressure_bubble_proper_unyt.units,
     )
 
 
@@ -476,7 +477,8 @@ def collect_shell_diagnostics(snapshots, config):
         return None
 
     times_proper_unyt = unyt.unyt_array(
-        [time_proper_unyt.to_value(unyt.Myr) for time_proper_unyt in times_proper_unyt], unyt.Myr
+        [time_proper_unyt.to_value(unyt.Myr) for time_proper_unyt in times_proper_unyt],
+        unyt.Myr,
     )
     radii_shell_proper_unyt = unyt.unyt_array(
         [
@@ -505,7 +507,7 @@ def collect_shell_diagnostics(snapshots, config):
     )
     vel_shell_proper_km_s = np.gradient(radius_shell_proper_pc, time_proper_Myr)
     vel_shell_proper_km_s = unyt.unyt_array(vel_shell_proper_km_s, unyt.pc / unyt.Myr).to(
-        unyt.km / unyt.s
+        unyt.km / unyt.s,
     )
     weaver_radii = []
     weaver_velocities = []
@@ -532,7 +534,8 @@ def collect_shell_diagnostics(snapshots, config):
         "weaver_radius_shock_proper_pc": unyt.unyt_array(weaver_radii, unyt.pc),
         "weaver_vel_shock_proper_km_s": unyt.unyt_array(weaver_velocities, unyt.km / unyt.s),
         "weaver_pressure_bubble_proper_cgs_dyn_cm2": unyt.unyt_array(
-            weaver_pressures, unyt.dyn / unyt.cm**2
+            weaver_pressures,
+            unyt.dyn / unyt.cm**2,
         ),
     }
 
@@ -611,7 +614,7 @@ def plot_snapshot(outfilename, config, **kwargs):
         shock_radius = weaver_forward_shock_radius(rout, config)
         plt.axvline(
             x=shock_radius.to_value(
-                config["initial_condition"]["radius_injection_proper"].units
+                config["initial_condition"]["radius_injection_proper"].units,
             ).item(),
             color=kwargs["color"],
             ls="dashed",

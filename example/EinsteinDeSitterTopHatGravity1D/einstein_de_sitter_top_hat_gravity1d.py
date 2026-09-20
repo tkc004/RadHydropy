@@ -12,26 +12,26 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.gravity import Gravity
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.gravity import Gravity  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("einstein_de_sitter_top_hat_gravity1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
     initial_condition = config["initial_condition"]
-    example = config.get("example", {})
+    config.get("example", {})
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     cosmology = et.EinsteinDeSitter.from_code_units(
@@ -66,7 +66,8 @@ def main(config_filename=DEFAULT_CONFIG):
         np.allclose(sim.par.tau_supercomoving_code, initial_tau)
         and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
         and np.isclose(
-            float(np.asarray(sim.fluid.tau_supercomoving_code)), float(initial_tau.flat[0])
+            float(np.asarray(sim.fluid.tau_supercomoving_code)),
+            float(initial_tau.flat[0]),
         )
     ):
         raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
@@ -100,11 +101,11 @@ def main(config_filename=DEFAULT_CONFIG):
     comparison = slice(1, None)
     error = np.abs(
         (numerical[physical][comparison] - analytic[comparison])
-        / np.maximum(np.abs(analytic[comparison]), 1.0e-300)
+        / np.maximum(np.abs(analytic[comparison]), 1.0e-300),
     )
     max_error = float(np.max(error))
     if not np.isfinite(max_error) or max_error > 5.0e-3:
-        raise RuntimeError("top-hat gravity error %.6g exceeds tolerance" % max_error)
+        raise RuntimeError(f"top-hat gravity error {max_error:.6g} exceeds tolerance")
 
     filename = os.path.join(
         config["par"]["output"]["directory"],
@@ -122,9 +123,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(filename, dpi=200)
     plt.close(fig)
-    print("Einstein-De Sitter top-hat gravity passed")
-    print("scale factor = %.8g, maximum relative error = %.6g" % (a, max_error))
-    print("figure = %s" % filename)
 
 
 if __name__ == "__main__":

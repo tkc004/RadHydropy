@@ -93,4 +93,4 @@ def set_boundary(solver, mesh, fluid, par):
             ghost_cells,
         )
     else:
-        raise ValueError("Boundary condition unknown: %s" % boundary_type)
+        raise ValueError(f"Boundary condition unknown: {boundary_type}")

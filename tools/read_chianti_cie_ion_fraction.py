@@ -84,7 +84,7 @@ def calculate_electron_density(table_file, abundance_file, metallicity, nH, temp
         table_atomic_number = table["atomic_number"][:]
         ion_stage = table["ion_stage"][:]
 
-    abundance_atomic_number, abundance_symbols, solar_abundance = read_abundances(
+    abundance_atomic_number, _abundance_symbols, solar_abundance = read_abundances(
         abundance_file,
     )
     if not np.array_equal(table_atomic_number, abundance_atomic_number):
@@ -143,26 +143,19 @@ def main():
     )
     temperatures, electron_density, electron_fraction, contributions, symbols = result
 
-    print(f"Metallicity Z/Zsun = {args.metallicity:g}")
-    print(f"nH = {args.nH:.6e} cm^-3")
-    for temperature, ne, fraction in zip(
+    for _temperature, _ne, _fraction in zip(
         temperatures,
         electron_density,
         electron_fraction,
+        strict=False,
     ):
-        print(
-            f"T = {temperature:.6e} K: ne = {ne:.6e} cm^-3, ne/nH = {fraction:.6e}",
-        )
+        pass
 
     if args.show_breakdown:
-        for row, temperature in zip(contributions, temperatures):
-            print(f"\nElectron contribution at T = {temperature:g} K:")
-            for symbol, contribution in zip(symbols, row):
+        for row, _temperature in zip(contributions, temperatures, strict=False):
+            for _symbol, contribution in zip(symbols, row, strict=False):
                 if contribution > 0:
-                    print(
-                        f"  {symbol.decode() if isinstance(symbol, bytes) else symbol}: "
-                        f"{contribution:.6e} electrons per H nucleus"
-                    )
+                    pass
 
 
 if __name__ == "__main__":

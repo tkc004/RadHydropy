@@ -83,7 +83,7 @@ def main():
         )
 
         ratio = cooling[:, :, high_index] / cooling[:, :, low_index]
-        for color, z, curve in zip(colors, metallicity, ratio):
+        for color, z, curve in zip(colors, metallicity, ratio, strict=False):
             ax.plot(
                 log_temperature,
                 curve,
@@ -103,17 +103,13 @@ def main():
         ax.legend(title="Metallicity", frameon=False)
 
         fig.savefig(output_path, dpi=180)
-        print(f"Loaded: {table_path}")
-        print(
-            f"Using nearest table densities: {low_density:g} and {high_density:g} cm^-3",
-        )
-        print(f"Wrote: {output_path}")
         return
 
     for color, z, rate in zip(
         colors,
         metallicity,
         cooling[:, :, density_index],
+        strict=False,
     ):
         ax.semilogy(
             log_temperature,
@@ -132,12 +128,6 @@ def main():
     ax.legend(title="Metallicity", frameon=False)
 
     fig.savefig(output_path, dpi=180)
-    print(f"Loaded: {table_path}")
-    print(
-        f"Requested ne = {args.electron_density:g} cm^-3; "
-        f"using nearest table value ne = {selected_density:g} cm^-3",
-    )
-    print(f"Wrote: {output_path}")
 
 
 if __name__ == "__main__":

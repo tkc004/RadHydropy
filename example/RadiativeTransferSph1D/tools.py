@@ -1,8 +1,8 @@
 """Helper utilities for the spherical radiative-transfer example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import radiative_transfer_analytic as rta
@@ -125,7 +125,7 @@ def save_plot(snapshot, config, figure_filename):
     ax.text(
         0.04,
         0.06,
-        "max relative error = %.2e" % relative_error,
+        f"max relative error = {relative_error:.2e}",
         transform=ax.transAxes,
     )
     ax.set_xlabel("Radius [pc]")

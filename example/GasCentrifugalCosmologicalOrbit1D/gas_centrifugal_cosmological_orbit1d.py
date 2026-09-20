@@ -11,29 +11,29 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.integrate import solve_ivp
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+from scipy.integrate import solve_ivp  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.cosmology.variables import (
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.arrays import as_named_array  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.cosmology.variables import (  # noqa: E402
     physical_radius,
     physical_velocity,
 )
-from radhydropy.eos import EOS
-from radhydropy.rsim import Rsim
-from radhydropy.runtime_fields import (
+from radhydropy.eos import EOS  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.runtime_fields import (  # noqa: E402
     SUPERCOMOVING_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
 )
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 CONFIG = ROOT / "gas_centrifugal_cosmological_orbit1d.yaml"
 
@@ -139,7 +139,7 @@ class CosmologicalCentralGravity:
             float(
                 np.asarray(
                     getattr(getattr(par, "simulation", None), "tau_supercomoving_code", self.tau),
-                ).flat[0]
+                ).flat[0],
             )
             if par is not None
             else self.tau
@@ -152,13 +152,13 @@ class CosmologicalCentralGravity:
 def run_rsim(config):
     par = config["par"]
     initial_condition = config["initial_condition"]
-    example_config = config["example"]
+    config["example"]
     cosmology = config["_cosmology"]
     j = config["_specific_angular_momentum_code"]
-    units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
+    CodeUnits.from_mapping(par["units"]["CodeUnits"])
     count = int(par["mesh"]["grid_cells"])
     initial_boundary = np.linspace(0.5, 1.5, count + 1)
-    initial_radius = (
+    (
         0.75
         * (initial_boundary[1:] ** 4 - initial_boundary[:-1] ** 4)
         / (initial_boundary[1:] ** 3 - initial_boundary[:-1] ** 3)
@@ -192,8 +192,8 @@ def run_rsim(config):
                 np.zeros(ghost_cells),
                 specific_angular_momentum_supercomoving_code,
                 np.zeros(ghost_cells),
-            )
-        )
+            ),
+        ),
     )
     if hasattr(sim.fluid, "AngularMomentum_code"):
         del sim.fluid.AngularMomentum_code
@@ -214,9 +214,7 @@ def run_rsim(config):
     # Fixed-cadence output is intentionally independent of the requested
     # final time.  Persist the actual terminal state so the analytic
     # comparison is made at the same supercomoving time as the simulation.
-    final_filename = sorted(
-        (ROOT / par["output"]["directory"]).glob("Output_[0-9][0-9][0-9].hdf5"),
-    )[-1]
+    final_filename = max((ROOT / par["output"]["directory"]).glob("Output_[0-9][0-9][0-9].hdf5"))
     final_state = rio.loadhdf5(config, final_filename)
     return initial, sim, final_state.fluid
 
@@ -248,9 +246,9 @@ def main(config_filename=CONFIG):
     )
     config["_cosmology"] = cosmology
     config["_specific_angular_momentum_code"] = j
-    initial_sim, simulation, saved_fluid = run_rsim(config)
+    _initial_sim, simulation, saved_fluid = run_rsim(config)
     simulation_radius = np.asarray(simulation.mesh.x_comoving_code, dtype=float)
-    circular_j_profile = np.sqrt(central_mass * simulation_radius)
+    np.sqrt(central_mass * simulation_radius)
     saved_j = np.asarray(saved_fluid.specific_angular_momentum_code, dtype=float)
     saved_active = slice(
         int(simulation.par.mesh.ghost_cells),
@@ -345,7 +343,8 @@ def main(config_filename=CONFIG):
     # with fields from a separately reloaded HDF5 object can pair different
     # code/cgs representations after serialization.
     sim_vel_supercomoving_code = np.asarray(
-        simulation.fluid.vel_supercomoving_code[sim_active], dtype=float
+        simulation.fluid.vel_supercomoving_code[sim_active],
+        dtype=float,
     )
     sim_j = np.asarray(simulation.fluid.specific_angular_momentum_code[sim_active], dtype=float)
     sim_energy = np.asarray(simulation.fluid.Energy_code[sim_active], dtype=float)
@@ -394,15 +393,16 @@ def main(config_filename=CONFIG):
     if simulation_velocity_error > 3.0e-1:
         raise RuntimeError(
             "saved cosmological Rsim velocity disagrees with Eulerian-mapped "
-            "ODE: max error = %.6g" % simulation_velocity_error,
+            f"ODE: max error = {simulation_velocity_error:.6g}",
         )
     if simulation_j_error > 3.0e-3:
         raise RuntimeError(
             "saved cosmological Rsim J/M drifted from the initialized profile: "
-            "max error = %.6g" % simulation_j_error,
+            f"max error = {simulation_j_error:.6g}",
         )
     sim_temp_supercomoving_code = np.asarray(
-        simulation.fluid.temp_supercomoving_code[sim_active], dtype=float
+        simulation.fluid.temp_supercomoving_code[sim_active],
+        dtype=float,
     )
     sim_rho_comoving_code = np.asarray(simulation.fluid.rho_comoving_code[sim_active], dtype=float)
     sim_mu = np.asarray(simulation.fluid.mu[sim_active], dtype=float)
@@ -420,7 +420,10 @@ def main(config_filename=CONFIG):
     sim_fig, sim_axes = plt.subplots(2, 2, figsize=(11, 7))
     sim_axes = sim_axes.flat
     sim_axes[0].plot(
-        sim_radius_comoving_code, sim_vel_supercomoving_code, "o-", label="Rsim Eulerian state"
+        sim_radius_comoving_code,
+        sim_vel_supercomoving_code,
+        "o-",
+        label="Rsim Eulerian state",
     )
     sim_axes[0].set_ylabel("supercomoving radial velocity")
     sim_axes[0].set_title("Eulerian profile; ODE check is in the time-history figure")
@@ -455,14 +458,6 @@ def main(config_filename=CONFIG):
     sim_fig.tight_layout()
     sim_fig.savefig(simulation_figure, dpi=180)
     plt.close(sim_fig)
-    print("cosmological eccentric-orbit analytic check passed")
-    print("maximum comoving-radius error = %.6g" % radius_error)
-    print("maximum supercomoving-velocity error = %.6g" % velocity_error)
-    print("maximum saved-Rsim velocity error = %.6g" % simulation_velocity_error)
-    print("maximum saved J/M profile error = %.6g" % simulation_j_error)
-    print("maximum thermal/centrifugal scale = %.6g" % np.max(pressure_support_ratio))
-    print("figure = %s" % figure)
-    print("simulation figure = %s" % simulation_figure)
 
 
 if __name__ == "__main__":

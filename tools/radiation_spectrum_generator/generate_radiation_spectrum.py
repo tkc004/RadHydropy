@@ -15,7 +15,9 @@ package_root = Path(__file__).resolve().parents[2]
 if str(package_root) not in sys.path:
     sys.path.insert(0, str(package_root))
 
-from radhydropy.radiation_spectrum import (
+import itertools  # noqa: E402
+
+from radhydropy.radiation_spectrum import (  # noqa: E402
     SPECTRUM_DATASET_EPSILON,
     SPECTRUM_DATASET_GROUP_EDGES,
     SPECTRUM_DATASET_IONIZING_ENERGY,
@@ -66,7 +68,7 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
     threshold_ev = parameters[0]
     norms, norm_energies, sigmas, epsilons = [], [], [], []
 
-    for lower_ev, upper_ev in zip(edges_ev[:-1], edges_ev[1:]):
+    for lower_ev, upper_ev in itertools.pairwise(edges_ev):
         lower_ev = max(lower_ev, threshold_ev)
         if lower_ev >= upper_ev:
             norms.append(0.0)
@@ -79,10 +81,10 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
             intensity = blackbody(energy).value * 2.0
         photon_weight = intensity / energy.value
         cross_section = verner96_sigma(energy.value, parameters)
-        norm = np.trapz(photon_weight, energy.value)
-        norm_energy = np.trapz(intensity, energy.value)
-        sigma_integral = np.trapz(photon_weight * cross_section, energy.value)
-        epsilon_integral = np.trapz(
+        norm = np.trapezoid(photon_weight, energy.value)
+        norm_energy = np.trapezoid(intensity, energy.value)
+        sigma_integral = np.trapezoid(photon_weight * cross_section, energy.value)
+        epsilon_integral = np.trapezoid(
             photon_weight * cross_section * (energy.value - threshold_ev),
             energy.value,
         )
@@ -188,7 +190,9 @@ def main():
     parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE_cgs_K)
     parser.add_argument("--edges", type=float, nargs="+", default=DEFAULT_EDGES_EV)
     parser.add_argument(
-        "--injected-photons-per-second", type=float, default=DEFAULT_INJECTED_PHOTONS_PER_SECOND
+        "--injected-photons-per-second",
+        type=float,
+        default=DEFAULT_INJECTED_PHOTONS_PER_SECOND,
     )
     parser.add_argument("--samples-per-group", type=int, default=4000)
     parser.add_argument(
@@ -197,7 +201,9 @@ def main():
         help="include He I and He II cross-section/heating datasets",
     )
     parser.add_argument(
-        "--verner-file", type=Path, default=directory / "data" / "cross_section_fits_verner96.dat"
+        "--verner-file",
+        type=Path,
+        default=directory / "data" / "cross_section_fits_verner96.dat",
     )
     args = parser.parse_args()
     edges = np.asarray(args.edges, dtype=float)
@@ -215,7 +221,6 @@ def main():
         args.samples_per_group,
         include_helium=args.include_helium,
     )
-    print(f"Wrote generated radiation spectrum to {args.output}")
 
 
 if __name__ == "__main__":

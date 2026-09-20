@@ -3,9 +3,9 @@
 import argparse
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm, SymLogNorm
@@ -18,7 +18,7 @@ PREFIX = "CosmologicalGasCorrelationZ100"
 def _spherical_divergence(radius_comoving_code, vel_supercomoving_code):
     flux = radius_comoving_code**2 * vel_supercomoving_code
     divergence = np.empty_like(flux)
-    for index, (radius_row, flux_row) in enumerate(zip(radius_comoving_code, flux)):
+    for index, (radius_row, flux_row) in enumerate(zip(radius_comoving_code, flux, strict=False)):
         divergence[index] = np.gradient(flux_row, radius_row, edge_order=1)
     return divergence / np.maximum(radius_comoving_code, 1.0e-30) ** 2
 
@@ -36,7 +36,13 @@ def _edges(values):
 
 
 def _plot_indicator(
-    axis, time_cosmic_code, radius_comoving_code, values, title, label, signed=True
+    axis,
+    time_cosmic_code,
+    radius_comoving_code,
+    values,
+    title,
+    label,
+    signed=True,
 ):
     finite = np.isfinite(time_cosmic_code) & np.isfinite(radius_comoving_code) & np.isfinite(values)
     if not np.any(finite):
@@ -138,7 +144,8 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, mu=0.59, exclude_outer_c
     )
     time_cells = np.broadcast_to(time_cosmic_code[:, None], proper_radius.shape)
     time_pairs = np.broadcast_to(
-        time_cosmic_code[:, None], (time_cosmic_code.size, midpoint_radius.size)
+        time_cosmic_code[:, None],
+        (time_cosmic_code.size, midpoint_radius.size),
     )
     plot_radius = np.broadcast_to(comoving_radius[None, :], proper_radius.shape)
     plot_midpoint_radius = np.broadcast_to(
@@ -189,7 +196,6 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, mu=0.59, exclude_outer_c
     figure = output / (prefix + "_ShockCandidates_TimeRadius.jpg")
     fig.savefig(figure, dpi=220)
     plt.close(fig)
-    print("shock-candidate figure = %s" % figure)
 
 
 if __name__ == "__main__":

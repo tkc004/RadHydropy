@@ -92,36 +92,41 @@ def test_source_stability_limit_overrides_configured_source_dtmin():
     assert source_dt_s < state["dtmin_s"]
 
 
-import radhydropy.chemistry_species.hydrogen as hydrogen_species
-from radhydropy.constants import (
+import radhydropy.chemistry_species.hydrogen as hydrogen_species  # noqa: E402
+from radhydropy.constants import (  # noqa: E402
     BOLTZMANN_CONSTANT_CGS,
     PROTON_MASS_CGS,
     SPEED_OF_LIGHT_CGS,
 )
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.runtime_fields import (
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.runtime_fields import (  # noqa: E402
     PROPER_RUNTIME_FIELDS,
     SUPERCOMOVING_RUNTIME_FIELDS,
     FluidRuntimeState,
     MeshGeometryState,
 )
-from radhydropy.thermo_networks.hydrogen_helium import _rates
-from radhydropy.units import CodeUnits
+from radhydropy.thermo_networks.hydrogen_helium import _rates  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 
 def _implicit_hydrogen_state(
-    temperature, xhi, recombination, collisional, atomic_cooling, density_factor=1.0
+    temperature,
+    xhi,
+    recombination,
+    collisional,
+    atomic_cooling,
+    density_factor=1.0,
 ):
     mu = float(
         hydrogen_species.mean_molecular_weight_mu(
             np.array([xhi]),
             hydrogen_mass_fraction=1.0,
-        )[0]
+        )[0],
     )
     specific_energy = np.array(
         [
             1.5 * BOLTZMANN_CONSTANT_CGS * temperature / (mu * PROTON_MASS_CGS),
-        ]
+        ],
     )
     return {
         "rho_cgs_g_cm3": np.array([PROTON_MASS_CGS * density_factor]),
@@ -199,7 +204,7 @@ def _source_test_problem(
         hydrogen_species.mean_molecular_weight_mu(
             np.array([xhi]),
             hydrogen_mass_fraction=1.0,
-        )[0]
+        )[0],
     )
     physical_specific_energy = (
         1.5 * BOLTZMANN_CONSTANT_CGS * physical_temperature / (mu * PROTON_MASS_CGS)
@@ -481,7 +486,7 @@ def test_trust_region_leaves_cold_floor_under_stiff_compton_heating():
             "rho_cgs_g_cm3": np.array(
                 [
                     n_hydrogen * PROTON_MASS_CGS / 0.76,
-                ]
+                ],
             ),
             "hydrogen_mass_fraction": 0.76,
             "specific_energy_cgs_erg_g": np.array([2682.3951472516123]),
@@ -491,7 +496,7 @@ def test_trust_region_leaves_cold_floor_under_stiff_compton_heating():
             "temperature_floor_cgs_K": temperature_floor,
             "temperature_floor_tolerance": 1.0e-2,
             "active": np.array([True]),
-        }
+        },
     )
     state["mu"] = hydrogen_species.mean_molecular_weight_mu(
         state["xHI"],
@@ -684,10 +689,10 @@ def test_trust_region_source_result_preserves_selected_solver():
 
 def test_coupled_implicit_supercomoving_matches_physical_source_update():
     _, physical_par, physical_fluid, physical_mesh, scale_factor = _source_test_problem(
-        supercomoving=False
+        supercomoving=False,
     )
     _, supercomoving_par, supercomoving_fluid, supercomoving_mesh, _ = _source_test_problem(
-        supercomoving=True
+        supercomoving=True,
     )
     apply_thermochemistry_fast(
         1.0e-4,
@@ -731,7 +736,7 @@ def test_fast_source_dispatches_to_coupled_implicit_solver():
         hydrogen_species.mean_molecular_weight_mu(
             np.array([xhi]),
             hydrogen_mass_fraction=1.0,
-        )[0]
+        )[0],
     )
     specific_energy = 1.5 * BOLTZMANN_CONSTANT_CGS * temperature / (mu * PROTON_MASS_CGS)
     energy_code = specific_energy * 1.0e33 / units.energy_unit.to_value("erg")

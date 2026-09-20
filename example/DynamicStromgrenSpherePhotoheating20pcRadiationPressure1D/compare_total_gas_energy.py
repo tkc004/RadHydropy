@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -19,9 +19,9 @@ if str(EXAMPLE_DIR) not in sys.path:
 if str(PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(PACKAGE_DIR))
 
-from example_utils import load_nested_example_config
+from example_utils import load_nested_example_config  # noqa: E402
 
-from radhydropy.units import CodeUnits
+from radhydropy.units import CodeUnits  # noqa: E402
 
 NO_PRESSURE_DIR = HERE.parent / "DynamicStromgrenSpherePhotoheating20pc1D"
 NO_PRESSURE_CONFIG = NO_PRESSURE_DIR / "dynamic_stromgren_sphere_photoheating20pc1d.yaml"
@@ -49,16 +49,18 @@ def _snapshot_energy(snapshot, config, tools):
     volume_cgs_cm3 = np.asarray(mesh.volume_radarray[interior].to_value(unyt.cm**3), dtype=float)
     pressure_cgs_erg_cm3 = tools._pressure_from_radarrays(fluid, config)[interior]
     density_cgs_g_cm3 = np.asarray(
-        fluid.rho_radarray[interior].to_value(unyt.g / unyt.cm**3), dtype=float
+        fluid.rho_radarray[interior].to_value(unyt.g / unyt.cm**3),
+        dtype=float,
     )
     velocity_cgs_cm_s = np.asarray(
-        fluid.vel_radarray[interior].to_value(unyt.cm / unyt.s), dtype=float
+        fluid.vel_radarray[interior].to_value(unyt.cm / unyt.s),
+        dtype=float,
     )
     thermal_energy_cgs_erg = float(
-        np.sum(pressure_cgs_erg_cm3 / (par.hydrodynamics.gamma - 1.0) * volume_cgs_cm3)
+        np.sum(pressure_cgs_erg_cm3 / (par.hydrodynamics.gamma - 1.0) * volume_cgs_cm3),
     )
     kinetic_energy_cgs_erg = float(
-        np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3)
+        np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3),
     )
     time_proper_Myr = float(
         np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr),
@@ -109,7 +111,10 @@ def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
     )
     fig, axes = plt.subplots(2, 1, figsize=(7.5, 6.5), sharex=True)
     axes[0].plot(
-        pressure_history[:, 0], pressure_history[:, 3], "o-", label="with radiation pressure"
+        pressure_history[:, 0],
+        pressure_history[:, 3],
+        "o-",
+        label="with radiation pressure",
     )
     axes[0].plot(no_pressure[:, 0], no_pressure[:, 3], "o-", label="without radiation pressure")
     axes[0].set_yscale("log")
@@ -143,7 +148,7 @@ def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
                 pressure_history[:, 3],
                 energy_difference,
                 relative_difference,
-            )
+            ),
         ),
         delimiter=",",
         header=(
@@ -153,9 +158,6 @@ def main(no_pressure_dir=NO_PRESSURE_DIR, pressure_dir=HERE):
         ),
         comments="",
     )
-    print("final radiation/no-radiation relative difference = %.6e" % relative_difference[-1])
-    print("energy figure = %s" % figure)
-    print("energy data = %s" % data)
 
 
 if __name__ == "__main__":

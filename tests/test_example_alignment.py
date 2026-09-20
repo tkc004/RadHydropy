@@ -215,7 +215,7 @@ def _walk_mapping(value):
 def _walk_mapping_with_path(value, path=()):
     if isinstance(value, dict):
         for key, child in value.items():
-            child_path = path + (str(key),)
+            child_path = (*path, str(key))
             yield child_path, child
             yield from _walk_mapping_with_path(child, child_path)
     elif isinstance(value, list):
@@ -301,7 +301,7 @@ def _is_ambiguous_physical_name(name: str) -> bool:
             r"_(?:s|yr|myr|gyr|g|K|pc|kpc|mpc|cm|cm3|cm_s|km_s|kms)$",
             name,
             re.IGNORECASE,
-        )
+        ),
     )
 
 
@@ -324,7 +324,7 @@ def _is_physical_yaml_key(name: str) -> bool:
             r"(?:_cgs(?:_|$)|_proper(?:_|$)|_comoving(?:_|$)|_cosmic(?:_|$)|"
             r"_(?:g|K|s|yr|pc|kpc|mpc|cm3)(?:_|$))",
             lowered,
-        )
+        ),
     )
     return has_physical_role and has_unit_or_frame
 

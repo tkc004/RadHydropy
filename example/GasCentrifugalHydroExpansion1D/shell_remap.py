@@ -120,7 +120,7 @@ def conservative_shell_remap(
         if np.any(np.diff(shell_edge_proper_code) <= 0.0):
             raise ValueError("shell edges must be strictly increasing")
         if np.any(radius_proper_code <= shell_edge_proper_code[:-1]) or np.any(
-            radius_proper_code >= shell_edge_proper_code[1:]
+            radius_proper_code >= shell_edge_proper_code[1:],
         ):
             raise ValueError("shell centers must lie inside shell edges")
     if shell_specific_energy_proper_code is None:
@@ -131,7 +131,7 @@ def conservative_shell_remap(
             dtype=float,
         )[order]
     if not np.all(np.isfinite(vel_proper_code)) or not np.all(
-        np.isfinite(specific_angular_momentum_code)
+        np.isfinite(specific_angular_momentum_code),
     ):
         raise ValueError("shell velocity and angular momentum must be finite")
     if not np.all(np.isfinite(specific_energy_proper_code)):
@@ -148,7 +148,8 @@ def conservative_shell_remap(
         else:
             shell_edge_proper_code[1:-1] = 0.5 * (radius_proper_code[:-1] + radius_proper_code[1:])
             shell_edge_proper_code[0] = max(
-                0.0, radius_proper_code[0] - 0.5 * (radius_proper_code[1] - radius_proper_code[0])
+                0.0,
+                radius_proper_code[0] - 0.5 * (radius_proper_code[1] - radius_proper_code[0]),
             )
             shell_edge_proper_code[-1] = radius_proper_code[-1] + 0.5 * (
                 radius_proper_code[-1] - radius_proper_code[-2]
@@ -244,7 +245,7 @@ def centrifugal_shell_reference(
 
     shell_vel_proper_code = np.empty_like(shell_radius_proper_code)
     for index, (radius_proper_code, specific_j) in enumerate(
-        zip(shell_radius_proper_code, shell_specific_angular_momentum_code),
+        zip(shell_radius_proper_code, shell_specific_angular_momentum_code, strict=False),
     ):
         solution = solve_ivp(
             lambda time_proper_code, state: rhs(

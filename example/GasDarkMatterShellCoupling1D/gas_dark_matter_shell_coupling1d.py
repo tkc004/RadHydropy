@@ -14,17 +14,17 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.gravity import Gravity
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.gravity import Gravity  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -45,17 +45,19 @@ def main(config_filename=DEFAULT_CONFIG):
     initial.write(config["par"]["simulation"]["initial_condition_filename"])
     initial_state = initial.simulation
     density_cgs_g_cm3 = np.asarray(
-        initial_state.fluid.rho_proper_code, dtype=float
+        initial_state.fluid.rho_proper_code,
+        dtype=float,
     ) * code_units.density_unit.to_value("g/cm**3")
     boundary_cgs_cm = np.asarray(
-        initial_state.mesh.boundary_proper_code, dtype=float
+        initial_state.mesh.boundary_proper_code,
+        dtype=float,
     ) * code_units.length_unit.to_value("cm")
     initial_gas_mass_cgs_g = float(
         np.sum(
             density_cgs_g_cm3
             * (4.0 * np.pi / 3.0)
             * (boundary_cgs_cm[1:] ** 3 - boundary_cgs_cm[:-1] ** 3),
-        )
+        ),
     )
     dark_matter = et.make_dark_matter(config)
     initial_dm_mass_cgs_g = dark_matter.total_mass * code_units.mass_in_cgs
@@ -115,8 +117,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     if gas_mass_error_dimensionless > 1.0e-12 or dm_mass_error_dimensionless > 1.0e-12:
         raise RuntimeError(
-            "mass conservation failed: gas %.6g, dark matter %.6g"
-            % (gas_mass_error_dimensionless, dm_mass_error_dimensionless),
+            f"mass conservation failed: gas {gas_mass_error_dimensionless:.6g}, dark matter {dm_mass_error_dimensionless:.6g}",
         )
     fig, axis = plt.subplots(figsize=(5, 4))
     axis.plot(
@@ -135,11 +136,6 @@ def main(config_filename=DEFAULT_CONFIG):
     figure = Path(config["par"]["output"]["directory"]) / "GasDarkMatterShellCoupling1D.jpg"
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-    print("dark-matter shells = %d" % dark_matter.number_of_shells)
-    print("total dark-matter mass = %.6g code masses" % dark_matter.total_mass)
-    print("gas mass relative error = %.6g" % gas_mass_error_dimensionless)
-    print("dark-matter mass relative error = %.6g" % dm_mass_error_dimensionless)
-    print("figure = %s" % figure)
 
 
 def parse_args():

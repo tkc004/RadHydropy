@@ -5,9 +5,9 @@ import copy
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,14 +18,14 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.solver import Solver
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits, code_unit_scales
-from tools import build_initial_condition, estimate_cooling_length, load_output_state, shock_history
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.solver import Solver  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from radhydropy.units import CodeUnits, code_unit_scales  # noqa: E402
+from tools import build_initial_condition, estimate_cooling_length, load_output_state, shock_history  # noqa: E402
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_spherical_radiative_shock1d.yaml"
 CASES = (
@@ -40,7 +40,7 @@ class CollidingStreamsSolver(Solver):
 
     def SetBoundary(self, mesh, fluid, par):
         first = par.mesh.ghost_cells
-        last = first + par.mesh.grid_cells - 1
+        first + par.mesh.grid_cells - 1
         right_start = first + par.mesh.grid_cells
         left_ghost = slice(0, first)
         right_ghost = slice(right_start, right_start + par.mesh.ghost_cells)
@@ -85,7 +85,7 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
         {
             "name": f"PIESphericalRadiativeShock1D_{label}",
             "initial_condition_filename": str(case_dir / "InitialCondition.hdf5"),
-        }
+        },
     )
     case["output"].update({"directory": str(case_dir), "filename_prefix": "Output"})
     case["thermochemistry"]["metallicity"] = metallicity
@@ -147,9 +147,8 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
             stream.write("cooling_length_proper_kpc nan\n")
         else:
             stream.write(
-                "cooling_time_proper_Myr %.8g\ncooling_length_proper_kpc %.8g\n"
-                "cooling_cells %.8g\n"
-                % (
+                "cooling_time_proper_Myr {:.8g}\ncooling_length_proper_kpc {:.8g}\n"
+                "cooling_cells {:.8g}\n".format(
                     cooling["cooling_time_proper_Myr"],
                     cooling["cooling_length_proper_kpc"],
                     cooling["cooling_cells"],
@@ -192,10 +191,10 @@ def main(config_filename=DEFAULT_CONFIG):
                 len(result["snapshots"]) - 1,
                 5,
                 dtype=int,
-            )
+            ),
         )
         sample_times = result["history"][sample_indices, 0]
-        for index, time_proper_Myr in zip(sample_indices, sample_times):
+        for index, _time_proper_Myr in zip(sample_indices, sample_times, strict=False):
             snapshot = load_output_state(result["snapshots"][index], result["config"])
             radius_proper_cgs_cm = (
                 0.5
@@ -250,9 +249,7 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.savefig(figure, dpi=180)
     plt.close(fig)
     for result in results:
-        print(f"{result['label']}: snapshots = {len(result['snapshots'])}")
-        print(f"{result['label']}: shock history = {result['report']}")
-    print(f"figure = {figure}")
+        pass
 
 
 def parse_args():

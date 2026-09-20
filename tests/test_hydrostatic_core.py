@@ -21,7 +21,7 @@ CODE_UNITS = CodeUnits.from_mapping(
             "UnitCurrent_in_cgs": 1.0,
             "UnitTemp_in_cgs": 1.0,
         },
-    }
+    },
 )
 
 

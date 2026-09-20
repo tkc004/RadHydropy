@@ -113,10 +113,10 @@ def build_initial_condition(config):
         temp_proper_code = np.where(
             left,
             float(
-                initial_condition["temperature_left_proper"].to_value(code_units.temperature_unit)
+                initial_condition["temperature_left_proper"].to_value(code_units.temperature_unit),
             ),
             float(
-                initial_condition["temperature_right_proper"].to_value(code_units.temperature_unit)
+                initial_condition["temperature_right_proper"].to_value(code_units.temperature_unit),
             ),
         )
         rho_field, temp_field = "rho_proper_code", "temp_proper_code"

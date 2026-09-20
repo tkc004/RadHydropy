@@ -1,8 +1,8 @@
 """Initial conditions and plotting for the cartesian Sedov benchmark."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -33,7 +33,9 @@ def build_initial_condition(config):
         (par["hydrodynamics"]["gamma"] - 1) * ic["explosion_energy"] / volume_proper_unyt[cut]
     )
     writer = InitialConditionWriter(
-        par_config=par, code_units=units, ic_config=config["initial_condition"]
+        par_config=par,
+        code_units=units,
+        ic_config=config["initial_condition"],
     )
     # Invert the configured EOS so the temperature and deposited energy are
     # thermodynamically consistent when the writer prepares the IC.
@@ -118,19 +120,19 @@ def plot_snapshot(filename, config, **kwargs):
             time_proper_unyt,
         )
         analytic_radius_unyt = unyt.uconcatenate(
-            (analytic_radius_unyt, unyt.unyt_array([shock_radius_unyt, 2.0 * shock_radius_unyt]))
+            (analytic_radius_unyt, unyt.unyt_array([shock_radius_unyt, 2.0 * shock_radius_unyt])),
         )
         analytic_density_unyt = unyt.uconcatenate(
             (
                 analytic_density_unyt,
                 np.zeros(2) * analytic_density_unyt.units + density_proper_unyt * area_proper_unyt,
-            )
+            ),
         )
         analytic_velocity_unyt = unyt.uconcatenate(
-            (analytic_velocity_unyt, np.zeros(2) * analytic_velocity_unyt.units)
+            (analytic_velocity_unyt, np.zeros(2) * analytic_velocity_unyt.units),
         )
         analytic_pressure_unyt = unyt.uconcatenate(
-            (analytic_pressure_unyt, np.zeros(2) * analytic_pressure_unyt.units)
+            (analytic_pressure_unyt, np.zeros(2) * analytic_pressure_unyt.units),
         )
         analytic_left_half = analytic_radius_unyt <= 0.5 * ic["box_size_proper"]
         plt.subplot(1, 3, 1)

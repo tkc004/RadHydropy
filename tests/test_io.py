@@ -280,7 +280,7 @@ class Testing(unittest.TestCase):
                     "xHI",
                 }.issubset(data_names)
                 assert not {"Density", "Velocity", "Temperature", "Mass", "Energy"}.intersection(
-                    data_names
+                    data_names,
                 )
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
@@ -290,7 +290,8 @@ class Testing(unittest.TestCase):
             np.asarray(fluid.ngamma_code),
         )
         np.testing.assert_allclose(
-            loaded_mesh.boundary_proper_code, mesh.boundary.to_value(unyt.cm)
+            loaded_mesh.boundary_proper_code,
+            mesh.boundary.to_value(unyt.cm),
         )
 
     def test_hdf5_canonical_fields_are_stored_as_code_values(self):

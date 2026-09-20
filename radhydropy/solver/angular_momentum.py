@@ -127,7 +127,7 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     scheme = str(getattr(par, "angular_momentum_flux_scheme", "fct")).lower()
     if scheme not in ("fct", "donor"):
         raise ValueError(
-            "Unknown angular_momentum_flux_scheme %r; valid options are fct, donor" % scheme,
+            f"Unknown angular_momentum_flux_scheme {scheme!r}; valid options are fct, donor",
         )
     if scheme == "donor":
         factors[...] = 0.0
@@ -165,10 +165,10 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
         where=mass > 0.0,
     )
     lower = np.minimum.reduce(
-        (specific, ru.periodic_roll(specific, 1), ru.periodic_roll(specific, -1))
+        (specific, ru.periodic_roll(specific, 1), ru.periodic_roll(specific, -1)),
     )
     upper = np.maximum.reduce(
-        (specific, ru.periodic_roll(specific, 1), ru.periodic_roll(specific, -1))
+        (specific, ru.periodic_roll(specific, 1), ru.periodic_roll(specific, -1)),
     )
     correction_area = correction * area
     radius_face = np.abs(boundary[:-1])
@@ -228,7 +228,7 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
                 par,
                 "angular_momentum_energy_margin_fraction",
                 1.0e-4,
-            )
+            ),
         ),
     )
     energy_problematic = physical & (thermal_fraction <= margin)
@@ -355,7 +355,7 @@ def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
                 par,
                 "angular_momentum_energy_margin_fraction",
                 1.0e-4,
-            )
+            ),
         ),
     )
     mass = np.asarray(fluid.Mass_code, dtype=float)

@@ -9,9 +9,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -21,13 +21,13 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.rsim import Rsim
-from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.solver import Solver  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_shell_reflecting_wall1d.yaml")
 
@@ -127,7 +127,7 @@ def _profile(sim):
     entropy = np.full_like(pre_proper_code, np.nan)
     active = rho_proper_code > 0.0
     entropy[active] = pre_proper_code[active] / rho_proper_code[active] ** float(
-        sim.par.hydrodynamics.gamma
+        sim.par.hydrodynamics.gamma,
     )
     return (
         r,
@@ -193,23 +193,23 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
                 float(sim.fluid.Mass_code.flux[wall_face]),
                 float(sim.fluid.Mom_code.flux[wall_face]),
                 float(sim.fluid.Energy_code.flux[wall_face]),
-            ]
+            ],
         )
         sim.Step(dt=dt, mode="hydro")
         time_proper_code = float(sim.fluid.time_proper_code)
         if time_proper_code >= next_output - 1.0e-12:
-            snapshots.append((time_proper_code,) + _profile(sim))
+            snapshots.append((time_proper_code, *_profile(sim)))
             next_output += output_cadence_proper_code
 
-    snapshots.append((float(sim.fluid.time_proper_code),) + _profile(sim))
+    snapshots.append((float(sim.fluid.time_proper_code), *_profile(sim)))
     final = snapshots[-1]
     (
         radius_proper_code,
         rho_proper_code,
-        vel_proper_code,
-        pre_proper_code,
+        _vel_proper_code,
+        _pre_proper_code,
         temp_proper_code,
-        entropy_dimensionless,
+        _entropy_dimensionless,
     ) = final[1:]
     active = rho_proper_code > float(config["par"]["hydrodynamics"].get("cfl_density_floor", 0.0))
     hot = active & (
@@ -257,9 +257,6 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     figure = output_directory / "SphericalShellReflectingWall1D.jpg"
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print(f"wall post-shock pressure max = {np.max(pre_proper_code[hot]):.6e}")
-    print(f"wall post-shock temperature max = {np.max(temp_proper_code[hot]):.6e}")
-    print(f"figure = {figure}")
     return figure
 
 

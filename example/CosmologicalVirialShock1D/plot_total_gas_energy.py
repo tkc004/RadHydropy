@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -53,18 +53,6 @@ def main():
     fig.tight_layout()
     fig.savefig(figure, dpi=220)
     plt.close(fig)
-
-    print("total gas energy figure = %s" % figure)
-    print(
-        "final total, thermal, kinetic = %.8g, %.8g, %.8g"
-        % (
-            total_energy_code[-1],
-            thermal_energy_code[-1],
-            kinetic_energy_code[-1],
-        )
-    )
-    print("final cumulative gravitational work = %.8g" % gravity_work[-1])
-    print("final total including gravity work = %.8g" % total_with_gravity_work[-1])
 
 
 if __name__ == "__main__":

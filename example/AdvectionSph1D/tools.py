@@ -1,8 +1,8 @@
 """Initial conditions and plotting for spherical advection."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import advection_sph_analytic as asa
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +25,9 @@ def build_initial_condition(config):
         | (coordinate_proper_unyt > 0.75 * box_size_proper_unyt)
     ] *= 0.01
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=units,
+        ic_config=config["initial_condition"],
     )
     writer.box_size = writer.radquantity(box_size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)

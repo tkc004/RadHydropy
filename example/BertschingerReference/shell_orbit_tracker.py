@@ -31,7 +31,7 @@ class ShellOrbitTracker:
         )
         target = 200.0 * float(self.cosmology.background_density(time_cosmic_code))
         crossing = np.flatnonzero(
-            (mean_density_comoving_code[:-1] >= target) & (mean_density_comoving_code[1:] < target)
+            (mean_density_comoving_code[:-1] >= target) & (mean_density_comoving_code[1:] < target),
         )
         if not crossing.size:
             return None
@@ -42,8 +42,8 @@ class ShellOrbitTracker:
                     np.log(target),
                     np.log(mean_density_comoving_code[index : index + 2][::-1]),
                     np.log(radius_comoving_code[index : index + 2][::-1]),
-                )
-            )
+                ),
+            ),
         )
 
     def observe(
@@ -64,7 +64,7 @@ class ShellOrbitTracker:
         mass_comoving_code = np.asarray(mass_comoving_code, dtype=float)
         radius_proper_code = float(scale_factor) * radius_comoving_code
         vel_proper_code = float(
-            self.cosmology.hubble(time_cosmic_code)
+            self.cosmology.hubble(time_cosmic_code),
         ) * radius_proper_code + vel_supercomoving_code / float(scale_factor)
         r200m = self._r200m(radius_comoving_code, mass_comoving_code, time_cosmic_code)
         current = {int(i): (radius_proper_code[j], vel_proper_code[j]) for j, i in enumerate(ids)}
@@ -79,7 +79,7 @@ class ShellOrbitTracker:
                 if v_old * v_now < 0.0:
                     fraction = -v_old / (v_now - v_old)
                     event_time = float(
-                        previous_time + fraction * (time_cosmic_code - previous_time)
+                        previous_time + fraction * (time_cosmic_code - previous_time),
                     )
                     event_radius = float(r_old + fraction * (r_now - r_old))
                 event = self.events[shell_index]

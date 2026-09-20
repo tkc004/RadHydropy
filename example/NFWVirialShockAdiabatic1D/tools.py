@@ -1,8 +1,8 @@
 """Initial conditions, diagnostics, and plotting for the adiabatic benchmark."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -38,8 +38,8 @@ def build_initial_condition(config):
     initial_condition = config["initial_condition"]
     code_units = config["_code_units"]
     grid_cells = int(config["par"]["mesh"]["grid_cells"])
-    box_size_proper_unyt = initial_condition["box_size_proper"]
-    time_proper_unyt = initial_condition["time_proper"]
+    initial_condition["box_size_proper"]
+    initial_condition["time_proper"]
     radius_inner_proper_unyt = initial_condition["radius_inner_proper"]
     radius_outer_proper_unyt = initial_condition["radius_outer_proper"]
     boundary_proper_unyt = np.linspace(
@@ -65,7 +65,9 @@ def build_initial_condition(config):
     )
     temperature_proper_unyt = cmb_temperature * (1.0 + float(initial_condition["initial_redshift"]))
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code_units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=code_units,
+        ic_config=config["initial_condition"],
     )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(x_proper_unyt)
@@ -134,7 +136,9 @@ def rankine_hugoniot_diagnostics(filenames, config, halo):
     shock_indices = []
     for _, radius_proper_kpc, _, temperature_proper_K, _ in profiles:
         index, position = _locate_shock(
-            radius_proper_kpc, temperature_proper_K, virial_radius_proper_kpc
+            radius_proper_kpc,
+            temperature_proper_K,
+            virial_radius_proper_kpc,
         )
         shock_indices.append(index)
         shock_positions.append(position)
@@ -196,7 +200,7 @@ def rankine_hugoniot_diagnostics(filenames, config, halo):
                 "temperature_ratio_measured_dimensionless": temperature_downstream_proper_K
                 / max(temperature_upstream_proper_K, 1.0e-99),
                 "temperature_ratio_predicted_dimensionless": float(predicted_temperature),
-            }
+            },
         )
     return rows
 
@@ -211,11 +215,11 @@ def write_rankine_hugoniot_report(rows, filename):
     with open(filename, "w", encoding="utf-8") as report:
         report.write(header)
         report.writelines(
-            "%(time_proper_Myr).8g %(shock_radius_proper_kpc).8g "
-            "%(shock_radius_over_R200).8g %(shock_speed_proper_km_s).8g "
-            "%(mach_number_dimensionless).8g %(density_ratio_measured_dimensionless).8g "
-            "%(density_ratio_predicted_dimensionless).8g %(temperature_ratio_measured_dimensionless).8g "
-            "%(temperature_ratio_predicted_dimensionless).8g\n" % row
+            "{time_proper_Myr:.8g} {shock_radius_proper_kpc:.8g} "
+            "{shock_radius_over_R200:.8g} {shock_speed_proper_km_s:.8g} "
+            "{mach_number_dimensionless:.8g} {density_ratio_measured_dimensionless:.8g} "
+            "{density_ratio_predicted_dimensionless:.8g} {temperature_ratio_measured_dimensionless:.8g} "
+            "{temperature_ratio_predicted_dimensionless:.8g}\n".format(**row)
             for row in rows
         )
 
@@ -229,7 +233,7 @@ def plot_snapshots(filenames, config, halo, figure_filename):
         halo,
         initial_condition["mu"],
     ).to_value(unyt.K)
-    for color, filename in zip(colors, filenames):
+    for color, filename in zip(colors, filenames, strict=False):
         (
             time_proper_Myr,
             radius_proper_kpc,
@@ -256,12 +260,16 @@ def plot_snapshots(filenames, config, halo, figure_filename):
         axis.legend(frameon=False, fontsize=8)
     axes[0].text(virial_radius, 0.04, "R200", transform=axes[0].get_xaxis_transform(), ha="center")
     axes[0].text(
-        2.0 * virial_radius, 0.04, "2R200", transform=axes[0].get_xaxis_transform(), ha="center"
+        2.0 * virial_radius,
+        0.04,
+        "2R200",
+        transform=axes[0].get_xaxis_transform(),
+        ha="center",
     )
     axes[1].axhline(virial_temperature, color="red", ls=":", label=r"$T_{vir}$")
     axes[1].legend(frameon=False, fontsize=8)
     halo_mass_msun = halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun)
-    fig.suptitle("Adiabatic virial shock around %.2g Msun NFW halo" % halo_mass_msun)
+    fig.suptitle(f"Adiabatic virial shock around {halo_mass_msun:.2g} Msun NFW halo")
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)

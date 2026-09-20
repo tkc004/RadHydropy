@@ -25,7 +25,7 @@ class EOS:
         self.EOStype = EOStype
         self.gamma = gamma
         self.CodeUnits = code_units
-        if (self.EOStype != "polytropic") and (self.EOStype != "isothermal"):
+        if self.EOStype not in {"polytropic", "isothermal"}:
             raise Exception("EOS not recognized: only polytropic or isothermal")
         if self.is_polytropic and gamma == 1.0:
             raise Exception("gamma cannot be equal to 1 for a polytropic EOS")
@@ -128,7 +128,7 @@ class EOS:
             vel_value = np.asarray(vel, dtype=float)
             energy_value = np.asarray(energy_density, dtype=float)
             return as_named_array(
-                (energy_value - 0.5 * rho_value * vel_value**2) * (self.gamma - 1.0)
+                (energy_value - 0.5 * rho_value * vel_value**2) * (self.gamma - 1.0),
             )
         return (energy_density - 0.5 * rho * vel**2) * (self.gamma - 1.0)
 

@@ -25,7 +25,7 @@ def analytic_density_profile(radius_proper_code, time_proper_code, config, cell_
         code_units.velocity_unit,
     )
     front_radius_proper_code = injection_radius_proper_code + velocity_outflow_proper_code * float(
-        time_proper_code
+        time_proper_code,
     )
     profile = np.full_like(radius_proper_code, np.nan, dtype=float)
     if cell_faces is None:

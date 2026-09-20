@@ -12,16 +12,16 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import tools as et
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import quantity_to_value
+import tools as et  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.units import quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("einstein_de_sitter_dark_matter_shell_growth1d.yaml")
 
@@ -54,9 +54,9 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     homogeneous_error = float(np.max(np.abs(homogeneous_acceleration)))
     if homogeneous_error > float(example["homogeneous_acceleration_tolerance"]):
-        raise RuntimeError("homogeneous shell acceleration %.6g is nonzero" % homogeneous_error)
+        raise RuntimeError(f"homogeneous shell acceleration {homogeneous_error:.6g} is nonzero")
 
-    shells, boundaries = et.make_shells(config)
+    shells, _boundaries = et.make_shells(config)
     radius_perturbation_comoving_code = quantity_to_value(
         initial_condition["radius_perturbation_comoving"],
         units.length_unit,
@@ -74,7 +74,9 @@ def main(config_filename=DEFAULT_CONFIG):
         / 3.0
     )
     initial_delta = et.overdensity_inside(
-        lagrangian_radius_comoving_code, target_mass, rho_comoving
+        lagrangian_radius_comoving_code,
+        target_mass,
+        rho_comoving,
     )
     history_a = [a_initial]
     history_delta = [initial_delta]
@@ -120,14 +122,14 @@ def main(config_filename=DEFAULT_CONFIG):
         time_supercomoving_code = time_supercomoving_end_code
         history_a.append(a_end)
         history_delta.append(
-            et.overdensity_inside(lagrangian_radius_comoving_code, target_mass, rho_end)
+            et.overdensity_inside(lagrangian_radius_comoving_code, target_mass, rho_end),
         )
 
     expected = initial_delta * history_a[-1] / a_initial
     relative_error = abs(history_delta[-1] - expected) / abs(expected)
     if not np.isfinite(relative_error) or relative_error > float(example["growth_tolerance"]):
         raise RuntimeError(
-            "dark-matter linear growth error %.6g exceeds tolerance" % relative_error
+            f"dark-matter linear growth error {relative_error:.6g} exceeds tolerance",
         )
     if not np.all(np.isfinite(shells.radius)) or not np.all(np.diff(shells.radius) >= 0.0):
         raise RuntimeError("dark-matter shells became invalid or unsorted")
@@ -146,13 +148,6 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.tight_layout()
     plt.savefig(figure, dpi=200)
     plt.close()
-    print("Einstein-De Sitter dark-matter shell growth passed")
-    print("homogeneous acceleration max = %.6g" % homogeneous_error)
-    print(
-        "delta: %.8g measured, %.8g linear, relative error %.6g"
-        % (history_delta[-1], expected, relative_error)
-    )
-    print("figure = %s" % figure)
 
 
 if __name__ == "__main__":

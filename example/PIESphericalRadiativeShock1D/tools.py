@@ -18,7 +18,9 @@ def build_initial_condition(config):
     code_units = config["_code_units"]
     grid_cells = int(par["mesh"]["grid_cells"])
     boundary_proper_unyt = np.linspace(
-        initial["radius_inner_proper"], initial["radius_outer_proper"], grid_cells + 1
+        initial["radius_inner_proper"],
+        initial["radius_outer_proper"],
+        grid_cells + 1,
     )
     rho_proper_unyt = (
         initial["hydrogen_number_density"]
@@ -42,7 +44,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(velocity_proper_unyt)
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial["temperature_inflow_proper"]
+        np.ones(grid_cells) * initial["temperature_inflow_proper"],
     )
     writer.fluid.mu = np.full(grid_cells, initial["mean_molecular_weight"])
     return writer
@@ -55,9 +57,7 @@ def load_output_state(filename, config):
     first = int(snapshot.par.mesh.ghost_cells)
     count = int(snapshot.par.mesh.grid_cells)
     physical = slice(first, first + count)
-    boundary_proper_code = snapshot.mesh.boundary_radarray.to_value(code_units.length_unit)[
-        first : first + count + 1
-    ]
+    snapshot.mesh.boundary_radarray.to_value(code_units.length_unit)[first : first + count + 1]
     return {
         "time_proper_Myr": (
             float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])
@@ -120,7 +120,7 @@ def estimate_cooling_length(snapshot, table, metallicity, hydrogen_mass_fraction
     density_proper_cgs_g_cm3 = float(np.median(snapshot["rho_proper_cgs_g_cm3"][post_slice]))
     temperature_proper_cgs_K = float(np.median(snapshot["temperature_proper_cgs_K"][post_slice]))
     vel_peculiar_proper_cgs_cm_s = float(
-        np.median(np.abs(snapshot["vel_peculiar_proper_cgs_cm_s"][post_slice]))
+        np.median(np.abs(snapshot["vel_peculiar_proper_cgs_cm_s"][post_slice])),
     )
     n_h = hydrogen_mass_fraction * density_proper_cgs_g_cm3 / PROTON_MASS_G
     heating, cooling = table.rates(

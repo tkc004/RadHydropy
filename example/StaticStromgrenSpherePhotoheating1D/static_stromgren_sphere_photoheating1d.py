@@ -30,13 +30,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
-import stromgren_analytic as sa
-import unyt
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.rsim import Rsim
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -48,11 +46,10 @@ DEFAULT_CONFIG = (
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     nested = eu.load_nested_example_config(config_filename)
     config = nested
-    initial = config["initial_condition"]
+    config["initial_condition"]
     example = config.get("example", {})
     eu.clean_previous_outputs(config)
     config_dir = Path(config_filename).resolve().parent
@@ -72,7 +69,10 @@ def main(config_filename=DEFAULT_CONFIG):
 
     mainrun = Rsim(nested["par"])
     rio.readhdf5(
-        mainrun.par, mainrun.mesh, mainrun.fluid, mainrun.par.simulation.initial_condition_filename
+        mainrun.par,
+        mainrun.mesh,
+        mainrun.fluid,
+        mainrun.par.simulation.initial_condition_filename,
     )
     mainrun.SetMesh()
     mainrun.SetFluid()
@@ -100,34 +100,10 @@ def main(config_filename=DEFAULT_CONFIG):
     figure_filename = Path(nested["par"]["output"]["directory"]) / figure_name
     et.save_plot(out_mesh, out_fluid, history, config, figure_filename)
 
-    print("time = %s" % out_fluid.time_proper_code)
     if nested["par"]["thermochemistry"].get("hydrogen_alpha_B") is None:
-        print("stromgren radius = temperature-dependent alpha_H(T)")
-        print("analytic front radius = unavailable for temperature-dependent rates")
+        pass
     else:
-        print(
-            "stromgren radius = %s"
-            % sa.stromgren_radius(
-                nested["par"]["radiation"]["source_photon_rate"],
-                initial["hydrogen_number_density"],
-                nested["par"]["thermochemistry"]["hydrogen_alpha_B"],
-            ).to(unyt.kpc),
-        )
-        print(
-            "analytic front radius = %s"
-            % sa.ionization_front_radius(
-                nested["par"]["simulation"]["final_time"],
-                nested["par"]["radiation"]["source_photon_rate"],
-                initial["hydrogen_number_density"],
-                nested["par"]["thermochemistry"]["hydrogen_alpha_B"],
-            ).to(unyt.kpc),
-        )
-    print("mean ionized temperature = %.3e K" % history["mean_ionized_temp_cgs_K"][-1])
-    print("front radius = %.3e kpc" % history["front_radius_proper_kpc"][-1])
-    print("evolution steps = %d" % history["evolution_steps"])
-    print("IC file = %s" % nested["par"]["simulation"]["initial_condition_filename"])
-    print("output file = %s" % output_filename)
-    print("figure = %s" % figure_filename)
+        pass
 
 
 def parse_args():

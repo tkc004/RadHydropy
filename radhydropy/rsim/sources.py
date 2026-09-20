@@ -97,14 +97,13 @@ def ApplyThermochemistrySources(sim, dt):
             sim.fluid,
             sim.par,
         )
-    source_result = sim.solver.ApplyThermochemistryFast(
+    return sim.solver.ApplyThermochemistryFast(
         dt,
         sim.mesh,
         sim.fluid,
         sim.par,
         transport_result=transport_result,
     )
-    return source_result
 
 
 def _synchronize_thermochemistry_internal_energy(sim):

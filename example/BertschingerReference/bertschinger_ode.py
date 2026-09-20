@@ -87,14 +87,16 @@ def first_outer_caustic(solution, turnaround_exponent=8.0 / 9.0):
     start = int(outbound[0] + 1)
     envelope_derivative = lam_prime - alpha * lam
     caustic = np.flatnonzero(
-        (envelope_derivative[start:-1] >= 0.0) & (envelope_derivative[start + 1 :] < 0.0)
+        (envelope_derivative[start:-1] >= 0.0) & (envelope_derivative[start + 1 :] < 0.0),
     )
     if not caustic.size:
         raise RuntimeError("solution contains no post-centre outer caustic")
     index = int(start + caustic[0])
     root = brentq(
         lambda value: np.interp(
-            value, xi[index : index + 2], envelope_derivative[index : index + 2]
+            value,
+            xi[index : index + 2],
+            envelope_derivative[index : index + 2],
         ),
         float(xi[index]),
         float(xi[index + 1]),
@@ -254,7 +256,7 @@ def solve_eq41_self_similar(
         (
             [True],
             np.diff(output_similarity_time_dimensionless) > 1.0e-12,
-        )
+        ),
     )
     output_similarity_time_dimensionless = output_similarity_time_dimensionless[unique]
     output_state = output_state[unique]

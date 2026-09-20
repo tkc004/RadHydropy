@@ -3,9 +3,9 @@
 import os
 import sys
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -31,7 +31,7 @@ static_stromgren_dir = os.path.abspath(
 if static_stromgren_dir not in sys.path:
     sys.path.append(static_stromgren_dir)
 
-import stromgren_analytic as sa
+import stromgren_analytic as sa  # noqa: E402
 
 
 def _attach_proper_runtime_states(mesh, fluid):
@@ -198,7 +198,7 @@ def _refresh_mesh_geometry(mesh, config):
                 mesh.x_proper_code[ig] = 0.75 * mesh.boundary_proper_code[ig + 1]
                 mesh.area_proper_code[ig] = 0.0
     else:
-        raise ValueError("coordinate system unknown: %s" % par.simulation.coordinate_system)
+        raise ValueError(f"coordinate system unknown: {par.simulation.coordinate_system}")
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
         x_proper_code=mesh.x_proper_code,
@@ -240,7 +240,9 @@ def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
     if np.all(ionized):
         return (
             code_quantity_to_cgs(
-                mesh.boundary_proper_code[interior.stop], par.units.CodeUnits, "length_cgs_cm"
+                mesh.boundary_proper_code[interior.stop],
+                par.units.CodeUnits,
+                "length_cgs_cm",
             )
             / (1.0 * unyt.kpc).to_value(unyt.cm)
             * unyt.kpc
@@ -265,7 +267,9 @@ def mean_ionized_temperature(fluid, config):
     interior = interior_slice(config)
     xHI = np.asarray(fluid.xHI[interior])
     temperature_proper_cgs_K = code_quantity_to_cgs(
-        fluid.temp_proper_code[interior], par.units.CodeUnits, "temperature_cgs_K"
+        fluid.temp_proper_code[interior],
+        par.units.CodeUnits,
+        "temperature_cgs_K",
     )
     ionized = 1.0 - xHI
     if np.sum(ionized) <= 0.0:
@@ -276,7 +280,7 @@ def mean_ionized_temperature(fluid, config):
 def append_history(history, mesh, fluid, config):
     par = config["_output_par"]
     history["time_proper_Myr"].append(
-        float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr))
+        float(fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr)),
     )
     history["front_radius_proper_kpc"].append(
         ionization_front_position(mesh, fluid, config).to_value(unyt.kpc),
@@ -317,17 +321,21 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     interior = interior_slice(config)
     code_units_obj = par.units.CodeUnits
     radius_proper_cgs_kpc = code_quantity_to_cgs(
-        mesh.x_proper_code[interior], code_units_obj, "length_cgs_cm"
+        mesh.x_proper_code[interior],
+        code_units_obj,
+        "length_cgs_cm",
     ) / (1.0 * unyt.kpc).to_value(unyt.cm)
     radius_proper_cgs_kpc_unyt = radius_proper_cgs_kpc * unyt.kpc
     snapshot = history.get("reference_snapshot", None)
     if snapshot is None:
         xHI = np.asarray(fluid.xHI[interior], dtype=float)
         temperature_cgs_K = code_quantity_to_cgs(
-            fluid.temp_proper_code[interior], code_units_obj, "temperature_cgs_K"
+            fluid.temp_proper_code[interior],
+            code_units_obj,
+            "temperature_cgs_K",
         )
         profile_time_proper_Myr = float(
-            fluid.time_proper_code * code_units_obj.time_unit.to_value(unyt.Myr)
+            fluid.time_proper_code * code_units_obj.time_unit.to_value(unyt.Myr),
         )
     else:
         radius_proper_cgs_kpc = snapshot["radius_proper_kpc"]
@@ -409,13 +417,17 @@ def save_plot(mesh, fluid, history, config, figure_filename):
         )
     if radius_stromgren is not None:
         ax_frac.axvline(
-            radius_stromgren.to_value(unyt.kpc), color="black", lw=1.5, ls=":", label=r"$R_{\rm S}$"
+            radius_stromgren.to_value(unyt.kpc),
+            color="black",
+            lw=1.5,
+            ls=":",
+            label=r"$R_{\rm S}$",
         )
     ax_frac.set_xlim(0.0, plot_radius_max)
     ax_frac.set_ylim(1.0e-6, 1.2)
     ax_frac.set_yscale("log")
     ax_frac.set_ylabel("Hydrogen fraction")
-    ax_frac.set_title("Radial profiles at %.0f Myr" % profile_time_proper_Myr)
+    ax_frac.set_title(f"Radial profiles at {profile_time_proper_Myr:.0f} Myr")
     ax_frac.grid(True, which="both", alpha=0.25)
     ax_frac.legend(frameon=False, loc="center right")
 

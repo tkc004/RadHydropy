@@ -3,9 +3,9 @@
 import argparse
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -106,12 +106,12 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
                 time_valid.size - 1,
                 min(7, time_valid.size),
                 dtype=int,
-            )
+            ),
         )
         top_axis = axes[0].twiny()
         top_axis.set_xlim(axes[0].get_xlim())
         top_axis.set_xticks(time_valid[selected])
-        top_axis.set_xticklabels(["%.0f" % value for value in redshift_valid[selected]])
+        top_axis.set_xticklabels([f"{value:.0f}" for value in redshift_valid[selected]])
         top_axis.set_xlabel("redshift z (from saved scale factor)")
     resolved = np.isfinite(rvir)
     if np.any(resolved) and not np.all(resolved):
@@ -138,7 +138,6 @@ def main(output=OUTPUT, prefix=PREFIX, radius_factor=2.0):
     fig.tight_layout()
     fig.savefig(figure, dpi=220)
     plt.close(fig)
-    print("2-rvir energy balance figure = %s" % figure)
 
 
 if __name__ == "__main__":

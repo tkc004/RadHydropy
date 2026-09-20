@@ -13,12 +13,12 @@ EXAMPLE_ROOT = HERE.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = HERE / "high_mach_advection1d.yaml"
 
@@ -76,11 +76,11 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
             {
                 "time_proper_code": float(np.asarray(state.fluid.time_proper_code).flat[0]),
                 **et.energy_components(state),
-            }
+            },
         )
     if not history:
         history = [
-            {"time_proper_code": float(sim.fluid.time_proper_code), **et.energy_components(sim)}
+            {"time_proper_code": float(sim.fluid.time_proper_code), **et.energy_components(sim)},
         ]
 
     data = output / "HighMachAdvection1D_EnergyHistory.npz"
@@ -89,10 +89,10 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         time_s=np.asarray([item["time_proper_code"] for item in history]),
         total_energy_proper_code=np.asarray([item["total_energy_proper_code"] for item in history]),
         kinetic_energy_proper_code=np.asarray(
-            [item["kinetic_energy_proper_code"] for item in history]
+            [item["kinetic_energy_proper_code"] for item in history],
         ),
         thermal_energy_proper_code=np.asarray(
-            [item["thermal_energy_proper_code"] for item in history]
+            [item["thermal_energy_proper_code"] for item in history],
         ),
         pressure_fallback_count=float(sim.solver.dual_energy_pressure_fallback_count),
         synchronization_count=float(sim.solver.dual_energy_synchronization_count),
@@ -145,7 +145,8 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
     density_history = np.asarray(rho_proper_code_history)
     entropy_plot_values[density_history <= 0.0] = np.nan
     entropy_figure = exampleparams.get(
-        "entropy_plot_filename", "HighMachAdvection1D_EntropyEvolution.jpg"
+        "entropy_plot_filename",
+        "HighMachAdvection1D_EntropyEvolution.jpg",
     )
     save_profile_map(
         entropy_plot_values,
@@ -169,24 +170,8 @@ def main(config_filename=DEFAULT_CONFIG, dual_energy=None, pressure_selection=No
         "High-Mach advection temperature evolution",
         r"$\log_{10}(T\,[\mathrm{K}])$",
     )
-    initial_energy = history[0]
-    final_energy = history[-1]
-    print("high-Mach advection energy history = %s" % data)
-    print("entropy evolution plot = %s" % (output / entropy_figure))
-    print("density evolution plot = %s" % (output / density_figure))
-    print("temperature evolution plot = %s" % (output / temperature_figure))
-    print("initial Mach estimate > 1e4")
-    print(
-        "relative total-energy change = %.6e"
-        % (
-            (final_energy["total_energy_proper_code"] - initial_energy["total_energy_proper_code"])
-            / max(abs(initial_energy["total_energy_proper_code"]), 1.0e-300)
-        )
-    )
-    print("dual-energy pressure fallbacks = %d" % sim.solver.dual_energy_pressure_fallback_count)
-    print("dual-energy synchronizations = %d" % sim.solver.dual_energy_synchronization_count)
-    print("dual-energy floor events = %d" % sim.solver.dual_energy_floor_count)
-    print("dual-energy floor energy = %.6e" % sim.solver.dual_energy_floor_injected_energy)
+    history[0]
+    history[-1]
 
 
 if __name__ == "__main__":

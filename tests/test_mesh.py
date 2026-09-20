@@ -45,10 +45,12 @@ class Testing(unittest.TestCase):
         self.mesh.SetUpMesh(self.par)
         self.assertEqual(len(self.mesh.volume_proper_code), self.par.nogrid + 2 * self.par.noghost)
         self.assertEqual(
-            len(self.mesh.boundary_proper_code), self.par.nogrid + 1 + 2 * self.par.noghost
+            len(self.mesh.boundary_proper_code),
+            self.par.nogrid + 1 + 2 * self.par.noghost,
         )
         np.testing.assert_allclose(
-            self.mesh.volume_proper_code, np.full(len(self.mesh.volume_proper_code), 2.7)
+            self.mesh.volume_proper_code,
+            np.full(len(self.mesh.volume_proper_code), 2.7),
         )
         self.assertFalse(hasattr(self.mesh.boundary_proper_code, "units"))
         for name in (
@@ -75,7 +77,8 @@ class Testing(unittest.TestCase):
 
         origin_cell = np.where(
             np.logical_and(
-                self.mesh.boundary_proper_code[:-1] < 0.0, self.mesh.boundary_proper_code[1:] > 0.0
+                self.mesh.boundary_proper_code[:-1] < 0.0,
+                self.mesh.boundary_proper_code[1:] > 0.0,
             ),
         )[0][0]
         self.assertEqual(self.mesh.area_proper_code[origin_cell], 0.0)
@@ -94,6 +97,6 @@ class Testing(unittest.TestCase):
             0.75
             * float(
                 self.mesh.boundary_proper_code[self.par.noghost + 1]
-                - self.mesh.boundary_proper_code[self.par.noghost]
+                - self.mesh.boundary_proper_code[self.par.noghost],
             ),
         )

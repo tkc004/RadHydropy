@@ -9,12 +9,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-from radhydropy.cosmology.context import CosmologyContext
-from radhydropy.field_metadata import field_spec
-from radhydropy.radarray import RadArray, RepresentationMismatchError
-from radhydropy.units import CodeUnits
+from radhydropy.cosmology.context import CosmologyContext  # noqa: E402
+from radhydropy.field_metadata import field_spec  # noqa: E402
+from radhydropy.radarray import RadArray, RepresentationMismatchError  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 CONFIG_FILE = Path(__file__).with_name("radarray_conversion1d.yaml")
 
@@ -142,4 +142,3 @@ def run(config_file=CONFIG_FILE):
 
 if __name__ == "__main__":
     run()
-    print("RadArrayConversion1D: all conversion and representation checks passed")

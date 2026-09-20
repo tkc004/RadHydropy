@@ -12,7 +12,7 @@ def _cfl_density_floor(par):
             np.asarray(
                 getattr(par, "cfl_density_floor", 0.0),
                 dtype=float,
-            )
+            ),
         ),
     )
 

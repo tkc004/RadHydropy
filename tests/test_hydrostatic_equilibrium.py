@@ -44,7 +44,8 @@ def _floatify_hydrostatic_simwrap(simwrap, code_units):
     simwrap.prepare()
     simwrap = simwrap.simulation
     simwrap.mesh.boundary_proper_code = _to_float(
-        simwrap.mesh.boundary_proper_code, code_units.length_unit
+        simwrap.mesh.boundary_proper_code,
+        code_units.length_unit,
     )
     simwrap.mesh.x_proper_code = _to_float(
         simwrap.mesh.x_proper_code,
@@ -52,7 +53,8 @@ def _floatify_hydrostatic_simwrap(simwrap, code_units):
     )
     simwrap.mesh.area_proper_code = _to_float(simwrap.mesh.area_proper_code, code_units.area_unit)
     simwrap.mesh.volume_proper_code = _to_float(
-        simwrap.mesh.volume_proper_code, code_units.volume_unit
+        simwrap.mesh.volume_proper_code,
+        code_units.volume_unit,
     )
     simwrap.fluid.rho_proper_code = as_named_array(
         _to_float(simwrap.fluid.rho_proper_code, code_units.density_unit),
@@ -141,7 +143,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
                 "initial_condition": initial_condition,
                 "example": {},
                 "_code_units": code_units,
-            }
+            },
         ),
         code_units,
     )
@@ -166,7 +168,8 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
     )
 
     dx = np.asarray(
-        simwrap.mesh.boundary_proper_code[1] - simwrap.mesh.boundary_proper_code[0], dtype=float
+        simwrap.mesh.boundary_proper_code[1] - simwrap.mesh.boundary_proper_code[0],
+        dtype=float,
     )
     left_boundary = np.linspace(
         simwrap.mesh.boundary_proper_code[0] - par.noghost * dx,
@@ -179,7 +182,7 @@ def _build_hydrostatic_step_sim(nogrid, integrator=None):
         par.noghost,
     )
     full_boundary = np.concatenate(
-        (left_boundary, simwrap.mesh.boundary_proper_code, right_boundary)
+        (left_boundary, simwrap.mesh.boundary_proper_code, right_boundary),
     )
     full_coordinate = 0.5 * (full_boundary[:-1] + full_boundary[1:])
 
@@ -322,13 +325,15 @@ class Testing(unittest.TestCase):
                     "initial_condition": initial_condition,
                     "example": {},
                     "_code_units": code_units,
-                }
+                },
             ),
             code_units,
         )
         pressure = np.asarray(
             sim.fluid.eos.pressure(
-                sim.fluid.rho_proper_code, sim.fluid.temp_proper_code, sim.fluid.mu
+                sim.fluid.rho_proper_code,
+                sim.fluid.temp_proper_code,
+                sim.fluid.mu,
             ),
             dtype=float,
         )
@@ -357,7 +362,7 @@ class Testing(unittest.TestCase):
         )
 
     def test_single_tiny_hydro_step_changes_state_only_slightly(self):
-        module, sim, par, initial_condition, _, fluid = _build_hydrostatic_step_sim(64)
+        _module, sim, par, _initial_condition, _, _fluid = _build_hydrostatic_step_sim(64)
 
         rho_before = sim.fluid.rho_proper_code.copy()
         vel_proper_code_before = sim.fluid.vel_proper_code.copy()
@@ -368,12 +373,12 @@ class Testing(unittest.TestCase):
         interior = slice(par.noghost, par.noghost + par.nogrid)
         rho_rel = np.max(
             np.abs(
-                (sim.fluid.rho_proper_code[interior] - rho_before[interior]) / rho_before[interior]
+                (sim.fluid.rho_proper_code[interior] - rho_before[interior]) / rho_before[interior],
             ),
         )
         pre_rel = np.max(
             np.abs(
-                (sim.fluid.pre_proper_code[interior] - pre_before[interior]) / pre_before[interior]
+                (sim.fluid.pre_proper_code[interior] - pre_before[interior]) / pre_before[interior],
             ),
         )
 
@@ -387,7 +392,7 @@ class Testing(unittest.TestCase):
         )
 
     def test_single_tiny_hydro_step_with_ssprk2_changes_state_only_slightly(self):
-        module, sim, par, initial_condition, _, fluid = _build_hydrostatic_step_sim(64)
+        _module, sim, par, _initial_condition, _, _fluid = _build_hydrostatic_step_sim(64)
 
         rho_before = sim.fluid.rho_proper_code.copy()
         vel_proper_code_before = sim.fluid.vel_proper_code.copy()
@@ -403,12 +408,12 @@ class Testing(unittest.TestCase):
         interior = slice(par.noghost, par.noghost + par.nogrid)
         rho_rel = np.max(
             np.abs(
-                (sim.fluid.rho_proper_code[interior] - rho_before[interior]) / rho_before[interior]
+                (sim.fluid.rho_proper_code[interior] - rho_before[interior]) / rho_before[interior],
             ),
         )
         pre_rel = np.max(
             np.abs(
-                (sim.fluid.pre_proper_code[interior] - pre_before[interior]) / pre_before[interior]
+                (sim.fluid.pre_proper_code[interior] - pre_before[interior]) / pre_before[interior],
             ),
         )
 

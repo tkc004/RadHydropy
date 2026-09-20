@@ -11,18 +11,18 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
-from shell_remap import centrifugal_shell_reference
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+from shell_remap import centrifugal_shell_reference  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.arrays import as_named_array  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 CONFIG = ROOT / "gas_centrifugal_hydro_expansion1d.yaml"
 
@@ -47,7 +47,9 @@ def build_initial_condition(config):
     boundary_proper_code = quantity_to_value(boundary_proper_unyt, units.length_unit)
     radius_proper_code = spherical_centers(boundary_proper_code)
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=units,
+        ic_config=config["initial_condition"],
     )
     writer.box_size = writer.radquantity(initial_condition["radius_outer_proper"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
@@ -101,7 +103,7 @@ def run_simulation(config):
     par = config["par"]
     initial_condition = config["initial_condition"]
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
-    count = int(par["mesh"]["grid_cells"])
+    int(par["mesh"]["grid_cells"])
     initial = build_initial_condition(config)
     filename = ROOT / par["simulation"]["initial_condition_filename"]
     filename.parent.mkdir(parents=True, exist_ok=True)
@@ -126,23 +128,22 @@ def run_simulation(config):
                 np.zeros(ghost_cells),
                 specific_angular_momentum_proper_code,
                 np.zeros(ghost_cells),
-            )
-        )
+            ),
+        ),
     )
     if hasattr(sim.fluid, "AngularMomentum_code"):
         del sim.fluid.AngularMomentum_code
     sim.SetInitFluid()
     sim.par.gravity = FixedCentralGravity(central_mass)
     active = slice(
-        int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells)
+        int(sim.par.mesh.ghost_cells),
+        int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells),
     )
     initial_mass = np.asarray(sim.fluid.Mass_code[active], dtype=float).copy()
     initial_energy = np.asarray(sim.fluid.Energy_code[active], dtype=float).copy()
     initial_radius = np.asarray(sim.mesh.x_proper_code[active], dtype=float).copy()
     sim.Run(outputtime=0, mode="hydro")
-    final_filename = sorted(
-        (ROOT / par["output"]["directory"]).glob("Output_[0-9][0-9][0-9].hdf5"),
-    )[-1]
+    final_filename = max((ROOT / par["output"]["directory"]).glob("Output_[0-9][0-9][0-9].hdf5"))
     final_sim = rio.loadhdf5(config, final_filename)
     return (
         sim,
@@ -167,14 +168,15 @@ def main(config_filename=CONFIG):
         saved_mesh,
         saved,
         initial_mass,
-        initial_energy,
+        _initial_energy,
         initial_radius,
         cumulative_gravity_work,
-        cumulative_potential_change,
-        cumulative_potential_flux,
+        _cumulative_potential_change,
+        _cumulative_potential_flux,
     ) = run_simulation(config)
     active = slice(
-        int(sim.par.mesh.ghost_cells), int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells)
+        int(sim.par.mesh.ghost_cells),
+        int(sim.par.mesh.ghost_cells) + int(sim.par.mesh.grid_cells),
     )
     central_mass = quantity_to_value(initial_condition["central_mass_proper"], units.mass_unit)
     rotation_factor = float(initial_condition["rotation_factor"])
@@ -199,18 +201,18 @@ def main(config_filename=CONFIG):
     saved_mass = np.asarray(saved.Mass_code[active], dtype=float)
     saved_energy = np.asarray(saved.Energy_code[active], dtype=float)
     velocity_error = float(np.max(np.abs(saved_velocity - vel_proper_code_reference)))
-    j_error = float(np.max(np.abs(saved_j - ode_j)))
+    float(np.max(np.abs(saved_j - ode_j)))
     mass_error = float(
         abs(np.sum(saved_mass) - np.sum(initial_mass)) / max(abs(np.sum(initial_mass)), 1.0e-300),
     )
     if velocity_error > 0.08:
         raise RuntimeError(
-            "hydro expansion velocity disagrees with shell ODE: %.6g" % velocity_error
+            f"hydro expansion velocity disagrees with shell ODE: {velocity_error:.6g}",
         )
     if not np.all(np.isfinite(saved_j)):
         raise RuntimeError("hydro expansion produced invalid specific angular momentum")
     if mass_error > 1.0e-10:
-        raise RuntimeError("closed hydro expansion lost mass: relative error %.6g" % mass_error)
+        raise RuntimeError(f"closed hydro expansion lost mass: relative error {mass_error:.6g}")
 
     # Cell-centered potential energy uses the extensive cell mass, which
     # already contains the spherical cell volume.  This is the discrete
@@ -218,7 +220,7 @@ def main(config_filename=CONFIG):
     potential_initial = -central_mass * np.sum(initial_mass / initial_radius)
     potential_final = -central_mass * np.sum(saved_mass / saved_radius)
     potential_change = potential_final - potential_initial
-    potential_work_residual = cumulative_gravity_work + potential_change
+    cumulative_gravity_work + potential_change
 
     # The central-gravity potential closes the gas-energy audit.  The shell
     # ODE conserves this quantity even though gas kinetic and rotational energy
@@ -237,7 +239,8 @@ def main(config_filename=CONFIG):
     temp_proper_code = np.asarray(saved.temp_proper_code[active], dtype=float)
     mu = np.asarray(saved.mu[active], dtype=float)
     pre_proper_code = np.asarray(
-        sim.fluid.eos.pressure(rho_proper_code, temp_proper_code, mu), dtype=float
+        sim.fluid.eos.pressure(rho_proper_code, temp_proper_code, mu),
+        dtype=float,
     )
     pressure_ratio = np.divide(
         pre_proper_code / np.maximum(rho_proper_code, np.finfo(float).tiny),
@@ -281,18 +284,6 @@ def main(config_filename=CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print("centrifugal hydro expansion check passed")
-    print("maximum velocity error = %.6g" % velocity_error)
-    print("maximum mapped J/M error = %.6g" % j_error)
-    print("relative global mass error = %.6g" % mass_error)
-    print("cumulative gravity work = %.6g" % cumulative_gravity_work)
-    print("cell-centered potential change = %.6g" % potential_change)
-    print("reported potential change = %.6g" % cumulative_potential_change)
-    print("face potential-energy boundary_proper_code flux = %.6g" % cumulative_potential_flux)
-    print("gravity/potential closure residual = %.6g" % potential_work_residual)
-    print("total energy audit error = %.6g" % energy_error)
-    print("maximum thermal/dynamical scale = %.6g" % np.max(pressure_ratio))
-    print("figure = %s" % figure)
 
 
 if __name__ == "__main__":

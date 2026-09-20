@@ -33,7 +33,7 @@ def build_initial_condition(config):
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
 
     hydrogen_number_density_cgs_cm3 = float(
-        initial_condition["hydrogen_number_density"].to_value("1/cm**3")
+        initial_condition["hydrogen_number_density"].to_value("1/cm**3"),
     )
     hydrogen_mass_fraction = float(initial_condition["hydrogen_mass_fraction"])
     rho_proper_cgs_g_cm3_unyt = (

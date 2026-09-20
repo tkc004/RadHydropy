@@ -192,7 +192,7 @@ def build_transport_geometry(mesh, coordsys=None):
     """Return normalized geometry for one-dimensional radiation transport."""
     coordsys = coordsys or getattr(mesh, "coordsys", "cartesian")
     if coordsys not in ("cartesian", "spherical"):
-        raise ValueError("coordsys unknown: %s" % coordsys)
+        raise ValueError(f"coordsys unknown: {coordsys}")
     boundary = _mesh_boundary_cgs_cm(mesh)
     width = (
         _plain_cgs_geometry("width_cgs_cm", mesh.width_cgs_cm)
@@ -227,10 +227,7 @@ def propagate_causal_cell(geometry, incoming_rate, optical_depth, cell_index, di
         absorbed_rate = incoming * float(-np.expm1(-tau))
         width = geometry.width_cgs_cm[cell_index]
         volume = geometry.volume_cgs_cm3[cell_index]
-        if abs(tau) > 1.0e-10:
-            attenuation_mean = float(-np.expm1(-tau) / tau)
-        else:
-            attenuation_mean = 1.0
+        attenuation_mean = float(-np.expm1(-tau) / tau) if abs(tau) > 1e-10 else 1.0
         if geometry.coordsys == "spherical":
             photon_density = incoming * width * attenuation_mean / volume / SPEED_OF_LIGHT_CGS
         else:
@@ -466,7 +463,7 @@ def trace_long_characteristics(
     """
     coordsys = coordsys or getattr(mesh, "coordsys", "cartesian")
     if coordsys not in ("cartesian", "spherical"):
-        raise ValueError("coordsys unknown: %s" % coordsys)
+        raise ValueError(f"coordsys unknown: {coordsys}")
     geometry = build_transport_geometry(mesh, coordsys)
 
     edge_ngroup = _normalize_group_edges(group_edges_eV)

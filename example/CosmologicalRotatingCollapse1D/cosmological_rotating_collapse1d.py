@@ -17,18 +17,18 @@ PROJECT_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
-from cosmological_initial_condition import build_initial_condition
-from scipy.integrate import solve_ivp
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+from cosmological_initial_condition import build_initial_condition  # noqa: E402
+from scipy.integrate import solve_ivp  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_rotating_collapse1d.yaml")
 
@@ -99,7 +99,7 @@ def integrate_shell_reference(initial, config, scale_factors):
         [
             np.interp(requested_times, cosmic_times, reference[:, shell])
             for shell in range(len(radius_comoving_code))
-        ]
+        ],
     )
 
 
@@ -205,7 +205,7 @@ def enclosed_radii(boundary_comoving_code, mass_density, volume_comoving_code, t
                 np.asarray(mass_density, dtype=float)
                 * np.asarray(volume_comoving_code, dtype=float),
             ),
-        )
+        ),
     )
     return np.interp(
         np.asarray(target_mass, dtype=float),
@@ -228,7 +228,8 @@ def run_case(config, label, rotation_factor):
     par["output"].update(directory=str(output_dir), filename_prefix="Output")
     count = int(par["mesh"]["grid_cells"])
     time_cosmic_code = quantity_to_value(
-        initial_condition["time_cosmic"], code_unit_system.time_unit
+        initial_condition["time_cosmic"],
+        code_unit_system.time_unit,
     )
     scale_factor = float(cosmology.scale_factor(time_cosmic_code))
     hubble = float(cosmology.hubble(time_cosmic_code))
@@ -273,7 +274,7 @@ def run_case(config, label, rotation_factor):
         "_temp_supercomoving_code": np.full(
             count,
             float(
-                initial_condition["temperature_proper"].to_value(code_unit_system.temperature_unit)
+                initial_condition["temperature_proper"].to_value(code_unit_system.temperature_unit),
             )
             * scale_factor**2,
         ),
@@ -349,7 +350,7 @@ def run_case(config, label, rotation_factor):
                 state.fluid.rho_comoving_code[active],
                 state.mesh.volume_comoving_code[active],
                 target_mass,
-            )
+            ),
         )
 
     record(sim)
@@ -358,8 +359,8 @@ def run_case(config, label, rotation_factor):
             quantity_to_value(
                 base_par["simulation"]["final_time"],
                 code_unit_system.time_unit,
-            )
-        )
+            ),
+        ),
     )
     sim.Evolve(final_time=final_tau, mode="hydro", history_callback=record)
     scale_factors = np.asarray(history["a"], dtype=float)
@@ -378,7 +379,7 @@ def run_case(config, label, rotation_factor):
                 target_mass,
             )
             for reference_density_snapshot in reference_density
-        ]
+        ],
     )
     final_filename = output_dir / "Output_final.hdf5"
     sim.fluid.SetTemperature()
@@ -459,7 +460,7 @@ def main(
         total_j = np.asarray(history["total_j"], dtype=float)
         scale = max(1.0, abs(total_j[0]))
         if np.max(np.abs(total_j - total_j[0])) / scale > 1.0e-10:
-            raise RuntimeError("total angular momentum is not conserved for %s" % label)
+            raise RuntimeError(f"total angular momentum is not conserved for {label}")
 
     saved_histories = {
         label: np.load(directory / "history.npz") for label, (_, _, directory) in by_label.items()
@@ -472,9 +473,9 @@ def main(
         for fraction in enclosed_mass_fractions
     )
     fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
-    for axis, label in zip(axes, ("nonrotating", "moderate", "high")):
+    for axis, label in zip(axes, ("nonrotating", "moderate", "high"), strict=False):
         data = saved_histories[label]
-        for fraction, shell in zip(enclosed_mass_fractions, enclosed_mass_indices):
+        for fraction, shell in zip(enclosed_mass_fractions, enclosed_mass_indices, strict=False):
             simulation_radius = data["enclosed_mass_radius_comoving_code"][:, shell]
             ode_radius = data["enclosed_mass_radius_reference_comoving_code"][:, shell]
             (line,) = axis.plot(
@@ -586,7 +587,7 @@ def main(
         axis = axes[0, column]
         error_axis = axes[1, column]
         data = saved_histories[label]
-        for shell, fraction in zip(shell_indices, enclosed_mass_fractions):
+        for shell, fraction in zip(shell_indices, enclosed_mass_fractions, strict=False):
             simulation_radius = data["enclosed_mass_radius_comoving_code"][:, shell]
             ode_radius = data["enclosed_mass_radius_reference_comoving_code"][:, shell]
             (line,) = axis.plot(
@@ -601,7 +602,8 @@ def main(
                 color=line.get_color(),
             )
             relative_error = (simulation_radius - ode_radius) / np.maximum(
-                np.abs(ode_radius), 1.0e-300
+                np.abs(ode_radius),
+                1.0e-300,
             )
             error_axis.plot(
                 data["a"],
@@ -627,7 +629,7 @@ def main(
     plot_axes = [fig.add_subplot(grid[0, 0])]
     plot_axes.extend(fig.add_subplot(grid[0, index], sharey=plot_axes[0]) for index in (1, 2))
     colorbar_axis = fig.add_subplot(grid[0, 3])
-    for axis, label in zip(plot_axes, ("nonrotating", "moderate", "high")):
+    for axis, label in zip(plot_axes, ("nonrotating", "moderate", "high"), strict=False):
         data = saved_histories[label]
         image = axis.imshow(
             np.log10(np.maximum(data["rho_comoving_code"], 1.0e-300)),
@@ -656,7 +658,7 @@ def main(
         np.max(np.abs(data["specific_angular_momentum"]), initial=0.0)
         for data in saved_histories.values()
     )
-    for axis, label in zip(plot_axes, ("nonrotating", "moderate", "high")):
+    for axis, label in zip(plot_axes, ("nonrotating", "moderate", "high"), strict=False):
         data = saved_histories[label]
         image = axis.imshow(
             data["specific_angular_momentum"],
@@ -678,18 +680,8 @@ def main(
     fig.colorbar(image, cax=colorbar_axis, label="$j=x v_{\\phi,\\rm sc}$")
     fig.savefig(angular_figure, dpi=200)
     plt.close(fig)
-    print("cosmological rotating collapse comparison passed")
     for label in ("nonrotating", "moderate", "high"):
-        print(
-            "%s: final max density %.8g, centrifugal support %.8g"
-            % (label, final_density[label], final_support[label]),
-        )
-    print("figure = %s" % figure)
-    print("density comparison figure = %s" % density_comparison_figure)
-    print("total angular-momentum figure = %s" % total_angular_figure)
-    print("shell ODE figure = %s" % shell_figure)
-    print("density evolution figure = %s" % density_figure)
-    print("angular-momentum evolution figure = %s" % angular_figure)
+        pass
 
 
 if __name__ == "__main__":

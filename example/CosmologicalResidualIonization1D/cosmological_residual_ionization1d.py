@@ -9,9 +9,9 @@ photoionization/reionization source.
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -20,8 +20,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
-from radhydropy.thermo_networks.hydrogen import (
+from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS  # noqa: E402
+from radhydropy.thermo_networks.hydrogen import (  # noqa: E402
     ionization_fraction_rate,
     thermal_rate,
 )
@@ -143,9 +143,6 @@ def main():
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print(f"z={redshift[0]:.3g} -> {redshift[-1]:.3g}")
-    print(f"xe={xe[0]:.6e} -> {xe[-1]:.6e}")
-    print(f"figure = {figure}")
 
 
 if __name__ == "__main__":

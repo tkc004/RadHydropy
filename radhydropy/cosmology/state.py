@@ -163,7 +163,7 @@ def to_proper_state(state, cosmology, code_units, gamma):
     """Convert a typed supercomoving code state to proper CGS values."""
     scales = code_unit_scales(code_units)
     tau = float(state.tau_supercomoving_code)
-    cosmic_time, scale_factor, hubble = cosmology.background_state_from_supercomoving(tau)
+    cosmic_time, scale_factor, _hubble = cosmology.background_state_from_supercomoving(tau)
     x_code = np.asarray(state.x_comoving_code, dtype=float)
     rho_comoving_code = np.asarray(state.rho_comoving_code, dtype=float)
     velocity_code = np.asarray(state.vel_supercomoving_code, dtype=float)

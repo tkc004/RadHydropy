@@ -11,18 +11,18 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.arrays import as_named_array
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.arrays import as_named_array  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 CONFIG = ROOT / "gas_centrifugal_work_source1d.yaml"
 
@@ -34,7 +34,9 @@ def build_initial_condition(config):
     radius_proper_unyt = initial_condition["radius_proper"]
     boundary_proper_unyt = radius_proper_unyt + np.array([-0.5, 0.5]) * units.length_unit
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=units,
+        ic_config=config["initial_condition"],
     )
     writer.box_size = writer.radquantity(boundary_proper_unyt[-1])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
@@ -53,7 +55,7 @@ def build_initial_condition(config):
             quantity_to_value(
                 initial_condition["specific_angular_momentum"],
                 units.length_unit * units.velocity_unit,
-            )
+            ),
         )
         * units.length_unit.units
         * units.velocity_unit.units,
@@ -64,7 +66,7 @@ def build_initial_condition(config):
 
 def run_simulation(config):
     par = config["par"]
-    initial_condition = config["initial_condition"]
+    config["initial_condition"]
     initial = build_initial_condition(config)
     ic_filename = ROOT / par["simulation"]["initial_condition_filename"]
     ic_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -93,8 +95,8 @@ def run_simulation(config):
                 np.zeros(ghost_cells),
                 np.asarray(initial.simulation.fluid.specific_angular_momentum_code, dtype=float),
                 np.zeros(ghost_cells),
-            )
-        )
+            ),
+        ),
     )
     sim.fluid.AngularMomentum_code = as_named_array(
         sim.fluid.Mass_code * sim.fluid.specific_angular_momentum_code,
@@ -121,9 +123,7 @@ def run_simulation(config):
         mode="sources",
         step_backend=source_backend,
     )
-    final_filename = sorted(
-        (ROOT / par["output"]["directory"]).glob("Output_[0-9][0-9][0-9].hdf5"),
-    )[-1]
+    final_filename = max((ROOT / par["output"]["directory"]).glob("Output_[0-9][0-9][0-9].hdf5"))
     final_sim = rio.loadhdf5(config, final_filename)
     return (
         sim,
@@ -146,7 +146,7 @@ def main(config_filename=CONFIG):
     initial_condition = config["initial_condition"]
     (
         sim,
-        saved,
+        _saved,
         mass,
         initial_momentum,
         initial_energy,
@@ -157,7 +157,7 @@ def main(config_filename=CONFIG):
         source_works,
     ) = run_simulation(config)
     first = int(sim.par.mesh.ghost_cells)
-    active = slice(first, first + int(sim.par.mesh.grid_cells))
+    slice(first, first + int(sim.par.mesh.grid_cells))
     j = quantity_to_value(
         initial_condition["specific_angular_momentum"],
         units.length_unit * units.velocity_unit,
@@ -166,7 +166,7 @@ def main(config_filename=CONFIG):
     acceleration_proper_code = j**2 / radius_proper_code**3
     # The generic HDF5 header stores the initial IC time for this non-cosmology
     # source driver; use the live Rsim clock for the exact source interval.
-    final_time = float(sim.fluid.time_proper_code)
+    float(sim.fluid.time_proper_code)
     time_proper_code = source_times
     expected_momentum = initial_momentum + mass * acceleration_proper_code * time_proper_code
     # Centrifugal work is an internal transfer from rotational to radial
@@ -190,7 +190,7 @@ def main(config_filename=CONFIG):
     if momentum_error > 1.0e-11 or energy_error > 1.0e-11:
         raise RuntimeError(
             "centrifugal source disagrees with exact work solution: "
-            "momentum error=%g energy error=%g" % (momentum_error, energy_error),
+            f"momentum error={momentum_error:g} energy error={energy_error:g}",
         )
     if abs(final_j - j) > 1.0e-12:
         raise RuntimeError("centrifugal source changed signed specific angular momentum")
@@ -220,10 +220,6 @@ def main(config_filename=CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print("centrifugal work source check passed")
-    print("momentum error = %.6g" % momentum_error)
-    print("energy error = %.6g" % energy_error)
-    print("figure = %s" % figure)
 
 
 if __name__ == "__main__":

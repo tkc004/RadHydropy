@@ -6,9 +6,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -23,11 +23,11 @@ os.environ.setdefault(
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("thin_shell_ode.yaml")
 SPEED_OF_LIGHT = unyt.c.to_value(unyt.cm / unyt.s)
@@ -85,7 +85,7 @@ def _source_step(
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=0)
     interior = sim.par.mesh.ghost_cells
     volume_proper_code = float(
-        np.asarray(sim.mesh.geometry_state.volume_proper_code[interior], dtype=float)
+        np.asarray(sim.mesh.geometry_state.volume_proper_code[interior], dtype=float),
     )
     absorbed_rate = luminosity_cgs_erg_s / photon_energy_cgs_erg / volume_proper_code
     source_result = {
@@ -110,7 +110,7 @@ def _source_step(
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
     config["_code_units"] = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
@@ -214,7 +214,10 @@ def main(config_filename=DEFAULT_CONFIG):
     fig, axes = plt.subplots(3, 1, figsize=(7.5, 9.0), sharex=True)
     axes[0].plot(time_proper_myr, radius_proper_cgs_cm / pc_cm, label="RadHydropy")
     axes[0].plot(
-        time_proper_myr, expected_radius_proper_cgs_cm / pc_cm, "--", label="exact thin-shell"
+        time_proper_myr,
+        expected_radius_proper_cgs_cm / pc_cm,
+        "--",
+        label="exact thin-shell",
     )
     axes[0].set_ylabel("shell radius [pc]")
     axes[1].plot(time_proper_myr, momentum_proper_cgs_g_cm_s, label="RadHydropy shell momentum")
@@ -229,8 +232,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print("final momentum relative error = %.6e" % relative_momentum_error_dimensionless[-1])
-    print("figure = %s" % figure)
 
 
 if __name__ == "__main__":

@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -15,12 +15,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from example.OutflowSphVacuum1D import tools
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from example.OutflowSphVacuum1D import tools  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("outflow_sph_vacuum1d.yaml")
 
@@ -72,7 +72,7 @@ def run(config_filename=DEFAULT_CONFIG):
                 rho_proper_code,
                 temp_proper_code,
                 boundary_proper_code,
-            )
+            ),
         )
 
     if not profiles:
@@ -127,9 +127,6 @@ def run(config_filename=DEFAULT_CONFIG):
     plt.tight_layout()
     plt.savefig(figure, dpi=180)
     plt.close()
-    print(f"figure = {figure}")
-    print(f"outputs = {len(profiles)}")
-    print(f"filled physical cells = {filled}")
     return figure
 
 

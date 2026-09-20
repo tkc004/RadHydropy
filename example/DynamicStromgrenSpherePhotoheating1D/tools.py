@@ -4,9 +4,9 @@ import glob
 import os
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -400,7 +400,7 @@ def save_front_plot(history, config, figure_filename):
             ls="--",
             label=(
                 r"Spitzer after $\tau_{\rm rec}$, "
-                r"$c_i=%.1f$ km s$^{-1}$" % ci.to_value(unyt.km / unyt.s)
+                rf"$c_i={ci.to_value(unyt.km / unyt.s):.1f}$ km s$^{{-1}}$"
             ),
         )
     ax.axvline(
@@ -408,7 +408,7 @@ def save_front_plot(history, config, figure_filename):
         color="0.45",
         lw=1.2,
         ls="-.",
-        label=r"$\tau_{\rm rec}=%.1f$ Myr" % tau_recombination.to_value(unyt.Myr),
+        label=rf"$\tau_{{\rm rec}}={tau_recombination.to_value(unyt.Myr):.1f}$ Myr",
     )
     ax.axhline(
         radius_stromgren.to_value(unyt.kpc),
@@ -485,7 +485,11 @@ def save_plot(mesh, fluid, config, figure_filename):
 
     positive_velocity = np.where(vel_peculiar_proper_km_s > 0.0, vel_peculiar_proper_km_s, np.nan)
     axes[1].plot(
-        radius_proper_pc, positive_velocity, color="tab:orange", lw=1.8, label="RadHydropy"
+        radius_proper_pc,
+        positive_velocity,
+        color="tab:orange",
+        lw=1.8,
+        label="RadHydropy",
     )
     scatter_reference(axes[1], velocity_reference)
     axes[1].set_yscale("log")
@@ -506,7 +510,11 @@ def save_plot(mesh, fluid, config, figure_filename):
     axes[2].legend(frameon=False, loc="best")
 
     axes[3].plot(
-        radius_proper_pc, pressure_proper_cgs_erg_cm3, color="tab:red", lw=1.8, label="RadHydropy"
+        radius_proper_pc,
+        pressure_proper_cgs_erg_cm3,
+        color="tab:red",
+        lw=1.8,
+        label="RadHydropy",
     )
     scatter_reference(axes[3], pressure_reference)
     axes[3].set_yscale("log")
@@ -514,7 +522,11 @@ def save_plot(mesh, fluid, config, figure_filename):
     axes[3].legend(frameon=False, loc="best")
 
     axes[4].plot(
-        radius_proper_pc, temperature_proper_cgs_K, color="tab:purple", lw=1.8, label="RadHydropy"
+        radius_proper_pc,
+        temperature_proper_cgs_K,
+        color="tab:purple",
+        lw=1.8,
+        label="RadHydropy",
     )
     axes[4].set_yscale("log")
     axes[4].set_ylabel(r"$T$ [K]")
@@ -526,7 +538,7 @@ def save_plot(mesh, fluid, config, figure_filename):
         ax.grid(True, which="both", alpha=0.25)
     final_time_myr = config["par"]["simulation"]["final_time"].to_value(unyt.Myr)
     fig.suptitle(
-        "Dynamic photoheated Stromgren sphere at %.3g Myr" % final_time_myr,
+        f"Dynamic photoheated Stromgren sphere at {final_time_myr:.3g} Myr",
     )
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200, bbox_inches="tight")

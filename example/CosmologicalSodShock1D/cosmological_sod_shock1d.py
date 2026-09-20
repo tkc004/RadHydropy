@@ -5,9 +5,9 @@ import copy
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -18,13 +18,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import CodeUnits, quantity_to_value
-from tools import shocktubeanalyticgraph, shocktubecal
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
+from tools import shocktubeanalyticgraph, shocktubecal  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
 
@@ -185,7 +185,7 @@ def _analytic_solution(config, units, radius_comoving_code, final_tau):
 def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     config = eu.load_nested_example_config(config_filename)
     case_config = copy.deepcopy(config)
-    initial_condition = config["initial_condition"]
+    config["initial_condition"]
     if riemann_solver is not None:
         case_config["par"]["hydrodynamics"]["riemann_solver"] = riemann_solver
     if dual_energy is not None:
@@ -256,7 +256,6 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
 
     radius_comoving_code, rho_comoving_code, temp_supercomoving_code, _, _ = profiles[-1]
     final_tau = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float))
-    print(f"final supercomoving time = {final_tau:.8g}")
     rho_exact, pressure_exact, pressure_factor, interface = _analytic_solution(
         case_config,
         units,
@@ -283,7 +282,11 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     axes[1].grid(alpha=0.25)
     exact_temperature = pressure_exact / np.maximum(rho_exact, 1.0e-30) / pressure_factor
     axes[0].plot(
-        radius_comoving_code[central], rho_exact[central], "k--", lw=1.2, label="exact final"
+        radius_comoving_code[central],
+        rho_exact[central],
+        "k--",
+        lw=1.2,
+        label="exact final",
     )
     axes[1].plot(radius_comoving_code[central], exact_temperature[central], "k--", lw=1.2)
     axes[0].set_xlim(interface - 2.0, interface + 2.0)
@@ -292,13 +295,6 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     figure = Path(output["directory"]) / "CosmologicalSodShock1D.jpg"
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")
-    print(f"energy relative error = {(final_energy - initial_energy) / initial_energy:.6e}")
-    print(f"final density L1 error = {density_l1:.6e}")
-    print(
-        f"scale factor at final time = {sim.par.cosmology.model.scale_factor_from_supercomoving(float(sim.fluid.tau_supercomoving_code)):.8g}"
-    )
-    print(f"figure = {figure}")
     return figure
 
 

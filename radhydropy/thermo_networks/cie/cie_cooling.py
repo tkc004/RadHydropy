@@ -59,7 +59,7 @@ def _state(mesh, fluid, par):
     ghost_cells = int(par.mesh.ghost_cells)
     grid_cells = int(par.mesh.grid_cells)
     interior = slice(ghost_cells, ghost_cells + grid_cells)
-    fields = runtime_fields(par)
+    runtime_fields(par)
     _, boundary_runtime_code, _, _, volume_runtime_code = _canonical_mesh_geometry_arrays(mesh, par)
     gamma = getattr(getattr(fluid, "eos", None), "gamma", 5.0 / 3.0)
     scaling = _fast_source_scaling(fluid, par, gamma)
@@ -159,7 +159,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
             compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
             cmb_temperature_0_cgs_K=float(
-                to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)
+                to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K),
             ),
         )
         return state
@@ -212,7 +212,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
             compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
             cmb_temperature_0_cgs_K=float(
-                to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)
+                to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K),
             ),
         )
         code = state["code"]
@@ -246,7 +246,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             compton_cmb_enabled=bool(getattr(par, "compton_cmb_enabled", False)),
             compton_cmb_redshift=float(getattr(par, "compton_cmb_redshift", 0.0)),
             cmb_temperature_0_cgs_K=float(
-                to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K)
+                to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), unyt.K),
             ),
         )
         code = state["code"]

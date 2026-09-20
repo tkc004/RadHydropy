@@ -1,8 +1,8 @@
 """Helper utilities for the spherical inflow example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import inflow_sph_analytic as ia
 import matplotlib.pyplot as plt
 import numpy as np

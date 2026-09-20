@@ -2,9 +2,9 @@
 
 import glob
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import time
 
 import hydrogen_photoheating_reference as hpr
@@ -119,9 +119,9 @@ def load_history_from_outputs(outputfiles, config):
         "xHI": [],
         "ngamma_proper_cgs_cm3": [],
     }
-    initial = config["initial_condition"]
+    config["initial_condition"]
 
-    code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
     for outfilename in sorted(outputfiles):
         rout = rio.loadhdf5(config, outfilename)
@@ -149,8 +149,6 @@ def output_files(output_directory, output_filename_prefix):
 
 def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputtime=0):
     """Run the optically thin photoheating example with source switching."""
-    print("--- Initization finished. Start running ... ---")
-    print("--- %s seconds ---" % (time.time() - start_time))
     rio.write_numbered_hdf5(sim, 0)
 
     time_unit = sim.par.units.CodeUnits.time_unit
@@ -212,14 +210,14 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
         else:
             ngamma_proper_cgs_cm3 = 0.0
         sim.fluid.ngamma_code[:] = (ngamma_proper_cgs_cm3 * unyt.cm**-3).to_value(
-            sim.par.units.CodeUnits.number_density_unit
+            sim.par.units.CodeUnits.number_density_unit,
         )
 
         sim.solver.ApplyThermochemistryFast(dt, sim.mesh, sim.fluid, sim.par)
         sim.fluid.time_proper_code += dt.to_value(time_unit)
 
         if getattr(sim.par, "verbose", 0) >= 1:
-            print("time, dt", sim.fluid.time_proper_code * time_unit, dt)
+            pass
 
         if output_times is not None:
             while (
@@ -241,9 +239,6 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
 
     if sim.fluid.time_proper_code * time_unit != last_output_time:
         rio.write_numbered_hdf5(sim, outindex)
-
-    print("--- Simulation finished. ---")
-    print("--- %s seconds ---" % (time.time() - start_time))
 
 
 def save_history_plot(history, filename, reference):
@@ -319,7 +314,7 @@ def save_history_plot(history, filename, reference):
     ax_xHI.text(
         1.0e2,
         xHI_reference["xHI"] * 1.25,
-        r"$\tau_i/\tau_r=10^{%.2f}$" % xHI_reference_log,
+        rf"$\tau_i/\tau_r=10^{{{xHI_reference_log:.2f}}}$",
         color="black",
         va="bottom",
     )
@@ -342,7 +337,7 @@ def save_history_plot(history, filename, reference):
         ),
     ]
     colors = ["tab:blue", "tab:green", "tab:purple"]
-    for (time_scale, label), color in zip(timescales, colors):
+    for (time_scale, label), color in zip(timescales, colors, strict=False):
         ax_temp.axvline(time_scale, color=color, lw=1.2, ls="--")
         ax_xHI.axvline(time_scale, color=color, lw=1.0, ls="--", alpha=0.65)
         ax_temp.text(
@@ -364,7 +359,8 @@ def save_history_plot(history, filename, reference):
     ax_xHI.set_yscale("log")
     ax_xHI.set_xlim(1.0e-6, 4.0e9)
     ax_temp.set_ylim(
-        70.0, reference["temperature_thermal_equilibrium_cgs_K_unyt"].to_value(unyt.K) * 1.55
+        70.0,
+        reference["temperature_thermal_equilibrium_cgs_K_unyt"].to_value(unyt.K) * 1.55,
     )
     ax_xHI.set_ylim(1.0e-9, 1.5)
     ax_temp.grid(True, which="both", alpha=0.25)

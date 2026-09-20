@@ -89,17 +89,19 @@ class CosmologicalRunCallbacks:
                     np.asarray(
                         sim.fluid.AngularMomentum_code[first:last],
                         dtype=float,
-                    )
-                )
+                    ),
+                ),
             )
             if hasattr(sim.fluid, "AngularMomentum_code")
             else 0.0
         )
         if hasattr(sim.fluid, "AngularMomentum_code") and hasattr(
-            sim.fluid.AngularMomentum_code, "flux"
+            sim.fluid.AngularMomentum_code,
+            "flux",
         ):
             self.step_metadata["angular_flux_area"] = np.asarray(
-                sim.fluid.AngularMomentum_code.flux, dtype=float
+                sim.fluid.AngularMomentum_code.flux,
+                dtype=float,
             ) * np.asarray(sim.mesh.area_comoving_code, dtype=float)
 
     def history(self, sim):
@@ -128,8 +130,8 @@ class CosmologicalRunCallbacks:
                     np.asarray(
                         sim.fluid.AngularMomentum_code[first:last],
                         dtype=float,
-                    )
-                )
+                    ),
+                ),
             )
             if hasattr(sim.fluid, "AngularMomentum_code")
             else 0.0

@@ -1,8 +1,8 @@
 """Initial conditions and plotting for the NFW virial-shock example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -49,13 +49,16 @@ def build_initial_condition(config):
         initial_condition["initial_redshift"],
     )
     cmb_temperature = initial_condition.get(
-        "cmb_temperature_0", initial_condition["temperature_proper"]
+        "cmb_temperature_0",
+        initial_condition["temperature_proper"],
     )
     temperature_proper_cgs_K = cmb_temperature * (
         1.0 + float(initial_condition["initial_redshift"])
     )
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code_units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=code_units,
+        ic_config=config["initial_condition"],
     )
     writer.mesh.boundary_radarray = writer.radarray(boundary_unyt)
     writer.mesh.x_radarray = writer.radarray(coordinate_unyt)
@@ -151,13 +154,13 @@ def rankine_hugoniot_diagnostics(filenames, config):
         temperature_upstream_proper_cgs_K = float(np.median(temperature_proper_cgs_K[upstream]))
         temperature_downstream_proper_cgs_K = float(np.median(temperature_proper_cgs_K[downstream]))
         vel_upstream_peculiar_proper_cgs_cm_s = float(
-            np.median(vel_peculiar_proper_cgs_cm_s[upstream])
+            np.median(vel_peculiar_proper_cgs_cm_s[upstream]),
         )
         vel_downstream_peculiar_proper_cgs_cm_s = float(
-            np.median(vel_peculiar_proper_cgs_cm_s[downstream])
+            np.median(vel_peculiar_proper_cgs_cm_s[downstream]),
         )
         relative_upstream_peculiar_proper_cgs_cm_s = abs(
-            vel_upstream_peculiar_proper_cgs_cm_s - shock_speed
+            vel_upstream_peculiar_proper_cgs_cm_s - shock_speed,
         )
         sound_speed = (
             np.sqrt(
@@ -184,7 +187,7 @@ def rankine_hugoniot_diagnostics(filenames, config):
                 "temperature_ratio_predicted_dimensionless": float(predicted_temperature),
                 "vel_downstream_peculiar_proper_km_s": vel_downstream_peculiar_proper_cgs_cm_s
                 / 1.0e5,
-            }
+            },
         )
     return rows
 
@@ -200,11 +203,11 @@ def write_rankine_hugoniot_report(rows, filename):
     with open(filename, "w", encoding="utf-8") as report:
         report.write(header + "\n")
         report.writelines(
-            "%(time_proper_Myr).8g %(shock_radius_proper_kpc).8g "
-            "%(shock_speed_proper_km_s).8g %(mach_number_dimensionless).8g "
-            "%(density_ratio_measured_dimensionless).8g %(density_ratio_predicted_dimensionless).8g "
-            "%(temperature_ratio_measured_dimensionless).8g %(temperature_ratio_predicted_dimensionless).8g "
-            "%(vel_downstream_peculiar_proper_km_s).8g\n" % row
+            "{time_proper_Myr:.8g} {shock_radius_proper_kpc:.8g} "
+            "{shock_speed_proper_km_s:.8g} {mach_number_dimensionless:.8g} "
+            "{density_ratio_measured_dimensionless:.8g} {density_ratio_predicted_dimensionless:.8g} "
+            "{temperature_ratio_measured_dimensionless:.8g} {temperature_ratio_predicted_dimensionless:.8g} "
+            "{vel_downstream_peculiar_proper_km_s:.8g}\n".format(**row)
             for row in rows
         )
 
@@ -222,7 +225,7 @@ def plot_snapshots(filenames, config, figure_filename):
         initial_condition["h0"],
     )
     virial_radius_proper_kpc = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
-    for color, filename in zip(colors, filenames):
+    for color, filename in zip(colors, filenames, strict=False):
         (
             time_proper_Myr,
             radius_proper_kpc,
@@ -248,7 +251,11 @@ def plot_snapshots(filenames, config, figure_filename):
         axis.grid(True, which="both", alpha=0.25)
         axis.legend(frameon=False, fontsize=8)
     axes[0].text(
-        virial_radius_proper_kpc, 0.04, "R200", transform=axes[0].get_xaxis_transform(), ha="center"
+        virial_radius_proper_kpc,
+        0.04,
+        "R200",
+        transform=axes[0].get_xaxis_transform(),
+        ha="center",
     )
     axes[0].text(
         2.0 * virial_radius_proper_kpc,

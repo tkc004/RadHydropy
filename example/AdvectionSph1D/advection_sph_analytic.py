@@ -54,7 +54,8 @@ def top_hat_density_profile(
     rho_proper_code = density_low_factor * rho_high_proper_code * np.ones_like(radius_proper_code)
 
     inside = np.logical_and(
-        launch_radius_proper_code >= 0.0, launch_radius_proper_code <= box_size_proper_code
+        launch_radius_proper_code >= 0.0,
+        launch_radius_proper_code <= box_size_proper_code,
     )
     rho_proper_code[
         np.logical_and(

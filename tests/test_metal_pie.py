@@ -33,7 +33,7 @@ def _write_power_law_table(filename):
     temperature = np.array([1.0e2, 1.0e4, 1.0e6])
     density = np.array([1.0e-4, 1.0e-2, 1.0e0])
     ionization = np.array([1.0e-6, 1.0e-3, 1.0e0])
-    shape = (len(temperature), len(density), len(ionization), 1)
+    (len(temperature), len(density), len(ionization), 1)
     t, n, u = np.meshgrid(temperature, density, ionization, indexing="ij")
     heating = (t * n**2 * u**3)[..., None]
     cooling = (t**2 * n * u**0.5)[..., None]

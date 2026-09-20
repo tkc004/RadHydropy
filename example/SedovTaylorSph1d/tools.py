@@ -1,8 +1,8 @@
 """Initial conditions and plotting for spherical Sedov-Taylor."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -38,7 +38,9 @@ def build_initial_condition(config):
         / np.sum(volume_proper_unyt[cut])
     )
     writer = InitialConditionWriter(
-        par_config=par, code_units=units, ic_config=config["initial_condition"]
+        par_config=par,
+        code_units=units,
+        ic_config=config["initial_condition"],
     )
     # Invert the configured EOS so the temperature written into the IC gives
     # the same pressure, density, and mean molecular weight.

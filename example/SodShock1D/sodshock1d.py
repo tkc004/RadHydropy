@@ -12,29 +12,28 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
-import tools as et
+import tools as et  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("sodshock1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
-    initial_condition = config["initial_condition"]
+    config["initial_condition"]
     exampleparams = config["example"]
     if riemann_solver is not None:
         config["par"]["hydrodynamics"]["riemann_solver"] = riemann_solver
@@ -64,13 +63,14 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
-    print("figure = %s" % figure_filename)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run the Sod shock example.")
     parser.add_argument(
-        "--config", default=DEFAULT_CONFIG, help="YAML file with par_config and initial_condition."
+        "--config",
+        default=DEFAULT_CONFIG,
+        help="YAML file with par_config and initial_condition.",
     )
     parser.add_argument("--riemann-solver", choices=("Rusanov", "HLLC"))
     return parser.parse_args()

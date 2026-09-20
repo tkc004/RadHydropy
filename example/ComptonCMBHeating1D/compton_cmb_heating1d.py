@@ -28,18 +28,18 @@ if str(EXAMPLE_ROOT) not in sys.path:
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
-import unyt
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+import unyt  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.thermo_networks.compton import cmb_compton_rate
-from radhydropy.units import CodeUnits
-from tools import build_initial_condition
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.thermo_networks.compton import cmb_compton_rate  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
+from tools import build_initial_condition  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("compton_cmb_heating1d.yaml")
 
@@ -78,7 +78,7 @@ def _analytic_temperature(
         / rho_cgs_g_cm3
     )
     return cmb_temperature + (temperature_proper_cgs_K - cmb_temperature) * np.exp(
-        -temperature_rate_coefficient * time_proper_cgs_s
+        -temperature_rate_coefficient * time_proper_cgs_s,
     )
 
 
@@ -129,8 +129,8 @@ def _run_case(
             np.mean(
                 sim.fluid.temp_proper_code[
                     sim.par.mesh.ghost_cells : sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells
-                ]
-            )
+                ],
+            ),
         ),
     ]
     source_steps = 0
@@ -150,16 +150,13 @@ def _run_case(
                         sim.par.mesh.ghost_cells : sim.par.mesh.ghost_cells
                         + sim.par.mesh.grid_cells
                     ],
-                )
+                ),
             ),
         )
     history = {
         "time_proper_Myr": np.asarray(times_s) / float((1.0 * unyt.Myr).to_value(unyt.s)),
         "mean_temperature_proper_cgs_K": np.asarray(temperatures),
     }
-    print(
-        "%s: outer steps=%d, source steps=%d" % (label, len(times_s) - 1, source_steps),
-    )
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history["time_proper_Myr"]) * myr_seconds
     temperature_cgs_K = np.asarray(history["mean_temperature_proper_cgs_K"])
@@ -171,11 +168,9 @@ def _run_case(
             float(case_initial_condition["hydrogen_number_density"].to_value(1.0 / unyt.cm**3)),
             float(case_initial_condition["xHI"]),
         )
-        relative_error = np.abs((temperature_cgs_K - analytic) / analytic)
-        print("%s: max relative error=%.6e" % (label, np.max(relative_error)))
+        np.abs((temperature_cgs_K - analytic) / analytic)
     else:
         analytic = np.full_like(temperature_cgs_K, np.nan)
-        print("%s: analytic Compton-only comparison disabled" % label)
     return time_s, temperature_cgs_K, analytic
 
 
@@ -204,7 +199,7 @@ def _run_converged_case(config, label, temperature_proper_unyt):
         temperature_proper_unyt,
         timestep_override=timestep,
     )
-    for refinement in range(1, max_refinements + 1):
+    for _refinement in range(1, max_refinements + 1):
         timestep = timestep / 2.0
         fine = _run_case(
             config,
@@ -213,19 +208,7 @@ def _run_converged_case(config, label, temperature_proper_unyt):
             timestep_override=timestep,
         )
         difference = _timestep_difference(coarse, fine)
-        print(
-            "%s: dt=%s, dt/2 difference=%.6e, tolerance=%.6e"
-            % (
-                label,
-                timestep,
-                difference,
-                tolerance,
-            ),
-        )
         if difference <= tolerance:
-            print(
-                "%s: timestep converged after %d refinement(s)" % (label, refinement),
-            )
             return fine
         coarse = fine
     raise RuntimeError(
@@ -277,7 +260,12 @@ def main(config_filename=DEFAULT_CONFIG):
     for label, (time_s, temperature, analytic) in histories.items():
         time_proper_Myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))
         temperature_axis.plot(
-            time_proper_Myr, temperature, marker="o", ms=3, lw=0, label=f"RadHydropy: {label}"
+            time_proper_Myr,
+            temperature,
+            marker="o",
+            ms=3,
+            lw=0,
+            label=f"RadHydropy: {label}",
         )
         if np.any(np.isfinite(analytic)):
             temperature_axis.plot(time_proper_Myr, analytic, lw=1.8, label=f"analytic: {label}")
@@ -285,7 +273,10 @@ def main(config_filename=DEFAULT_CONFIG):
             error_axis.plot(time_proper_Myr, relative_error, marker="o", ms=3, lw=0, label=label)
 
     temperature_axis.axhline(
-        cmb_temperature, color="black", ls="--", label=rf"$T_{{\rm CMB}}={cmb_temperature:.2f}$ K"
+        cmb_temperature,
+        color="black",
+        ls="--",
+        label=rf"$T_{{\rm CMB}}={cmb_temperature:.2f}$ K",
     )
     temperature_axis.set_yscale("log")
     temperature_axis.set_ylabel("Temperature [K]")
@@ -304,9 +295,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200, bbox_inches="tight")
     plt.close(fig)
-
-    print(f"CMB temperature = {cmb_temperature:.6g} K")
-    print(f"figure = {figure_filename}")
 
 
 def parse_args():

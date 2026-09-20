@@ -643,7 +643,7 @@ def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, verbose=False):
         # take a larger unstable chemistry or photoheating step.  This matters
         # for resolved stellar-wind cells, whose low density gives a much
         # shorter photoheating timescale than the hydro-scale dtmin.
-        dt = float(min(dtmax_s, remaining_s, min(candidates)))
+        dt = float(min(dtmax_s, remaining_s, *candidates))
     if verbose:
         log_diagnostic(
             logging.DEBUG,
@@ -793,12 +793,12 @@ def _rotational_specific_energy_code(mesh, fluid, par):
     interior = slice(ghost_cells, ghost_cells + grid_cells)
     mass = np.asarray(fluid.Mass_code[interior], dtype=float)
     angular = np.asarray(fluid.AngularMomentum_code[interior], dtype=float)
-    fields = runtime_fields(par)
+    runtime_fields(par)
     radius = np.abs(
         np.asarray(
             _canonical_mesh_geometry_arrays(mesh, par)[0][interior],
             dtype=float,
-        )
+        ),
     )
     j = np.zeros_like(mass)
     np.divide(angular, mass, out=j, where=mass > 0.0)
@@ -817,7 +817,7 @@ def _fast_source_state(mesh, fluid, par):
     ghost_cells = int(par.mesh.ghost_cells)
     grid_cells = int(par.mesh.grid_cells)
     interior = slice(ghost_cells, ghost_cells + grid_cells)
-    fields = runtime_fields(par)
+    runtime_fields(par)
     if not hasattr(mesh, "geometry_state"):
         raise ValueError("thermochemistry requires typed mesh geometry state")
     runtime_state = getattr(fluid, "runtime_state", None)
@@ -825,7 +825,7 @@ def _fast_source_state(mesh, fluid, par):
         raise ValueError("thermochemistry requires typed fluid runtime state")
     gamma = getattr(getattr(fluid, "eos", None), "gamma", par.hydrodynamics.gamma)
     scaling = _fast_source_scaling(fluid, par, gamma)
-    rho_runtime_code, vel_runtime_code, pre_runtime_code, temp_runtime_code, time_runtime_code = (
+    rho_runtime_code, vel_runtime_code, _pre_runtime_code, temp_runtime_code, _time_runtime_code = (
         _canonical_fluid_primitive_arrays(fluid, par)
     )
     rho_cgs_g_cm3 = (
@@ -1162,7 +1162,7 @@ def _apply_compton_only_source(state, dt_s):
         where=(state["rho_cgs_g_cm3"] > 0.0) & (specific_heat > 0.0),
     )
     updated_temperature = cmb_temperature + (temperature - cmb_temperature) * np.exp(
-        -coupling_rate * dt_s
+        -coupling_rate * dt_s,
     )
     temperature = np.where(active, updated_temperature, old_temperature)
     state["specific_total_energy_cgs_erg_g"] = (
@@ -1276,7 +1276,7 @@ def _coupled_implicit_source_update(
                         "ne_cgs_cm3": float(np.asarray(electron_density)[cell]),
                         "compton_heating_cgs_erg_cm3_s": float(np.asarray(compton_rate)[cell]),
                         "photoheating_cgs_erg_cm3_s": float(np.asarray(photoheating_rate)[cell]),
-                    }
+                    },
                 )
         if not np.any(active):
             state["_implicit_failure"] = {
@@ -1377,7 +1377,8 @@ def _coupled_implicit_source_update(
         ),
     )
     xhi_residual_tolerance = relative_tolerance * np.maximum(np.abs(x_old), 1.0) + max(
-        float(absolute_xhi_tolerance), 0.0
+        float(absolute_xhi_tolerance),
+        0.0,
     )
     # Finite-difference Jacobians can leave a residual a few ulps above the
     # requested normalized threshold.  Allow a small numerical margin while
@@ -1624,7 +1625,7 @@ def _coupled_implicit_source_update(
     )
     floor_constrained = _floor_constraint(final_trial)
     final_finite = np.isfinite(final_residual_energy) & np.isfinite(final_residual_x)
-    final_norm = np.where(
+    np.where(
         floor_constrained,
         np.abs(final_residual_x),
         np.maximum(
@@ -2039,7 +2040,7 @@ def _adaptive_coupled_implicit_source_update_group(
     while remaining_s > zero_time_s:
         accepted = False
         candidate_dt_s = min(trial_dt_s, remaining_s)
-        for refinement in range(int(max_refinements) + 1):
+        for _refinement in range(int(max_refinements) + 1):
             coarse = _copy_fast_source_state(state)
             fine = _copy_fast_source_state(state)
             coarse_ok = _coupled_implicit_source_update(
@@ -2285,7 +2286,8 @@ def _fast_sync_state_to_fluid(state, fluid, par):
             state["specific_total_energy_cgs_erg_g"] - state["specific_kinetic_energy_cgs_erg_g"]
         )
         specific_internal_energy = specific_internal_energy_physical * state.get(
-            "source_temperature_factor", 1.0
+            "source_temperature_factor",
+            1.0,
         )
         specific_internal_energy_code = specific_internal_energy / specific_energy_code_factor
         specific_kinetic_energy_code = (
@@ -2294,7 +2296,8 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         )
         rotational_specific_code = np.asarray(
             state.get(
-                "specific_rotational_energy_code", np.zeros_like(specific_internal_energy_code)
+                "specific_rotational_energy_code",
+                np.zeros_like(specific_internal_energy_code),
             ),
             dtype=float,
         )

@@ -1,8 +1,8 @@
 """NFW halo and isothermal hydrostatic-gas helpers."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -52,13 +52,12 @@ def nfw_halo_parameters(
 def virial_temperature(halo, mu=0.59):
     """Return the gas virial temperature using ``kT=mu mp V_vir^2/2``."""
     virial_velocity_cgs_cm_s = halo["vel_virial_proper_km_s_unyt"].to(unyt.cm / unyt.s)
-    virial_temperature_proper_K = (
+    return (
         float(mu)
         * PROTON_MASS_CGS
         * virial_velocity_cgs_cm_s.value**2
         / (2.0 * BOLTZMANN_CONSTANT_CGS)
     ) * unyt.K
-    return virial_temperature_proper_K
 
 
 def spherical_cell_centers(boundary_proper_code):
@@ -121,8 +120,8 @@ def build_initial_condition(config):
     initial_condition = config["initial_condition"]
     code_units = config["_code_units"]
     grid_cells = int(config["par"]["mesh"]["grid_cells"])
-    box_size_proper_unyt = initial_condition["box_size_proper"]
-    time_proper_unyt = initial_condition["time_proper"]
+    initial_condition["box_size_proper"]
+    initial_condition["time_proper"]
     radius_inner_proper_unyt = initial_condition["radius_inner_proper"]
     radius_outer_proper_unyt = initial_condition["radius_outer_proper"]
     boundary_proper_unyt = (
@@ -148,7 +147,9 @@ def build_initial_condition(config):
         initial_condition["gas_fraction"],
     )
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code_units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=code_units,
+        ic_config=config["initial_condition"],
     )
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
@@ -194,7 +195,7 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
         initial_condition["gas_fraction"],
     )[first:last]
     radius_proper_kpc = quantity_to_value(radius_proper_cgs_cm_unyt, unyt.cm) / float(
-        (1.0 * unyt.kpc).to_value(unyt.cm)
+        (1.0 * unyt.kpc).to_value(unyt.cm),
     )
     rho_proper_cgs_g_cm3 = code_quantity_to_cgs(rho_proper_code, code_units, "density_cgs_g_cm3")
     rho_expected_proper_cgs_g_cm3 = quantity_to_value(
@@ -212,7 +213,12 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
         label="analytic HSE",
     )
     axes[0].plot(
-        radius_proper_kpc, rho_proper_cgs_g_cm3, "o", ms=3.0, mfc="none", label="RHD snapshot"
+        radius_proper_kpc,
+        rho_proper_cgs_g_cm3,
+        "o",
+        ms=3.0,
+        mfc="none",
+        label="RHD snapshot",
     )
     axes[0].set_yscale("log")
     axes[0].set_xlabel("r [kpc]")
@@ -229,6 +235,6 @@ def read_and_plot(outfilename, config, halo, temperature_proper_unyt, figure_fil
     plt.close(fig)
     return np.max(
         np.abs(
-            (rho_proper_cgs_g_cm3 - rho_expected_proper_cgs_g_cm3) / rho_expected_proper_cgs_g_cm3
-        )
+            (rho_proper_cgs_g_cm3 - rho_expected_proper_cgs_g_cm3) / rho_expected_proper_cgs_g_cm3,
+        ),
     )

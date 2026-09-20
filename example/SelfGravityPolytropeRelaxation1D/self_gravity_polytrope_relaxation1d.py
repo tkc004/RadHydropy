@@ -14,20 +14,20 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.eos import EOS
-from radhydropy.gravity import Gravity
-from radhydropy.rsim import Rsim
-from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.eos import EOS  # noqa: E402
+from radhydropy.gravity import Gravity  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.solver import Solver  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -147,7 +147,7 @@ def main(config_filename=DEFAULT_CONFIG):
     final = et.read_output(output, config)
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     initial_mapping = config["initial_condition"]
-    k_poly_cgs = et.polytropic_constant(initial_mapping["radius_polytropic_proper"])
+    et.polytropic_constant(initial_mapping["radius_polytropic_proper"])
     code_units = sim.par.units.CodeUnits
     boundary_proper_code = final.mesh.boundary_radarray.to(code_units.length_unit).value
     radius_proper_code = et.spherical_cell_centers(boundary_proper_code)[interior]
@@ -184,15 +184,13 @@ def main(config_filename=DEFAULT_CONFIG):
         rho_profile_proper_code,
         pressure_final,
     )
-    rho_error = np.max(
+    np.max(
         np.abs(
-            (rho_final - rho_expected_proper_cgs_g_cm3_unyt) / rho_expected_proper_cgs_g_cm3_unyt
-        )
+            (rho_final - rho_expected_proper_cgs_g_cm3_unyt) / rho_expected_proper_cgs_g_cm3_unyt,
+        ),
     )
     residual_scale = np.max(np.abs(rho_final * gravity_cgs))
-    residual_norm = np.max(np.abs(residual)) / max(residual_scale, np.finfo(float).tiny)
-    print("maximum density relative error = %.6g" % rho_error)
-    print("maximum normalized hydrostatic residual = %.6g" % residual_norm)
+    np.max(np.abs(residual)) / max(residual_scale, np.finfo(float).tiny)
 
     radius_proper_pc = radius_proper_cgs_cm_unyt.to("pc").value
     rho_final_cgs = rho_final.to("g/cm**3").value
@@ -201,7 +199,10 @@ def main(config_filename=DEFAULT_CONFIG):
     fig, axes = plt.subplots(1, 3, figsize=(13, 4))
     axes[0].plot(radius_proper_pc, rho_final_cgs, label="final")
     axes[0].plot(
-        radius_proper_pc, rho_expected_proper_cgs_g_cm3, "--", label="analytic equilibrium"
+        radius_proper_pc,
+        rho_expected_proper_cgs_g_cm3,
+        "--",
+        label="analytic equilibrium",
     )
     axes[0].set_xlabel("radius [pc]")
     axes[0].set_ylabel(r"$\rho$ [g cm$^{-3}$]")
@@ -218,12 +219,11 @@ def main(config_filename=DEFAULT_CONFIG):
     figure = Path(config["par"]["output"]["directory"]) / "SelfGravityPolytropeRelaxation1D.jpg"
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-    print("figure = %s" % figure)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Run the self-gravitating n=1 polytrope relaxation example."
+        description="Run the self-gravitating n=1 polytrope relaxation example.",
     )
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     return parser.parse_args()

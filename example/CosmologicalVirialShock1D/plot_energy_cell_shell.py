@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import SymLogNorm
@@ -24,10 +24,11 @@ def _plot(fields, time_cosmic_Gyr, radius_proper_kpc, filename, title, ylabel):
     fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=True, sharey=True)
     radius_proper_kpc = np.asarray(radius_proper_kpc, dtype=float)
     time_grid = np.broadcast_to(
-        np.asarray(time_cosmic_Gyr, dtype=float)[:, None], radius_proper_kpc.shape
+        np.asarray(time_cosmic_Gyr, dtype=float)[:, None],
+        radius_proper_kpc.shape,
     )
     radius_grid = radius_proper_kpc
-    for axis, (key, label) in zip(axes.flat, fields):
+    for axis, (key, label) in zip(axes.flat, fields, strict=False):
         values = np.asarray(key, dtype=float)
         image = axis.scatter(
             time_grid.ravel(),

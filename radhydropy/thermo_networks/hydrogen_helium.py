@@ -332,9 +332,9 @@ def source_state(mesh, fluid, par):
     rho_super = primitive_cgs.rho_cgs_g_cm3[interior]
     velocity_super = primitive_cgs.velocity_cgs_cm_s[interior]
     if runtime.Mass_code is not None:
-        mass = runtime.Mass_code[interior] * code.unit_conversion["mass_g"]
+        runtime.Mass_code[interior] * code.unit_conversion["mass_g"]
     else:
-        mass = (
+        (
             rho_super
             * np.asarray(
                 volume_runtime_code[interior],
@@ -392,7 +392,7 @@ def source_state(mesh, fluid, par):
         "compton_cmb_redshift": getattr(par, "compton_cmb_redshift", 0.0),
         "metal_pie_redshift": getattr(par, "metal_pie_redshift", 0.0),
         "cmb_temperature_0_cgs_K": float(
-            to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), "K")
+            to_unit_value(getattr(par, "cmb_temperature_0", 2.7255), "K"),
         ),
         "explicit_tolerance": getattr(par, "explicit_tolerance", 0.1),
         "relative_tolerance": getattr(par, "relative_tolerance", 1.0e-3),
@@ -400,7 +400,9 @@ def source_state(mesh, fluid, par):
         "metal_pie_table": getattr(par, "metal_pie_table", None),
         "metallicity": getattr(par, "metallicity", 1.0),
         "metal_pie_photoheating_max_density_cgs_cm3": getattr(
-            par, "metal_pie_photoheating_max_density_cgs_cm3", 50.0
+            par,
+            "metal_pie_photoheating_max_density_cgs_cm3",
+            50.0,
         ),
         "source_scale_factor": scaling["scale_factor"],
         "source_temperature_factor": scaling["temperature_factor"],

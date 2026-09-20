@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -18,11 +18,11 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import tools as et
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -60,7 +60,7 @@ def _radiation_impulse(sim, source_result, dt, config):
     if absorbed.ndim == 1:
         absorbed = absorbed[None, :]
     energies = np.atleast_1d(np.asarray(energies, dtype=float))
-    interior = _diagnostic_slice(sim, config)
+    _diagnostic_slice(sim, config)
     volume_cgs_cm3 = _volume_proper_cgs_cm3(sim, config)
     code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
     dt_s = float(np.asarray(dt)) * float((1.0 * code.time_unit).to_value(unyt.s))
@@ -87,7 +87,7 @@ def _pressure_diagnostics(sim, source_result, config):
     over the ionized region, using ``1 - xHI`` as the ionization weight.
     """
     interior = _diagnostic_slice(sim, config)
-    code = CodeUnits.from_mapping(sim.par.units.CodeUnits)
+    CodeUnits.from_mapping(sim.par.units.CodeUnits)
     volume_cgs_cm3 = _volume_proper_cgs_cm3(sim, config)
     pressure_cgs = et._pressure_from_radarrays(sim.fluid, config)[interior]
     ionized_weight = np.clip(1.0 - np.asarray(sim.fluid.xHI[interior], dtype=float), 0.0, 1.0)
@@ -220,7 +220,7 @@ def main(config_filename=DEFAULT_CONFIG):
     )
 
     time_proper_Myr = np.asarray(momentum_history["time_proper_cgs_s"]) / (1.0 * unyt.Myr).to_value(
-        unyt.s
+        unyt.s,
     )
     momentum_unit = unyt.g * unyt.cm / unyt.s
     gas = np.asarray(momentum_history["gas_momentum"])
@@ -271,7 +271,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 radiation_pressure,
                 gas_pressure,
                 pressure_ratio,
-            )
+            ),
         ),
         delimiter=",",
         header="time_proper_Myr,radiation_pressure_proper_cgs_dyn_cm2,gas_pressure_proper_cgs_dyn_cm2,pressure_ratio",
@@ -283,12 +283,6 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
         Path(output["directory"]) / "radial_profile_rhd.csv",
     )
-    print("final gas momentum = %.6e g cm/s" % gas[-1])
-    print("absorbed photon momentum = %.6e g cm/s" % radiation[-1])
-    print("momentum figure = %s" % momentum_figure)
-    print("final radiation/gas pressure ratio = %.6e" % pressure_ratio[-1])
-    print("pressure ratio figure = %s" % pressure_figure)
-    print("pressure ratio data = %s" % pressure_csv)
 
 
 if __name__ == "__main__":

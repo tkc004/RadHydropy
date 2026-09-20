@@ -82,7 +82,7 @@ def _correlation_profile(radius_comoving_code, table, length_unit_mpc_h):
                 )
                 * np.diff(integration_radius),
             ),
-        )
+        ),
     )
     xi = np.interp(
         radius_mpc_h,
@@ -114,7 +114,7 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
     overdensity inside the target Lagrangian radius.
     """
     initial_condition = config["initial_condition"]
-    cosmology = config["_cosmology"]
+    config["_cosmology"]
     correlation_table = config.get("_correlation_table")
     radius_comoving_code = np.asarray(radius_comoving_code, dtype=float)
     radius_perturbation_comoving_code_value = radius_perturbation_comoving_code(config)
@@ -131,7 +131,7 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
         )
         return np.asarray(delta, dtype=float), np.asarray(mean_delta, dtype=float)
     if profile not in ("linear_correlation", "gaussian_correlation"):
-        raise ValueError("unknown rho_proper_profile %r" % profile)
+        raise ValueError(f"unknown rho_proper_profile {profile!r}")
 
     if profile == "linear_correlation":
         if correlation_table is None:
@@ -153,7 +153,8 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
     else:
         correlation_length = float(
             initial_condition.get(
-                "correlation_length", 0.5 * radius_perturbation_comoving_code_value
+                "correlation_length",
+                0.5 * radius_perturbation_comoving_code_value,
             ),
         )
         xi = np.exp(-((radius_comoving_code / max(correlation_length, 1.0e-30)) ** 2))
@@ -187,7 +188,7 @@ def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1
         fraction = abs(net[i]) / max(abs(net[i]) + abs(net[i + 1]), 1.0e-300)
         return float(
             temperature_proper_cgs_K[i]
-            * (temperature_proper_cgs_K[i + 1] / temperature_proper_cgs_K[i]) ** fraction
+            * (temperature_proper_cgs_K[i + 1] / temperature_proper_cgs_K[i]) ** fraction,
         )
     return float(np.clip(fallback, temperature_proper_cgs_K[0], temperature_proper_cgs_K[-1]))
 
@@ -353,7 +354,9 @@ def splashback_radius(
         int(max(32, bin_count)) + 1,
     )
     shell_mass_comoving_code, _ = np.histogram(
-        radius_proper_code, bins=edges, weights=mass_comoving_code
+        radius_proper_code,
+        bins=edges,
+        weights=mass_comoving_code,
     )
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
     rho_comoving_code = shell_mass_comoving_code / np.maximum(shell_volume, 1.0e-300)
@@ -414,7 +417,11 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
         comoving = np.asarray(proper_radius) / a
         cg = np.interp(comoving, edges, gas_cumulative, left=0.0, right=gas_cumulative[-1])
         cd = np.interp(
-            comoving, dm_radius_comoving_code, dm_cumulative, left=0.0, right=dm_cumulative[-1]
+            comoving,
+            dm_radius_comoving_code,
+            dm_cumulative,
+            left=0.0,
+            right=dm_cumulative[-1],
         )
         return cg + cd
 
@@ -468,7 +475,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     else:
         tvir = float("nan")
 
-    temp_code_phys = np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / a**2
+    np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / a**2
     velocity_phys = np.asarray(
         cosmology.physical_velocity(
             x,
@@ -575,7 +582,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
         rdisc = float(np.clip(rdisc, proper[0], max(rdisc_max, proper[0])))
     return {
         "time_cosmic_Gyr": float(
-            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr"),
         ),
         "rvir_kpc": rvir,
         "rtarget_kpc": rtarget,
@@ -595,7 +602,7 @@ def density_profiles(sim, dark_matter, time_cosmic_code, config):
     """Return physical gas and shell-based DM density profiles."""
     cosmology = config["_cosmology"]
     first = int(sim.par.noghost)
-    last = first + int(sim.par.nogrid)
+    first + int(sim.par.nogrid)
     a = float(cosmology.scale_factor(time_cosmic_code))
     gas = gas_density_profile(sim, time_cosmic_code, config)
 
@@ -614,7 +621,7 @@ def density_profiles(sim, dark_matter, time_cosmic_code, config):
     dm_density_proper_code = dm_mass_comoving_code / np.maximum(dm_volume, 1.0e-30)
     return {
         "time_cosmic_Gyr": float(
-            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr"),
         ),
         "gas_radius_kpc": gas["radius_proper_kpc"],
         "gas_rho_proper_code": gas["rho_proper_code"],
@@ -651,7 +658,7 @@ def gas_density_profile(sim, time_cosmic_code, config):
     )
     return {
         "time_cosmic_Gyr": float(
-            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr")
+            time_cosmic_code * sim.par.units.CodeUnits.time_unit.to_value("Gyr"),
         ),
         "scale_factor": scale_factor,
         "radius_comoving_kpc": radius_comoving,
@@ -695,7 +702,9 @@ class VolumeSmoothedDarkMatter:
         return self.shells.total_origin_reflection_count
 
     def gravitating_enclosed_mass(
-        self, radius_comoving_code=None, include_shell_mass_with_fixed=False
+        self,
+        radius_comoving_code=None,
+        include_shell_mass_with_fixed=False,
     ):
         if radius_comoving_code is None:
             return self.shells.gravitating_enclosed_mass(

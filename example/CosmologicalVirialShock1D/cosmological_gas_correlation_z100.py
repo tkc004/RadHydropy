@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import numpy as np
 import unyt
 
@@ -15,11 +15,11 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import plot_entropy_evolution as entropy_plotter
-import plot_halo_energy_accounting as energy_plotter
-import virial_shock_tools as et
-from cosmological_gas_correlation_runtime import CosmologicalRunCallbacks
-from cosmological_gas_correlation_support import (
+import plot_entropy_evolution as entropy_plotter  # noqa: E402
+import plot_halo_energy_accounting as energy_plotter  # noqa: E402
+import virial_shock_tools as et  # noqa: E402
+from cosmological_gas_correlation_runtime import CosmologicalRunCallbacks  # noqa: E402
+from cosmological_gas_correlation_support import (  # noqa: E402
     _dark_matter_energy_state,
     _energy_audit_state,
     _energy_cell_state,
@@ -37,15 +37,15 @@ from cosmological_gas_correlation_support import (
     plot_temperature_evolution,
     plot_velocity_evolution,
 )
-from diagnostics import CosmologicalVirialShockDiagnostics
-from example_utils import load_nested_example_config
-from physics import CosmologicalVirialShockPhysics
+from diagnostics import CosmologicalVirialShockDiagnostics  # noqa: E402
+from example_utils import load_nested_example_config  # noqa: E402
+from physics import CosmologicalVirialShockPhysics  # noqa: E402
 
-from radhydropy.constants import PROTON_MASS_CGS
-from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
-from radhydropy.rsim.core import Rsim
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.constants import PROTON_MASS_CGS  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM  # noqa: E402
+from radhydropy.rsim.core import Rsim  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_gas_correlation_z100.yaml",
@@ -102,7 +102,7 @@ def run(
                 "hydrogen_collisional_ionization": False,
                 "hydrogen_atomic_cooling": False,
                 "compton_cmb_enabled": True,
-            }
+            },
         )
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     if cosmology_config.get("cosmology_type") == "lambda_cdm":
@@ -158,11 +158,12 @@ def run(
 
     baryon_fraction = float(initial_condition["baryon_fraction"])
     gas_mass_comoving_code = float(
-        np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code)
+        np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code),
     )
     dm_mass_comoving_code = float(np.sum(dm.mass))
     measured_fraction = gas_mass_comoving_code / max(
-        gas_mass_comoving_code + dm_mass_comoving_code, 1.0e-30
+        gas_mass_comoving_code + dm_mass_comoving_code,
+        1.0e-30,
     )
     if not np.isclose(measured_fraction, baryon_fraction, rtol=0.02):
         raise RuntimeError(
@@ -197,14 +198,13 @@ def run(
         "thermochemistry_transition_redshift",
         thermo.get("thermochemistry_transition_redshift"),
     )
-    transition_tau = None
     if transition_redshift is not None:
         transition_redshift = float(transition_redshift)
         transition_scale_factor = 1.0 / (1.0 + transition_redshift)
         transition_time = float(
             cosmology.cosmic_time_from_scale_factor(transition_scale_factor),
         )
-        transition_tau = float(cosmology.supercomoving_time(transition_time))
+        float(cosmology.supercomoving_time(transition_time))
 
     final_time = (
         float(final_time_override)

@@ -278,7 +278,9 @@ def calculate_front(q_star, nc, rc, w, end_time_yr):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--output", type=Path, default=Path(__file__).with_name("PowerLawHIIRegion1D.jpg")
+        "--output",
+        type=Path,
+        default=Path(__file__).with_name("PowerLawHIIRegion1D.jpg"),
     )
     parser.add_argument("--end-time-myr", type=float, default=0.1)
     parser.add_argument("--exponents", type=float, nargs="+", default=[1.0, 1.5, 3.0, 5.0])
@@ -318,7 +320,6 @@ def main():
     axis.legend(fontsize=9)
     figure.tight_layout()
     figure.savefig(args.output, dpi=180)
-    print(f"wrote {args.output}")
 
 
 if __name__ == "__main__":

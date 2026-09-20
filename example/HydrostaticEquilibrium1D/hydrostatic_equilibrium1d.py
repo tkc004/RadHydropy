@@ -11,21 +11,21 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from radhydropy.gravity import Gravity
-from radhydropy.units import CodeUnits
+from radhydropy.gravity import Gravity  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrostatic_equilibrium1d.yaml")
 
@@ -70,12 +70,12 @@ def main(config_filename=DEFAULT_CONFIG):
         color="C0",
     )
     figure_filename = os.path.join(
-        config["par"]["output"]["directory"], "HydrostaticEquilibrium1D.jpg"
+        config["par"]["output"]["directory"],
+        "HydrostaticEquilibrium1D.jpg",
     )
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
-    print("figure = %s" % figure_filename)
 
 
 def parse_args():

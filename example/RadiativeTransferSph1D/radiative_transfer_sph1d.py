@@ -32,18 +32,17 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("radiative_transfer_sph1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     nested = eu.load_nested_example_config(config_filename)
 
     config = nested
@@ -77,7 +76,7 @@ def main(config_filename=DEFAULT_CONFIG):
         / f"{nested['par']['output']['filename_prefix']}_000.hdf5"
     )
     output_snapshot = et.load_output_state(output_filename, config)
-    relative_error = et.save_plot(
+    et.save_plot(
         output_snapshot,
         config,
         str(
@@ -93,14 +92,12 @@ def main(config_filename=DEFAULT_CONFIG):
         ),
     )
 
-    print("max relative error = %.3e" % relative_error)
-    figure_name = (
+    (
         "RadiativeTransferSph1D_C2Ray.jpg"
         if nested["par"].get("radiation", {}).get("radiative_transfer_temporal_scheme", "c2ray")
         == "c2ray"
         else "RadiativeTransferSph1D.jpg"
     )
-    print("figure = %s" % (Path(nested["par"]["output"]["directory"]) / figure_name))
 
 
 def parse_args():

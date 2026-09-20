@@ -14,15 +14,15 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(TOOLS_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
-from cosmological_initial_condition import build_initial_condition
-from cosmology import EinsteinDeSitter as PhysicalEdS
-from cosmology import LambdaCDM as PhysicalLambdaCDM
+import example_utils as eu  # noqa: E402
+from cosmological_initial_condition import build_initial_condition  # noqa: E402
+from cosmology import EinsteinDeSitter as PhysicalEdS  # noqa: E402
+from cosmology import LambdaCDM as PhysicalLambdaCDM  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
-from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter as CodeEdS  # noqa: E402
+from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 CONFIG_FILE = Path(__file__).with_name("cosmological_density_evolution1d.yaml")
@@ -166,18 +166,13 @@ def run():
         _, final_a, _ = code_cosmology.background_state_from_supercomoving(final_tau_sim)
         measured_density = float(np.mean(sim.fluid.rho_comoving_code)) / final_a**3
         expected_density = rho_proper_code * (initial_scale_factor / final_scale_factor) ** 3
-        expected_critical = (
+        (
             density_msun_mpc3_to_cgs(
                 physical.critical_density(final_time_gyr),
             )
             / density_unit
         )
-        relative_error = (measured_density - expected_density) / expected_density
-        print(
-            f"{label}: a={final_a:.12g}, gas={measured_density:.12g}, "
-            f"analytic={expected_density:.12g}, critical(z=1)={expected_critical:.12g}, "
-            f"relative_error={relative_error:.6e}"
-        )
+        (measured_density - expected_density) / expected_density
         if not np.isclose(final_a, final_scale_factor, rtol=2.0e-8):
             raise RuntimeError(f"{label}: scale factors disagree")
         if not np.isclose(measured_density, expected_density, rtol=2.0e-8):

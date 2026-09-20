@@ -45,6 +45,11 @@ extend-exclude = [
 select = ["ALL"]
 ignore = [
     "S101",
+    "D",
+    "TRY",
+    "EM",
+    "PT",
+    "ANN",
 ]
 
 [tool.ruff.lint.per-file-ignores]

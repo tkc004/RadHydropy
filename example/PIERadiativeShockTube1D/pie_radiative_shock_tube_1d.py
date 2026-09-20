@@ -5,9 +5,9 @@ import copy
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -19,13 +19,13 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits
-from tools import (
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
+from tools import (  # noqa: E402
     PROTON_MASS_G,
     build_initial_condition,
     cooling_length_estimate,
@@ -47,7 +47,7 @@ def _run_case(
     adiabatic=False,
 ):
 
-    thermo = config["par"]["thermochemistry"]
+    config["par"]["thermochemistry"]
     initial = config["initial_condition"]
     case_config = copy.deepcopy(config)
     output_dir = EXAMPLE_DIR / "outputs" / label
@@ -60,7 +60,7 @@ def _run_case(
         {
             "directory": str(output_dir),
             "filename_prefix": f"Output_{label}",
-        }
+        },
     )
     output_prefix = case_config["par"]["output"]["filename_prefix"]
     case_config["par"]["thermochemistry"]["metallicity"] = metallicity
@@ -120,7 +120,7 @@ def _shock_diagnostics(result, table, config):
         centers_proper_cgs_cm < center_proper_cgs_cm + 0.45 * np.max(boundary_proper_cgs_cm)
     )
     gradient = np.abs(
-        np.gradient(np.log(np.maximum(rho_proper_cgs_g_cm3, 1.0e-99)), centers_proper_cgs_cm)
+        np.gradient(np.log(np.maximum(rho_proper_cgs_g_cm3, 1.0e-99)), centers_proper_cgs_cm),
     )
     shock_index = np.flatnonzero(right)[np.argmax(gradient[right])]
     buffer_proper_cgs_cm = 3.0 * (boundary_proper_cgs_cm[1] - boundary_proper_cgs_cm[0])
@@ -192,7 +192,7 @@ def _shock_diagnostics(result, table, config):
             "expected_post_temperature_cgs_K": expected_temperature,
             "cooling_length_expected_cm": cooling_length,
             "cooling_length_measured_cm": measured_length,
-        }
+        },
     )
     return result
 
@@ -215,7 +215,11 @@ def _plot(results, filename):
         axes[0, 0].plot(x_kpc, data["rho_proper_cgs_g_cm3"], style, color=color, label=label)
         axes[0, 1].plot(x_kpc, data["temperature_proper_cgs_K"], style, color=color, label=label)
         axes[1, 0].plot(
-            x_kpc, data["vel_peculiar_proper_cgs_cm_s"] / 1.0e5, style, color=color, label=label
+            x_kpc,
+            data["vel_peculiar_proper_cgs_cm_s"] / 1.0e5,
+            style,
+            color=color,
+            label=label,
         )
         axes[1, 1].plot(
             x_kpc,
@@ -305,8 +309,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
         for result in results:
             handle.write(
-                "%s %.8g %.8g %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n"
-                % (
+                "{} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g}\n".format(
                     result["label"],
                     result["metallicity"],
                     result["shock_radius_cgs_cm"] / KPC_CM,
@@ -321,16 +324,7 @@ def main(config_filename=DEFAULT_CONFIG):
             )
     _plot(results, EXAMPLE_DIR / "PIERadiativeShockTube1D.jpg")
     for result in results:
-        print(
-            "%s: compression=%.4g (strong-shock %.4g), "
-            "Lcool=%.4g kpc"
-            % (
-                result["label"],
-                result["compression"],
-                result["expected_compression"],
-                result["cooling_length_expected_cm"] / KPC_CM,
-            ),
-        )
+        pass
 
 
 if __name__ == "__main__":

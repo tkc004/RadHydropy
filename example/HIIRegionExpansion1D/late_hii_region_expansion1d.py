@@ -37,19 +37,18 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
-import unyt
+import example_utils as eu  # noqa: E402
+import unyt  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.rsim import Rsim
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("late_hii_region_expansion1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     loaded_config = eu.load_nested_example_config(config_filename)
     par = loaded_config["par"]
     initial_condition = loaded_config["initial_condition"]
@@ -73,13 +72,11 @@ def main(config_filename=DEFAULT_CONFIG):
 
     output_specs = exampleparams["output_snapshots"]
     step_backend = et.make_logging_step_backend(sim, config, max_logged_steps=5)
-    print("starting hydro_sources evolution; this may take a while...")
     sim.Run(
         outputtime=0,
         mode="hydro_sources",
         step_backend=step_backend,
     )
-    print("finished evolution; loading saved outputs and building plots...")
     outputfilenames = et.output_files(output["directory"], output["filename_prefix"])
 
     history = et.load_history_from_outputs(outputfilenames, config)
@@ -102,46 +99,25 @@ def main(config_filename=DEFAULT_CONFIG):
         et.save_density_profile_plot(snapshot, config, density_figure_filename)
         density_figure_filenames.append(density_figure_filename)
 
-    comparison_time_myr = initial_condition["comparison_time"].to_value(unyt.Myr)
-    simulation_radius_pc = et.front_radius_at_time(
+    initial_condition["comparison_time"].to_value(unyt.Myr)
+    et.front_radius_at_time(
         history,
         initial_condition["comparison_time"],
     ).to_value(unyt.pc)
-    spitzer_radius_pc = et.spitzer_radius(
+    et.spitzer_radius(
         initial_condition["comparison_time"],
         config,
     ).to_value(unyt.pc)
-    hosokawa_inutsuka_radius_pc = et.hosokawa_inutsuka_radius(
+    et.hosokawa_inutsuka_radius(
         initial_condition["comparison_time"],
         config,
     ).to_value(unyt.pc)
-    stagnation_radius_pc = et.stagnation_radius(config).to_value(unyt.pc)
+    et.stagnation_radius(config).to_value(unyt.pc)
 
-    print(
-        "time = %.6e Myr" % et.time_proper_Myr(sim.fluid.time_proper_code, sim.par.units.CodeUnits)
-    )
-    print("stromgren radius = %.3e pc" % et.stromgren_radius(config).to_value(unyt.pc))
-    print("stagnation radius = %.3e pc" % stagnation_radius_pc)
-    print("output files = %d" % len(outputfilenames))
-    print(
-        "final ionization-front radius = %.3e pc" % history["front_radius_proper_pc"][-1],
-    )
-    print(
-        "simulation ionization-front radius at %.2f Myr = %.3e pc"
-        % (comparison_time_myr, simulation_radius_pc),
-    )
-    print(
-        "Spitzer solution at %.2f Myr = %.3e pc" % (comparison_time_myr, spitzer_radius_pc),
-    )
-    print(
-        "Hosokawa-Inutsuka solution at %.2f Myr = %.3e pc"
-        % (comparison_time_myr, hosokawa_inutsuka_radius_pc),
-    )
-    print("figure = %s" % figure_filename)
     for density_figure_filename in density_figure_filenames:
-        print("density figure = %s" % density_figure_filename)
-    for outputfilename in outputfilenames:
-        print("output file = %s" % outputfilename)
+        pass
+    for _outputfilename in outputfilenames:
+        pass
 
 
 def parse_args():

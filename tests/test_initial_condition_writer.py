@@ -275,7 +275,7 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
     )
     hubble_code = float(simulation.par.cosmology.model.hubble(time_cosmic_code))
     hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
-        "km/s"
+        "km/s",
     ) / code_units.length_unit.to_value("Mpc")
     context = CosmologyContext(
         gamma=5.0 / 3.0,
@@ -302,7 +302,7 @@ def test_writer_converts_radarrays_to_supercomoving_velocity_with_position():
     proper_velocity = velocity_radquantity.to_proper(x_comoving_code=1.0)
     assert proper_velocity.value == pytest.approx(
         _radarray(np.array([5.0]), "vel_supercomoving_code", code_units, context).to_proper(
-            x_comoving_code=np.array([1.0])
+            x_comoving_code=np.array([1.0]),
         )[0],
     )
 
@@ -358,7 +358,7 @@ def test_writer_cosmological_prepare_and_hdf5_roundtrip():
             "cosmological": True,
             "cosmological_expansion": True,
             "supercomoving_coordinates": True,
-        }
+        },
     )
     code_units = _code_units(config)
     writer = InitialConditionWriter(
@@ -372,7 +372,7 @@ def test_writer_cosmological_prepare_and_hdf5_roundtrip():
     )
     hubble_code = float(simulation.par.cosmology.model.hubble(time_cosmic_code))
     hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
-        "km/s"
+        "km/s",
     ) / code_units.length_unit.to_value("Mpc")
     context = CosmologyContext(
         gamma=5.0 / 3.0,

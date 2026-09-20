@@ -39,7 +39,7 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(velocity_proper_unyt)
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial["temperature_proper"]
+        np.ones(grid_cells) * initial["temperature_proper"],
     )
     writer.fluid.mu = np.full(grid_cells, initial["mean_molecular_weight"])
     return writer
@@ -52,9 +52,7 @@ def load_output_state(filename, config):
     first = int(snapshot.par.mesh.ghost_cells)
     count = int(snapshot.par.mesh.grid_cells)
     physical = slice(first, first + count)
-    boundary_proper_code = snapshot.mesh.boundary_radarray.to_value(code_units.length_unit)[
-        first : first + count + 1
-    ]
+    snapshot.mesh.boundary_radarray.to_value(code_units.length_unit)[first : first + count + 1]
     return {
         "time_proper_Myr": (
             float(np.asarray(snapshot.fluid.time_proper_code).reshape(-1)[0])

@@ -8,9 +8,9 @@ from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -19,17 +19,17 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from bertschinger_ode import (
+from bertschinger_ode import (  # noqa: E402
     first_outer_caustic,
     first_post_centre_apocentre,
     plot_xi_lambda,
     solve_eq41_self_similar,
 )
 
-import tools as et
-from example import example_utils as eu
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits, quantity_to_value
+import tools as et  # noqa: E402
+from example import example_utils as eu  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_reference.yaml")
 
@@ -58,7 +58,6 @@ def main(config_filename=DEFAULT_CONFIG):
         cosmology.supercomoving_time(time_final_cosmic_code),
     )
     history_time = [initial_time]
-    history_rta = []
     timestep = float(example["supercomoving_timestep"])
 
     while tau < tau_final_supercomoving:
@@ -83,7 +82,10 @@ def main(config_filename=DEFAULT_CONFIG):
 
     config["_cosmology"] = cosmology
     profiles = et.similarity_profiles(
-        shells, time_final_cosmic_code, config, bins=int(example["profile_bins"])
+        shells,
+        time_final_cosmic_code,
+        config,
+        bins=int(example["profile_bins"]),
     )
     ode_solution = solve_eq41_self_similar(
         xi_end=float(example["ode_xi_end"]),
@@ -195,17 +197,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=200)
     plt.close(fig)
-    print("Bertschinger collisionless reference generated")
-    print("turnaround radius = %.8g" % profiles["radius_turnaround_proper_code"])
-    print(
-        "first post-centre apocentre: xi = %.8g, lambda_sp = %.8g"
-        % (splashback_xi, splashback_lambda)
-    )
-    print("fixed-time outer caustic: xi = %.8g, lambda_c = %.8g" % (caustic_xi, caustic_lambda))
-    print("output = %s" % output)
-    print("Eq. 4.1 ODE output = %s" % output_ode)
-    print("Eq. 4.1 xi-lambda figure = %s" % ode_figure)
-    print("figure = %s" % figure)
 
 
 if __name__ == "__main__":

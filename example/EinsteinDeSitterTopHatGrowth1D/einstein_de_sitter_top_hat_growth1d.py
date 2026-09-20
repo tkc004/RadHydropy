@@ -12,22 +12,22 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("einstein_de_sitter_top_hat_growth1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
     initial_condition = config["initial_condition"]
     example = config.get("example", {})
@@ -61,14 +61,15 @@ def main(config_filename=DEFAULT_CONFIG):
         np.allclose(sim.par.tau_supercomoving_code, initial_tau)
         and np.allclose(sim.par.simulation.tau_supercomoving_code, initial_tau)
         and np.isclose(
-            float(np.asarray(sim.fluid.tau_supercomoving_code)), float(initial_tau.flat[0])
+            float(np.asarray(sim.fluid.tau_supercomoving_code)),
+            float(initial_tau.flat[0]),
         )
     ):
         raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
     sim.par.cosmology = cosmology
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
-    initial_mass = float(
-        np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical])
+    float(
+        np.sum(sim.fluid.rho_comoving_code[physical] * sim.mesh.volume_comoving_code[physical]),
     )
     radius_perturbation_comoving_code = quantity_to_value(
         initial_condition["radius_perturbation_comoving"],
@@ -78,8 +79,8 @@ def main(config_filename=DEFAULT_CONFIG):
     mass_target_comoving_code = float(
         np.sum(
             sim.fluid.rho_comoving_code[physical][initial_inside]
-            * sim.mesh.volume_comoving_code[physical][initial_inside]
-        )
+            * sim.mesh.volume_comoving_code[physical][initial_inside],
+        ),
     )
     initial_tau = float(np.asarray(sim.fluid.tau_supercomoving_code).flat[0])
     initial_a = sim.par.cosmology.scale_factor_from_supercomoving(initial_tau)
@@ -118,7 +119,8 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     final = sim
     final_physical = slice(
-        final.par.mesh.ghost_cells, final.par.mesh.ghost_cells + final.par.mesh.grid_cells
+        final.par.mesh.ghost_cells,
+        final.par.mesh.ghost_cells + final.par.mesh.grid_cells,
     )
     final_tau = float(np.asarray(final.fluid.tau_supercomoving_code).flat[0])
     final_a = final.par.cosmology.scale_factor_from_supercomoving(final_tau)
@@ -140,7 +142,7 @@ def main(config_filename=DEFAULT_CONFIG):
     expected_delta = et.linear_overdensity(initial_delta, final_a, initial_a)
     relative_error = abs(measured_delta - expected_delta) / expected_delta
     if not np.isfinite(relative_error) or relative_error > float(example["growth_tolerance"]):
-        raise RuntimeError("linear growth error %.6g exceeds tolerance" % relative_error)
+        raise RuntimeError(f"linear growth error {relative_error:.6g} exceeds tolerance")
 
     figure_filename = (
         Path(config["par"]["output"]["directory"]) / "EinsteinDeSitterTopHatGrowth1D.jpg"
@@ -166,12 +168,6 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
-    print("Einstein-De Sitter top-hat linear growth passed")
-    print(
-        "delta: %.8g (measured), %.8g (linear), relative error %.6g"
-        % (measured_delta, expected_delta, relative_error)
-    )
-    print("figure = %s" % figure_filename)
 
 
 if __name__ == "__main__":

@@ -17,12 +17,12 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 os.environ.setdefault("XDG_CACHE_HOME", str(Path(tempfile.gettempdir()) / "radhydropy-cache"))
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
-import example_utils as eu
-import numpy as np
-import unyt
+import example_utils as eu  # noqa: E402
+import numpy as np  # noqa: E402
+import unyt  # noqa: E402
 
-import radhydropy.io as rio
-from example.NFWBoundaryDrivenVirialShock1D.tools import (
+import radhydropy.io as rio  # noqa: E402
+from example.NFWBoundaryDrivenVirialShock1D.tools import (  # noqa: E402
     boundary_inflow_state,
     build_initial_condition,
     nfw_halo_parameters,
@@ -30,15 +30,14 @@ from example.NFWBoundaryDrivenVirialShock1D.tools import (
     plot_comparison,
     plot_stability_diagnostics,
     shock_history,
-    virial_temperature,
     write_report,
     write_stability_report,
 )
-from radhydropy.gravity import Gravity, nfw_potential
-from radhydropy.rsim import Rsim
-from radhydropy.solver import Solver
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits, code_unit_scales
+from radhydropy.gravity import Gravity, nfw_potential  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.solver import Solver  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from radhydropy.units import CodeUnits, code_unit_scales  # noqa: E402
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "nfw_boundary_driven_virial_shock1d.yaml"
 
@@ -134,7 +133,7 @@ def _run_stage(config, halo, mode, restart=False):
     return sorted(
         output_directory.glob(
             f"{config['par']['output']['filename_prefix']}_*.hdf5",
-        )
+        ),
     )
 
 
@@ -150,13 +149,13 @@ def _write_adiabatic_energy_audit(files, config, filename):
         last = first + int(snapshot.par.mesh.grid_cells)
         code_unit_system = snapshot.par.units.CodeUnits
         energy_cgs_erg = np.asarray(snapshot.fluid.Energy_code[first:last], dtype=float) * float(
-            code_unit_system.energy_unit.to_value(unyt.erg)
+            code_unit_system.energy_unit.to_value(unyt.erg),
         )
         time_proper_cgs_s = float(np.asarray(snapshot.fluid.time_proper_code).flat[0]) * float(
-            code_unit_system.time_unit.to_value(unyt.s)
+            code_unit_system.time_unit.to_value(unyt.s),
         )
         boundary_energy_code = float(
-            getattr(snapshot.par, "CumulativeHydroBoundaryEnergyCode", 0.0)
+            getattr(snapshot.par, "CumulativeHydroBoundaryEnergyCode", 0.0),
         )
         gravity_work_code = float(getattr(snapshot.par, "CumulativeGravityWorkCode", 0.0))
         return (
@@ -183,16 +182,8 @@ def _write_adiabatic_energy_audit(files, config, filename):
         stream.write(f"gravity_work {gravity_work:.12e}\n")
         stream.write(f"budget_residual {residual:.12e}\n")
         stream.write(
-            f"residual_fraction_of_delta {residual / max(abs(delta_energy), 1.0e-99):.12e}\n"
+            f"residual_fraction_of_delta {residual / max(abs(delta_energy), 1.0e-99):.12e}\n",
         )
-    print("adiabatic energy audit = %s" % filename)
-    print(
-        "adiabatic energy residual = %.6e erg (%.6e of delta)"
-        % (
-            residual,
-            residual / max(abs(delta_energy), 1.0e-99),
-        )
-    )
 
 
 def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
@@ -335,14 +326,6 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     )
     write_stability_report(stability, stability_report)
     plot_stability_diagnostics(stability, stability_figure)
-
-    print("halo mass = %.6g Msun" % halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun))
-    print("R200 = %.6g kpc" % halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc))
-    print("Tvir = %.6g K" % virial_temperature(halo, initial_condition["mu"]).to_value(unyt.K))
-    print("outer PIE temperature = %.6g K" % inflow["temperature_inflow_proper"].to_value(unyt.K))
-    print("adiabatic snapshots = %d; PIE snapshots = %d" % (len(adiabatic_files), len(pie_files)))
-    print("figure = %s" % figure)
-    print("PIE diagnostics = %s" % stability_figure)
 
 
 def parse_args():

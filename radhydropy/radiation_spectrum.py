@@ -30,7 +30,8 @@ def load_radiation_spectrum(filename):
         group = handle[SPECTRUM_GROUP]
         edges = np.asarray(_required_dataset(group, SPECTRUM_DATASET_GROUP_EDGES), dtype=float)
         energies = np.asarray(
-            _required_dataset(group, SPECTRUM_DATASET_IONIZING_ENERGY), dtype=float
+            _required_dataset(group, SPECTRUM_DATASET_IONIZING_ENERGY),
+            dtype=float,
         )
         rates = np.asarray(_required_dataset(group, SPECTRUM_DATASET_STAR_RATES), dtype=float)
         sigma = np.asarray(_required_dataset(group, SPECTRUM_DATASET_SIGMA), dtype=float)
@@ -57,11 +58,13 @@ def load_radiation_spectrum(filename):
             epsilon_name = f"group_epsilon_gamma_{species}_cgs_erg"
             if sigma_name in group:
                 result[f"radiation_group_sigma_gamma_{species}"] = np.asarray(
-                    group[sigma_name], dtype=float
+                    group[sigma_name],
+                    dtype=float,
                 )
             if epsilon_name in group:
                 result[f"radiation_group_epsilon_gamma_{species}"] = np.asarray(
-                    group[epsilon_name], dtype=float
+                    group[epsilon_name],
+                    dtype=float,
                 )
         return result
 

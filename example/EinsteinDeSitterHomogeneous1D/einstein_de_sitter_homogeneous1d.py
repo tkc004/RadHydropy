@@ -10,12 +10,12 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
-import numpy as np
+import example_utils as eu  # noqa: E402
+import numpy as np  # noqa: E402
 
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.initial_condition_writer import InitialConditionWriter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 
 def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")):
@@ -60,12 +60,12 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     rho_comoving_code = np.array(
         [
             quantity_to_value(initial_condition["rho_proper"], units.density_unit),
-        ]
+        ],
     )
     vel_supercomoving_code = np.array(
         [
             quantity_to_value(initial_condition["vel_proper"], units.velocity_unit),
-        ]
+        ],
     )
     pre_supercomoving_code = np.array(
         [
@@ -73,7 +73,7 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
                 initial_condition["pressure_initial_proper"],
                 units.pressure_unit,
             ),
-        ]
+        ],
     )
     temp_supercomoving_code = pre_supercomoving_code / rho_comoving_code
     writer.fluid.rho_radarray = writer.radarray(
@@ -105,11 +105,6 @@ def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneou
     assert np.allclose(fluid.pre_supercomoving_code, initial[2])
     a_ratio = cosmology.scale_factor(t1) / cosmology.scale_factor(t0)
     assert np.isclose(a_ratio, 2.0 ** (2.0 / 3.0))
-    print("Einstein-De Sitter homogeneous expansion passed")
-    print("a(t=2)/a(t=1) = %.8g" % a_ratio)
-    print("supercomoving density/velocity/pressure remain constant")
-    print("physical density ratio = %.8g" % a_ratio**-3)
-    print("physical pressure ratio = %.8g" % a_ratio**-5)
 
 
 if __name__ == "__main__":
@@ -117,6 +112,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config", default=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")
+        "--config",
+        default=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml"),
     )
     main(parser.parse_args().config)

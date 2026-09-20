@@ -71,7 +71,8 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
             self.assertTrue(np.all(np.isfinite(value)))
 
         photo_rates = rrt.species_photoionization_rates(
-            ngamma_cgs_cm3, state["sigma_gamma_cgs_cm2"]
+            ngamma_cgs_cm3,
+            state["sigma_gamma_cgs_cm2"],
         )
         photo_heating = rrt.species_photoionization_heating(
             ngamma_cgs_cm3,
@@ -119,7 +120,7 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
                     "UnitCurrent_in_cgs": 1.0,
                     "UnitTemp_in_cgs": 1.0,
                 },
-            }
+            },
         )
         scale_factor = 2.0
         gamma = 5.0 / 3.0
@@ -138,7 +139,7 @@ class HydrogenHeliumNetworkTests(unittest.TestCase):
         fluid.Energy_code = np.array(
             [
                 8.0 * (specific_internal * scale_factor**2 + 0.5 * velocity_super**2),
-            ]
+            ],
         )
         fluid.xHI = np.array([1.0])
         fluid.xHeI = np.array([1.0])

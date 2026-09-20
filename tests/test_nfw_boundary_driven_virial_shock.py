@@ -10,7 +10,7 @@ import unyt
 EXAMPLE = Path(__file__).parents[1] / "example" / "NFWBoundaryDrivenVirialShock1D"
 if str(EXAMPLE.parent) not in sys.path:
     sys.path.insert(0, str(EXAMPLE.parent))
-import example_utils
+import example_utils  # noqa: E402
 
 SPEC = importlib.util.spec_from_file_location("nfw_boundary_shock_tools", EXAMPLE / "tools.py")
 TOOLS = importlib.util.module_from_spec(SPEC)

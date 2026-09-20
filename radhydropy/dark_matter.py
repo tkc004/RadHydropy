@@ -518,10 +518,7 @@ class DarkMatterShells:
                 )
             else:
                 fixed = np.full_like(safe_radius, self.fixed_enclosed_mass)
-            if include_shell_mass_with_fixed:
-                enclosed = enclosed + fixed
-            else:
-                enclosed = fixed
+            enclosed = enclosed + fixed if include_shell_mass_with_fixed else fixed
         if gas_enclosed_mass is not None:
             gas_mass = (
                 np.asarray(gas_enclosed_mass(safe_radius), dtype=float)
@@ -656,7 +653,7 @@ class DarkMatterShells:
                     self.radius[event_pairs] = crossing_radius
                     self.radius[event_pairs + 1] = crossing_radius
                 else:
-                    for index, radius in zip(event_pairs, crossing_radius):
+                    for index, radius in zip(event_pairs, crossing_radius, strict=False):
                         self.radius[index : index + 2] = radius
                 self._exchange_shell_states(event_pairs)
             self._absorb_into_core(

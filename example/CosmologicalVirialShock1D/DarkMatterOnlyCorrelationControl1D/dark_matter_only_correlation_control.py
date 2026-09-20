@@ -3,9 +3,9 @@
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -14,11 +14,11 @@ EXAMPLE_ROOT = EXAMPLE_DIR.parent
 PROJECT_ROOT = EXAMPLE_ROOT.parent
 sys.path[:0] = [str(EXAMPLE_DIR), str(EXAMPLE_ROOT), str(PROJECT_ROOT)]
 
-import virial_shock_tools as et
-from example_utils import load_nested_example_config
+import virial_shock_tools as et  # noqa: E402
+from example_utils import load_nested_example_config  # noqa: E402
 
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 CONFIG = Path(__file__).with_name("dark_matter_only_correlation_control.yaml")
 
@@ -48,7 +48,6 @@ def main(config_filename=CONFIG):
     tau = float(cosmology.supercomoving_time(initial))
     final_tau = float(cosmology.supercomoving_time(final))
     timestep = float(par["dark_matter"]["timestep"])
-    initial_mass = shells.total_mass
     times = [initial]
     radii = [float(cosmology.scale_factor(initial)) * shells.radius.copy()]
     masses = [shells.mass.copy()]
@@ -60,13 +59,16 @@ def main(config_filename=CONFIG):
         a_start = float(cosmology.scale_factor(start))
         a_end = float(cosmology.scale_factor(end))
         rho_comoving = float(cosmology.background_density(start)) * a_start**3
-        background = lambda radius_comoving_code, rho_comoving_code=rho_comoving: (
-            4.0
-            * np.pi
-            / 3.0
-            * rho_comoving_code
-            * np.asarray(radius_comoving_code, dtype=float) ** 3
-        )
+
+        def background(radius_comoving_code, rho_comoving_code=rho_comoving):
+            return (
+                4.0
+                * np.pi
+                / 3.0
+                * rho_comoving_code
+                * np.asarray(radius_comoving_code, dtype=float) ** 3
+            )
+
         shells.step(
             dt,
             crossing_safety_factor=float(par["dark_matter"]["crossing_safety_factor"]),
@@ -86,13 +88,15 @@ def main(config_filename=CONFIG):
     radii = np.asarray(radii)
     masses = np.asarray(masses)
     mean_density = np.asarray(
-        [float(cosmology.background_density(time_cosmic_code)) for time_cosmic_code in times]
+        [float(cosmology.background_density(time_cosmic_code)) for time_cosmic_code in times],
     )
     density_contrast = np.empty_like(radii)
     enclosed_mass = np.empty_like(radii)
     density_plot_radius = []
     density_plot_contrast = []
-    for row, (radius_comoving_code, mass_comoving_code) in enumerate(zip(radii, masses)):
+    for row, (radius_comoving_code, mass_comoving_code) in enumerate(
+        zip(radii, masses, strict=False)
+    ):
         order = np.argsort(radius_comoving_code)
         radius_comoving_code = radius_comoving_code[order]
         mass_comoving_code = mass_comoving_code[order]
@@ -153,9 +157,9 @@ def main(config_filename=CONFIG):
     selected = np.unique(np.linspace(0, len(times) - 1, min(9, len(times))).astype(int))
     colors = plt.cm.viridis(np.linspace(0.05, 0.95, selected.size))
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 5.0))
-    for color, row in zip(colors, selected):
+    for color, row in zip(colors, selected, strict=False):
         order = np.argsort(radii[row])
-        label = "t = %.2f" % times[row]
+        label = f"t = {times[row]:.2f}"
         axes[0].loglog(
             density_plot_radius[row],
             density_plot_contrast[row],
@@ -180,13 +184,6 @@ def main(config_filename=CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=220)
     plt.close(fig)
-    print("initial DM mass = %.8g code masses" % initial_mass)
-    print("final DM mass = %.8g code masses" % shells.total_mass)
-    print("mass error = %.8g" % (shells.total_mass - initial_mass))
-    print("shell crossings = %d" % shells.total_crossing_event_count)
-    print("origin reflections = %d" % shells.total_origin_reflection_count)
-    print("data = %s" % data_file)
-    print("figure = %s" % figure)
 
 
 if __name__ == "__main__":

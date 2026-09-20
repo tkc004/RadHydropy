@@ -23,11 +23,11 @@ def build_initial_condition(config):
     writer.fluid.rho_radarray = writer.radarray(np.ones(grid_cells) * initial["rho_proper"])
     writer.fluid.vel_radarray = writer.radarray(np.ones(grid_cells) * initial["vel_proper"])
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial["temperature_proper"]
+        np.ones(grid_cells) * initial["temperature_proper"],
     )
     writer.fluid.mu = np.full(grid_cells, float(initial["mean_molecular_weight"]))
     if initial.get("include_angular_momentum", True):
-        angular_momentum_unit = code_units.length_unit * code_units.velocity_unit
+        code_units.length_unit * code_units.velocity_unit
         coordinate_dimensionless = coordinate_proper_unyt / box_size_proper_unyt
         angular_momentum_unyt = initial["angular_momentum_offset"] + initial[
             "angular_momentum_amplitude"

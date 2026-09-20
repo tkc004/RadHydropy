@@ -128,10 +128,12 @@ class Testing(unittest.TestCase):
         c_light = rrt.SPEED_OF_LIGHT_CGS
 
         np.testing.assert_allclose(
-            rates["HI"], c_light * (1.0 * ngamma_cgs_cm3[0] + 2.0 * ngamma_cgs_cm3[1])
+            rates["HI"],
+            c_light * (1.0 * ngamma_cgs_cm3[0] + 2.0 * ngamma_cgs_cm3[1]),
         )
         np.testing.assert_allclose(
-            rates["HeI"], c_light * (3.0 * ngamma_cgs_cm3[0] + 4.0 * ngamma_cgs_cm3[1])
+            rates["HeI"],
+            c_light * (3.0 * ngamma_cgs_cm3[0] + 4.0 * ngamma_cgs_cm3[1]),
         )
 
     def test_multigroup_photoheating_uses_excess_energy_per_group(self):

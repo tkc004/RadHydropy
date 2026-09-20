@@ -17,9 +17,9 @@ os.environ.setdefault(
     "MPLCONFIGDIR",
     str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -28,15 +28,15 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et
-from example_utils import load_nested_example_config
+import virial_shock_tools as et  # noqa: E402
+from example_utils import load_nested_example_config  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass
-from radhydropy.gravity import Gravity
-from radhydropy.solver import Solver
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass  # noqa: E402
+from radhydropy.gravity import Gravity  # noqa: E402
+from radhydropy.solver import Solver  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_gas_dm_linear_growth.yaml",
@@ -50,7 +50,9 @@ class SmoothEnclosedMassForGas:
         self.shells = shells
 
     def gravitating_enclosed_mass(
-        self, radius_comoving_code=None, include_shell_mass_with_fixed=False
+        self,
+        radius_comoving_code=None,
+        include_shell_mass_with_fixed=False,
     ):
         if radius_comoving_code is None:
             return self.shells.gravitating_enclosed_mass(
@@ -76,14 +78,14 @@ class SmoothEnclosedMassForGas:
                 [0.0],
                 radius_shell_comoving_code,
                 [outer_radius],
-            )
+            ),
         )
         interpolation_mass = np.concatenate(
             (
                 [0.0],
                 shell_enclosed,
                 [total],
-            )
+            ),
         )
         requested = np.asarray(radius_comoving_code, dtype=float)
         return np.interp(
@@ -139,7 +141,12 @@ def _load_correlation_table(config_filename, config):
 
 
 def _set_background_state(
-    sim, config, time_cosmic_code, baryon_fraction, temperature_proper_code, mu
+    sim,
+    config,
+    time_cosmic_code,
+    baryon_fraction,
+    temperature_proper_code,
+    mu,
 ):
     """Synchronize the analytic EdS outer reservoir and its active cell."""
     cosmology = config["_cosmology"]
@@ -160,7 +167,7 @@ def _set_background_state(
         np.asarray(
             sim.fluid.eos.pressure(rho_comoving_code, temperature_proper_cgs_K, boundary_mu),
             dtype=float,
-        )
+        ),
     )
     volume_comoving_code = float(np.asarray(sim.mesh.volume_comoving_code[index], dtype=float))
     sim.fluid.rho_comoving_code[index] = rho_comoving_code
@@ -174,10 +181,12 @@ def _set_background_state(
         float(
             np.asarray(
                 sim.fluid.eos.total_energy_density(
-                    rho_comoving_code, vel_supercomoving_code, pre_supercomoving_code
+                    rho_comoving_code,
+                    vel_supercomoving_code,
+                    pre_supercomoving_code,
                 ),
                 dtype=float,
-            )
+            ),
         )
         * volume_comoving_code
     )
@@ -204,7 +213,8 @@ def _matched_cell_density(boundaries, coordinates, target_enclosed_mass):
     mass_before = 0.0
     for index in range(coordinates.size):
         rho_comoving_code[index] = (target_enclosed_mass[index] - mass_before) / max(
-            partial_volume[index], 1.0e-300
+            partial_volume[index],
+            1.0e-300,
         )
         mass_before += rho_comoving_code[index] * shell_volume[index]
     if np.any(rho_comoving_code <= 0.0):
@@ -245,7 +255,8 @@ def _make_matched_initial_state(config):
     initial.mesh.area_comoving_code = 4.0 * np.pi * boundaries[:-1] ** 2
     initial.mesh.volume_comoving_code = 4.0 * np.pi / 3.0 * np.diff(boundaries**3)
     time_cosmic_code = quantity_to_value(
-        initial_condition["time_cosmic"], code_unit_system.time_unit
+        initial_condition["time_cosmic"],
+        code_unit_system.time_unit,
     )
     scale_factor = float(cosmology.scale_factor(time_cosmic_code))
     hubble = float(cosmology.hubble(time_cosmic_code))
@@ -310,7 +321,7 @@ def _snapshot(
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     x = np.asarray(sim.mesh.x_comoving_code[first:last], dtype=float)
-    rho_comoving_code = np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
+    np.asarray(sim.fluid.rho_comoving_code[first:last], dtype=float)
     scale_factor = float(cosmology.scale_factor(time_cosmic_code))
     hubble = float(cosmology.hubble(time_cosmic_code))
     growth = scale_factor / initial_scale_factor
@@ -465,7 +476,10 @@ def _save_outputs(
         label="analytic",
     )
     axes[0, 0].plot(
-        radius_comoving_code[gas_plot], final["delta_bar_gas"][gas_plot], "C0--", label="gas"
+        radius_comoving_code[gas_plot],
+        final["delta_bar_gas"][gas_plot],
+        "C0--",
+        label="gas",
     )
     axes[0, 0].plot(
         dm_radius[dm_plot],
@@ -526,19 +540,18 @@ def _save_outputs(
 
     report_filename = output_dir / "CosmologicalGasDMLinearGrowth.txt"
     report_filename.write_text(
-        "dm_force_sampling %s\n"
-        "final_time_Gyr %.10g\n"
-        "final_growth_factor %.10g\n"
-        "delta_gas_growth_amplitude %.10g\n"
-        "delta_dm_growth_amplitude %.10g\n"
-        "delta_gas_over_dm %.10g\n"
-        "gas_velocity_growth_amplitude %.10g\n"
-        "dm_velocity_growth_amplitude %.10g\n"
-        "minimum_shell_separation_comoving_kpc %.10g\n"
-        "minimum_positivity_limiter_factor %.10g\n"
-        "median_positivity_limiter_factor %.10g\n"
-        "fraction_hydro_steps_limited %.10g\n"
-        % (
+        "dm_force_sampling {}\n"
+        "final_time_Gyr {:.10g}\n"
+        "final_growth_factor {:.10g}\n"
+        "delta_gas_growth_amplitude {:.10g}\n"
+        "delta_dm_growth_amplitude {:.10g}\n"
+        "delta_gas_over_dm {:.10g}\n"
+        "gas_velocity_growth_amplitude {:.10g}\n"
+        "dm_velocity_growth_amplitude {:.10g}\n"
+        "minimum_shell_separation_comoving_kpc {:.10g}\n"
+        "minimum_positivity_limiter_factor {:.10g}\n"
+        "median_positivity_limiter_factor {:.10g}\n"
+        "fraction_hydro_steps_limited {:.10g}\n".format(
             force_mode,
             final["time_cosmic_Gyr"],
             final["growth_factor"],
@@ -618,7 +631,7 @@ def run(
     config["_code_unit_system"] = units
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table
-    initial, dm = _make_matched_initial_state(config)
+    _initial, dm = _make_matched_initial_state(config)
     initial_writer.write(ic_filename)
     initial_shell_mass_order = np.asarray(dm.mass, dtype=float).copy()
     if np.unique(initial_shell_mass_order).size != dm.number_of_shells:
@@ -629,7 +642,7 @@ def run(
     local["output"].update(
         {
             "directory": str(output_dir),
-        }
+        },
     )
     config["par"]["simulation"]["initial_condition_filename"] = local["simulation"][
         "initial_condition_filename"
@@ -715,7 +728,7 @@ def run(
             initial_scale_factor,
             diagnostic_radius_inner_comoving_code,
             diagnostic_radius_outer_comoving_code,
-        )
+        ),
     ]
     steps = 0
     for target_tau in snapshot_taus[1:]:
@@ -738,7 +751,7 @@ def run(
             if np.isfinite(crossing_dt) and crossing_dt <= dt * (1.0 + 1.0e-12):
                 raise RuntimeError(
                     "predicted dark-matter shell crossing before requested endpoint "
-                    "at cosmic time %.8g" % time_cosmic_code,
+                    f"at cosmic time {time_cosmic_code:.8g}",
                 )
             sim.Step(dt=dt, mode="hydro")
             steps += 1
@@ -767,11 +780,11 @@ def run(
                 initial_scale_factor,
                 diagnostic_radius_inner_comoving_code,
                 diagnostic_radius_outer_comoving_code,
-            )
+            ),
         )
 
     force_mode = "volume_linear" if smooth_force else "raw_step"
-    data, figure, report = _save_outputs(
+    data, _figure, _report = _save_outputs(
         history,
         output_dir,
         force_mode,
@@ -779,30 +792,7 @@ def run(
         diagnostic_radius_inner_comoving_code,
         diagnostic_radius_outer_comoving_code,
     )
-    final = history[-1]
-    print("steps = %d" % steps)
-    print("DM force sampling = %s" % force_mode)
-    print(
-        "DM crossing batch fraction = %.8g"
-        % float(getattr(sim.par, "dark_matter_crossing_batch_fraction", 0.0)),
-    )
-    print("final cosmic time = %.8g Gyr" % final["time_cosmic_Gyr"])
-    print("gas/analytic overdensity = %.8g" % final["delta_gas_growth_amplitude"])
-    print("DM/analytic overdensity = %.8g" % final["delta_dm_growth_amplitude"])
-    print("gas/DM overdensity = %.8g" % final["delta_gas_over_dm"])
-    print("gas/analytic velocity = %.8g" % final["gas_velocity_growth_amplitude"])
-    print("DM/analytic velocity = %.8g" % final["dm_velocity_growth_amplitude"])
-    print(
-        "positivity limiter: min=%.8g median=%.8g limited_fraction=%.8g"
-        % (
-            np.min(diagnostic_solver.positivity_factors),
-            np.median(diagnostic_solver.positivity_factors),
-            np.mean(np.asarray(diagnostic_solver.positivity_factors) < 1.0 - 1.0e-12),
-        ),
-    )
-    print("data = %s" % data)
-    print("figure = %s" % figure)
-    print("report = %s" % report)
+    history[-1]
     return data
 
 

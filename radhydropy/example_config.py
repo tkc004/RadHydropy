@@ -49,9 +49,8 @@ def load_example_config(config_filename):
 
     par = config["par"]
     initial_condition = config["initial_condition"]
-    if "mesh" in par and "grid_cells" not in par["mesh"]:
-        if "grid_cells" in initial_condition:
-            par["mesh"]["grid_cells"] = initial_condition["grid_cells"]
+    if "mesh" in par and "grid_cells" not in par["mesh"] and "grid_cells" in initial_condition:
+        par["mesh"]["grid_cells"] = initial_condition["grid_cells"]
 
     simulation = par.get("simulation", {})
     output = par.get("output", {})
@@ -69,7 +68,7 @@ def load_example_config(config_filename):
         par["radiation"].update(
             load_radiation_spectrum(
                 resolve_spectrum_filename(spectrum_filename, config_filename.parent),
-            )
+            ),
         )
     metal_table = par.get("thermochemistry", {}).get("metal_pie_table_filename")
     if metal_table:

@@ -23,8 +23,8 @@ if __name__ == "__main__":
                 str(
                     Path(__file__).with_name(
                         "cosmological_gas_correlation_z100_lambda_cdm.yaml",
-                    )
+                    ),
                 ),
-            ]
+            ],
         )
     runpy.run_path(str(SOURCE), run_name="__main__")

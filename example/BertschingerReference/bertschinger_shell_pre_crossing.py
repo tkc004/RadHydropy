@@ -8,9 +8,9 @@ from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -19,12 +19,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from bertschinger_ode import solve_eq41_self_similar
+from bertschinger_ode import solve_eq41_self_similar  # noqa: E402
 
-import tools as example_tools
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.units import quantity_to_value
+import tools as example_tools  # noqa: E402
+from radhydropy.cosmology import EinsteinDeSitter  # noqa: E402
+from radhydropy.dark_matter import DarkMatterShells  # noqa: E402
+from radhydropy.units import quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_reference.yaml")
 
@@ -46,13 +46,14 @@ def make_turnaround_shells(config):
     hubble_code = float(cosmology.hubble(time_cosmic_code))
     background_coefficient = 2.0 / (9.0 * cosmology.gravitational_constant)
     turnaround_mass = (9.0 * np.pi * np.pi / 16.0) * background_coefficient
-    fixed_total_mass = lambda radius_comoving_code: (
-        turnaround_mass + background_coefficient * np.asarray(radius_comoving_code) ** 3
-    )
+
+    def fixed_total_mass(radius_comoving_code):
+        return turnaround_mass + background_coefficient * np.asarray(radius_comoving_code) ** 3
+
     shells = DarkMatterShells(
         radius=np.asarray([radius_turnaround_comoving_code]),
         velocity=np.asarray(
-            [-(scale_factor_dimensionless**2) * hubble_code * radius_turnaround_comoving_code]
+            [-(scale_factor_dimensionless**2) * hubble_code * radius_turnaround_comoving_code],
         ),
         mass=np.asarray([1.0e-12]),
         fixed_enclosed_mass=fixed_total_mass,
@@ -95,15 +96,16 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
             float(cosmology.background_density(time_cosmic_code)) * scale_factor_dimensionless**3
         )
         background_coefficient = 4.0 * np.pi / 3.0 * rho_comoving_code
-        background = lambda radius_comoving_code: (
-            background_coefficient * np.asarray(radius_comoving_code) ** 3
-        )
+
+        def background(radius_comoving_code):
+            return background_coefficient * np.asarray(radius_comoving_code) ** 3
+
         dt = min(timestep, final_tau - tau)
         approaching = shells.velocity < 0.0
         if np.any(approaching):
             centre_dt = 0.05 * np.min(
                 (shells.radius[approaching] + shells.softening)
-                / np.maximum(-shells.velocity[approaching], 1.0e-30)
+                / np.maximum(-shells.velocity[approaching], 1.0e-30),
             )
             dt = min(dt, centre_dt)
         next_time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
@@ -164,10 +166,6 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
     plt.close(fig)
     if not np.all(np.isfinite(lambda_history)):
         raise RuntimeError("tracked shell became non-finite")
-    print("pre-crossing DarkMatterShells comparison generated")
-    print("tracked shell index = %d" % tracked)
-    print("first-centre xi = %.8g" % xi_history[-1])
-    print("figure = %s" % figure)
     return figure
 
 

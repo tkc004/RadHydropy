@@ -10,9 +10,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -22,13 +22,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.eos import EOS
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.eos import EOS  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("spherical_converging_shock1d.yaml")
 
@@ -153,7 +153,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     selected = np.unique(np.linspace(0, len(profiles) - 1, min(6, len(profiles))).astype(int))
     fig, axes = plt.subplots(2, 1, figsize=(8, 7), sharex=True)
     for index in selected:
-        radius_proper_code, rho_proper_code, velocity_proper_code, temp_proper_code, _, _, _ = (
+        radius_proper_code, rho_proper_code, _velocity_proper_code, temp_proper_code, _, _, _ = (
             profiles[index]
         )
         axes[0].plot(radius_proper_code, rho_proper_code, label=f"output {index:03d}")
@@ -170,14 +170,6 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print(f"figure = {figure}")
-    print(f"mass relative error = {(final_mass - initial_mass) / initial_mass:.6e}")
-    print(f"energy relative error = {(final_energy - initial_energy) / initial_energy:.6e}")
-    print(f"thermal energy increase = {thermal_energy[-1] / thermal_energy[0]:.6e}")
-    print(
-        "central temperature amplification = "
-        f"{np.max(final_temperature_proper_code) / np.max(temperature_proper_code):.6e}",
-    )
     return figure
 
 

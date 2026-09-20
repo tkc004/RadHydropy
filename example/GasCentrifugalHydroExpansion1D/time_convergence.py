@@ -8,20 +8,20 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
-from gas_centrifugal_hydro_expansion1d import (
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+from gas_centrifugal_hydro_expansion1d import (  # noqa: E402
     CONFIG,
     run_simulation,
     spherical_centers,
 )
-from shell_remap import centrifugal_shell_reference
+from shell_remap import centrifugal_shell_reference  # noqa: E402
 
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 
 def total_energy_error(config):
@@ -68,7 +68,7 @@ def total_energy_error(config):
 
 def main():
     config = eu.load_nested_example_config(CONFIG)
-    initial_condition = config["initial_condition"]
+    config["initial_condition"]
     # Keep the mesh fixed so this isolates source time integration rather than
     # mixing temporal and spatial convergence errors.
     dtmax_values = np.asarray((1.0e-3, 5.0e-4, 2.5e-4, 1.25e-4), dtype=float)
@@ -80,7 +80,6 @@ def main():
         case_config["par"]["timestep"]["dtmax"] = float(dtmax)
         error = total_energy_error(case_config)
         errors.append(error)
-        print("dtmax %.6g: total-energy error %.8g" % (dtmax, error))
 
     errors = np.asarray(errors)
     output = ROOT / "outputs" / "GasCentrifugalHydroExpansion1D_time_convergence.jpg"
@@ -92,7 +91,6 @@ def main():
     fig.tight_layout()
     fig.savefig(output, dpi=180)
     plt.close(fig)
-    print("time-convergence figure = %s" % output)
 
 
 if __name__ == "__main__":

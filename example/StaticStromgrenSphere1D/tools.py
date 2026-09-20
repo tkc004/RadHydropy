@@ -1,8 +1,8 @@
 """Helper utilities for the static Stromgren sphere example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import stromgren_analytic as sa
@@ -136,7 +136,7 @@ def _refresh_mesh_geometry(mesh, config):
                 mesh.x_proper_code[ig] = 0.75 * mesh.boundary_proper_code[ig + 1]
                 mesh.area_proper_code[ig] = 0.0
     else:
-        raise ValueError("coordinate system unknown: %s" % par.simulation.coordinate_system)
+        raise ValueError(f"coordinate system unknown: {par.simulation.coordinate_system}")
     mesh.geometry_state = MeshGeometryState.from_arrays(
         PROPER_RUNTIME_FIELDS,
         x_proper_code=mesh.x_proper_code,
@@ -158,7 +158,6 @@ def load_output_state(outputfilename, config):
     snapshot = Rsim(config["par"])
     rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, outputfilename)
     par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
-    code_units_obj = par.units.CodeUnits
     par.time_proper_code = float(np.asarray(par.time_proper_code, dtype=float))
     par.simulation.box_size_proper_code = float(np.asarray(par.box_size_proper_code, dtype=float))
     mesh.boundary_proper_code = np.asarray(mesh.boundary_proper_code, dtype=float)
@@ -209,7 +208,7 @@ def _radius_kpc(values, config):
 
 
 def ionization_front_position(mesh, fluid, config, neutral_fraction=0.5):
-    par = config["_output_par"]
+    config["_output_par"]
     interior = interior_slice(config)
     radius_proper_kpc = _radius_kpc(mesh.x_proper_code[interior], config) * unyt.kpc
     xHI = np.asarray(fluid.xHI[interior])
@@ -277,7 +276,7 @@ def append_history(history, mesh, fluid, config, recombined_photons):
     par = config["_output_par"]
     radiation = config["par"]["radiation"]
     time_proper_Myr = float(
-        fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr)
+        fluid.time_proper_code * par.units.CodeUnits.time_unit.to_value(unyt.Myr),
     )
     history["time_proper_Myr"].append(time_proper_Myr)
     history["front_radius_proper_kpc"].append(
@@ -297,7 +296,7 @@ def append_history(history, mesh, fluid, config, recombined_photons):
 
 
 def save_plot(mesh, fluid, config, figure_filename):
-    par = config["_output_par"]
+    config["_output_par"]
     radiation = config["par"]["radiation"]
     initial = config["initial_condition"]
     thermo = config["par"]["thermochemistry"]
@@ -358,7 +357,7 @@ def save_plot(mesh, fluid, config, figure_filename):
         radius_stromgren.to_value(unyt.kpc),
         color="black",
         lw=2.0,
-        label=r"$R_{\rm S}=%.2f\ {\rm kpc}$" % radius_stromgren.to_value(unyt.kpc),
+        label=rf"$R_{{\rm S}}={radius_stromgren.to_value(unyt.kpc):.2f}\ {{\rm kpc}}$",
     )
     ax.set_xlabel("Radius [kpc]")
     ax.set_ylabel("Hydrogen fraction")
@@ -414,7 +413,7 @@ def save_front_history_plot(history, config, figure_filename):
         color="0.25",
         lw=1.2,
         ls=":",
-        label=r"$R_{\rm S}=%.2f\ {\rm kpc}$" % radius_stromgren,
+        label=rf"$R_{{\rm S}}={radius_stromgren:.2f}\ {{\rm kpc}}$",
     )
     ax.set_xlabel("Time [Myr]")
     ax.set_ylabel("Ionization-front radius [kpc]")

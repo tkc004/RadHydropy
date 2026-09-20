@@ -222,7 +222,7 @@ def _code_unit_cgs(code_units, property_name):
 def hubble_parameter_code(code_units, hubble_parameter_km_s_Mpc):
     """Convert an observational Hubble parameter to inverse code time."""
     unit_hubble_km_s_Mpc = code_units.velocity_unit.to_value(
-        unyt.km / unyt.s
+        unyt.km / unyt.s,
     ) / code_units.length_unit.to_value(unyt.Mpc)
     return float(hubble_parameter_km_s_Mpc) / float(unit_hubble_km_s_Mpc)
 
@@ -348,7 +348,8 @@ class FieldSpec:
             raise ValueError("FieldSpec.scale_factor must be finite and positive")
         object.__setattr__(self, "scale_factor", scale_factor)
         if isinstance(self.scale_factor_power, bool) or not isinstance(
-            self.scale_factor_power, Real
+            self.scale_factor_power,
+            Real,
         ):
             raise TypeError("FieldSpec.scale_factor_power must be a real number")
         scale_factor_power = float(self.scale_factor_power)

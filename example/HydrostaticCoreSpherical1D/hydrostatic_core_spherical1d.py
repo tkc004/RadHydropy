@@ -5,9 +5,9 @@ import sys
 import time
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -16,12 +16,12 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from example_utils import load_nested_example_config
+from example_utils import load_nested_example_config  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
-from radhydropy.gravity import Gravity, point_mass_potential
-from radhydropy.units import CodeUnits, quantity_to_value
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
+from radhydropy.gravity import Gravity, point_mass_potential  # noqa: E402
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name("hydrostatic_core_spherical1d.yaml")
 
@@ -93,7 +93,8 @@ def run(config_filename=DEFAULT_CONFIG):
     )
     halo = radius_proper_code >= core_radius_proper_code
     relative_error = np.abs(rho_proper_code - analytic_rho_proper_code) / np.maximum(
-        analytic_rho_proper_code, 1.0e-300
+        analytic_rho_proper_code,
+        1.0e-300,
     )
     core_cells = radius_proper_code < core_radius_proper_code
     core_last = np.flatnonzero(core_cells)[-1]
@@ -101,11 +102,7 @@ def run(config_filename=DEFAULT_CONFIG):
         float(pressure_proper_code[core_last]) - float(pressure_proper_code[core_last + 1]),
     ) / max(float(pressure_proper_code[core_last + 1]), 1.0e-300)
     max_halo_error = float(np.max(relative_error[halo]))
-    mean_step = float(np.mean([item[0] for item in step_times]))
-    print("maximum halo density relative error: %.6e" % max_halo_error)
-    print("core/halo pressure relative mismatch: %.6e" % pressure_mismatch)
-    print("hydro steps: %d" % len(step_times))
-    print("mean timestep: %.6e" % mean_step)
+    float(np.mean([item[0] for item in step_times]))
 
     figure = output_dir / "HydrostaticCoreSpherical1D.jpg"
     radius_proper_pc = radius_proper_code * float(units.length_in_cgs) / 3.085677581e18
@@ -126,7 +123,6 @@ def run(config_filename=DEFAULT_CONFIG):
     plt.tight_layout()
     plt.savefig(figure, dpi=200)
     plt.close()
-    print("figure = %s" % figure)
     return max_halo_error, pressure_mismatch
 
 

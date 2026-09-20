@@ -105,7 +105,9 @@ def energy_components(state):
     temp_proper_code = np.asarray(state.fluid.temp_proper_code)
     mu = np.asarray(state.fluid.mu)
     eos = state.fluid.eos or EOS(
-        "polytropic", float(state.par.hydrodynamics.gamma), state.par.units.CodeUnits
+        "polytropic",
+        float(state.par.hydrodynamics.gamma),
+        state.par.units.CodeUnits,
     )
     pressure_proper_code = np.asarray(eos.pressure(rho_proper_code, temp_proper_code, mu))
     volume_proper_code = np.asarray(state.mesh.volume_proper_code)
@@ -113,7 +115,7 @@ def energy_components(state):
     thermal_energy_proper_code = pressure_proper_code / (eos.gamma - 1) * volume_proper_code
     return {
         "total_energy_proper_code": float(
-            np.sum((kinetic_energy_proper_code + thermal_energy_proper_code)[first:last])
+            np.sum((kinetic_energy_proper_code + thermal_energy_proper_code)[first:last]),
         ),
         "kinetic_energy_proper_code": float(np.sum(kinetic_energy_proper_code[first:last])),
         "thermal_energy_proper_code": float(np.sum(thermal_energy_proper_code[first:last])),

@@ -144,7 +144,7 @@ class InitialConditionWriter:
                 )
                 hubble_code = float(cosmology_model.hubble(cosmic_time_code))
                 hubble_unit_km_s_Mpc = self.code_units.velocity_unit.to_value(
-                    "km/s"
+                    "km/s",
                 ) / self.code_units.length_unit.to_value("Mpc")
                 simulation.par.cosmology_context = CosmologyContext(
                     gamma=float(simulation.par.hydrodynamics.gamma),
@@ -289,7 +289,7 @@ class InitialConditionWriter:
             value_dimensions = values.units.units.dimensions
         matching_fields = [
             field_name
-            for field_name, field_unit in zip(field_names, field_units)
+            for field_name, field_unit in zip(field_names, field_units, strict=False)
             if value_dimensions == field_unit.units.dimensions
         ]
         if len(matching_fields) != 1:
@@ -486,9 +486,8 @@ class InitialConditionWriter:
             value = getattr(container, field_name, None)
         if value is None and radarray_field is not None:
             value = self._fields.get(radarray_field)
-        if value is None:
-            if source_field is not None:
-                value = self._fields.get(source_field)
+        if value is None and source_field is not None:
+            value = self._fields.get(source_field)
         if value is None:
             value = getattr(container, f"{field_name}_radarray", None)
         if value is None and radarray_field is not None:
@@ -538,7 +537,7 @@ class InitialConditionWriter:
             return np.asarray(value.value, dtype=float)
         if hasattr(value, "units"):
             raise TypeError(
-                "initial-condition runtime fields must use RadArray or plain code values"
+                "initial-condition runtime fields must use RadArray or plain code values",
             )
         return np.asarray(value, dtype=float)
 
@@ -809,7 +808,9 @@ class InitialConditionWriter:
             width_values,
         )
         setattr(
-            mesh, "area_comoving_code" if cosmological_schema else "area_proper_code", area_values
+            mesh,
+            "area_comoving_code" if cosmological_schema else "area_proper_code",
+            area_values,
         )
         setattr(
             mesh,

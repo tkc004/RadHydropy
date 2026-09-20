@@ -8,9 +8,9 @@ saved proper shell radii and are intentionally labelled as proxies.
 
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -69,13 +69,17 @@ def _dark_matter_proxy(gas, dark_matter):
         gas_edges, gas_cell_mass = _gas_mass_profile(gas_radius, gas_density[i])
         gas_cumulative = np.concatenate(([0.0], np.cumsum(gas_cell_mass)))
         gas_inside = np.interp(
-            radius_comoving_code, gas_edges, gas_cumulative, left=0.0, right=gas_cumulative[-1]
+            radius_comoving_code,
+            gas_edges,
+            gas_cumulative,
+            left=0.0,
+            right=gas_cumulative[-1],
         )
         dm_inside = np.cumsum(mass_code)
         core_mass = float(np.asarray(dark_matter["central_core_mass"])[i])
         enclosed = gas_inside + dm_inside + core_mass
         potential[i] = -G_CODE * np.sum(
-            mass_code * enclosed / (radius_comoving_code + SOFTENING_cgs_KPC)
+            mass_code * enclosed / (radius_comoving_code + SOFTENING_cgs_KPC),
         )
 
         # Shell velocities are absent from the saved file.  A rank-matched
@@ -200,14 +204,6 @@ def main():
     conservation_figure = OUTPUT / (PREFIX + "_EnergyConservation.jpg")
     conservation.savefig(conservation_figure, dpi=220)
     plt.close(conservation)
-
-    print("energy figure = %s" % figure)
-    print("conservation figure = %s" % conservation_figure)
-    print("diagnostics = %s" % diagnostics)
-    print("gas final absolute residual = %.8g" % gas_residual[-1])
-    print("gas max absolute residual = %.8g" % np.nanmax(np.abs(gas_residual)))
-    print("DM proxy relative change = %.8g" % dm_relative_change[-1])
-    print("DM energy is a reconstructed proxy: shell velocities and force work were not saved.")
 
 
 if __name__ == "__main__":

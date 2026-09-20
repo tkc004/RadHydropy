@@ -91,7 +91,6 @@ def build_initial_condition(config):
         * (1.0 + float(initial_condition["overdensity"]) * inside)
         * np.ones(grid_cells)
     )
-    gamma = 5.0 / 3.0
     temperature_cgs_K = quantity_to_value(
         initial_condition["temperature_proper"],
         code_units.temperature_unit,

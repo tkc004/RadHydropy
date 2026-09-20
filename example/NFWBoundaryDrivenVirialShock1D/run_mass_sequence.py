@@ -14,18 +14,18 @@ for path in (PROJECT_ROOT, EXAMPLE_DIR.parent, EXAMPLE_DIR):
 os.environ.setdefault("XDG_CACHE_HOME", str(Path(tempfile.gettempdir()) / "radhydropy-cache"))
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
-import unyt
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+import unyt  # noqa: E402
 
-from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER
-from radhydropy.io import load_output_time_list
-from radhydropy.thermo_networks.pie import MetalPIETable
-from tools import (
+from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER  # noqa: E402
+from radhydropy.io import load_output_time_list  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from tools import (  # noqa: E402
     GAMMA_CRITICAL,
     load_output_state,
     locate_shock,
@@ -77,7 +77,7 @@ def _case_diagnostics(config_filename):
     stability_by_time = {row["time_proper_Myr"]: row for row in stability}
     shock_radius_over_R200_dimensionless = []
     gamma_eff_dimensionless = []
-    for filename, time in zip(files, times):
+    for filename, time in zip(files, times, strict=False):
         snapshot = load_output_state(filename, config)
         index = locate_shock(
             snapshot,
@@ -109,13 +109,14 @@ def _case_diagnostics(config_filename):
 def _write_summary(cases, filename):
     with Path(filename).open("w", encoding="utf-8") as stream:
         stream.write(
-            "halo_mass_proper_Msun time_proper_Myr shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n"
+            "halo_mass_proper_Msun time_proper_Myr shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n",
         )
         for case in cases:
             for time_proper_Myr, radius_dimensionless, gamma_eff_dimensionless in zip(
                 case["times_proper_Myr"],
                 case["shock_radius_over_R200_dimensionless"],
                 case["gamma_eff_dimensionless"],
+                strict=False,
             ):
                 if not np.isfinite(radius_dimensionless):
                     status = "no_resolved_virial_shock"
@@ -142,7 +143,10 @@ def _plot(cases, filename):
             label=case["label"],
         )
         axes[1].plot(
-            case["times_proper_Myr"], case["gamma_eff_dimensionless"], "o-", label=case["label"]
+            case["times_proper_Myr"],
+            case["gamma_eff_dimensionless"],
+            "o-",
+            label=case["label"],
         )
     axes[0].axhspan(0.5, 1.2, color="tab:green", alpha=0.08)
     axes[0].set_ylabel(r"$r_{\rm shock}/R_{200}$")
@@ -171,8 +175,6 @@ def main(run_cases=True):
     report = output / "NFWBoundaryDrivenVirialShock1D_MassSequence.txt"
     _plot(cases, figure)
     _write_summary(cases, report)
-    print(f"mass-sequence figure = {figure}")
-    print(f"mass-sequence report = {report}")
 
 
 def parse_args():

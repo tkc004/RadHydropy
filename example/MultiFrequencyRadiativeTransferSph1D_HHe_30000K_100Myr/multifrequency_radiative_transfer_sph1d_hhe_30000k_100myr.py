@@ -7,7 +7,7 @@ from pathlib import Path
 source_example = Path(__file__).resolve().parents[1] / "MultiFrequencyRadiativeTransferSph1D"
 sys.path.insert(0, str(source_example))
 
-from multifrequency_radiative_transfer_sph1d import main as run_example
+from multifrequency_radiative_transfer_sph1d import main as run_example  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr.yaml",

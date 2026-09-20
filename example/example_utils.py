@@ -39,9 +39,8 @@ def load_nested_example_config(config_filename):
     par = config["par"]
     initial_condition = config["initial_condition"]
     example = config["example"]
-    if "mesh" in par and "grid_cells" not in par["mesh"]:
-        if "grid_cells" in initial_condition:
-            par["mesh"]["grid_cells"] = initial_condition["grid_cells"]
+    if "mesh" in par and "grid_cells" not in par["mesh"] and "grid_cells" in initial_condition:
+        par["mesh"]["grid_cells"] = initial_condition["grid_cells"]
     if "simulation" in par and "initial_condition_filename" in par["simulation"]:
         par["simulation"]["initial_condition_filename"] = _resolve_path(
             par["simulation"]["initial_condition_filename"],
@@ -212,7 +211,8 @@ def write_radial_profile_csv(hdf5_filename, config, csv_filename=None):
     if physical_values:
         boundary_proper_cgs_cm = np.asarray(fields["boundary_proper_cgs_cm"], dtype=float)
         vel_peculiar_proper_cgs_cm_s = np.asarray(
-            fields["vel_peculiar_proper_cgs_cm_s"], dtype=float
+            fields["vel_peculiar_proper_cgs_cm_s"],
+            dtype=float,
         )
         rho_proper_cgs_g_cm3 = np.asarray(fields["rho_proper_cgs_g_cm3"], dtype=float)
         temperature_proper_cgs_K = np.asarray(fields["temperature_proper_cgs_K"], dtype=float)
@@ -252,14 +252,14 @@ def write_radial_profile_csv(hdf5_filename, config, csv_filename=None):
         radius_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[:-1] + boundary_proper_cgs_cm[1:])
         radius_proper_cgs_pc = radius_proper_cgs_cm / (1.0 * unyt.pc).to_value(unyt.cm)
         vel_peculiar_proper_cgs_km_s = vel_peculiar_proper_cgs_cm_s / (1.0 * unyt.km).to_value(
-            unyt.cm
+            unyt.cm,
         )
         number_density_cgs_cm3 = rho_proper_cgs_g_cm3 / (1.0 * unyt.mp).to_value(unyt.g)
     else:
         radius_proper_code = fields["radius_proper_code"]
         radius_proper_cgs_pc = radius_proper_code * float(code_units.length_unit.to_value(unyt.pc))
         vel_peculiar_proper_cgs_km_s = vel_proper_code * float(
-            code_units.velocity_unit.to_value(unyt.km / unyt.s)
+            code_units.velocity_unit.to_value(unyt.km / unyt.s),
         )
         number_density_cgs_cm3 = (
             rho_proper_code
@@ -267,7 +267,7 @@ def write_radial_profile_csv(hdf5_filename, config, csv_filename=None):
             / (1.0 * unyt.mp).to_value(unyt.g)
         )
         temperature_proper_cgs_K = temp_proper_code * float(
-            code_units.temperature_unit.to_value(unyt.K)
+            code_units.temperature_unit.to_value(unyt.K),
         )
 
     csv_filename.parent.mkdir(parents=True, exist_ok=True)
@@ -280,6 +280,7 @@ def write_radial_profile_csv(hdf5_filename, config, csv_filename=None):
                 (f"{value:.8g}" for value in vel_peculiar_proper_cgs_km_s),
                 (f"{value:.8g}" for value in number_density_cgs_cm3),
                 (f"{value:.8g}" for value in temperature_proper_cgs_K),
+                strict=False,
             ),
         )
     return csv_filename

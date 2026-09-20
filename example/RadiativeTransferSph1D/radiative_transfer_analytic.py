@@ -14,7 +14,10 @@ def _normalize_code_units(code_unit_system):
 
 
 def finite_volume_density(
-    boundary_proper_code, volume_proper_code, source_photon_rate_unyt, code_unit_system
+    boundary_proper_code,
+    volume_proper_code,
+    source_photon_rate_unyt,
+    code_unit_system,
 ):
     """Return the finite-volume average photon density."""
     code_unit_system = _normalize_code_units(code_unit_system)
@@ -22,13 +25,17 @@ def finite_volume_density(
         boundary_cgs_cm = boundary_proper_code.to_value(unyt.cm)
     else:
         boundary_cgs_cm = code_quantity_to_cgs(
-            boundary_proper_code, code_unit_system, "length_cgs_cm"
+            boundary_proper_code,
+            code_unit_system,
+            "length_cgs_cm",
         )
     if hasattr(volume_proper_code, "to_value"):
         volume_cgs_cm3 = volume_proper_code.to_value(unyt.cm**3)
     else:
         volume_cgs_cm3 = code_quantity_to_cgs(
-            volume_proper_code, code_unit_system, "volume_cgs_cm3"
+            volume_proper_code,
+            code_unit_system,
+            "volume_cgs_cm3",
         )
     if hasattr(source_photon_rate_unyt, "to_value"):
         source_photon_rate_cgs_s = source_photon_rate_unyt.to_value(1.0 / unyt.s)

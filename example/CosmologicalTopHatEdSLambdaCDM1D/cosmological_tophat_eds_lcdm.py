@@ -4,9 +4,9 @@ import copy
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -19,13 +19,13 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 sys.path.insert(0, str(REFERENCE_ROOT))
 
-import cosmological_dark_matter_only as reference_example
-import example_utils as eu
+import cosmological_dark_matter_only as reference_example  # noqa: E402
+import example_utils as eu  # noqa: E402
 
-from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
-from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
-from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
+from radhydropy.cosmology import EinsteinDeSitter as CodeEdS  # noqa: E402
+from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM  # noqa: E402
+from radhydropy.dark_matter import DarkMatterShells  # noqa: E402
+from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value  # noqa: E402
 
 OUTPUT_ROOT = Path(__file__).resolve().parent / "outputs"
 TARGET_MASS = 1000.0  # 10^13 Msun in the reference code units
@@ -46,7 +46,7 @@ def units():
                 "UnitCurrent_in_cgs": 1.0,
                 "UnitTemp_in_cgs": 1.0,
             },
-        }
+        },
     )
 
 
@@ -140,7 +140,8 @@ def analytic_turnaround(
     def rhs(time_cosmic_code, state):
         r, v = state
         return v, -gravity_constant_code * mass_comoving_code / max(
-            r**2, 1.0e-30
+            r**2,
+            1.0e-30,
         ) + lambda_acceleration * r
 
     def turnaround_event(time_cosmic_code, state):
@@ -163,7 +164,13 @@ def analytic_turnaround(
 
 
 def run_case(
-    label, code_class, omega_m, omega_lambda, final_scale_factor, target_mass, initial_overdensity
+    label,
+    code_class,
+    omega_m,
+    omega_lambda,
+    final_scale_factor,
+    target_mass,
+    initial_overdensity,
 ):
     code_units = units()
     # Start at z=100 and continue past z=0 so both turnarounds are visible.
@@ -219,7 +226,7 @@ def run_case(
             ai_code,
             ai_code * radius_comoving_code,
             ai_code * direct_radius_comoving_code,
-        )
+        ),
     ]
     while tau_supercomoving_code < tau_final_supercomoving_code - 1.0e-14:
         dt_supercomoving_code = min(
@@ -259,7 +266,7 @@ def run_case(
                 a_end_dimensionless,
                 a_end_dimensionless * shell.radius[0],
                 a_end_dimensionless * direct_radius_comoving_code,
-            )
+            ),
         )
     history = np.asarray(history)
     maximum_error = float(np.max(np.abs(history[:, 3] - history[:, 4])))
@@ -275,36 +282,29 @@ def run_case(
         collapse_time_cosmic_code = ti * (1.686 / overdensity_dimensionless) ** 1.5
         analytic_time_cosmic_code = 0.5 * collapse_time_cosmic_code
         analytic_density_comoving_code = float(
-            cosmology.background_density(analytic_time_cosmic_code)
+            cosmology.background_density(analytic_time_cosmic_code),
         )
-        analytic_radius_proper_code = (
+        (
             mass_comoving_code
             / ((4.0 * np.pi / 3.0) * (9.0 * np.pi**2 / 16.0) * analytic_density_comoving_code)
         ) ** (1.0 / 3.0)
-        print(
-            f"{label}: EdS closed-form turnaround t={analytic_time_cosmic_code:.12g}, "
-            f"r={analytic_radius_proper_code:.12g}",
-        )
-    _, final_a, final_h = cosmology.background_state_from_supercomoving(
+    _, _final_a, _final_h = cosmology.background_state_from_supercomoving(
         tau_supercomoving_code,
-    )
-    print(
-        f"{label}: a_final={final_a:.12g}, H_final={final_h:.12g}, "
-        f"final_proper_radius={history[-1][3]:.12g}, reference_radius={history[-1][4]:.12g}, "
-        f"max_radius_error={maximum_error:.6e}"
     )
     if maximum_error > 2.0e-5:
         raise RuntimeError(f"{label}: RadHydropy disagrees with reference integration")
     if analytic is None:
-        print(f"{label}: no turnaround before a=1")
+        pass
     else:
-        print(f"{label}: analytic turnaround t={analytic[0]:.12g}, r={analytic[1]:.12g}")
         analytic = (analytic[0], analytic[1], float(cosmology.scale_factor(analytic[0])))
     return history, analytic, float(getattr(cosmology, "_big_bang_time", 0.0))
 
 
 def make_comparison(
-    target_mass, filename, initial_overdensity=INITIAL_OVERDENSITY, final_scale_factor=0.5
+    target_mass,
+    filename,
+    initial_overdensity=INITIAL_OVERDENSITY,
+    final_scale_factor=0.5,
 ):
     cases = [
         ("EdS", CodeEdS, 1.0, 0.0, final_scale_factor),
@@ -349,7 +349,7 @@ def make_comparison(
                 label=f"{label} RadHydropy (line)",
             )
         if analytic is not None:
-            analytic_time, analytic_radius, analytic_a = analytic
+            analytic_time, analytic_radius, _analytic_a = analytic
             axis.plot(
                 analytic_time - big_bang_time,
                 analytic_radius,

@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -30,7 +30,7 @@ RUNS = [
 
 
 def _label(fraction):
-    return "f = %.2g" % fraction
+    return f"f = {fraction:.2g}"
 
 
 def main():
@@ -40,7 +40,7 @@ def main():
     rows = []
     colors = plt.get_cmap("viridis")(np.linspace(0.05, 0.95, len(RUNS)))
 
-    for color, (fraction, run_dir, prefix) in zip(colors, RUNS):
+    for color, (fraction, run_dir, prefix) in zip(colors, RUNS, strict=False):
         gas = np.load(run_dir / (prefix + ".npz"))
         dm = np.load(run_dir / (prefix + "_DarkMatterDensities.npz"))
         gas_radius_proper_kpc = gas["radius_comoving_kpc"] / gas["scale_factor"][-1]
@@ -48,7 +48,10 @@ def main():
         dm_radius_proper_kpc = dm["radius_proper_kpc"][-1]
         dm_rho_comoving_code = dm["rho_comoving_code"][-1]
         gas_ax.loglog(
-            gas_radius_proper_kpc, gas_rho_proper_code, color=color, label=_label(fraction)
+            gas_radius_proper_kpc,
+            gas_rho_proper_code,
+            color=color,
+            label=_label(fraction),
         )
         dm_ax.loglog(
             dm_radius_proper_kpc,
@@ -63,7 +66,7 @@ def main():
                 gas["rvir_kpc"][-1],
                 dm["radius_proper_kpc"][-1].max(),
                 dm["mass_code"][-1].sum(),
-            )
+            ),
         )
 
     gas_ax.set_xlabel("proper radius [kpc]")

@@ -14,13 +14,13 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-from example.PIECoolingNFWHydrostaticRelaxation1D import tools as et
-from radhydropy.gravity import Gravity, nfw_potential
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits
+import radhydropy.io as rio  # noqa: E402
+from example.PIECoolingNFWHydrostaticRelaxation1D import tools as et  # noqa: E402
+from radhydropy.gravity import Gravity, nfw_potential  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_nfw_hydrostatic_relaxation1d.yaml"
 
@@ -32,7 +32,7 @@ def main(config_filename=DEFAULT_CONFIG):
     initial_mapping = config["initial_condition"]
     thermochemistry = par["thermochemistry"]
     table_filename = str(
-        (config_filename.parent / thermochemistry["metal_pie_table_filename"]).resolve()
+        (config_filename.parent / thermochemistry["metal_pie_table_filename"]).resolve(),
     )
     thermochemistry["metal_pie_table_filename"] = table_filename
     eu.clean_previous_outputs(config)
@@ -49,29 +49,6 @@ def main(config_filename=DEFAULT_CONFIG):
     config["_code_units"] = code_units
     initial = et.build_initial_condition(config)
     initial.write(par["simulation"]["initial_condition_filename"], validate=True)
-    runtime_only = {
-        "box_size_proper",
-        "coordinate_system",
-        "time_proper",
-        "grid_cells",
-        "number_of_cells",
-        "radius_inner_proper",
-        "radius_outer_proper",
-        "halo_mass",
-        "concentration",
-        "redshift",
-        "overdensity",
-        "h0",
-        "gas_fraction",
-        "mean_molecular_weight",
-        "mu",
-        "rho_reference_proper",
-        "temperature_proper",
-        "final_time",
-        "evolution_timestep",
-        "chemistry_timestep",
-        "runaway_density_factor",
-    }
     sim = rio.loadhdf5(config, par["simulation"]["initial_condition_filename"])
     sim.par.metal_pie_table = MetalPIETable(
         par["thermochemistry"]["metal_pie_table_filename"],
@@ -93,11 +70,7 @@ def main(config_filename=DEFAULT_CONFIG):
         # floor.  The relevant runaway is central loss of pressure support.
         ncentral = max(8, int(0.1 * temperature_state.size))
         floor_reached = np.min(temperature_state[:ncentral]) <= 1.01 * floor
-        if runaway or floor_reached:
-            reason = "density runaway" if runaway else "temperature floor"
-            print("stopping relaxation: %s" % reason)
-            return True
-        return False
+        return bool(runaway or floor_reached)
 
     sim.par.gravity = Gravity(
         externalgravity=True,
@@ -122,24 +95,13 @@ def main(config_filename=DEFAULT_CONFIG):
     if len(outputs) < 2:
         raise RuntimeError("expected at least two saved snapshots")
     results = [et.analyze_snapshot(name, config, halo, temperature_virial_unyt) for name in outputs]
-    for result, scheduled_time in zip(results, scheduled_times):
+    for result, scheduled_time in zip(results, scheduled_times, strict=False):
         result["time_proper_Myr"] = scheduled_time
     result_stem = par["simulation"]["name"]
     report = EXAMPLE_DIR / f"{result_stem}_Report.txt"
     figure = EXAMPLE_DIR / f"{result_stem}.jpg"
     et.write_report(results, report, floor)
     et.plot_results(results, halo, figure)
-    print("halo mass = %.6g Msun" % halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun))
-    print("R200 = %.6g kpc" % halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc))
-    print("Tvir = %.6g K" % temperature_virial_unyt.to_value(unyt.K))
-    print("central T final = %.6g K" % results[-1]["central_temperature_proper_cgs_K"])
-    print("central density final = %.6g g/cm^3" % results[-1]["central_rho_proper_cgs_g_cm3"])
-    print(
-        "temperature floor reached = %s"
-        % (results[-1]["minimum_temperature_proper_cgs_K"] <= 1.01 * floor)
-    )
-    print("figure = %s" % figure)
-    print("report = %s" % report)
 
 
 if __name__ == "__main__":

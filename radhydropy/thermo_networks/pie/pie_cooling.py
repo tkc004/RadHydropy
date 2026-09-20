@@ -303,7 +303,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
 
         _update_temperature(state)
         interior = state["interior"]
-        fields = runtime_fields(par)
+        runtime_fields(par)
         if getattr(par, "supercomoving_coordinates", False):
             rho_runtime_code = fluid.rho_comoving_code
             temp_runtime_code = fluid.temp_supercomoving_code

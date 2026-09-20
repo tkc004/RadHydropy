@@ -10,7 +10,9 @@ BOLTZMANN_ERG_cgs_K = unyt.kb.to_value(unyt.erg / unyt.K)
 
 
 def hydrogen_number_density_isobaric_cgs_cm3(
-    temperature_proper_cgs_K, density_initial_proper_cgs_cm3, temperature_initial_proper_cgs_K
+    temperature_proper_cgs_K,
+    density_initial_proper_cgs_cm3,
+    temperature_initial_proper_cgs_K,
 ):
     """Return n_H for a parcel held at its initial ideal-gas pressure."""
     return (
@@ -21,7 +23,10 @@ def hydrogen_number_density_isobaric_cgs_cm3(
 
 
 def pressure_proper_cgs_erg_cm3_from_nh(
-    temperature_proper_cgs_K, density_nH_cgs_cm3, hydrogen_mass_fraction, mu
+    temperature_proper_cgs_K,
+    density_nH_cgs_cm3,
+    hydrogen_mass_fraction,
+    mu,
 ):
     """Return ideal-gas pressure in erg cm^-3."""
     return (
@@ -76,7 +81,7 @@ def integrate_isobaric_case(
                 density_nH_cgs_cm3,
                 metallicity,
                 redshift,
-            )
+            ),
         )
         dtemperature_dt = (
             (gamma - 1.0)
@@ -141,7 +146,9 @@ def isobaric_growth_rate(
     """
     grid = np.logspace(2, 8, 4096)
     density_nH_cgs_cm3 = hydrogen_number_density_isobaric_cgs_cm3(
-        grid, density_initial_proper_cgs_cm3, temperature_initial_proper_cgs_K
+        grid,
+        density_initial_proper_cgs_cm3,
+        temperature_initial_proper_cgs_K,
     )
     rho_cgs_g_cm3 = density_nH_cgs_cm3 * PROTON_MASS_G / hydrogen_mass_fraction
     rate = net_rate(table, grid, density_nH_cgs_cm3, metallicity, redshift)

@@ -284,17 +284,23 @@ class RadArray(unyt.unyt_array):
                 if ufunc is np.multiply:
                     result_value = left.value * right.value
                     result_units = left.units * right.units
-                    dimension_operation = lambda a, b: a + b
+
+                    def dimension_operation(a, b):
+                        return a + b
                 else:
                     result_value = left.value / right.value
                     result_units = left.units / right.units
-                    dimension_operation = lambda a, b: a - b
+
+                    def dimension_operation(a, b):
+                        return a - b
+
                 first, second = rad_inputs
                 dimensions = tuple(
                     dimension_operation(a, b)
                     for a, b in zip(
                         first.field_spec.dimensions,
                         second.field_spec.dimensions,
+                        strict=False,
                     )
                 )
                 result_spec = FieldSpec(
@@ -351,6 +357,7 @@ class RadArray(unyt.unyt_array):
                     for left, right in zip(
                         rad_inputs[0].field_spec.dimensions,
                         rad_inputs[1].field_spec.dimensions,
+                        strict=False,
                     )
                 )
             elif ufunc in (np.true_divide, np.divide, np.floor_divide):
@@ -359,6 +366,7 @@ class RadArray(unyt.unyt_array):
                     for left, right in zip(
                         rad_inputs[0].field_spec.dimensions,
                         rad_inputs[1].field_spec.dimensions,
+                        strict=False,
                     )
                 )
             else:

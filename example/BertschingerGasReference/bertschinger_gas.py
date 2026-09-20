@@ -84,14 +84,14 @@ def _gas_rhs(lam, state, gamma=GAMMA):
             [q, 1.0, 0.0],
             [0.0, q, pressure_dimensionless / density_dimensionless],
             [0.0, gamma, q],
-        ]
+        ],
     )
     rhs = np.array(
         [
             2.0 - 2.0 * velocity_dimensionless / lam,
             -(ALPHA - 1.0) * velocity_dimensionless - 2.0 * mass_dimensionless / (9.0 * lam**2),
             4.0 - 2.0 * ALPHA - 2.0 * gamma * velocity_dimensionless / lam,
-        ]
+        ],
     )
     log_density_prime, velocity_prime, log_pressure_prime = np.linalg.solve(matrix, rhs)
     return np.array(
@@ -100,7 +100,7 @@ def _gas_rhs(lam, state, gamma=GAMMA):
             velocity_prime,
             pressure_dimensionless * log_pressure_prime,
             3.0 * lam**2 * density_dimensionless,
-        ]
+        ],
     )
 
 
@@ -121,7 +121,7 @@ def shock_jump(exterior_state, shock_lambda, gamma=GAMMA):
             velocity_post_dimensionless,
             pressure_post_dimensionless,
             mass_dimensionless,
-        ]
+        ],
     )
 
 
@@ -206,8 +206,6 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     solution = solve_bertschinger_gas()
-    print("shock lambda = %.8f" % solution.shock_lambda)
-    print("interior integration reached lambda = %.8e" % solution.lambda_in[0])
     figure, axes = plt.subplots(2, 2, figsize=(10.0, 8.0), squeeze=False)
     axes = axes.ravel()
     axes[0].loglog(solution.lambda_out, solution.density_out, label="cold exterior")
@@ -230,4 +228,3 @@ if __name__ == "__main__":
     output = Path(__file__).with_name("BertschingerGasReference.jpg")
     figure.savefig(output, dpi=200)
     plt.close(figure)
-    print("figure = %s" % output)

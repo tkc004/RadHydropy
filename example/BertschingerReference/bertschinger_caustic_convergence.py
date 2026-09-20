@@ -4,9 +4,9 @@ import tempfile
 from copy import deepcopy
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
@@ -47,14 +47,15 @@ def main():
                     config["example"]["caustic_smoothing_bins"] = value
                 else:
                     config["initial_condition"][parameter] = value
-                label = "%s_%s" % (parameter, str(value).replace(".", "p"))
+                label = "{}_{}".format(parameter, str(value).replace(".", "p"))
                 config["par"]["output"]["directory"] = str(OUTPUT / label)
                 Path(config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
                 config_filename = temp / (label + ".yaml")
                 _write_config(config, config_filename)
                 run_comparison(config_filename)
                 data = np.load(
-                    Path(config["par"]["output"]["directory"]) / "BertschingerDarkMatterCaustic.npz"
+                    Path(config["par"]["output"]["directory"])
+                    / "BertschingerDarkMatterCaustic.npz",
                 )
                 selected = data["lambda_caustic"][data["xi"] >= 3.0]
                 rows.append(
@@ -65,7 +66,7 @@ def main():
                         np.median(selected),
                         np.std(selected),
                         float(data["ode_outer_caustic_lambda"]),
-                    )
+                    ),
                 )
 
     dtype = [
@@ -83,11 +84,11 @@ def main():
         for row in result:
             handle.write(
                 "%s %.8g %d %.8g %.8g %.8g %.8g\n"
-                % (*row, row["median_lambda"] - row["ode_lambda"])
+                % (*row, row["median_lambda"] - row["ode_lambda"]),
             )
 
     figure, axes = plt.subplots(1, len(CASES), figsize=(15, 3.5), sharey=True)
-    for axis, parameter in zip(axes, CASES):
+    for axis, parameter in zip(axes, CASES, strict=False):
         selected = result[result["parameter"] == parameter]
         axis.errorbar(
             selected["value"],
@@ -105,7 +106,6 @@ def main():
     figure.tight_layout()
     figure.savefig(OUTPUT / "BertschingerCausticConvergence.jpg", dpi=180)
     plt.close(figure)
-    print("wrote %s" % (OUTPUT / "caustic_convergence.txt"))
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 """Helper utilities for the hydrogen recombination example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import glob
 
 import hydrogen_recombination_analytic as hra
@@ -72,10 +72,10 @@ def time_value(sim, code_unit_system):
 
 def load_history_from_outputs(outputfiles, config):
     history = {"time_proper_yr": [], "temperature_proper_cgs_K": [], "ionized_fraction": []}
-    initial = config["initial_condition"]
+    config["initial_condition"]
 
     interior = slice(0, config["par"]["mesh"]["grid_cells"])
-    code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
     for outfilename in sorted(outputfiles):
         rout = rio.loadhdf5(config, outfilename)

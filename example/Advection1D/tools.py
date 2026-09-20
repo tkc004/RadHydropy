@@ -1,8 +1,8 @@
 """Helper utilities for the cartesian advection example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -26,14 +26,16 @@ def build_initial_condition(config):
         )
     ] *= 0.5
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code_units, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=code_units,
+        ic_config=config["initial_condition"],
     )
     writer.box_size = writer.radquantity(box_size_proper_unyt)
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(np.ones(grid_cells) * initial["vel_proper"])
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial["temperature_proper"]
+        np.ones(grid_cells) * initial["temperature_proper"],
     )
     writer.fluid.mu = np.full(grid_cells, float(initial["mean_molecular_weight"]))
     return writer

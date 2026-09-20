@@ -12,27 +12,26 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
     os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
 )
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
-from example.OutflowSph1d import tools as et
+from example.OutflowSph1d import tools as et  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("OutflowSph1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
 
     exampleparams = config["example"]
@@ -66,7 +65,6 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
-    print("figure = %s" % figure_filename)
 
 
 def parse_args():

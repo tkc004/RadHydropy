@@ -3,9 +3,9 @@
 import argparse
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -59,7 +59,7 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, exclude_outer_cells=2):
         figsize=(8.0, 8.0),
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
-    for color, index in zip(colors, selected):
+    for color, index in zip(colors, selected, strict=False):
         valid = (
             np.isfinite(radius_comoving_code)
             & np.isfinite(entropy[index])
@@ -71,7 +71,7 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, exclude_outer_cells=2):
             entropy[index, valid],
             color=color,
             lw=1.7,
-            label="t = %.2f Gyr" % times[index],
+            label=f"t = {times[index]:.2f} Gyr",
         )
         if np.isfinite(rvir[index]) and rvir[index] > 0.0:
             axes[0].axvline(
@@ -136,7 +136,6 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, exclude_outer_cells=2):
     figure = output / (prefix + "_Entropy.jpg")
     fig.savefig(figure, dpi=220)
     plt.close(fig)
-    print("entropy figure = %s" % figure)
 
 
 if __name__ == "__main__":

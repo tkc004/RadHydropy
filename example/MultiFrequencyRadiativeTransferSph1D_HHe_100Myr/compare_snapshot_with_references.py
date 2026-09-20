@@ -4,9 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -17,8 +17,8 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, SOURCE_EXAMPLE):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
-from multifrequency_tools import active_radarray, load_snapshot
+import example_utils as eu  # noqa: E402
+from multifrequency_tools import active_radarray, load_snapshot  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOT = HERE / "Output_000.hdf5"
@@ -85,7 +85,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE, config_filename=CON
         "C²-Ray snapshot: 100 Myr" if "C2Ray" in snapshot_filename.stem else "snapshot: 100 Myr"
     )
     fig, axes = plt.subplots(2, 3, figsize=(13.0, 7.5), sharex=True)
-    for axis, (species, reference_name) in zip(axes.flat, references.items()):
+    for axis, (species, reference_name) in zip(axes.flat, references.items(), strict=False):
         axis.plot(
             radius_proper_kpc,
             np.clip(snapshot[species], 1.0e-12, 1.0),
@@ -130,7 +130,10 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE, config_filename=CON
         label="reference: 100 Myr",
     )
     temperature_axis.axhline(
-        1.0e5, color="tab:purple", linestyle="--", label=r"$T_{\rm rad}=10^5$ K"
+        1.0e5,
+        color="tab:purple",
+        linestyle="--",
+        label=r"$T_{\rm rad}=10^5$ K",
     )
     temperature_axis.set_yscale("log")
     temperature_axis.set_ylim(1.0e1, 1.0e8)
@@ -148,7 +151,6 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE, config_filename=CON
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=180, bbox_inches="tight")
     plt.close(fig)
-    print(figure_filename)
 
 
 if __name__ == "__main__":

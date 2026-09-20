@@ -59,10 +59,6 @@ class CosmologicalVirialShockPhysics:
             self.sim.par.compton_cmb_enabled = False
         if self.sim.par.thermochemistry_network != self.active_network:
             self.active_network = self.sim.par.thermochemistry_network
-            print(
-                "thermochemistry=%s at z=%.6g" % (self.active_network, redshift),
-                flush=True,
-            )
 
     def update_cosmic_boundary(self, time_cosmic_code):
         """Set the outer cosmic gas state in supercomoving hydro units."""
@@ -112,7 +108,7 @@ class CosmologicalVirialShockPhysics:
                     mu,
                 ),
                 dtype=float,
-            )
+            ),
         )
         self.sim.fluid.rho_comoving_code[index] = rho_comoving_code
         self.sim.fluid.vel_supercomoving_code[index] = vel_supercomoving_code
@@ -134,7 +130,7 @@ class CosmologicalVirialShockPhysics:
                         pre_supercomoving_code,
                     ),
                     dtype=float,
-                )
+                ),
             )
             * volume_comoving_code
         )
@@ -142,7 +138,7 @@ class CosmologicalVirialShockPhysics:
             np.asarray(
                 self.sim.fluid.eos.thermal_energy_density(pre_supercomoving_code),
                 dtype=float,
-            )
+            ),
         )
         if hasattr(self.sim.fluid, "eth"):
             self.sim.fluid.eth_code[index] = thermal_energy_density

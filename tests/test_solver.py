@@ -284,7 +284,7 @@ class Testing(unittest.TestCase):
                 rho * velocity,
                 rho * velocity**2 + pressure,
                 velocity * (1.4 * pressure / 0.4 + 0.5 * rho * velocity**2),
-            )
+            ),
         )
         np.testing.assert_array_equal(valid, [True, True])
         np.testing.assert_allclose(flux, expected, rtol=1.0e-13, atol=1.0e-13)
@@ -687,14 +687,16 @@ class Testing(unittest.TestCase):
         par.gravity = SimpleNamespace(
             potential_on=lambda coordinate: -np.asarray(coordinate, dtype=float),
             acceleration_on_mesh=lambda mesh, rho=None, par=None: np.ones_like(
-                np.asarray(mesh.coordinate, dtype=float)
+                np.asarray(mesh.coordinate, dtype=float),
             ),
         )
         mesh = make_code_mesh()
         mesh._par = par
         fluid = make_code_fluid()
         fluid.pre_proper_code = fluid.eos.pressure(
-            fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu
+            fluid.rho_proper_code,
+            fluid.temp_proper_code,
+            fluid.mu,
         )
         solver = Solver()
         solver.SetConserved(mesh, fluid)
@@ -704,7 +706,8 @@ class Testing(unittest.TestCase):
             np.asarray(fluid.Mass_code, dtype=float) * (-mesh.coordinate),
         )
         initial_total = np.asarray(fluid.Energy_code, dtype=float) + np.asarray(
-            fluid.GravitationalPotentialEnergy_code, dtype=float
+            fluid.GravitationalPotentialEnergy_code,
+            dtype=float,
         )
         solver.ApplyGravity(1.0e-3, mesh, fluid, par)
         np.testing.assert_allclose(
@@ -723,14 +726,16 @@ class Testing(unittest.TestCase):
         par.gravity = SimpleNamespace(
             potential_on=lambda coordinate: -np.asarray(coordinate, dtype=float),
             acceleration_on_mesh=lambda mesh, rho=None, par=None: np.zeros_like(
-                np.asarray(mesh.coordinate, dtype=float)
+                np.asarray(mesh.coordinate, dtype=float),
             ),
         )
         mesh = make_code_mesh()
         mesh._par = par
         fluid = make_code_fluid()
         fluid.pre_proper_code = fluid.eos.pressure(
-            fluid.rho_proper_code, fluid.temp_proper_code, fluid.mu
+            fluid.rho_proper_code,
+            fluid.temp_proper_code,
+            fluid.mu,
         )
         solver = Solver()
         solver.SetConserved(mesh, fluid)
@@ -1235,7 +1240,7 @@ class Testing(unittest.TestCase):
                 2.768587034204799,
                 0.42270495958486487,
                 0.2879553791648065,
-            ]
+            ],
         )
         momentum = np.array(
             [
@@ -1244,7 +1249,7 @@ class Testing(unittest.TestCase):
                 0.03990724798119123,
                 -0.014152283269336843,
                 0.00925101127551695,
-            ]
+            ],
         )
         energy = np.array(
             [
@@ -1253,7 +1258,7 @@ class Testing(unittest.TestCase):
                 0.22036689100247855,
                 0.04871676701166089,
                 0.02676529191260478,
-            ]
+            ],
         )
         fluid = SimpleNamespace(
             Mass_code=as_named_array(mass.copy()),
@@ -1269,7 +1274,7 @@ class Testing(unittest.TestCase):
                 -3.723223801407037,
                 -1.04004798128519,
                 -1.2456146601584484,
-            ]
+            ],
         )
         momentum_face = np.array(
             [
@@ -1278,7 +1283,7 @@ class Testing(unittest.TestCase):
                 -0.26620947455297345,
                 2.4873892451277824,
                 -2.483994405078338,
-            ]
+            ],
         )
         energy_face = np.array(
             [
@@ -1287,7 +1292,7 @@ class Testing(unittest.TestCase):
                 -0.9156911448084882,
                 -0.5172337136435069,
                 -1.5154215992557107,
-            ]
+            ],
         )
         solver = Solver()
 
@@ -1538,7 +1543,7 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(np.asarray(fluid.ngamma_code), np.asarray(ngamma_code_before))
         self.assertTrue(np.all(fluid.xHI[2:6] >= xHI_before[2:6]))
         self.assertTrue(
-            np.all(np.asarray(fluid.Energy_code)[2:6] <= np.asarray(energy_before)[2:6])
+            np.all(np.asarray(fluid.Energy_code)[2:6] <= np.asarray(energy_before)[2:6]),
         )
         np.testing.assert_array_equal(fluid.ngamma_code[:2], ngamma_code_before[:2])
 

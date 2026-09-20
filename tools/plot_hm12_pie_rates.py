@@ -102,10 +102,7 @@ def interpolate_axis(values, axis_values, target, axis_number=0):
 
 def select_metallicity(table, requested):
     metallicities = np.asarray(table["axes/metallicity_Zsun"], dtype=float)
-    if requested is None:
-        index = 0
-    else:
-        index = int(np.argmin(np.abs(metallicities - requested)))
+    index = 0 if requested is None else int(np.argmin(np.abs(metallicities - requested)))
     return index, float(metallicities[index])
 
 
@@ -190,6 +187,7 @@ def plot_rates(
         redshifts,
         absolute_net_cooling,
         heating,
+        strict=False,
     ):
         label = rf"$z={redshift:g}$"
         ax.plot(
@@ -244,7 +242,7 @@ def main():
                 output_path = args.output.with_name(
                     f"{args.output.stem}_lognH_{log_density:g}{args.output.suffix}",
                 )
-        metallicity = plot_rates(
+        plot_rates(
             table_path,
             output_path,
             hydrogen_density,
@@ -252,14 +250,6 @@ def main():
             args.metallicity,
             args.max_log_heating,
         )
-        print(f"Loaded: {table_path}")
-        print(
-            f"Using log10(nH/cm^-3) = {log_density:g}, "
-            f"nH = {hydrogen_density:g} cm^-3, "
-            f"metallicity = {metallicity:g} Z/Zsun",
-        )
-        print(f"Redshifts: {', '.join(f'{z:g}' for z in args.redshifts)}")
-        print(f"Wrote: {output_path}")
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ class Mesh:
             raise AttributeError("mesh.boundary_comoving_code is required")
         for attr in ("grid_cells", "ghost_cells"):
             if not hasattr(par.mesh, attr):
-                raise AttributeError("mesh.%s does not exist in params; quitting." % attr)
+                raise AttributeError(f"mesh.{attr} does not exist in params; quitting.")
         if nogrid < 1:
             raise ValueError("nogrid has to be at least 1")
         if noghost < 1:
@@ -146,7 +146,7 @@ class Mesh:
                     self.area_comoving_code[ig] = 0.0
 
         else:
-            raise ValueError("coordinate system unknown: %s" % self.coordsys)
+            raise ValueError(f"coordinate system unknown: {self.coordsys}")
 
         self.geometry_state = MeshGeometryState.from_arrays(
             self.runtime_fields,
@@ -246,7 +246,7 @@ class Mesh:
                     self.area_proper_code[index] = 0.0
         else:
             raise ValueError(
-                "coordinate system unknown: %s" % par.simulation.coordinate_system,
+                f"coordinate system unknown: {par.simulation.coordinate_system}",
             )
         self.runtime_fields = runtime_fields(par)
         self.geometry_state = MeshGeometryState.from_arrays(

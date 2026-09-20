@@ -85,7 +85,7 @@ def radius_turnaround_proper_code(shells, time_cosmic_code, config):
         vel_peculiar_proper_code[i] - vel_peculiar_proper_code[i + 1]
     )
     return float(
-        radius_proper_code[i] + fraction * (radius_proper_code[i + 1] - radius_proper_code[i])
+        radius_proper_code[i] + fraction * (radius_proper_code[i + 1] - radius_proper_code[i]),
     )
 
 
@@ -98,7 +98,9 @@ def similarity_profiles(shells, time_cosmic_code, config, bins=256):
     radius_proper_code = a * shells.radius
     vel_peculiar_proper_code = peculiar_velocity_proper_code(shells, time_cosmic_code, config)
     lam_edges = np.geomspace(
-        max(radius_proper_code.min() / rta, 1.0e-5), radius_proper_code.max() / rta, bins + 1
+        max(radius_proper_code.min() / rta, 1.0e-5),
+        radius_proper_code.max() / rta,
+        bins + 1,
     )
     lam = np.sqrt(lam_edges[:-1] * lam_edges[1:])
     shell_index = np.clip(np.searchsorted(lam_edges, radius_proper_code / rta) - 1, 0, bins - 1)

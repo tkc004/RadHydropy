@@ -75,17 +75,19 @@ def build_initial_condition(config):
         coordinate_proper_unyt[0],
     )
     writer = InitialConditionWriter(
-        par_config=config["par"], code_units=code_unit_system, ic_config=config["initial_condition"]
+        par_config=config["par"],
+        code_units=code_unit_system,
+        ic_config=config["initial_condition"],
     )
     writer.box_size = writer.radquantity(initial_condition["radius_outer_proper"])
     writer.mesh.boundary_radarray = writer.radarray(boundary_proper_unyt)
     writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(
-        np.zeros(grid_cells) * code_unit_system.velocity_unit
+        np.zeros(grid_cells) * code_unit_system.velocity_unit,
     )
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial_condition["temperature_proper"]
+        np.ones(grid_cells) * initial_condition["temperature_proper"],
     )
     writer.fluid.mu = np.full(grid_cells, float(initial_condition["mean_molecular_weight"]))
     return writer

@@ -219,7 +219,8 @@ class Gravity:
         if self.acceleration is not None:
             if callable(self.acceleration):
                 return quantity_to_value(
-                    self.acceleration(coordinate), _acceleration_unit(code_units)
+                    self.acceleration(coordinate),
+                    _acceleration_unit(code_units),
                 )
             return self._tabulated_quantity(self.acceleration, coordinate, "acceleration")
 
@@ -230,7 +231,7 @@ class Gravity:
         potential = self.potential_on(coord)
         if potential.size < 2:
             raise ValueError(
-                "At least two coordinate points are required to differentiate the potential"
+                "At least two coordinate points are required to differentiate the potential",
             )
 
         gradient = np.gradient(potential, coord)
@@ -293,7 +294,7 @@ class Gravity:
             outer = np.maximum(boundaries[first + 1 : last + 1], 0.0)
             density = rho[interior]
             enclosed_before = np.concatenate(
-                ([0.0], np.cumsum(density[:-1] * volume[interior][:-1]))
+                ([0.0], np.cumsum(density[:-1] * volume[interior][:-1])),
             )
             radius = np.maximum(radii, self.selfgravity_softening)
             partial_volume = 4.0 * np.pi / 3.0 * np.maximum(radius**3 - inner**3, 0.0)
@@ -322,7 +323,7 @@ class Gravity:
                 result[last:] = result[last - 1]
             return result
 
-        raise ValueError("self-gravity is not implemented for %r meshes" % mesh.coordsys)
+        raise ValueError(f"self-gravity is not implemented for {mesh.coordsys!r} meshes")
 
     def cosmological_acceleration_on_mesh(self, mesh, rho, par):
         """Return supercomoving acceleration from enclosed density contrast.
@@ -352,7 +353,8 @@ class Gravity:
             dtype=float,
         )
         _, boundary_runtime_code, _, _, volume_runtime_code = _canonical_mesh_geometry_arrays(
-            mesh, par
+            mesh,
+            par,
         )
         coordinate_runtime_code = _canonical_mesh_geometry_arrays(mesh, par)[0]
         boundaries = np.asarray(
@@ -469,12 +471,11 @@ class Gravity:
         )
         enclosed = self.dark_matter.gravitating_enclosed_mass(coordinate)
         radius = np.maximum(coordinate, np.finfo(float).tiny)
-        acceleration = (
+        return (
             -_gravitational_constant_code(code_units)
             * enclosed
             / (radius + self.dark_matter.softening) ** 2
         )
-        return acceleration
 
     def advance_dark_matter(
         self,
@@ -498,7 +499,9 @@ class Gravity:
         # cumulative mass profile once; shell sub-cycling only evaluates the
         # cached piecewise-constant profile at the current shell radii.
         if rho is None:
-            gas_mass = lambda radius: np.zeros_like(np.asarray(radius), dtype=float)
+
+            def gas_mass(radius):
+                return np.zeros_like(np.asarray(radius), dtype=float)
         else:
             gas_mass = prepare_enclosed_gas_mass(mesh, rho, par)
         if self.cosmological:
@@ -528,12 +531,12 @@ class Gravity:
             tau_start = tau - float(dt)
             _, scale_factor_start, _ = cosmology.background_state_from_supercomoving(tau_start)
             background_density = float(cosmology.background_density(cosmic_time)) * scale_factor**3
+
             # Re-evaluate the homogeneous mass at the shell radius used by
             # each kick.  Passing a frozen array here applies the old-radius
             # background after the drift and corrupts linear growth.
-            background_mass = lambda radius: (
-                4.0 * np.pi / 3.0 * background_density * np.asarray(radius) ** 3
-            )
+            def background_mass(radius):
+                return 4.0 * np.pi / 3.0 * background_density * np.asarray(radius) ** 3
         else:
             scale_factor = 1.0
             scale_factor_start = 1.0

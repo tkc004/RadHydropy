@@ -8,20 +8,20 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import matplotlib
+import matplotlib as mpl  # noqa: E402
 
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
-import numpy as np
-from gas_centrifugal_hydro_expansion1d import (
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+from gas_centrifugal_hydro_expansion1d import (  # noqa: E402
     CONFIG,
     run_simulation,
     spherical_centers,
 )
-from shell_remap import centrifugal_shell_reference
+from shell_remap import centrifugal_shell_reference  # noqa: E402
 
-from radhydropy.units import CodeUnits, quantity_to_value
+from radhydropy.units import CodeUnits, quantity_to_value  # noqa: E402
 
 
 def measure(config):
@@ -31,11 +31,11 @@ def measure(config):
         saved_mesh,
         saved,
         initial_mass,
-        initial_energy,
+        _initial_energy,
         initial_radius,
         cumulative_gravity_work,
-        cumulative_potential_change,
-        cumulative_potential_flux,
+        _cumulative_potential_change,
+        _cumulative_potential_flux,
     ) = run_simulation(config)
     first = int(sim.par.mesh.ghost_cells)
     count = int(sim.par.mesh.grid_cells)
@@ -95,13 +95,6 @@ def main():
         case_config = copy.deepcopy(config)
         case_config["par"]["mesh"]["grid_cells"] = resolution
         results.append(measure(case_config))
-        print(
-            "resolution %d: velocity=%g J/M=%g energy=%g mass=%g potential=%g"
-            % (
-                resolution,
-                *results[-1],
-            )
-        )
     results = np.asarray(results)
     output = ROOT / "outputs" / "GasCentrifugalHydroExpansion1D_convergence.jpg"
     fig, axis = plt.subplots(figsize=(6, 4))
@@ -114,7 +107,6 @@ def main():
     fig.tight_layout()
     fig.savefig(output, dpi=180)
     plt.close(fig)
-    print("convergence figure = %s" % output)
 
 
 if __name__ == "__main__":

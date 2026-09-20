@@ -71,12 +71,14 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     rho_field, velocity_field, pressure_field, _, _ = select_fluid_primitive_arrays(
-        fluid_state, sim.par
+        fluid_state,
+        sim.par,
     )
     coordinate_field, boundary_field, _, area_field, volume_field = select_mesh_geometry_arrays(
-        mesh_state, sim.par
+        mesh_state,
+        sim.par,
     )
-    rho_runtime_code = np.asarray(rho_field[first:last], dtype=float)
+    np.asarray(rho_field[first:last], dtype=float)
     pressure_runtime_code = np.asarray(pressure_field[first:last], dtype=float)
     velocity_runtime_code = np.asarray(velocity_field[first:last], dtype=float)
     coordinate_runtime_code = np.asarray(coordinate_field[first:last], dtype=float)
@@ -262,7 +264,8 @@ def _hydro_step_ssprk2(
     if hasattr(initial_state, "AngularMomentum_code") and hasattr(stage2, "AngularMomentum_code"):
         conserved_fields.append("AngularMomentum_code")
     if hasattr(initial_state, "GravitationalPotentialEnergy_code") and hasattr(
-        stage2, "GravitationalPotentialEnergy_code"
+        stage2,
+        "GravitationalPotentialEnergy_code",
     ):
         conserved_fields.append("GravitationalPotentialEnergy_code")
     if hasattr(initial_state, "InternalEnergy_code") and hasattr(stage2, "InternalEnergy_code"):
@@ -297,18 +300,19 @@ def Step(
     valid_modes = ("hydro", "hydro_sources", "sources")
     if mode not in valid_modes:
         raise ValueError(
-            "Unknown step mode %r; valid modes are %s" % (mode, ", ".join(valid_modes)),
+            "Unknown step mode {!r}; valid modes are {}".format(mode, ", ".join(valid_modes)),
         )
     valid_hydro_integrators = ("euler", "ssprk2")
     if hydro_integrator not in valid_hydro_integrators:
         raise ValueError(
-            "Unknown hydro integrator %r; valid options are %s"
-            % (hydro_integrator, ", ".join(valid_hydro_integrators)),
+            "Unknown hydro integrator {!r}; valid options are {}".format(
+                hydro_integrator, ", ".join(valid_hydro_integrators)
+            ),
         )
     source_integrator = str(getattr(sim.par, "source_integrator", "lie")).lower()
     if source_integrator not in ("lie", "strang"):
         raise ValueError(
-            "Unknown source integrator %r; valid options are lie, strang" % source_integrator,
+            f"Unknown source integrator {source_integrator!r}; valid options are lie, strang",
         )
     if source_integrator == "strang" and mode != "hydro":
         raise ValueError("source_integrator='strang' requires mode='hydro'")
@@ -542,6 +546,6 @@ def Step(
             "gravity_potential_change": float(
                 getattr(sim, "last_hydro_potential_change", 0.0),
             ),
-        }
+        },
     )
     return result

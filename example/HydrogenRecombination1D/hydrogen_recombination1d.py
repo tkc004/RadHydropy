@@ -29,21 +29,19 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
-import unyt
+import example_utils as eu  # noqa: E402
 
-import radhydropy.io as rio
-import tools as et
+import radhydropy.io as rio  # noqa: E402
+import tools as et  # noqa: E402
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_recombination1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
-    rundir = Path.cwd().resolve()
-    print("rundir", rundir)
+    Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
 
-    initial_condition = config["initial_condition"]
+    config["initial_condition"]
     exampleparams = config["example"]
     output = config["par"]["output"]
     eu.clean_previous_outputs(config)
@@ -73,13 +71,6 @@ def main(config_filename=DEFAULT_CONFIG):
         config,
         exampleparams["target_neutral_fraction"],
     )
-
-    print("Hydrogen recombination example finished")
-    print("time = %.3e yr" % et.time_value(sim, unyt.yr))
-    print("mean temperature = %.3e K" % et.mean_temperature(sim).to_value(unyt.K))
-    print("mean neutral fraction = %.3e" % et.mean_neutral_fraction(sim))
-    print("mean ionized fraction = %.3e" % et.mean_ionized_fraction(sim))
-    print("figure = %s" % figure_filename)
 
 
 def parse_args():

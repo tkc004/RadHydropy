@@ -57,15 +57,7 @@ class Testing(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "output_times.txt"
             path.write_text(
-                "\n".join(
-                    [
-                        "yr",
-                        "1.0e4",
-                        "2.5e4",
-                        "# comment lines are ignored",
-                        "3.0e4",
-                    ],
-                ),
+                "yr\n1.0e4\n2.5e4\n# comment lines are ignored\n3.0e4",
             )
 
             output_times = rio.load_output_time_list(path)
@@ -79,7 +71,7 @@ class Testing(unittest.TestCase):
     def test_run_with_output_times_emits_requested_outputs_in_order(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "output_times.txt"
-            path.write_text("\n".join(["s", "3.0", "1.0"]))
+            path.write_text("s\n3.0\n1.0")
 
             fluid = SimpleNamespace(
                 time_proper_code=0.0 * unyt.s,
@@ -129,7 +121,7 @@ class Testing(unittest.TestCase):
         """An adaptive step may cross a requested output time."""
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "output_times.txt"
-            path.write_text("\n".join(["s", "1.0"]))
+            path.write_text("s\n1.0")
             fluid = SimpleNamespace(
                 time_proper_code=0.0 * unyt.s,
                 SetTemperature=lambda: None,
@@ -169,7 +161,7 @@ class Testing(unittest.TestCase):
     def test_run_with_output_times_notifies_snapshot_callback_with_written_file(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "output_times.txt"
-            path.write_text("\n".join(["s", "1.0"]))
+            path.write_text("s\n1.0")
             fluid = SimpleNamespace(
                 time_proper_code=0.0 * unyt.s,
                 SetTemperature=lambda: None,
@@ -209,7 +201,7 @@ class Testing(unittest.TestCase):
     def test_run_with_output_times_orders_pre_step_history_and_snapshot_callbacks(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "output_times.txt"
-            path.write_text("\n".join(["s", "1.0"]))
+            path.write_text("s\n1.0")
             fluid = SimpleNamespace(
                 time_proper_code=0.0 * unyt.s,
                 SetTemperature=lambda: None,
@@ -473,7 +465,7 @@ class Testing(unittest.TestCase):
             {
                 "simulation": {"name": "nested-test"},
                 "units": {"CodeUnits": CODE_UNITS},
-            }
+            },
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "used_parameters.yaml"

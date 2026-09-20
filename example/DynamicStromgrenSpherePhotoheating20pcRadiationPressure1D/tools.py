@@ -17,7 +17,7 @@ from DynamicStromgrenSpherePhotoheating20pc1D.tools import (
 
 def save_plot(mesh, fluid, config, figure_filename):
     """Save the inherited profile plot with a linear velocity axis."""
-    par = config["_output_par"]
+    config["_output_par"]
     interior = interior_slice(config)
     radius_proper_pc = _to_kpc(
         0.5 * (mesh.boundary_radarray[:-1] + mesh.boundary_radarray[1:])[interior],
@@ -63,7 +63,11 @@ def save_plot(mesh, fluid, config, figure_filename):
 
     fig, axes = plt.subplots(5, 1, figsize=(7.4, 11.0), sharex=True)
     axes[0].plot(
-        radius_proper_pc, number_density_cgs_cm3, color="tab:blue", lw=1.8, label="RadHydropy"
+        radius_proper_pc,
+        number_density_cgs_cm3,
+        color="tab:blue",
+        lw=1.8,
+        label="RadHydropy",
     )
     scatter_reference(axes[0], density_reference)
     axes[0].set_yscale("log")
@@ -71,7 +75,11 @@ def save_plot(mesh, fluid, config, figure_filename):
     axes[0].legend(frameon=False, loc="best")
 
     axes[1].plot(
-        radius_proper_pc, vel_peculiar_proper_km_s, color="tab:orange", lw=1.8, label="RadHydropy"
+        radius_proper_pc,
+        vel_peculiar_proper_km_s,
+        color="tab:orange",
+        lw=1.8,
+        label="RadHydropy",
     )
     scatter_reference(axes[1], velocity_reference)
     axes[1].set_yscale("linear")
@@ -91,7 +99,11 @@ def save_plot(mesh, fluid, config, figure_filename):
     axes[2].legend(frameon=False, loc="best")
 
     axes[3].plot(
-        radius_proper_pc, pre_proper_cgs_erg_cm3, color="tab:red", lw=1.8, label="RadHydropy"
+        radius_proper_pc,
+        pre_proper_cgs_erg_cm3,
+        color="tab:red",
+        lw=1.8,
+        label="RadHydropy",
     )
     scatter_reference(axes[3], pressure_reference)
     axes[3].set_yscale("log")
@@ -99,7 +111,11 @@ def save_plot(mesh, fluid, config, figure_filename):
     axes[3].legend(frameon=False, loc="best")
 
     axes[4].plot(
-        radius_proper_pc, temperature_proper_cgs_K, color="tab:purple", lw=1.8, label="RadHydropy"
+        radius_proper_pc,
+        temperature_proper_cgs_K,
+        color="tab:purple",
+        lw=1.8,
+        label="RadHydropy",
     )
     axes[4].set_yscale("log")
     axes[4].set_ylabel(r"$T$ [K]")
@@ -110,7 +126,7 @@ def save_plot(mesh, fluid, config, figure_filename):
         ax.set_xlim(0.0, plot_radius_max)
         ax.grid(True, which="both", alpha=0.25)
     final_time_myr = config["par"]["simulation"]["final_time"].to_value(unyt.Myr)
-    fig.suptitle("Dynamic photoheated Stromgren sphere at %.3g Myr" % final_time_myr)
+    fig.suptitle(f"Dynamic photoheated Stromgren sphere at {final_time_myr:.3g} Myr")
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200, bbox_inches="tight")
     plt.close(fig)

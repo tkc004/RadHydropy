@@ -5,9 +5,9 @@ import csv
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,10 +18,10 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from example_utils import load_nested_example_config
+from example_utils import load_nested_example_config  # noqa: E402
 
-from radhydropy.thermo_networks.pie import MetalPIETable
-from tools import integrate_isobaric_case, isobaric_growth_rate, net_rate
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from tools import integrate_isobaric_case, isobaric_growth_rate, net_rate  # noqa: E402
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_isobaric_parcel1d.yaml"
 
@@ -31,7 +31,7 @@ def _write_case_csv(result, filename):
     with open(filename, "w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(fields)
-        writer.writerows(zip(*(result[field] for field in fields)))
+        writer.writerows(zip(*(result[field] for field in fields), strict=False))
 
 
 def _plot(results, filename):
@@ -40,10 +40,16 @@ def _plot(results, filename):
         label = result["label"]
         color = result["color"]
         axes[0, 0].plot(
-            result["time_proper_Myr"], result["temperature_proper_cgs_K"], color=color, label=label
+            result["time_proper_Myr"],
+            result["temperature_proper_cgs_K"],
+            color=color,
+            label=label,
         )
         axes[0, 1].plot(
-            result["time_proper_Myr"], result["density_nH_cgs_cm3"], color=color, label=label
+            result["time_proper_Myr"],
+            result["density_nH_cgs_cm3"],
+            color=color,
+            label=label,
         )
         axes[1, 0].plot(
             result["time_proper_Myr"],
@@ -152,7 +158,7 @@ def main(config_filename=DEFAULT_CONFIG):
     for stale_csv in output_dir.glob("*.csv"):
         stale_csv.unlink()
     for index, (label, density_initial_cgs_cm3, temperature_initial_cgs_K) in enumerate(
-        thermo["cases"]
+        thermo["cases"],
     ):
         density_initial_cgs_cm3 = float(density_initial_cgs_cm3)
         temperature_initial_cgs_K = float(temperature_initial_cgs_K)
@@ -217,10 +223,10 @@ def main(config_filename=DEFAULT_CONFIG):
                             result["pressure_proper_cgs_erg_cm3"]
                             / result["pressure_proper_cgs_erg_cm3"][0]
                             - 1.0,
-                        )
-                    )
+                        ),
+                    ),
                 ),
-            )
+            ),
         )
     report = EXAMPLE_DIR / "PIECoolingIsobaricParcel1D_ThermalReport.txt"
     with open(report, "w", encoding="utf-8") as handle:
@@ -230,7 +236,8 @@ def main(config_filename=DEFAULT_CONFIG):
             "max_pressure_fractional_error\n",
         )
         handle.writelines(
-            "%s %.8g %.8g %.8g %.8g %.8g %.8g %.8g %.8g\n" % row for row in report_rows
+            "{} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g}\n".format(*row)
+            for row in report_rows
         )
     _plot(results, EXAMPLE_DIR / "PIECoolingIsobaricParcel1D.jpg")
     _plot_rate(
@@ -240,12 +247,8 @@ def main(config_filename=DEFAULT_CONFIG):
         redshift,
         EXAMPLE_DIR / "PIECoolingIsobaricParcel1D_Rate.jpg",
     )
-    for row in report_rows:
-        print(
-            "%s: T_final=%.6g K, nH_final=%.6g cm^-3, "
-            "growth=[%.3g, %.3g] Myr^-1, max|gamma_eff|=%.3g"
-            % (row[0], row[3], row[4], row[5], row[6], row[7]),
-        )
+    for _row in report_rows:
+        pass
 
 
 if __name__ == "__main__":

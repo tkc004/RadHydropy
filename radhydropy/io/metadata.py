@@ -18,10 +18,7 @@ def _provenance_yaml_value(value):
     """Convert nested configuration values into YAML-safe values."""
     if isinstance(value, unyt.array.unyt_array):
         numeric_value = np.asarray(value.value)
-        if numeric_value.ndim == 0:
-            numeric_value = numeric_value.item()
-        else:
-            numeric_value = numeric_value.tolist()
+        numeric_value = numeric_value.item() if numeric_value.ndim == 0 else numeric_value.tolist()
         return {"value": numeric_value, "unit": str(value.units)}
     if isinstance(value, dict):
         return {
@@ -98,7 +95,10 @@ def _read_provenance(header):
     if "Provenance" not in header:
         return None
     group = header["Provenance"]
-    decode = lambda value: value.decode("utf-8") if isinstance(value, bytes) else value
+
+    def decode(value):
+        return value.decode("utf-8") if isinstance(value, bytes) else value
+
     provenance = {
         "source_config_yaml": decode(group["source_config_yaml"][()]),
         "effective_config_yaml": decode(group["effective_config_yaml"][()]),

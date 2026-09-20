@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 import numpy as np
 import unyt
 
@@ -18,15 +18,15 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
         sys.path.insert(0, str(path))
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path("/tmp/radhydropy-matplotlib")))
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits
-from tools import build_initial_condition
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
+from tools import build_initial_condition  # noqa: E402
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_cooling_uniform_sph1d.yaml"
 CASES = {"diffuse": 1.0, "self_shielded": 100.0}
@@ -76,18 +76,6 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
     ric = build_initial_condition(case_config)
     ric.write(case_config["par"]["simulation"]["initial_condition_filename"], validate=True)
 
-    runtime_only = {
-        "final_time",
-        "number_of_cells",
-        "evolution_timestep",
-        "chemistry_timestep",
-        "box_size_proper",
-        "coordinate_system",
-        "time_proper",
-        "grid_cells",
-        "temperature_proper",
-        "mean_molecular_weight",
-    }
     sim = Rsim(case_config["par"])
     sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
     sim.par.metal_pie_table = table
@@ -102,7 +90,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
     temperature_proper_cgs_K = float(
         case_config["initial_condition"]["temperature_proper"].to_value(unyt.K),
     )
-    heating, cooling = table.rates(
+    _heating, _cooling = table.rates(
         temperature_proper_cgs_K,
         hydrogen_number_density_cgs_cm3,
         metallicity=case_config["par"]["thermochemistry"]["metallicity"],
@@ -112,15 +100,9 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
         hydrogen_number_density_cgs_cm3
         > case_config["par"]["thermochemistry"]["metal_pie_photoheating_max_density_cgs_cm3"]
     ):
-        heating_used = 0.0
+        pass
     else:
-        heating_used = heating
-    print(
-        f"{label}: nH={hydrogen_number_density_cgs_cm3:g} cm^-3, "
-        f"table heating={heating:.6e}, used heating={heating_used:.6e}, "
-        f"cooling={cooling:.6e}, net={heating_used - cooling:.6e} "
-        "erg cm^-3 s^-1",
-    )
+        pass
     return snapshots, output_dir
 
 
@@ -204,7 +186,6 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    print(f"figure = {figure}")
 
 
 def parse_args():

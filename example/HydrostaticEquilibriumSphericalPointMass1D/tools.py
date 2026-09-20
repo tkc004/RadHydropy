@@ -1,8 +1,8 @@
 """Helper utilities for the spherical hydrostatic point-mass example."""
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -181,10 +181,10 @@ def build_initial_condition(config):
     writer.mesh.x_radarray = writer.radarray(coordinate_proper_unyt)
     writer.fluid.rho_radarray = writer.radarray(rho_proper_unyt)
     writer.fluid.vel_radarray = writer.radarray(
-        np.zeros(grid_cells) * code_unit_system.velocity_unit
+        np.zeros(grid_cells) * code_unit_system.velocity_unit,
     )
     writer.fluid.temp_radarray = writer.radarray(
-        np.ones(grid_cells) * initial_condition["temperature_proper"]
+        np.ones(grid_cells) * initial_condition["temperature_proper"],
     )
     writer.fluid.mu = np.full(grid_cells, initial_condition["mean_molecular_weight"])
     return writer

@@ -26,7 +26,8 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
     runtime_state = getattr(fluid, "runtime_state", None)
     runtime_state = fluid if runtime_state is None else runtime_state
     density_field, velocity, pressure_field, _, time_runtime_code = select_fluid_primitive_arrays(
-        runtime_state, par
+        runtime_state,
+        par,
     )
     vsignal = np.absolute(velocity) + fluid.cs_code
     density = np.asarray(density_field, dtype=float)
@@ -83,19 +84,19 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):
             (
                 np.asarray(active_width_runtime_code, dtype=float),
                 np.asarray(width_runtime_code[interface_indices], dtype=float),
-            )
+            ),
         )
         cfl_density = np.concatenate(
             (
                 np.asarray(active_density, dtype=float),
                 np.asarray(density[interface_indices], dtype=float),
-            )
+            ),
         )
         cfl_vsignal = np.concatenate(
             (
                 np.asarray(active_vsignal, dtype=float),
                 np.asarray(vsignal[interface_indices], dtype=float),
-            )
+            ),
         )
         cfl_indices = np.concatenate((cfl_indices, interface_indices))
 

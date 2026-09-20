@@ -18,8 +18,7 @@ def get_rho0(r, A0, w):
     is the dimension of the problem
     Thus, A0 dimension is [M L^(w-nu)]
     """
-    rho0 = A0 * np.power(r, -w)
-    return rho0
+    return A0 * np.power(r, -w)
 
 
 def get_wa(nu, g):
@@ -100,46 +99,41 @@ def getRs(E0, A0, nu, w, alpha, t):
     alpha is the factor from integral
     t  is time since initial blast
     """
-    Rs = np.power(E0 * t**2 / alpha / A0, 1.0 / (nu + 2.0 - w))
-    return Rs
+    return np.power(E0 * t**2 / alpha / A0, 1.0 / (nu + 2.0 - w))
 
 
 def eta_func(F, b, Cc):
     """Get dimensionless radius"""
-    eta = (
+    return (
         np.power(F, -b[6])
         * np.power(Cc[1] * (F - Cc[2]), b[2])
         * np.power(Cc[3] * (Cc[4] - F), -b[1])
     )
-    return eta
 
 
 def D_func(F, b, Cc, w):
     """Get dimensionless density"""
-    Df = (
+    return (
         np.power(F, b[7])
         * np.power(Cc[1] * (F - Cc[2]), b[3] - w * b[2])
         * np.power(Cc[3] * (Cc[4] - F), b[4] + w * b[1])
         * np.power(Cc[5] * (Cc[6] - F), -b[5])
     )
-    return Df
 
 
 def V_func(F, b, Cc):
     """Get dimensionless velocity"""
     eta = eta_func(F, b, Cc)
-    Vf = eta * F
-    return Vf
+    return eta * F
 
 
 def P_func(F, b, Cc, w):
     """Get dimensionless pressure"""
-    Pf = (
+    return (
         np.power(F, b[8])
         * np.power(Cc[3] * (Cc[4] - F), b[4] + (w - 2.0) * b[1])
         * np.power(Cc[5] * (Cc[6] - F), 1.0 - b[5])
     )
-    return Pf
 
 
 def integral_solution(nu, g, w):
@@ -149,10 +143,7 @@ def integral_solution(nu, g, w):
     wa = get_wa(nu, g)
     b = get_beta_index(nu, w, g, wa)
     Cc = get_Cc(nu, w, g, wa, b)
-    if w < wa[1]:
-        Fmin = Cc[2]
-    else:
-        Fmin = Cc[6]
+    Fmin = Cc[2] if w < wa[1] else Cc[6]
     F = np.linspace(Fmin, 1.0, 10000)
     eta = eta_func(F, b, Cc)
     Df = D_func(F, b, Cc, w)
@@ -160,7 +151,7 @@ def integral_solution(nu, g, w):
     Pf = P_func(F, b, Cc, w)
     deta_dF = np.gradient(eta, F)
     Integrant = np.power(eta, nu - 1.0) * (Df * Vf * Vf + Pf) * deta_dF
-    Integrated_value = np.trapz(Integrant, F)
+    Integrated_value = np.trapezoid(Integrant, F)
     alpha = 8.0 * Cc[0] / (g**2 - 1.0) / (nu + 2.0 + w) ** 2 * Integrated_value
     return alpha, eta, Df, Vf, Pf
 

@@ -108,7 +108,7 @@ def CheckParamDimen(params):
         "gamma": 1.0,
     }
     for key in unitdir:
-        if key in params.keys():
+        if key in params:
             try:
                 CheckDimension(params[key], unitdir[key])
             except unyt.exceptions.UnitOperationError:
@@ -140,8 +140,7 @@ def gaussiansph(r, sig):
 def CalGradient(quan, width_runtime_code):
     """Calculate a centered periodic gradient."""
     # only work for periodic boundary condition!
-    dqdx = (periodic_roll(quan, -1) - periodic_roll(quan, 1)) / (2.0 * width_runtime_code)
-    return dqdx
+    return (periodic_roll(quan, -1) - periodic_roll(quan, 1)) / (2.0 * width_runtime_code)
 
 
 def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cmax: float) -> float:
@@ -173,7 +172,7 @@ def CalFluxLimiter(rlim, limiter="minmod"):
         # is it correct when rlim -> inf, philim -> 2?
         philim = (rlim + np.absolute(rlim)) / (1.0 + np.absolute(rlim))
     else:
-        raise ValueError("flux limiter unknown: %s" % limiter)
+        raise ValueError(f"flux limiter unknown: {limiter}")
     return philim
 
 
@@ -189,7 +188,7 @@ def extrapolateToFace(fluxarray: float, xb: float, fgrad: float, order=1):
         # the following is correct in the first order case
         flux_L = periodic_roll(fluxarray + fgrad * xdhalf, 1)
     else:
-        raise ValueError("order unknown: %s" % order)
+        raise ValueError(f"order unknown: {order}")
     return flux_L, flux_R
 
 

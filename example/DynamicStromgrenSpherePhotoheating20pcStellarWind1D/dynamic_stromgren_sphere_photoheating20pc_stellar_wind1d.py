@@ -6,9 +6,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 
-matplotlib.use("Agg")
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -20,11 +20,11 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import tools as et
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
 mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
@@ -66,7 +66,7 @@ def _pressure_diagnostic(snapshot, config):
             mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * radius_shell_proper_cgs_cm**2)
         )
 
-    code = CodeUnits.from_mapping(par.units.CodeUnits)
+    CodeUnits.from_mapping(par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(
         mesh.volume_radarray[interior].to_value(unyt.cm**3),
         dtype=float,
@@ -156,7 +156,9 @@ def save_pressure_ratio_plot(diagnostics, output_dir):
     fig, axes = plt.subplots(2, 1, figsize=(7.0, 6.5), sharex=True)
     axes[0].plot(time_proper_Myr, pressure_wind_proper_dyn_cm2, label="wind ram pressure at shell")
     axes[0].plot(
-        time_proper_Myr, pressure_gas_proper_dyn_cm2, label="photoheated-gas thermal pressure"
+        time_proper_Myr,
+        pressure_gas_proper_dyn_cm2,
+        label="photoheated-gas thermal pressure",
     )
     axes[0].set_yscale("log")
     axes[0].set_ylabel(r"pressure [dyn cm$^{-2}$]")
@@ -180,7 +182,7 @@ def save_pressure_ratio_plot(diagnostics, output_dir):
                 pressure_wind_proper_dyn_cm2,
                 pressure_gas_proper_dyn_cm2,
                 pressure_ratio,
-            )
+            ),
         ),
         delimiter=",",
         header="time_proper_Myr,shell_radius_proper_pc,wind_pressure_proper_cgs_dyn_cm2,gas_pressure_proper_cgs_dyn_cm2,pressure_ratio",
@@ -227,7 +229,6 @@ def main(config_filename=None):
     wind_csv = output_dir / "radial_profile_rhd_wind.csv"
     if old_csv.exists():
         old_csv.replace(wind_csv)
-    print("RHD wind profile CSV = %s" % wind_csv)
 
     output_files = et.output_files(
         output["directory"],
@@ -250,7 +251,9 @@ def main(config_filename=None):
     fig, axes = plt.subplots(2, 1, figsize=(7.0, 6.5), sharex=True)
     axes[0].plot(time_proper_Myr, pressure_wind_proper_dyn_cm2, label="wind ram pressure at shell")
     axes[0].plot(
-        time_proper_Myr, pressure_gas_proper_dyn_cm2, label="photoheated-gas thermal pressure"
+        time_proper_Myr,
+        pressure_gas_proper_dyn_cm2,
+        label="photoheated-gas thermal pressure",
     )
     axes[0].set_yscale("log")
     axes[0].set_ylabel(r"pressure [dyn cm$^{-2}$]")
@@ -275,15 +278,12 @@ def main(config_filename=None):
                 pressure_wind_proper_dyn_cm2,
                 pressure_gas_proper_dyn_cm2,
                 pressure_ratio,
-            )
+            ),
         ),
         delimiter=",",
         header="time_proper_Myr,shell_radius_proper_pc,wind_pressure_proper_cgs_dyn_cm2,gas_pressure_proper_cgs_dyn_cm2,pressure_ratio",
         comments="",
     )
-    print("final wind/gas pressure ratio = %.6e" % pressure_ratio[-1])
-    print("pressure ratio figure = %s" % pressure_figure)
-    print("pressure ratio data = %s" % pressure_csv)
 
 
 def parse_args():

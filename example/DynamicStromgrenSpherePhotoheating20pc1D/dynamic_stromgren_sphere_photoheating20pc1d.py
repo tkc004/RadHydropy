@@ -25,11 +25,11 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
 os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
 
-import example_utils as eu
+import example_utils as eu  # noqa: E402
 
-import tools as et
-from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
+import tools as et  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -81,11 +81,6 @@ def main(config_filename=None):
 
     rhd_csv_filename = Path(output["directory"]) / "radial_profile_rhd.csv"
     eu.write_radial_profile_csv(outputfilenames[-1], config, rhd_csv_filename)
-    print("output files = %d" % len(outputfilenames))
-    print("final front radius = %.3e kpc" % history["front_radius_proper_kpc"][-1])
-    print("RHD profile CSV = %s" % rhd_csv_filename)
-    print("figure = %s" % figure_filename)
-    print("front figure = %s" % front_figure_filename)
 
 
 def parse_args():

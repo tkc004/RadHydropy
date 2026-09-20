@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-import matplotlib
+import matplotlib as mpl
 import numpy as np
 import unyt
 
@@ -18,15 +18,15 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 sys.path.insert(0, str(EXAMPLE_DIR.parent))
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
-matplotlib.use("Agg")
-import example_utils as eu
-import matplotlib.pyplot as plt
+mpl.use("Agg")
+import example_utils as eu  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
-import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits
-from tools import build_initial_condition, clean_outputs, load_history
+import radhydropy.io as rio  # noqa: E402
+from radhydropy.rsim import Rsim  # noqa: E402
+from radhydropy.thermo_networks.pie import MetalPIETable  # noqa: E402
+from radhydropy.units import CodeUnits  # noqa: E402
+from tools import build_initial_condition, clean_outputs, load_history  # noqa: E402
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_photoionization_timescale_1d.yaml"
 
@@ -81,7 +81,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if output_figure.exists():
         output_figure.unlink()
     table_filename = str(
-        (config_filename.parent / thermochemistry["metal_pie_table_filename"]).resolve()
+        (config_filename.parent / thermochemistry["metal_pie_table_filename"]).resolve(),
     )
     thermochemistry["metal_pie_table_filename"] = table_filename
     photoionization_timescale = thermochemistry["pie_uvbg_photoionization_timescale"]
@@ -116,7 +116,7 @@ def main(config_filename=DEFAULT_CONFIG):
             100000.0,
         ],
     )
-    output_time_file = EXAMPLE_DIR / ("pie_uvbg_photoionization_timescale_1d_output_times.txt")
+    EXAMPLE_DIR / ("pie_uvbg_photoionization_timescale_1d_output_times.txt")
 
     temperature_propers = (1.0e3, 1.0e4, 2.0e4, 1.0e5)
     hydrogen_number_densities_cgs_cm3 = (0.1, 1.0, 10.0)
@@ -152,7 +152,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 },
                 "example": config["example"],
             }
-            ric = _write_initial_condition(case_config, case_dir)
+            _write_initial_condition(case_config, case_dir)
             sim = Rsim(case_config["par"])
             sim = rio.loadhdf5(case_config, sim.par.simulation.initial_condition_filename)
             sim.par.metal_pie_table = table
@@ -171,7 +171,7 @@ def main(config_filename=DEFAULT_CONFIG):
             scheduled_times = np.concatenate(([0.0], output_times_yr, [timesim_yr]))
             time_yr = scheduled_times[: len(history)]
             temperature_proper_cgs_K = np.array(
-                [item["temperature_proper_cgs_K"] for item in history]
+                [item["temperature_proper_cgs_K"] for item in history],
             )
             time_over_photoionization_timescale_dimensionless = (
                 time_yr / photoionization_timescale_yr
@@ -297,7 +297,7 @@ def main(config_filename=DEFAULT_CONFIG):
         ax_temp.legend(frameon=False, fontsize=8, ncol=2)
         ax_error.legend(frameon=False, fontsize=8, ncol=2)
         fig.suptitle(
-            rf"HM12 PIE timescale test: $n_H={hydrogen_number_density_cgs_cm3:g}\ {{\rm cm^{{-3}}}}$"
+            rf"HM12 PIE timescale test: $n_H={hydrogen_number_density_cgs_cm3:g}\ {{\rm cm^{{-3}}}}$",
         )
         fig.tight_layout()
         figure = (
@@ -308,26 +308,20 @@ def main(config_filename=DEFAULT_CONFIG):
         plt.close(fig)
 
     for result in results:
-        one_tau = int(
+        int(
             np.argmin(
                 np.abs(
                     result["time_over_photoionization_timescale_dimensionless"] - 1.0,
-                )
-            )
+                ),
+            ),
         )
-        ten_tau = int(
+        int(
             np.argmin(
                 np.abs(
                     result["time_over_photoionization_timescale_dimensionless"] - 10.0,
-                )
-            )
+                ),
+            ),
         )
-        print(
-            f"{result['label']}: T_PIE={result['temperature_equilibrium_cgs_K']:.6e} K, "
-            f"error(1 tau)={result['temperature_error_dimensionless'][one_tau]:.6e}, "
-            f"error(10 tau)={result['temperature_error_dimensionless'][ten_tau]:.6e}",
-        )
-    print(f"figures = {output_dir}/PIEUVBGPhotoionizationTimescale1D_nH_*.jpg")
 
 
 def parse_args():
