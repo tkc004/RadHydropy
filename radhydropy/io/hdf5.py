@@ -3,19 +3,15 @@
 from pathlib import Path
 
 import h5py
-import os
 import unyt
 import numpy as np
-import radhydropy.utils as ru
-from radhydropy.units import CodeUnits, _code_units
-from radhydropy.dark_matter import DarkMatterShells, DarkMatterSnapshot
+from radhydropy.units import CodeUnits
+from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.runtime_fields import (
     FluidRuntimeState,
     PROPER_RUNTIME_FIELDS,
     SUPERCOMOVING_RUNTIME_FIELDS,
 )
-from radhydropy.field_metadata import FieldSpec, field_spec
-from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.io.metadata import (
     _header_attr_value,
     _provenance_yaml_text,
@@ -27,9 +23,12 @@ from radhydropy.io.metadata import (
     write_used_parameters,
 )
 from radhydropy.io.fields import (
+    attach_dark_matter_radarray_views,
+    attach_radarray_views,
     normalize_attr_name,
     populate_group_targets,
     read_any_dataset,
+    radarray_field_spec,
     scale_unit_for_key,
     write_quantity,
 )
@@ -38,6 +37,10 @@ from radhydropy.io.cosmology import (
     restore_cosmology_from_header,
     runtime_field_spec,
     write_cosmology_header,
+)
+from radhydropy.io.validation import (
+    SnapshotConfigurationError,
+    validate_snapshot_configuration,
 )
 
 # Internal names remain stable while the field implementation lives in its
@@ -51,6 +54,9 @@ _write_cosmology_header = write_cosmology_header
 _restore_cosmology_from_header = restore_cosmology_from_header
 _restore_cosmology_context_from_header = restore_cosmology_context_from_header
 _runtime_field_spec = runtime_field_spec
+_radarray_field_spec = radarray_field_spec
+_attach_radarray_views = attach_radarray_views
+_attach_dark_matter_radarray_views = attach_dark_matter_radarray_views
 
 
 _GENERIC_HEADER_DATASETS = frozenset({"time_code", "box_size_code"})
@@ -59,315 +65,7 @@ _GENERIC_PRIMITIVE_DATASETS = frozenset(
 )
 
 
-class SnapshotConfigurationError(ValueError):
-    """Raised when a snapshot is incompatible with the supplied runtime."""
-
-
-def _code_units_from_parameter(par):
-    """Return pre-existing runtime code units, if the runtime declares them."""
-    code_units = getattr(par, "CodeUnits", None)
-    if code_units is not None:
-        return code_units
-    return getattr(getattr(par, "units", None), "CodeUnits", None)
-
-
-def _validate_snapshot_configuration(par, header, header_code_units):
-    """Validate header compatibility before mutating the runtime objects."""
-    expected_units = _code_units_from_parameter(par)
-    if expected_units is not None:
-        if not isinstance(expected_units, CodeUnits):
-            expected_units = CodeUnits.from_mapping(expected_units)
-        scales = (
-            ("mass", expected_units.mass_in_cgs, header_code_units.mass_in_cgs),
-            ("length", expected_units.length_in_cgs, header_code_units.length_in_cgs),
-            ("velocity", expected_units.velocity_in_cgs, header_code_units.velocity_in_cgs),
-            ("current", expected_units.current_in_cgs, header_code_units.current_in_cgs),
-            ("temperature", expected_units.temperature_in_cgs, header_code_units.temperature_in_cgs),
-        )
-        for name, expected, actual in scales:
-            if not np.isclose(expected, actual, rtol=1e-12, atol=0.0):
-                raise SnapshotConfigurationError(
-                    f"snapshot CodeUnits {name} scale ({actual}) does not "
-                    f"match runtime scale ({expected})"
-                )
-
-    header_coordsys = _restore_header_attr_value(
-        header.attrs.get("CoordinateSystem", None)
-    )
-    expected_coordsys = getattr(
-        getattr(par, "simulation", None), "coordinate_system", None
-    )
-    if (
-        header_coordsys is not None
-        and expected_coordsys is not None
-        and str(header_coordsys) != str(expected_coordsys)
-    ):
-        raise SnapshotConfigurationError(
-            f"snapshot coordinate system {header_coordsys!r} does not match "
-            f"runtime coordinate system {expected_coordsys!r}"
-        )
-
-    header_grid = header.attrs.get("GridCells", None)
-    expected_grid = getattr(getattr(par, "mesh", None), "grid_cells", None)
-    if (
-        header_grid is not None
-        and expected_grid is not None
-        and int(_restore_header_attr_value(header_grid)) != int(expected_grid)
-    ):
-        raise SnapshotConfigurationError(
-            f"snapshot grid size {int(_restore_header_attr_value(header_grid))} "
-            f"does not match runtime grid size {int(expected_grid)}"
-        )
-
-    header_cosmology = _restore_header_attr_value(
-        header.attrs.get("CosmologyType", None)
-    )
-    expected_expansion = getattr(par, "cosmological_expansion", None)
-    if (
-        header_cosmology is not None
-        and expected_expansion is False
-    ):
-        raise SnapshotConfigurationError(
-            "snapshot is cosmological but runtime has cosmological_expansion=False"
-        )
-    if (
-        header_cosmology is None
-        and expected_expansion is True
-    ):
-        raise SnapshotConfigurationError(
-            "snapshot is non-cosmological but runtime has cosmological_expansion=True"
-        )
-    expected_cosmology = getattr(par, "cosmology_type", None)
-    if expected_cosmology is None:
-        expected_model = getattr(par, "cosmology", None)
-        expected_cosmology = getattr(expected_model, "type_name", None)
-    if header_cosmology is not None and expected_cosmology is not None:
-        header_cosmology = str(header_cosmology)
-        expected_cosmology = str(expected_cosmology)
-        if header_cosmology != expected_cosmology:
-            raise SnapshotConfigurationError(
-                f"snapshot cosmology {header_cosmology!r} does not match "
-                f"runtime cosmology {expected_cosmology!r}"
-            )
-
-    for header_key, parameter_key in (
-        ("CoordinateFrame", "coordinate_frame"),
-        ("TimeCoordinate", "time_coordinate"),
-        ("VelocityRepresentation", "velocity_representation"),
-        ("DensityRepresentation", "density_representation"),
-        ("PressureRepresentation", "pressure_representation"),
-        ("TemperatureRepresentation", "temperature_representation"),
-    ):
-        header_value = _restore_header_attr_value(
-            header.attrs.get(header_key, None)
-        )
-        expected_value = getattr(par, parameter_key, None)
-        if (
-            header_value is not None
-            and expected_value is not None
-            and str(header_value) != str(expected_value)
-        ):
-            raise SnapshotConfigurationError(
-                f"snapshot {parameter_key} {header_value!r} does not match "
-                f"runtime {parameter_key} {expected_value!r}"
-            )
-
-
-def _radarray_field_spec(dataset, canonical_name, code_units, cosmology):
-    """Restore a dataset's ``FieldSpec`` or build its canonical fallback."""
-    metadata = {
-        key: _restore_header_attr_value(value)
-        for key, value in dataset.attrs.items()
-        if key != "units"
-    }
-    if "storage_unit" not in metadata:
-        metadata["storage_unit"] = "code"
-    try:
-        restored = FieldSpec.from_metadata(metadata)
-    except (TypeError, ValueError):
-        hubble = (
-            cosmology.hubble_parameter_km_s_Mpc
-            if canonical_name == "vel_supercomoving_code"
-            else None
-        )
-        return field_spec(
-            canonical_name,
-            code_units,
-            cosmology=cosmology.cosmology,
-            scale_factor=cosmology.scale_factor,
-            hubble_parameter_km_s_Mpc=hubble,
-        )
-    expected_representation = None
-    if canonical_name.endswith("_comoving_code"):
-        expected_representation = "comoving"
-    elif canonical_name.endswith("_supercomoving_code"):
-        expected_representation = "supercomoving"
-    elif canonical_name.endswith("_proper_code"):
-        expected_representation = "proper"
-    if (
-        expected_representation is not None
-        and restored.representation != expected_representation
-    ):
-        raise ValueError(
-            f"{dataset.name!r} uses representation "
-            f"{restored.representation!r}; expected "
-            f"{expected_representation!r} for {canonical_name!r}"
-        )
-    return restored
-
-
-def _attach_radarray_views(group, target, dataset_names, canonical_schema,
-                           code_units, cosmology, allowed_names=None):
-    """Expose loaded dimensional fields as neutral ``*_radarray`` views.
-
-    The ordinary attributes populated by ``_populate_group_targets`` remain
-    plain code-unit arrays for solver compatibility.  These parallel views
-    are the typed, representation-aware interface for analysis and restart
-    preparation, similar to SWIFTsimIO's unit-bearing data objects.
-    """
-    if cosmology is None:
-        return
-    if canonical_schema == "cosmological":
-        mapping = {
-            "boundary_comoving_code": ("boundary_radarray", "boundary_comoving_code"),
-            "rho_comoving_code": ("rho_radarray", "rho_comoving_code"),
-            "vel_supercomoving_code": ("vel_radarray", "vel_supercomoving_code"),
-            "temp_supercomoving_code": ("temp_radarray", "temp_supercomoving_code"),
-            "pre_supercomoving_code": ("pre_radarray", "pre_supercomoving_code"),
-            "ngamma_code": ("ngamma_radarray", "ngamma_comoving_code"),
-        }
-    else:
-        mapping = {
-            "boundary_proper_code": ("boundary_radarray", "boundary_proper_code"),
-            "rho_proper_code": ("rho_radarray", "rho_proper_code"),
-            "vel_proper_code": ("vel_radarray", "vel_proper_code"),
-            "temp_proper_code": ("temp_radarray", "temp_proper_code"),
-            "pre_proper_code": ("pre_radarray", "pre_proper_code"),
-            "ngamma_code": ("ngamma_radarray", "ngamma_proper_code"),
-        }
-    for dataset_name, (view_name, canonical_name) in mapping.items():
-        if allowed_names is not None and dataset_name not in allowed_names:
-            continue
-        if dataset_name not in dataset_names:
-            continue
-        attr_name = _normalize_attr_name(dataset_name)
-        if not hasattr(target, attr_name):
-            continue
-        spec = _radarray_field_spec(
-            dataset_names[dataset_name], canonical_name, code_units, cosmology
-        )
-        setattr(
-            target,
-            view_name,
-            RadArray(
-                np.asarray(getattr(target, attr_name), dtype=float),
-                code_units=code_units,
-                field_spec=spec,
-                cosmology=cosmology,
-                field_name=canonical_name,
-            ),
-        )
-    # Keep auxiliary dimensional fields discoverable without inventing
-    # semantic aliases.  Unknown/dimensionless datasets (mu, xHI, etc.) are
-    # intentionally left as ordinary numeric arrays.
-    for dataset_name, dataset in dataset_names.items():
-        if dataset_name in mapping or (
-            allowed_names is not None and dataset_name not in allowed_names
-        ):
-            continue
-        attr_name = _normalize_attr_name(dataset_name)
-        if not hasattr(target, attr_name):
-            continue
-        try:
-            spec = _radarray_field_spec(
-                dataset, dataset_name, code_units, cosmology
-            )
-        except (TypeError, ValueError):
-            continue
-        radarray_name = attr_name
-        if radarray_name.endswith("_code"):
-            radarray_name = radarray_name[:-5]
-        setattr(
-            target,
-            f"{radarray_name}_radarray",
-            RadArray(
-                np.asarray(getattr(target, attr_name), dtype=float),
-                code_units=code_units,
-                field_spec=spec,
-                cosmology=cosmology,
-                field_name=dataset_name,
-            ),
-        )
-
-
-def _attach_dark_matter_radarray_views(
-    group, par, code_units, cosmology, canonical_schema
-):
-    """Restore the typed analysis view for a ``DarkMatter`` HDF5 group."""
-    if group is None or cosmology is None:
-        return None
-    if canonical_schema == "cosmological":
-        field_names = {
-            "Radius": "radius_comoving_code",
-            "RadialVelocity": "vel_supercomoving_code",
-            "Mass": "dark_matter_mass_code",
-            "SpecificAngularMomentum": "specific_angular_momentum_supercomoving_code",
-        }
-    else:
-        field_names = {
-            "Radius": "radius_proper_code",
-            "RadialVelocity": "vel_proper_code",
-            "Mass": "dark_matter_mass_code",
-            "SpecificAngularMomentum": "specific_angular_momentum_proper_code",
-        }
-    views = {}
-    for dataset_name, canonical_name in field_names.items():
-        if dataset_name not in group or not hasattr(par, dataset_name):
-            raise ValueError(
-                f"DarkMatter group is missing required dataset {dataset_name!r}"
-            )
-        dataset = group[dataset_name]
-        spec = _radarray_field_spec(
-            dataset, canonical_name, code_units, cosmology
-        )
-        views[dataset_name] = RadArray(
-            np.asarray(getattr(par, dataset_name), dtype=float),
-            code_units=code_units,
-            field_spec=spec,
-            cosmology=cosmology,
-            field_name=canonical_name,
-        )
-
-    softening_runtime_code = _restore_header_attr_value(
-        group.attrs.get("Softening", 0.0)
-    )
-    if hasattr(softening_runtime_code, "to_value"):
-        softening_runtime_code = float(
-            np.asarray(softening_runtime_code.to_value(code_units.length_unit))
-        )
-    else:
-        softening_runtime_code = float(softening_runtime_code)
-    softening_field_name = (
-        "radius_comoving_code"
-        if canonical_schema == "cosmological"
-        else "radius_proper_code"
-    )
-    softening_spec = _radarray_field_spec(
-        group["Radius"], softening_field_name, code_units, cosmology
-    )
-    return DarkMatterSnapshot(
-        radius_radarray=views["Radius"],
-        radial_velocity_radarray=views["RadialVelocity"],
-        dark_matter_mass_radarray=views["Mass"],
-        specific_angular_momentum_radarray=views["SpecificAngularMomentum"],
-        softening_radquantity=RadQuantity(
-            softening_runtime_code,
-            code_units=code_units,
-            field_spec=softening_spec,
-            cosmology=cosmology,
-            field_name=softening_field_name,
-        ),
-    )
+_validate_snapshot_configuration = validate_snapshot_configuration
 
 
 def _writehdf5(ric, ICfilename, *, provenance=None):

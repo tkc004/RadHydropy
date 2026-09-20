@@ -5,44 +5,33 @@ from pathlib import Path
 import numpy as np
 
 from radhydropy.cosmology.variables import physical_temperature, supercomoving_scale
+from radhydropy.runtime_fields import (
+    runtime_fields,
+    select_fluid_primitive_arrays,
+    select_mesh_geometry_arrays,
+)
 
 
 def temperature_physical_cgs_K(sim):
     """Return the simulation gas temperature in physical kelvin."""
-    runtime_state = getattr(sim.fluid, "runtime_state", None)
-    if getattr(sim.par, "supercomoving_coordinates", False):
-        temperature_field = (
-            runtime_state.temp_supercomoving_code
-            if runtime_state is not None
-            else sim.fluid.temp_supercomoving_code
+    runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
+    try:
+        _, _, _, temperature_field, time_runtime_code = (
+            select_fluid_primitive_arrays(runtime_state, sim.par)
         )
-        time_runtime_code = (
-            runtime_state.tau_supercomoving_code
-            if runtime_state is not None
-            else sim.fluid.tau_supercomoving_code
-        )
-    else:
-        temperature_field = (
-            runtime_state.temp_proper_code
-            if runtime_state is not None
-            else sim.fluid.temp_proper_code
-            if hasattr(sim.fluid, "temp_proper_code")
-            else None
-        )
-        time_runtime_code = (
-            runtime_state.time_proper_code
-            if runtime_state is not None
-            else sim.fluid.time_proper_code
-            if hasattr(sim.fluid, "time_proper_code")
-            else 0.0
-        )
+    except AttributeError:
+        # Some controlled solver tests use a partially initialized fluid and
+        # do not enable temperature diagnostics. Preserve the previous
+        # no-temperature behavior for that boundary.
+        return None
     if temperature_field is None:
         return None
     temperature = np.asarray(temperature_field, dtype=float)
     code = getattr(sim.par, 'CodeUnits', None)
     if code is not None:
         temperature = temperature * float(code.temperature_in_cgs)
-    if getattr(sim.par, 'supercomoving_coordinates', False):
+    fields = runtime_fields(sim.par)
+    if fields.time == "tau_supercomoving_code":
         scale_factor, _ = supercomoving_scale(
             sim.par,
             tau_supercomoving_code=time_runtime_code,
@@ -110,10 +99,9 @@ def check_conserved_energy_admissibility(
     last = first + int(par.mesh.grid_cells)
     if not hasattr(sim.mesh, 'geometry_state'):
         return
-    if getattr(par, "supercomoving_coordinates", False):
-        volume_runtime_code = sim.mesh.geometry_state.volume_comoving_code
-    else:
-        volume_runtime_code = sim.mesh.geometry_state.volume_proper_code
+    _, _, _, _, volume_runtime_code = select_mesh_geometry_arrays(
+        sim.mesh.geometry_state, par
+    )
     volume = np.asarray(
         volume_runtime_code, dtype=float
     )
@@ -180,18 +168,21 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     if temperature_after is None or temperature_before is None:
         return
     before = np.asarray(temperature_before, dtype=float)
-    if getattr(sim.par, "supercomoving_coordinates", False):
-        density_runtime_code = sim.fluid.runtime_state.rho_comoving_code
-        coordinate_runtime_code = sim.mesh.geometry_state.x_comoving_code
-        velocity_runtime_code = sim.fluid.runtime_state.vel_supercomoving_code
-        pressure_runtime_code = sim.fluid.runtime_state.pre_supercomoving_code
-        time_runtime_code = sim.fluid.runtime_state.tau_supercomoving_code
-    else:
-        density_runtime_code = sim.fluid.runtime_state.rho_proper_code
-        coordinate_runtime_code = sim.mesh.geometry_state.x_proper_code
-        velocity_runtime_code = sim.fluid.runtime_state.vel_proper_code
-        pressure_runtime_code = sim.fluid.runtime_state.pre_proper_code
-        time_runtime_code = sim.fluid.runtime_state.time_proper_code
+    runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
+    (
+        density_runtime_code,
+        velocity_runtime_code,
+        pressure_runtime_code,
+        _,
+        time_runtime_code,
+    ) = select_fluid_primitive_arrays(runtime_state, sim.par)
+    (
+        coordinate_runtime_code,
+        _,
+        _,
+        _,
+        _,
+    ) = select_mesh_geometry_arrays(sim.mesh.geometry_state, sim.par)
     density = np.asarray(
         density_runtime_code, dtype=float
     )

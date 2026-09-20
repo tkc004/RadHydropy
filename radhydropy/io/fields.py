@@ -5,8 +5,10 @@ import numpy as np
 import unyt
 
 from radhydropy.arrays import as_named_array
-from radhydropy.field_metadata import FieldSpec
+from radhydropy.dark_matter import DarkMatterSnapshot
+from radhydropy.field_metadata import FieldSpec, field_spec
 from radhydropy.io.metadata import _restore_header_attr_value
+from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.units import code_quantity_to_cgs, code_unit_scales
 
 
@@ -157,3 +159,188 @@ def write_quantity(
     for key, metadata_value in (metadata or {}).items():
         dataset.attrs[key] = metadata_value
     return dataset
+
+
+def radarray_field_spec(dataset, canonical_name, code_units, cosmology):
+    """Restore a dataset's ``FieldSpec`` or build its canonical fallback."""
+    metadata = {
+        key: _restore_header_attr_value(value)
+        for key, value in dataset.attrs.items()
+        if key != "units"
+    }
+    if "storage_unit" not in metadata:
+        metadata["storage_unit"] = "code"
+    try:
+        restored = FieldSpec.from_metadata(metadata)
+    except (TypeError, ValueError):
+        hubble = (
+            cosmology.hubble_parameter_km_s_Mpc
+            if canonical_name == "vel_supercomoving_code"
+            else None
+        )
+        return field_spec(
+            canonical_name,
+            code_units,
+            cosmology=cosmology.cosmology,
+            scale_factor=cosmology.scale_factor,
+            hubble_parameter_km_s_Mpc=hubble,
+        )
+    expected_representation = None
+    if canonical_name.endswith("_comoving_code"):
+        expected_representation = "comoving"
+    elif canonical_name.endswith("_supercomoving_code"):
+        expected_representation = "supercomoving"
+    elif canonical_name.endswith("_proper_code"):
+        expected_representation = "proper"
+    if (
+        expected_representation is not None
+        and restored.representation != expected_representation
+    ):
+        raise ValueError(
+            f"{dataset.name!r} uses representation "
+            f"{restored.representation!r}; expected "
+            f"{expected_representation!r} for {canonical_name!r}"
+        )
+    return restored
+
+
+def attach_radarray_views(
+    group, target, dataset_names, canonical_schema, code_units, cosmology,
+    allowed_names=None,
+):
+    """Expose loaded dimensional fields as typed ``*_radarray`` views."""
+    del group  # The target and dataset mapping are sufficient for restoration.
+    if cosmology is None:
+        return
+    if canonical_schema == "cosmological":
+        mapping = {
+            "boundary_comoving_code": ("boundary_radarray", "boundary_comoving_code"),
+            "rho_comoving_code": ("rho_radarray", "rho_comoving_code"),
+            "vel_supercomoving_code": ("vel_radarray", "vel_supercomoving_code"),
+            "temp_supercomoving_code": ("temp_radarray", "temp_supercomoving_code"),
+            "pre_supercomoving_code": ("pre_radarray", "pre_supercomoving_code"),
+            "ngamma_code": ("ngamma_radarray", "ngamma_comoving_code"),
+        }
+    else:
+        mapping = {
+            "boundary_proper_code": ("boundary_radarray", "boundary_proper_code"),
+            "rho_proper_code": ("rho_radarray", "rho_proper_code"),
+            "vel_proper_code": ("vel_radarray", "vel_proper_code"),
+            "temp_proper_code": ("temp_radarray", "temp_proper_code"),
+            "pre_proper_code": ("pre_radarray", "pre_proper_code"),
+            "ngamma_code": ("ngamma_radarray", "ngamma_proper_code"),
+        }
+    for dataset_name, (view_name, canonical_name) in mapping.items():
+        if allowed_names is not None and dataset_name not in allowed_names:
+            continue
+        if dataset_name not in dataset_names:
+            continue
+        attr_name = normalize_attr_name(dataset_name)
+        if not hasattr(target, attr_name):
+            continue
+        spec = radarray_field_spec(
+            dataset_names[dataset_name], canonical_name, code_units, cosmology
+        )
+        setattr(
+            target,
+            view_name,
+            RadArray(
+                np.asarray(getattr(target, attr_name), dtype=float),
+                code_units=code_units,
+                field_spec=spec,
+                cosmology=cosmology,
+                field_name=canonical_name,
+            ),
+        )
+    for dataset_name, dataset in dataset_names.items():
+        if dataset_name in mapping or (
+            allowed_names is not None and dataset_name not in allowed_names
+        ):
+            continue
+        attr_name = normalize_attr_name(dataset_name)
+        if not hasattr(target, attr_name):
+            continue
+        try:
+            spec = radarray_field_spec(dataset, dataset_name, code_units, cosmology)
+        except (TypeError, ValueError):
+            continue
+        radarray_name = attr_name[:-5] if attr_name.endswith("_code") else attr_name
+        setattr(
+            target,
+            f"{radarray_name}_radarray",
+            RadArray(
+                np.asarray(getattr(target, attr_name), dtype=float),
+                code_units=code_units,
+                field_spec=spec,
+                cosmology=cosmology,
+                field_name=dataset_name,
+            ),
+        )
+
+
+def attach_dark_matter_radarray_views(
+    group, par, code_units, cosmology, canonical_schema
+):
+    """Restore the typed analysis view for a ``DarkMatter`` HDF5 group."""
+    if group is None or cosmology is None:
+        return None
+    if canonical_schema == "cosmological":
+        field_names = {
+            "Radius": "radius_comoving_code",
+            "RadialVelocity": "vel_supercomoving_code",
+            "Mass": "dark_matter_mass_code",
+            "SpecificAngularMomentum": "specific_angular_momentum_supercomoving_code",
+        }
+    else:
+        field_names = {
+            "Radius": "radius_proper_code",
+            "RadialVelocity": "vel_proper_code",
+            "Mass": "dark_matter_mass_code",
+            "SpecificAngularMomentum": "specific_angular_momentum_proper_code",
+        }
+    views = {}
+    for dataset_name, canonical_name in field_names.items():
+        if dataset_name not in group or not hasattr(par, dataset_name):
+            raise ValueError(
+                f"DarkMatter group is missing required dataset {dataset_name!r}"
+            )
+        dataset = group[dataset_name]
+        spec = radarray_field_spec(dataset, canonical_name, code_units, cosmology)
+        views[dataset_name] = RadArray(
+            np.asarray(getattr(par, dataset_name), dtype=float),
+            code_units=code_units,
+            field_spec=spec,
+            cosmology=cosmology,
+            field_name=canonical_name,
+        )
+
+    softening_runtime_code = _restore_header_attr_value(
+        group.attrs.get("Softening", 0.0)
+    )
+    if hasattr(softening_runtime_code, "to_value"):
+        softening_runtime_code = float(
+            np.asarray(softening_runtime_code.to_value(code_units.length_unit))
+        )
+    else:
+        softening_runtime_code = float(softening_runtime_code)
+    softening_field_name = (
+        "radius_comoving_code"
+        if canonical_schema == "cosmological"
+        else "radius_proper_code"
+    )
+    softening_spec = radarray_field_spec(
+        group["Radius"], softening_field_name, code_units, cosmology
+    )
+    return DarkMatterSnapshot(
+        radius_radarray=views["Radius"],
+        radial_velocity_radarray=views["RadialVelocity"],
+        dark_matter_mass_radarray=views["Mass"],
+        specific_angular_momentum_radarray=views["SpecificAngularMomentum"],
+        softening_radquantity=RadQuantity(
+            softening_runtime_code,
+            code_units=code_units,
+            field_spec=softening_spec,
+            cosmology=cosmology,
+            field_name=softening_field_name,
+        ),
+    )
