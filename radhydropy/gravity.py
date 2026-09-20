@@ -153,6 +153,7 @@ class Gravity:
         selfgravity_softening=0.0,
         selfgravity_boundary_acceleration=0.0,
         dark_matter=None,
+        *,
         cosmological=False,
         cosmology=None,
     ):

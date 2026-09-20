@@ -18,10 +18,10 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from example_utils import load_nested_example_config
+from example.example_utils import load_nested_example_config
 
 import radhydropy.io as rio
-import tools as et
+from example.HydrostaticCoreSpherical1D.tools import et
 from radhydropy.gravity import Gravity, point_mass_potential
 from radhydropy.units import CodeUnits, quantity_to_value
 

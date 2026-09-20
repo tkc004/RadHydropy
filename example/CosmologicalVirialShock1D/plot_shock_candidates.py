@@ -44,6 +44,7 @@ def _plot_indicator(
     values,
     title,
     label,
+    *,
     signed=True,
 ):
     finite = np.isfinite(time_cosmic_code) & np.isfinite(radius_comoving_code) & np.isfinite(values)

@@ -17,11 +17,11 @@ os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydr
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 
-import tools as et
+from example.EinsteinDeSitterDarkMatterShellGrowth1D.tools import et
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import quantity_to_value
 

@@ -21,7 +21,7 @@ sys.path.insert(0, str(HERE.parent))
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 

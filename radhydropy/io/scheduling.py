@@ -68,6 +68,7 @@ def run_with_output_times(
     sim: Any,
     outputtime: Any = 0,
     mode: str = "hydro_sources",
+    *,
     advect_chemistry: bool = True,
     stop_condition: Any = None,
     step_backend: Any = None,

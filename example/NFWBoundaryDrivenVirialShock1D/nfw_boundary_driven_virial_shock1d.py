@@ -19,7 +19,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 os.environ.setdefault("XDG_CACHE_HOME", str(Path(tempfile.gettempdir()) / "radhydropy-cache"))
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
-import example_utils as eu
+from example import example_utils as eu
 import numpy as np
 import unyt
 
@@ -100,7 +100,7 @@ def _strip_snapshot_ghosts(sim):
             setattr(sim.fluid, name, array[..., first : first + count].copy())
 
 
-def _run_stage(config, halo, mode, restart=False):
+def _run_stage(config, halo, mode, *, restart=False):
     stage_config = copy.deepcopy(config)
     output_directory = Path(stage_config["par"]["output"]["directory"])
     output_directory.mkdir(parents=True, exist_ok=True)
@@ -203,7 +203,7 @@ def _scheduled_times_myr(filename, expected_count, offset_myr=0.0):
     return times
 
 
-def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
+def main(config_filename=DEFAULT_CONFIG, *, adiabatic_only=False):
     config_filename = Path(config_filename).resolve()
     config = eu.load_nested_example_config(config_filename)
 

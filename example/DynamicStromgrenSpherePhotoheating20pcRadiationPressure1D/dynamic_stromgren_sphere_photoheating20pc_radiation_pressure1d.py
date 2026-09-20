@@ -20,9 +20,9 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+from example import example_utils as eu
 
-import tools as et
+from example.DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D.tools import et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 
@@ -148,7 +148,7 @@ def main(config_filename=DEFAULT_CONFIG):
     radiation_momentum = 0.0
     history_started = False
 
-    def step_backend(dt=None, mode="hydro_sources", advect_chemistry=True):
+    def step_backend(dt=None, mode="hydro_sources", *, advect_chemistry=True):
         nonlocal history_started, radiation_momentum
         if not history_started:
             code = CodeUnits.from_mapping(sim.par.units.CodeUnits)

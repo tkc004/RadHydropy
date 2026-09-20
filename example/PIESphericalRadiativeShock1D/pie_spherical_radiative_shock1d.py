@@ -20,14 +20,19 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
+from example import example_utils as eu
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.solver import Solver
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits, code_unit_scales
-from tools import build_initial_condition, estimate_cooling_length, load_output_state, shock_history
+from example.PIESphericalRadiativeShock1D.tools import (
+    build_initial_condition,
+    estimate_cooling_length,
+    load_output_state,
+    shock_history,
+)
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_spherical_radiative_shock1d.yaml"
 CASES = (

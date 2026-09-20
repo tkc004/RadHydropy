@@ -707,6 +707,7 @@ class VolumeSmoothedDarkMatter:
     def gravitating_enclosed_mass(
         self,
         radius_comoving_code=None,
+        *,
         include_shell_mass_with_fixed=False,
     ):
         if radius_comoving_code is None:

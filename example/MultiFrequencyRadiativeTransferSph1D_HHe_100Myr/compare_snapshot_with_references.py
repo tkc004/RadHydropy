@@ -19,7 +19,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, SOURCE_EXAMPLE):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
+from example import example_utils as eu
 from multifrequency_tools import active_radarray, load_snapshot
 
 HERE = Path(__file__).resolve().parent

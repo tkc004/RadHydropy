@@ -22,7 +22,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 sys.path.insert(0, str(REFERENCE_ROOT))
 
 import cosmological_dark_matter_only as reference_example
-import example_utils as eu
+from example import example_utils as eu
 
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM

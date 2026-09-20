@@ -113,7 +113,7 @@ class Rsim:
 
         return AdvectChemistryScalars(self, dt, old_mass, mass_flux, fluid=fluid)
 
-    def UpdateThermochemistryPrimitiveState(self, update_pressure=True, fluid=None):  # noqa: N802
+    def UpdateThermochemistryPrimitiveState(self, *, update_pressure=True, fluid=None):  # noqa: N802
         from .sources import UpdateThermochemistryPrimitiveState  # noqa: PLC0415
 
         return UpdateThermochemistryPrimitiveState(
@@ -136,6 +136,7 @@ class Rsim:
         dt,
         old_mass,
         mass_flux,
+        *,
         advect_chemistry=True,
         fluid=None,
         temperature_before=None,
@@ -180,7 +181,7 @@ class Rsim:
             fluid = self.fluid
         return copy.deepcopy(fluid)
 
-    def _hydro_step_once(self, dt, fluid=None, advect_chemistry=True, apply_gravity=True):
+    def _hydro_step_once(self, dt, fluid=None, *, advect_chemistry=True, apply_gravity=True):
         from .stepping import _hydro_step_once  # noqa: PLC0415
 
         return _hydro_step_once(
@@ -191,11 +192,16 @@ class Rsim:
             apply_gravity=apply_gravity,
         )
 
-    def hydro_step_once(self, dt, fluid=None, advect_chemistry=True, apply_gravity=True):
+    def hydro_step_once(self, dt, fluid=None, *, advect_chemistry=True, apply_gravity=True):
         """Advance one hydro step through the public simulation API."""
-        return self._hydro_step_once(dt, fluid, advect_chemistry, apply_gravity)
+        return self._hydro_step_once(
+            dt,
+            fluid,
+            advect_chemistry=advect_chemistry,
+            apply_gravity=apply_gravity,
+        )
 
-    def _hydro_step_ssprk2(self, dt, advect_chemistry=True, apply_gravity=True):
+    def _hydro_step_ssprk2(self, dt, *, advect_chemistry=True, apply_gravity=True):
         from .stepping import _hydro_step_ssprk2  # noqa: PLC0415
 
         return _hydro_step_ssprk2(
@@ -205,9 +211,13 @@ class Rsim:
             apply_gravity=apply_gravity,
         )
 
-    def hydro_step_ssprk2(self, dt, advect_chemistry=True, apply_gravity=True):
+    def hydro_step_ssprk2(self, dt, *, advect_chemistry=True, apply_gravity=True):
         """Advance one SSPRK2 hydro step through the public simulation API."""
-        return self._hydro_step_ssprk2(dt, advect_chemistry, apply_gravity)
+        return self._hydro_step_ssprk2(
+            dt,
+            advect_chemistry=advect_chemistry,
+            apply_gravity=apply_gravity,
+        )
 
     def _accumulate_gravity_work(self):
         from .sources import _accumulate_gravity_work  # noqa: PLC0415
@@ -222,6 +232,7 @@ class Rsim:
         self,
         dt=None,
         mode="hydro_sources",
+        *,
         advect_chemistry=True,
         hydro_integrator="euler",
     ):
@@ -239,6 +250,7 @@ class Rsim:
         self,
         final_time=None,
         mode="hydro_sources",
+        *,
         advect_chemistry=True,
         history_callback=None,
         output_callback=None,
@@ -362,6 +374,7 @@ class Rsim:
         self,
         final_time,
         source_timestep,
+        *,
         include_thermal_history=False,
         reference_time=None,
     ):
@@ -379,6 +392,7 @@ class Rsim:
         self,
         outputtime=0,
         mode="hydro_sources",
+        *,
         advect_chemistry=True,
         stop_condition=None,
         step_backend=None,
@@ -406,6 +420,7 @@ class Rsim:
         self,
         outputtime=0,
         mode="hydro_sources",
+        *,
         advect_chemistry=True,
         stop_condition=None,
         step_backend=None,

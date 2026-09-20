@@ -3,7 +3,7 @@
 """Initial conditions and diagnostics for high-Mach advection."""
 
 import numpy as np
-from basic_hydro_utils import make_initial_condition
+from example.basic_hydro_utils import make_initial_condition
 
 from radhydropy.eos import EOS
 

@@ -251,6 +251,7 @@ def evolve_static_state(
     final_time_s,
     dtmax_s,
     source_rate_s=0.0,
+    *,
     include_thermal_history=False,
     reference_time_s=None,
 ):

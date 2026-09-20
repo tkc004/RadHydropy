@@ -117,6 +117,7 @@ def write_spectrum(
     injected_photons,
     parameters_by_species,
     samples,
+    *,
     include_helium=False,
 ):
     values = {

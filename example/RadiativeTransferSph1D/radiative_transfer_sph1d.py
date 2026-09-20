@@ -34,10 +34,10 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
 os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
-import example_utils as eu
+from example import example_utils as eu
 
 import radhydropy.io as rio
-import tools as et
+from example.RadiativeTransferSph1D.tools import et
 from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("radiative_transfer_sph1d.yaml")

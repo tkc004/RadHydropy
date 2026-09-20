@@ -21,14 +21,18 @@ sys.path.insert(0, str(EXAMPLE_DIR.parent))
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-from tools import build_initial_condition, clean_outputs, load_history
+from example.PIEUVBGPhotoionizationTimescale1D.tools import (
+    build_initial_condition,
+    clean_outputs,
+    load_history,
+)
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_photoionization_timescale_1d.yaml"
 

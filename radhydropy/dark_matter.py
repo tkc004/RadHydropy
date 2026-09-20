@@ -296,7 +296,7 @@ class DarkMatterShells:
         result[order] = sorted_result
         return result
 
-    def gravitating_enclosed_mass(self, radius=None, include_shell_mass_with_fixed=False):
+    def gravitating_enclosed_mass(self, radius=None, *, include_shell_mass_with_fixed=False):
         """Return dynamic plus configured fixed enclosed mass."""
         if radius is None:
             dynamic = self.enclosed_mass()
@@ -326,6 +326,7 @@ class DarkMatterShells:
         gas_enclosed_mass=None,
         background_enclosed_mass=None,
         scale_factor=1.0,
+        *,
         cosmological=False,
         include_shell_mass_with_fixed=False,
         allow_unsorted=False,
@@ -497,6 +498,7 @@ class DarkMatterShells:
         scale_factor=1.0,
         gas_enclosed_mass=None,
         background_enclosed_mass=None,
+        *,
         cosmological=False,
         include_shell_mass_with_fixed=True,
     ):
@@ -574,6 +576,7 @@ class DarkMatterShells:
         background_enclosed_mass=None,
         scale_factor=1.0,
         scale_factor_end=None,
+        *,
         cosmological=False,
         include_shell_mass_with_fixed=False,
         state_callback=None,

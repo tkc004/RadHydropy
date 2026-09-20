@@ -40,7 +40,7 @@ from cosmological_gas_correlation_support import (
     plot_velocity_evolution,
 )
 from diagnostics import CosmologicalVirialShockDiagnostics
-from example_utils import load_nested_example_config
+from example.example_utils import load_nested_example_config
 from physics import CosmologicalVirialShockPhysics
 
 from radhydropy.constants import PROTON_MASS_CGS

@@ -17,12 +17,12 @@ os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydr
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-import tools as et
+from example.EinsteinDeSitterTopHatGravity1D.tools import et
 from radhydropy.gravity import Gravity
 from radhydropy.units import CodeUnits, quantity_to_value
 

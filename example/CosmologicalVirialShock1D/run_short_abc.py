@@ -20,7 +20,7 @@ os.environ.setdefault(
 )
 
 import cosmological_gas_correlation_z100 as experiment
-import example_utils as eu
+from example import example_utils as eu
 
 EXAMPLE_DIR = Path(__file__).resolve().parent
 DEFAULT_CONFIG = EXAMPLE_DIR / "cosmological_gas_correlation_z100.yaml"

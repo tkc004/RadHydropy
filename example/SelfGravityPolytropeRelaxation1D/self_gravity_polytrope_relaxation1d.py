@@ -19,12 +19,12 @@ os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydr
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-import tools as et
+from example.SelfGravityPolytropeRelaxation1D.tools import et
 from radhydropy.eos import EOS
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim

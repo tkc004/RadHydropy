@@ -184,6 +184,7 @@ def _explicit_reference_update(state, dt_s, steps):
 def _source_test_problem(
     solver="coupled_implicit",
     fallback="explicit",
+    *,
     supercomoving=False,
 ):
     units = CodeUnits.from_mapping(

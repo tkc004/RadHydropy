@@ -21,13 +21,13 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
+from example import example_utils as eu
 
 import radhydropy.io as rio
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-from tools import (
+from example.PIERadiativeShockTube1D.tools import (
     PROTON_MASS_G,
     build_initial_condition,
     cooling_length_estimate,
@@ -46,6 +46,7 @@ def _run_case(
     metallicity,
     hydrogen_number_density_cgs_cm3,
     table,
+    *,
     adiabatic=False,
 ):
 

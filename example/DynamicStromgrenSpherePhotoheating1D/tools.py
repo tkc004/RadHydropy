@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Utilities for the dynamic photoheated Stromgren sphere example."""
 
-import glob
 import os
 from pathlib import Path
 
@@ -12,7 +11,7 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from basic_hydro_utils import make_initial_condition
+from example.basic_hydro_utils import make_initial_condition
 
 import radhydropy.io as rio
 from radhydropy.runtime_fields import (
@@ -214,13 +213,13 @@ def load_output_state(outputfilename, config):
 
 
 def output_files(output_directory, output_filename_prefix):
-    pattern = Path(output_directory) / f"{output_filename_prefix}_*.hdf5"
+    output_directory = Path(output_directory)
     filenames = []
-    for filename in glob.glob(pattern):
-        stem = Path(filename).stem
+    for filename in output_directory.glob(f"{output_filename_prefix}_*.hdf5"):
+        stem = filename.stem
         suffix = stem[len(output_filename_prefix) + 1 :]
         if suffix.isdigit():
-            filenames.append(filename)
+            filenames.append(str(filename))
     return sorted(filenames)
 
 
@@ -339,7 +338,7 @@ def shifted_spitzer_radius(time_proper_code, config, ci):
     return spitzer_radius(time_since_recombination, config, ci)
 
 
-def load_reference_profile(filename, radius_unit, log_value=False):
+def load_reference_profile(filename, radius_unit, *, log_value=False):
     if filename is None or not os.path.exists(filename):
         return None
     data = np.loadtxt(filename, delimiter=",")

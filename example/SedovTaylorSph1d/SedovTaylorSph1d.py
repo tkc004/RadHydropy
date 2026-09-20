@@ -24,10 +24,10 @@ os.environ.setdefault(
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 
-import tools as et
+from example.SedovTaylorSph1d.tools import et
 
 et.set_plot_style()
 

@@ -23,9 +23,9 @@ if str(REPO_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+from example import example_utils as eu
 
-import tools as et
+from example.DynamicStromgrenSpherePhotoheating20pcStellarWind1D.tools import et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 

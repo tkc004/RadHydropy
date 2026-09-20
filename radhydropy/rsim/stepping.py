@@ -216,6 +216,7 @@ def _hydro_step_once(
     sim,
     dt,
     fluid=None,
+    *,
     advect_chemistry=True,
     apply_gravity=True,
 ):
@@ -242,6 +243,7 @@ def _hydro_step_once(
 def _hydro_step_ssprk2(
     sim,
     dt,
+    *,
     advect_chemistry=True,
     apply_gravity=True,
 ):
@@ -295,6 +297,7 @@ def Step(  # noqa: N802
     sim,
     dt=None,
     mode="hydro_sources",
+    *,
     advect_chemistry=True,
     hydro_integrator="euler",
 ):

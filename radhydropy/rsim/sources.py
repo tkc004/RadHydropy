@@ -22,7 +22,7 @@ def AdvectChemistryScalars(sim, dt, old_mass, mass_flux, fluid=None):  # noqa: N
     )
 
 
-def UpdateThermochemistryPrimitiveState(sim, update_pressure=True, fluid=None):  # noqa: N802
+def UpdateThermochemistryPrimitiveState(sim, *, update_pressure=True, fluid=None):  # noqa: N802
     """Refresh temperature, mean molecular weight, and optionally pressure."""
     if fluid is None:
         fluid = sim.fluid
@@ -52,6 +52,7 @@ def FinalizeHydroStep(  # noqa: N802
     dt,
     old_mass,
     mass_flux,
+    *,
     advect_chemistry=True,
     fluid=None,
     temperature_before=None,

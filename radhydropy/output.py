@@ -109,6 +109,7 @@ def run_with_output_times(
     sim,
     outputtime=0,
     mode="hydro_sources",
+    *,
     advect_chemistry=True,
     stop_condition=None,
     step_backend=None,

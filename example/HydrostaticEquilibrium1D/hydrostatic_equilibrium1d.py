@@ -23,11 +23,11 @@ os.environ.setdefault(
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 
 import radhydropy.io as rio
-import tools as et
+from example.HydrostaticEquilibrium1D.tools import et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrostatic_equilibrium1d.yaml")
 

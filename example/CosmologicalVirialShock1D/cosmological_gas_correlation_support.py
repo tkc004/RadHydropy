@@ -191,6 +191,7 @@ def _log_radial_bin_profile(
     values,
     weights=None,
     bin_count=48,
+    *,
     log_weighted=False,
 ):
     """Return mass-weighted mean values in logarithmic radial bins."""

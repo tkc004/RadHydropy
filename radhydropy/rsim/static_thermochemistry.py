@@ -70,7 +70,7 @@ def _snapshot_static_state(sim, state, time_s):
     }
 
 
-def _initial_static_history(sim, include_thermal_history=False):
+def _initial_static_history(sim, *, include_thermal_history=False):
     history = {
         "time_Myr": [],
         "front_radius_kpc": [],
@@ -195,6 +195,7 @@ def EvolveStaticThermochemistry(  # noqa: N802
     sim,
     final_time,
     source_timestep,
+    *,
     include_thermal_history=False,
     reference_time=None,
 ):

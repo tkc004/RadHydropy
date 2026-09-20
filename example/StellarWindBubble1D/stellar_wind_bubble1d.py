@@ -24,10 +24,10 @@ os.environ.setdefault(
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 
-import tools as et
+from example.StellarWindBubble1D.tools import et
 
 DEFAULT_CONFIG = (
     Path(__file__)
@@ -49,7 +49,7 @@ def load_snapshots(config, max_outputs=10, start_index=1):
     return snapshots
 
 
-def main(config_filename=DEFAULT_CONFIG, plot_only=False):
+def main(config_filename=DEFAULT_CONFIG, *, plot_only=False):
     et.set_plot_style()
     Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)

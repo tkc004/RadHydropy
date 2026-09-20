@@ -29,10 +29,10 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+from example import example_utils as eu
 
 import radhydropy.io as rio
-import tools as et
+from example.HydrogenPhotoheating1D.tools import et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_photoheating1d.yaml")
 

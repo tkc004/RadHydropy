@@ -20,13 +20,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
-import example_utils as eu
+from example import example_utils as eu
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
-from tools import shocktubeanalyticgraph, shocktubecal
+from example.CosmologicalSodShock1D.tools import shocktubeanalyticgraph, shocktubecal
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_sod_shock1d.yaml")
 

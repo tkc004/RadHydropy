@@ -236,7 +236,7 @@ class _UniqueKeyLoader(yaml.SafeLoader):
     """SafeLoader variant which rejects duplicate YAML mapping keys."""
 
 
-def _construct_unique_mapping(loader, node, deep=False):
+def _construct_unique_mapping(loader, node, *, deep=False):
     mapping = {}
     for key_node, value_node in node.value:
         key = loader.construct_object(key_node, deep=deep)

@@ -31,7 +31,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import virial_shock_tools as et
-from example_utils import load_nested_example_config
+from example.example_utils import load_nested_example_config
 
 import radhydropy.io as rio
 from radhydropy.cosmology import EinsteinDeSitter
@@ -54,6 +54,7 @@ class SmoothEnclosedMassForGas:
     def gravitating_enclosed_mass(
         self,
         radius_comoving_code=None,
+        *,
         include_shell_mass_with_fixed=False,
     ):
         if radius_comoving_code is None:

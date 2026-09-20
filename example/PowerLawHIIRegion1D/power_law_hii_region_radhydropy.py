@@ -20,7 +20,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
+from example import example_utils as eu
 import power_law_hii_region_analytic as analytic
 
 import radhydropy.io as rio
@@ -237,7 +237,7 @@ def apply_piecewise_isothermal_state(sim, config):
 
 
 def make_isothermal_step_backend(sim, config):
-    def step_backend(dt=None, mode="hydro_sources", advect_chemistry=True):
+    def step_backend(dt=None, mode="hydro_sources", *, advect_chemistry=True):
         result = sim.Step(
             dt=dt,
             mode=mode,

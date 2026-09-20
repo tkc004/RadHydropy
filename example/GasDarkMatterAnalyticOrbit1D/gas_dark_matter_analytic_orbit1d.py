@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
-import tools as et
+from example.GasDarkMatterAnalyticOrbit1D.tools import et
 from example import example_utils as eu
 from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 from radhydropy.units import quantity_to_value

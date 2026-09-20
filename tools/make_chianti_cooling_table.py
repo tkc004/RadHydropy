@@ -277,6 +277,7 @@ def compute_cooling_vs_T_for_density(  # noqa: N802
     electron_density,
     abundance,
     min_abund,
+    *,
     do_continuum=True,
 ):
     """Compute Lambda(T, ne) for one density and all temperatures.
@@ -351,6 +352,7 @@ def compute_cooling_grid(
     electron_densities,
     abundance,
     min_abund,
+    *,
     do_continuum=True,
     label="",
     workers=1,
@@ -420,6 +422,7 @@ def build_metallicity_table(
     cooling_solar,
     cooling_hhe,
     metallicities,
+    *,
     clip_negative_metal_cooling=False,
 ):
     """Build Lambda(Z, T, ne) from solar and H/He cooling.

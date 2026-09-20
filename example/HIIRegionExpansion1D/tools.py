@@ -11,7 +11,7 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from basic_hydro_utils import make_initial_condition
+from example.basic_hydro_utils import make_initial_condition
 
 import radhydropy.io as rio
 import radhydropy.thermo_networks.hydrogen as rth
@@ -251,7 +251,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
     config["_output_par"] = sim.par
     interior = interior_slice(config)
 
-    def step_backend(dt=None, mode="hydro_sources", advect_chemistry=True):
+    def step_backend(dt=None, mode="hydro_sources", *, advect_chemistry=True):
         step_index = state["count"]
         should_log = step_index < max_logged_steps
         if should_log:
@@ -277,7 +277,7 @@ def make_logging_step_backend(sim, config, max_logged_steps=5):
 
 
 def make_piecewise_isothermal_step_backend(sim, config):
-    def step_backend(dt=None, mode="hydro_sources", advect_chemistry=True):
+    def step_backend(dt=None, mode="hydro_sources", *, advect_chemistry=True):
         result = sim.Step(
             dt=dt,
             mode=mode,

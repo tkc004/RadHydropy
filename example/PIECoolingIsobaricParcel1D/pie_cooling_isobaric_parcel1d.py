@@ -20,10 +20,14 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from example_utils import load_nested_example_config
+from example.example_utils import load_nested_example_config
 
 from radhydropy.thermo_networks.pie import MetalPIETable
-from tools import integrate_isobaric_case, isobaric_growth_rate, net_rate
+from example.PIECoolingIsobaricParcel1D.tools import (
+    integrate_isobaric_case,
+    isobaric_growth_rate,
+    net_rate,
+)
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_isobaric_parcel1d.yaml"
 

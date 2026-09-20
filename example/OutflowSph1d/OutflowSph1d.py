@@ -24,7 +24,7 @@ os.environ.setdefault(
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 
 from example.OutflowSph1d import tools as et

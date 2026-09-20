@@ -16,7 +16,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-import example_utils as eu
+from example import example_utils as eu
 
 import radhydropy.io as rio
 from example.PIECoolingNFWHydrostaticRelaxation1D import tools as et

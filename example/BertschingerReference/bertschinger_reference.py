@@ -28,7 +28,7 @@ from bertschinger_ode import (
     solve_eq41_self_similar,
 )
 
-import tools as et
+from example.BertschingerReference.tools import et
 from example import example_utils as eu
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value

@@ -17,7 +17,7 @@ PROJECT_ROOT = EXAMPLE_ROOT.parent
 sys.path[:0] = [str(EXAMPLE_DIR), str(EXAMPLE_ROOT), str(PROJECT_ROOT)]
 
 import virial_shock_tools as et
-from example_utils import load_nested_example_config
+from example.example_utils import load_nested_example_config
 
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value

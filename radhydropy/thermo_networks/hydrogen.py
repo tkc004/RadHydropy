@@ -253,6 +253,7 @@ def _cgs_source_thermal_rate(
     temperature_cgs_K,  # noqa: N803
     xHI,  # noqa: N803
     hydrogen_mass_fraction=1.0,
+    *,
     recombination=True,
     collisional_ionization=True,
     atomic_cooling=True,
@@ -313,6 +314,7 @@ def _cgs_static_neutral_fraction_rate(
     temperature_cgs_K,  # noqa: N803
     xHI,  # noqa: N803
     hydrogen_mass_fraction=1.0,
+    *,
     recombination=True,
     collisional_ionization=True,
     ngamma_cgs_cm3=None,
@@ -367,6 +369,7 @@ def _cgs_static_neutral_fraction_implicit_update(
     xHI,  # noqa: N803
     dt_s,
     hydrogen_mass_fraction=1.0,
+    *,
     recombination=True,
     collisional_ionization=True,
     ngamma_cgs_cm3=None,
@@ -583,7 +586,7 @@ def thermal_rate(state, ngamma_cgs_cm3):
     )
 
 
-def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, verbose=False):
+def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, *, verbose=False):
     """Return a source substep for a float thermo-chemistry state."""
     source_CFL = state["source_CFL"]
     dtmin_s = state["dtmin_s"]
@@ -1196,6 +1199,7 @@ def _coupled_implicit_source_update(
     ngamma_cgs_cm3=None,
     tolerance=1.0e-6,
     max_iterations=32,
+    *,
     trust_region=False,
     absolute_temperature_tolerance=0.0,
     absolute_xhi_tolerance=0.0,
@@ -2032,6 +2036,7 @@ def _adaptive_coupled_implicit_source_update_group(
     convergence_tolerance=None,
     max_iterations=32,
     max_refinements=4,
+    *,
     trust_region=False,
     absolute_temperature_tolerance=0.0,
     absolute_xhi_tolerance=0.0,
@@ -2205,6 +2210,7 @@ def _adaptive_coupled_implicit_source_update(
     convergence_tolerance=None,
     max_iterations=32,
     max_refinements=4,
+    *,
     trust_region=False,
     absolute_temperature_tolerance=0.0,
     absolute_xhi_tolerance=0.0,

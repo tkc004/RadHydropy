@@ -22,7 +22,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 from cosmological_initial_condition import build_initial_condition

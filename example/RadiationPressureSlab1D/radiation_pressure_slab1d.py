@@ -29,7 +29,7 @@ if str(example_root) not in sys.path:
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
-import example_utils as eu
+from example import example_utils as eu
 
 import radhydropy.io as rio
 from radhydropy.initial_condition_writer import InitialConditionWriter

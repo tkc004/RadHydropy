@@ -22,10 +22,10 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import example_utils as eu
+from example import example_utils as eu
 
 import radhydropy.io as rio
-import tools as et
+from example.PassiveGasAngularMomentum1D.tools import et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 

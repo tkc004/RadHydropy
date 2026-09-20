@@ -19,7 +19,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydr
 import matplotlib as mpl
 
 mpl.use("Agg")
-import example_utils as eu
+from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -27,7 +27,7 @@ import unyt
 from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER
 from radhydropy.io import load_output_time_list
 from radhydropy.thermo_networks.pie import MetalPIETable
-from tools import (
+from example.NFWBoundaryDrivenVirialShock1D.tools import (
     GAMMA_CRITICAL,
     load_output_state,
     locate_shock,
@@ -167,7 +167,7 @@ def _plot(cases, filename):
     plt.close(fig)
 
 
-def main(run_cases=True):
+def main(*, run_cases=True):
     if run_cases:
         for config in CONFIGS:
             RUNNER.main(config)
