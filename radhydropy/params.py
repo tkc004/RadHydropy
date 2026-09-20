@@ -114,10 +114,10 @@ refparams = {
     'hydro_temperature_floor': None,
     # Conservative invariant-domain limiter for finite-volume hydro updates.
     'positivity_preserving': True,
-    # Face-factor recovery method: bisection is the compatibility default;
-    # analytical uses the quadratic invariant-domain boundary; invariant_domain
-    # uses a vectorized conservative line search.
-    'positivity_factor_method': 'bisection',
+    # Face-factor recovery method. The invariant-domain method is the
+    # vectorized conservative default; analytical uses the quadratic
+    # invariant-domain boundary and bisection remains available explicitly.
+    'positivity_factor_method': 'invariant_domain',
     'positivity_density_floor': 0.0,
     'positivity_energy_floor': 0.0,
     'relaxation_damping_time': None,
@@ -294,7 +294,7 @@ class HydrodynamicsParameters:
     dual_energy_pressure_selection: str = 'switch'
     dual_energy_entropy_limiter: bool = False
     positivity_preserving: bool = True
-    positivity_factor_method: str = 'bisection'
+    positivity_factor_method: str = 'invariant_domain'
     positivity_density_floor: float = 0.0
     positivity_energy_floor: float = 0.0
     gas_angular_momentum: bool = False
@@ -499,7 +499,7 @@ class PositivityParameters:
     """Structured view of invariant-domain limiting controls."""
 
     enabled: bool = True
-    factor_method: str = 'bisection'
+    factor_method: str = 'invariant_domain'
     density_floor: float = 0.0
     energy_floor: float = 0.0
 

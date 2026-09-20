@@ -2874,8 +2874,8 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
                     )
                 transport = rrt.trace_long_characteristics(
                     SimpleNamespace(
-                        boundary=state['boundary_cgs_cm'],
-                        vol=state['volume_cgs_cm3'],
+                        boundary_cgs_cm=state['boundary_cgs_cm'],
+                        volume_cgs_cm3=state['volume_cgs_cm3'],
                         coordsys=getattr(par, 'coordsys', 'cartesian'),
                     ),
                     absorber_densities={

@@ -149,11 +149,11 @@ def _state_geometry(state, par):
     volume_cgs_cm3 = np.asarray(state["volume_cgs_cm3"], dtype=float)
     mesh = SimpleNamespace(
         coordsys=getattr(par, "coordsys", "spherical"),
-        boundary=boundary_cgs_cm,
-        vol=volume_cgs_cm3,
+        boundary_cgs_cm=boundary_cgs_cm,
+        volume_cgs_cm3=volume_cgs_cm3,
     )
     if "area_cgs_cm2" in state:
-        mesh.area = np.asarray(state["area_cgs_cm2"], dtype=float)
+        mesh.face_area_cgs_cm2 = np.asarray(state["area_cgs_cm2"], dtype=float)
     return rrt.build_transport_geometry(mesh, mesh.coordsys)
 
 

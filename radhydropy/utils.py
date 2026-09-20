@@ -102,8 +102,11 @@ def CheckDimension(a,dimcheck):
     """Raise a ``unyt`` error if ``a`` is not dimensionally compatible."""
     if not hasattr(a, "units"):
         return
-    dummy = a+dimcheck
-    pass
+    # The addition is the validation operation: unyt raises when dimensions
+    # are incompatible.  Keep the result local because this helper is only a
+    # predicate/exception boundary.
+    _validated = a + dimcheck
+    del _validated
 
 
 def gaussian(x, mu, sig):

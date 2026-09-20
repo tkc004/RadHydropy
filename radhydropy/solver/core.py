@@ -148,11 +148,15 @@ class Solver():
         volume = np.asarray(volume_field[interior], dtype=float)
         submesh = SimpleNamespace(
             coordsys=getattr(mesh, 'coordsys', 'cartesian'),
-            boundary=boundary * scales['length_cgs_cm'],
-            vol=volume * scales['volume_cgs_cm3'],
+            boundary_cgs_cm=boundary * scales['length_cgs_cm'],
+            width_cgs_cm=np.diff(boundary) * scales['length_cgs_cm'],
+            volume_cgs_cm3=volume * scales['volume_cgs_cm3'],
         )
         if area_field is not None:
-            submesh.area = np.asarray(area_field[interior], dtype=float) * scales['area_cgs_cm2']
+            submesh.face_area_cgs_cm2 = (
+                np.asarray(area_field[interior], dtype=float)
+                * scales['area_cgs_cm2']
+            )
         group_edges_eV = getattr(par, 'radiation_group_edges_eV', None)
         if group_edges_eV is not None:
             sigma_groups = getattr(par, 'radiation_group_sigma_gamma', None)
@@ -1565,7 +1569,7 @@ class Solver():
             if angular is not None else None
         )
         factor_method = str(getattr(
-            par, 'positivity_factor_method', 'bisection'
+            par, 'positivity_factor_method', 'invariant_domain'
         )).lower()
         if factor_method == 'invariant_domain':
             # The geometry source is limited first.  The remaining face
@@ -2035,7 +2039,7 @@ class Solver():
             recovery_iterations = 48
             factor_tolerance = 1.0e-13
             factor_method = str(getattr(
-                par, 'positivity_factor_method', 'bisection'
+                par, 'positivity_factor_method', 'invariant_domain'
             )).lower()
 
             # Parity batching is intentionally disabled until its altered

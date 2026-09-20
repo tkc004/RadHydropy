@@ -130,24 +130,47 @@ def _quantity_or_code_to_cgs(value, code_units, cgs_unit, scale_key):
 
 
 def _as_cgs_array(value, unit):
-    """Return a scalar or array-like value as a plain CGS array."""
+    """Convert a physical quantity to cgs, or validate a cgs numeric value."""
     if hasattr(value, "to_value"):
         return np.asarray(value.to_value(unit), dtype=float)
     return np.asarray(value, dtype=float)
 
 
+def _plain_cgs_geometry(name, value):
+    """Validate a canonical, unitless cgs geometry array."""
+    if value is None or hasattr(value, "units") or hasattr(value, "to_value"):
+        raise TypeError(f"{name} must be a plain numeric cgs array")
+    result = np.asarray(value, dtype=float)
+    if result.ndim != 1 or not np.all(np.isfinite(result)):
+        raise ValueError(f"{name} must be a finite one-dimensional cgs array")
+    return result
+
+
 def _mesh_boundary_cgs_cm(mesh):
-    return np.asarray(mesh.boundary, dtype=float)
+    if hasattr(mesh, "boundary_cgs_cm"):
+        return _plain_cgs_geometry("boundary_cgs_cm", mesh.boundary_cgs_cm)
+    if hasattr(mesh, "boundary"):
+        raise ValueError(
+            "radiative-transfer geometry must use canonical boundary_cgs_cm; "
+            "convert code-unit geometry explicitly before tracing"
+        )
+    raise AttributeError("radiative-transfer geometry requires boundary_cgs_cm")
 
 
 def _cell_widths_cm(mesh):
+    if hasattr(mesh, "width_cgs_cm"):
+        return _plain_cgs_geometry("width_cgs_cm", mesh.width_cgs_cm)
     boundary_cgs_cm = _mesh_boundary_cgs_cm(mesh)
     return np.absolute(boundary_cgs_cm[1:] - boundary_cgs_cm[:-1])
 
 
 def _cell_volumes_cgs_cm3(mesh, coordsys):
+    if hasattr(mesh, "volume_cgs_cm3"):
+        return _plain_cgs_geometry("volume_cgs_cm3", mesh.volume_cgs_cm3)
     if hasattr(mesh, "vol"):
-        return np.asarray(mesh.vol, dtype=float)
+        raise ValueError(
+            "radiative-transfer geometry must use canonical volume_cgs_cm3"
+        )
     boundary = _mesh_boundary_cgs_cm(mesh)
     if coordsys == "spherical":
         return np.absolute(boundary[1:] ** 3 - boundary[:-1] ** 3) * 4.0 * np.pi / 3.0
@@ -158,12 +181,16 @@ def _face_areas_cgs_cm2(mesh, coordsys):
     boundary = _mesh_boundary_cgs_cm(mesh)
     if coordsys == "spherical":
         return 4.0 * np.pi * boundary**2
-    if hasattr(mesh, "area") and mesh.area is not None:
-        area = np.asarray(mesh.area, dtype=float)
+    if hasattr(mesh, "face_area_cgs_cm2") and mesh.face_area_cgs_cm2 is not None:
+        area = _plain_cgs_geometry("face_area_cgs_cm2", mesh.face_area_cgs_cm2)
         if len(area) == len(boundary):
             return area
         if len(area) == len(boundary) - 1:
             return np.ones(len(boundary)) * area[0]
+    elif hasattr(mesh, "area"):
+        raise ValueError(
+            "radiative-transfer geometry must use canonical face_area_cgs_cm2"
+        )
     return np.ones(len(boundary))
 
 
@@ -173,10 +200,18 @@ def build_transport_geometry(mesh, coordsys=None):
     if coordsys not in ("cartesian", "spherical"):
         raise ValueError("coordsys unknown: %s" % coordsys)
     boundary = _mesh_boundary_cgs_cm(mesh)
+    width = (
+        _plain_cgs_geometry("width_cgs_cm", mesh.width_cgs_cm)
+        if hasattr(mesh, "width_cgs_cm")
+        else _cell_widths_cm(mesh)
+    )
+    volume = _cell_volumes_cgs_cm3(mesh, coordsys)
+    if width.shape != volume.shape or width.shape != (boundary.size - 1,):
+        raise ValueError("radiative-transfer geometry arrays have inconsistent shapes")
     return TransportGeometry(
         boundary_cgs_cm=boundary,
-        width_cgs_cm=_cell_widths_cm(mesh),
-        volume_cgs_cm3=_cell_volumes_cgs_cm3(mesh, coordsys),
+        width_cgs_cm=width,
+        volume_cgs_cm3=volume,
         face_area_cgs_cm2=_face_areas_cgs_cm2(mesh, coordsys),
         coordsys=coordsys,
     )
@@ -465,6 +500,7 @@ def trace_long_characteristics(
     coordsys = coordsys or getattr(mesh, "coordsys", "cartesian")
     if coordsys not in ("cartesian", "spherical"):
         raise ValueError("coordsys unknown: %s" % coordsys)
+    geometry = build_transport_geometry(mesh, coordsys)
 
     edge_ngroup = _normalize_group_edges(group_edges_eV)
 
@@ -512,7 +548,7 @@ def trace_long_characteristics(
         PHOTON_RATE_UNIT,
     )
     optical_depth = _build_group_optical_depth(
-        mesh,
+        geometry,
         absorber_densities,
         cross_sections_cgs_cm2,
         ngroup,
@@ -522,14 +558,14 @@ def trace_long_characteristics(
     for group in range(ngroup):
         if coordsys == "cartesian":
             result = _trace_cartesian(
-                mesh,
+                geometry,
                 optical_depth[group],
                 boundary_flux[group],
                 direction,
             )
         else:
             result = _trace_spherical(
-                mesh,
+                geometry,
                 optical_depth[group],
                 boundary_flux[group],
                 source_photon_rate[group],
@@ -541,14 +577,22 @@ def trace_long_characteristics(
 
 def _state_mesh_for_radiative_transfer(state, par):
     """Build a minimal mesh view for the RT helper."""
-    boundary = np.asarray(state["boundary_cgs_cm"], dtype=float)
+    boundary = _plain_cgs_geometry("boundary_cgs_cm", state["boundary_cgs_cm"])
     if boundary.size < 2:
         raise ValueError("radiative transfer requires at least two cell faces")
-    volumes = np.asarray(state["volume_cgs_cm3"], dtype=float)
+    volumes = _plain_cgs_geometry("volume_cgs_cm3", state["volume_cgs_cm3"])
+    widths = state.get("width_cgs_cm")
+    if widths is None:
+        widths = np.absolute(np.diff(boundary))
+    areas = state.get("face_area_cgs_cm2")
     return SimpleNamespace(
         coordsys=getattr(par, "coordsys", "spherical"),
-        boundary=boundary,
-        vol=volumes,
+        boundary_cgs_cm=boundary,
+        width_cgs_cm=_plain_cgs_geometry("width_cgs_cm", widths),
+        volume_cgs_cm3=volumes,
+        face_area_cgs_cm2=(
+            None if areas is None else _plain_cgs_geometry("face_area_cgs_cm2", areas)
+        ),
     )
 
 

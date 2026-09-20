@@ -3,6 +3,11 @@
 import numpy as np
 import radhydropy.thermo_chemistry as rtc
 import radhydropy.diagnostics as diagnostics
+from radhydropy.runtime_fields import (
+    runtime_fields,
+    select_fluid_primitive_arrays,
+    select_mesh_geometry_arrays,
+)
 
 
 def GetStepTime(sim, dt=None, final_time=None):
@@ -24,10 +29,9 @@ def GetStepTime(sim, dt=None, final_time=None):
                     "advancing the simulation"
                 )
             dt = min(dt, dm_dt)
-    if getattr(sim.par, "supercomoving_coordinates", False):
-        current_time = sim.fluid.tau_supercomoving_code
-    else:
-        current_time = sim.fluid.time_proper_code
+    fields = runtime_fields(sim.par)
+    runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
+    current_time = getattr(runtime_state, fields.time)
     if final_time is not None:
         if hasattr(final_time, "units"):
             target_units = final_time.units
@@ -59,44 +63,20 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):
     mesh_state = sim.mesh.geometry_state
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    if getattr(sim.par, "supercomoving_coordinates", False):
-        rho_runtime_code = np.asarray(
-            fluid_state.rho_comoving_code[first:last], dtype=float
-        )
-        pressure_runtime_code = np.asarray(
-            fluid_state.pre_supercomoving_code[first:last], dtype=float
-        )
-        velocity_runtime_code = np.asarray(
-            fluid_state.vel_supercomoving_code[first:last], dtype=float
-        )
-        coordinate_runtime_code = np.asarray(
-            mesh_state.x_comoving_code[first:last], dtype=float
-        )
-        volume_runtime_code = np.asarray(
-            mesh_state.volume_comoving_code[first:last], dtype=float
-        )
-        coordinate_all_runtime_code = mesh_state.x_comoving_code
-        boundary_all_runtime_code = mesh_state.boundary_comoving_code
-        area_runtime_code = np.asarray(mesh_state.area_comoving_code, dtype=float)
-    else:
-        rho_runtime_code = np.asarray(
-            fluid_state.rho_proper_code[first:last], dtype=float
-        )
-        pressure_runtime_code = np.asarray(
-            fluid_state.pre_proper_code[first:last], dtype=float
-        )
-        velocity_runtime_code = np.asarray(
-            fluid_state.vel_proper_code[first:last], dtype=float
-        )
-        coordinate_runtime_code = np.asarray(
-            mesh_state.x_proper_code[first:last], dtype=float
-        )
-        volume_runtime_code = np.asarray(
-            mesh_state.volume_proper_code[first:last], dtype=float
-        )
-        coordinate_all_runtime_code = mesh_state.x_proper_code
-        boundary_all_runtime_code = mesh_state.boundary_proper_code
-        area_runtime_code = np.asarray(mesh_state.area_proper_code, dtype=float)
+    rho_field, velocity_field, pressure_field, _, _ = (
+        select_fluid_primitive_arrays(fluid_state, sim.par)
+    )
+    coordinate_field, boundary_field, _, area_field, volume_field = (
+        select_mesh_geometry_arrays(mesh_state, sim.par)
+    )
+    rho_runtime_code = np.asarray(rho_field[first:last], dtype=float)
+    pressure_runtime_code = np.asarray(pressure_field[first:last], dtype=float)
+    velocity_runtime_code = np.asarray(velocity_field[first:last], dtype=float)
+    coordinate_runtime_code = np.asarray(coordinate_field[first:last], dtype=float)
+    volume_runtime_code = np.asarray(volume_field[first:last], dtype=float)
+    coordinate_all_runtime_code = coordinate_field
+    boundary_all_runtime_code = boundary_field
+    area_runtime_code = np.asarray(area_field, dtype=float)
     old_energy = np.asarray(fluid.Energy_code[first:last], dtype=float).copy()
     if getattr(sim.mesh, "coordsys", None) == "spherical":
         radius_runtime_code = np.maximum(
@@ -276,12 +256,8 @@ def _hydro_step_ssprk2(
     if advect_chemistry and hasattr(initial_state, "xHI") and hasattr(stage2, "xHI"):
         sim.fluid.xHI = 0.5 * initial_state.xHI + 0.5 * stage2.xHI
 
-    if getattr(sim.par, "supercomoving_coordinates", False):
-        sim.fluid.tau_supercomoving_code = (
-            initial_state.tau_supercomoving_code + dt
-        )
-    else:
-        sim.fluid.time_proper_code = initial_state.time_proper_code + dt
+    fields = runtime_fields(sim.par)
+    setattr(sim.fluid, fields.time, getattr(initial_state, fields.time) + dt)
     sim._sync_hydro_state()
     return {
         "dt": dt,

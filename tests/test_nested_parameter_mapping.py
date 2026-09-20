@@ -110,6 +110,13 @@ def test_nested_group_aliases_are_not_dropped():
     assert par.hydrogen_radiation_evolution is False
 
 
+def test_default_positivity_factor_method_is_invariant_domain():
+    par = Par({"units": {"CodeUnits": CODE_UNITS}})
+
+    assert par.positivity_factor_method == "invariant_domain"
+    assert par.positivity.factor_method == "invariant_domain"
+
+
 def test_nested_unitful_settings_are_converted_to_code_units():
     config = {
         "simulation": {

@@ -262,7 +262,9 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
         try:
             filename = Path(output_dir) / 'temperature_jump_error.txt'
             filename.write_text(diagnostic + '\n', encoding='utf-8')
-        except (OSError, TypeError, ValueError):
+        except OSError:
+            # The diagnostic is best-effort while the temperature failure is
+            # authoritative; an unwritable output directory must not mask it.
             pass
     raise RuntimeError(diagnostic)
 

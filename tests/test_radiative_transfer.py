@@ -10,12 +10,21 @@ from radhydropy.units import CodeUnits, code_unit_scales
 
 
 class Testing(unittest.TestCase):
+    def test_legacy_geometry_fields_are_rejected(self):
+        mesh = SimpleNamespace(
+            coordsys="cartesian",
+            boundary=np.array([0.0, 1.0]),
+            vol=np.ones(1),
+        )
+        with self.assertRaisesRegex(ValueError, "boundary_cgs_cm"):
+            rrt.build_transport_geometry(mesh)
+
     def test_cartesian_long_characteristic_attenuates_exponentially(self):
         mesh = SimpleNamespace(
             coordsys="cartesian",
-            boundary=np.array([0.0, 1.0, 2.0, 3.0], dtype=float),
-            vol=np.ones(3, dtype=float),
-            area=np.ones(3, dtype=float),
+            boundary_cgs_cm=np.array([0.0, 1.0, 2.0, 3.0], dtype=float),
+            volume_cgs_cm3=np.ones(3, dtype=float),
+            face_area_cgs_cm2=np.ones(3, dtype=float),
         )
         rho = np.ones(3, dtype=float) * unyt.mp.to_value(unyt.g)
         xHI = np.ones(3)
@@ -47,9 +56,9 @@ class Testing(unittest.TestCase):
     def test_single_group_uses_canonical_grouped_shape(self):
         mesh = SimpleNamespace(
             coordsys="cartesian",
-            boundary=np.array([0.0, 1.0, 2.0], dtype=float),
-            vol=np.ones(2, dtype=float),
-            area=np.ones(2, dtype=float),
+            boundary_cgs_cm=np.array([0.0, 1.0, 2.0], dtype=float),
+            volume_cgs_cm3=np.ones(2, dtype=float),
+            face_area_cgs_cm2=np.ones(2, dtype=float),
         )
         rho = np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g)
         xHI = np.array([1.0, 0.5])
@@ -72,9 +81,9 @@ class Testing(unittest.TestCase):
     def test_multigroup_long_characteristics_combines_absorbers(self):
         mesh = SimpleNamespace(
             coordsys="cartesian",
-            boundary=np.array([0.0, 1.0, 2.0], dtype=float),
-            vol=np.ones(2, dtype=float),
-            area=np.ones(2, dtype=float),
+            boundary_cgs_cm=np.array([0.0, 1.0, 2.0], dtype=float),
+            volume_cgs_cm3=np.ones(2, dtype=float),
+            face_area_cgs_cm2=np.ones(2, dtype=float),
         )
         n_h = np.ones(2, dtype=float)
         n_he = np.ones(2, dtype=float) * 2.0
@@ -169,9 +178,9 @@ class Testing(unittest.TestCase):
     def test_spherical_long_characteristic_keeps_photon_rate_and_dilutes_density(self):
         mesh = SimpleNamespace(
             coordsys="spherical",
-            boundary=np.array([0.0, 1.0, 2.0], dtype=float),
-            vol=np.array([4.0 * np.pi / 3.0, 28.0 * np.pi / 3.0], dtype=float),
-            area=np.array([0.0, 4.0 * np.pi], dtype=float),
+            boundary_cgs_cm=np.array([0.0, 1.0, 2.0], dtype=float),
+            volume_cgs_cm3=np.array([4.0 * np.pi / 3.0, 28.0 * np.pi / 3.0], dtype=float),
+            face_area_cgs_cm2=np.array([0.0, 4.0 * np.pi], dtype=float),
         )
         rho = np.ones(2, dtype=float) * unyt.mp.to_value(unyt.g)
         xHI = np.ones(2)
@@ -188,7 +197,7 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(np.asarray(result.face_photon_rate), 12.0)
         expected_density = (
             np.array([12.0, 12.0], dtype=float)
-            / np.asarray(mesh.vol, dtype=float)
+            / np.asarray(mesh.volume_cgs_cm3, dtype=float)
             / unyt.c.to_value(unyt.cm / unyt.s)
         )[None, :]
         np.testing.assert_allclose(np.asarray(result.cell_photon_density), expected_density)
@@ -260,8 +269,8 @@ class Testing(unittest.TestCase):
         expected = rrt.trace_long_characteristics(
             SimpleNamespace(
                 coordsys="spherical",
-                boundary=state["boundary_cgs_cm"],
-                vol=state["volume_cgs_cm3"],
+                boundary_cgs_cm=state["boundary_cgs_cm"],
+                volume_cgs_cm3=state["volume_cgs_cm3"],
             ),
             absorber_densities={
                 "HI": state["rho_cgs_g_cm3"] / unyt.mp.to_value(unyt.g)
