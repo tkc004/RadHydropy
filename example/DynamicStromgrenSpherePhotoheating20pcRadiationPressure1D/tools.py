@@ -5,7 +5,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from DynamicStromgrenSpherePhotoheating20pc1D.tools import (
+from example.DynamicStromgrenSpherePhotoheating20pc1D import tools as base_tools
+from example.DynamicStromgrenSpherePhotoheating20pc1D.tools import (
     _to_km_s,
     _to_temperature,
     interior_slice,
@@ -15,6 +16,18 @@ from DynamicStromgrenSpherePhotoheating20pc1D.tools import (
     to_kpc,
     to_number_density,
 )
+
+
+def write_initial_condition(config):
+    """Write the inherited 20 pc initial-condition snapshot."""
+    return base_tools.write_initial_condition(config)
+
+
+ionization_front_position = base_tools.ionization_front_position
+output_files = base_tools.output_files
+load_history_from_outputs = base_tools.load_history_from_outputs
+load_output_state = base_tools.load_output_state
+save_front_plot = base_tools.save_front_plot
 
 
 def save_plot(mesh, fluid, config, figure_filename):

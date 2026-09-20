@@ -21,7 +21,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 from example.example_utils import load_nested_example_config
 
 import radhydropy.io as rio
-from example.HydrostaticCoreSpherical1D.tools import et
+from example.HydrostaticCoreSpherical1D import tools as et
 from radhydropy.gravity import Gravity, point_mass_potential
 from radhydropy.units import CodeUnits, quantity_to_value
 

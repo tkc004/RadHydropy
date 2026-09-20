@@ -24,7 +24,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 from example import example_utils as eu
 
-from example.DynamicStromgrenSpherePhotoheating20pcStellarWind1D.tools import et
+from example.DynamicStromgrenSpherePhotoheating20pcStellarWind1D import tools as et
 from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = EXAMPLE_DIR / ("dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml")

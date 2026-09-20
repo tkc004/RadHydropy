@@ -27,7 +27,7 @@ mpl.use("Agg")
 from example import example_utils as eu
 import matplotlib.pyplot as plt
 
-from example.StellarWindBubble1D.tools import et
+from example.StellarWindBubble1D import tools as et
 
 DEFAULT_CONFIG = (
     Path(__file__)

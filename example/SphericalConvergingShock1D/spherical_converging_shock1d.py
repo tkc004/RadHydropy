@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from example import example_utils as eu
 
 import radhydropy.io as rio
-from example.SphericalConvergingShock1D.tools import et
+from example.SphericalConvergingShock1D import tools as et
 from radhydropy.eos import EOS
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits

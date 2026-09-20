@@ -34,7 +34,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
 from example import example_utils as eu
 
 import radhydropy.io as rio
-from example.HydrogenRecombination1D.tools import et
+from example.HydrogenRecombination1D import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrogen_recombination1d.yaml")
 

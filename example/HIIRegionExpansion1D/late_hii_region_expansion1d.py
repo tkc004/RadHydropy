@@ -43,7 +43,7 @@ from example import example_utils as eu
 import unyt
 
 import radhydropy.io as rio
-from example.HIIRegionExpansion1D.tools import et
+from example.HIIRegionExpansion1D import tools as et
 from radhydropy.rsim import Rsim
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("late_hii_region_expansion1d.yaml")

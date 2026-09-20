@@ -18,10 +18,11 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import virial_shock_tools as et
+from example.CosmologicalVirialShock1D import virial_shock_tools as et
 from example.example_utils import load_nested_example_config
 
 from radhydropy.gravity import Gravity
+from tools.lcdm_correlation import load_lcdm_correlation_table
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits, quantity_to_value
 
@@ -37,7 +38,7 @@ def load_correlation_table(config_filename, config):
     filename = Path(filename)
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
-    return et.load_lcdm_correlation_table(filename)
+    return load_lcdm_correlation_table(filename)
 
 
 def run_case(config, radiative):

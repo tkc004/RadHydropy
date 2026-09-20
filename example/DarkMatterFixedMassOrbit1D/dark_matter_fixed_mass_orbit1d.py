@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from example.DarkMatterFixedMassOrbit1D.tools import et
+from example.DarkMatterFixedMassOrbit1D import tools as et
 from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = (

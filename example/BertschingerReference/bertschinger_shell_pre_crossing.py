@@ -23,7 +23,7 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from bertschinger_ode import solve_eq41_self_similar
 
-from example.BertschingerReference.tools import example_tools
+from example.BertschingerReference import tools as example_tools
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.units import quantity_to_value

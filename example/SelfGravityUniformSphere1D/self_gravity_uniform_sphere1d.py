@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
-from example.SelfGravityUniformSphere1D.tools import et
+from example.SelfGravityUniformSphere1D import tools as et
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim
 from radhydropy.units import quantity_to_value

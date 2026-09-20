@@ -27,7 +27,7 @@ from example import example_utils as eu
 import matplotlib.pyplot as plt
 
 import radhydropy.io as rio
-from example.HydrostaticEquilibrium1D.tools import et
+from example.HydrostaticEquilibrium1D import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("hydrostatic_equilibrium1d.yaml")
 

@@ -27,7 +27,7 @@ mpl.use("Agg")
 from example import example_utils as eu
 import matplotlib.pyplot as plt
 
-from example.SedovTaylor1D.tools import et
+from example.SedovTaylor1D import tools as et
 
 et.set_plot_style()
 

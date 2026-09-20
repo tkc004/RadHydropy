@@ -21,7 +21,7 @@ from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from example.EinsteinDeSitterDarkMatterShellGrowth1D.tools import et
+from example.EinsteinDeSitterDarkMatterShellGrowth1D import tools as et
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import quantity_to_value
 

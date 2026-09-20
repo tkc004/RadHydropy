@@ -35,7 +35,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 from example import example_utils as eu
 
 import radhydropy.io as rio
-from example.StaticStromgrenSpherePhotoheating1D.tools import et
+from example.StaticStromgrenSpherePhotoheating1D import tools as et
 from radhydropy.rsim import Rsim
 
 DEFAULT_CONFIG = (

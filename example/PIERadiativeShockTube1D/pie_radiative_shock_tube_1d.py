@@ -297,7 +297,7 @@ def main(config_filename=DEFAULT_CONFIG):
             metallicity,
             hydrogen_number_density_cgs_cm3,
             table,
-            adiabatic,
+            adiabatic=adiabatic,
         )
         if adiabatic:
             result["metallicity"] = 0.0

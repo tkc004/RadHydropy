@@ -27,7 +27,7 @@ mpl.use("Agg")
 from example import example_utils as eu
 import matplotlib.pyplot as plt
 
-from example.Advection1D.tools import et
+from example.Advection1D import tools as et
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("advection1d.yaml")
 

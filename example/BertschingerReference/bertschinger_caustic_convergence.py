@@ -14,7 +14,7 @@ import numpy as np
 import yaml
 from bertschinger_shell_ode_comparison import run_comparison
 
-from example.BertschingerReference.tools import example_tools
+from example.BertschingerReference import tools as example_tools
 
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / "bertschinger_reference.yaml"

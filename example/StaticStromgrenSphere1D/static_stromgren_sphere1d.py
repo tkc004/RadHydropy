@@ -32,7 +32,7 @@ os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 from example import example_utils as eu
 
 import radhydropy.io as rio
-from example.StaticStromgrenSphere1D.tools import et
+from example.StaticStromgrenSphere1D import tools as et
 from radhydropy.rsim import Rsim
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("static_stromgren_sphere1d.yaml")

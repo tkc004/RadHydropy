@@ -25,7 +25,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 from example import example_utils as eu
 
-from example.DynamicStromgrenSpherePhotoheating20pcStellarWind1D.tools import et
+from example.DynamicStromgrenSpherePhotoheating20pcStellarWind1D import tools as et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
 

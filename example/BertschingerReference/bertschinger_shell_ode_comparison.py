@@ -29,7 +29,7 @@ from bertschinger_ode import (
 )
 from shell_orbit_tracker import ShellOrbitTracker
 
-from example.BertschingerReference.tools import example_tools
+from example.BertschingerReference import tools as example_tools
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import quantity_to_value
 

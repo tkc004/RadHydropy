@@ -5,7 +5,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from DynamicStromgrenSpherePhotoheating1D.tools import (
+from example.DynamicStromgrenSpherePhotoheating1D import tools as base_tools
+from example.DynamicStromgrenSpherePhotoheating1D.tools import (
     _to_km_s,
     _to_temperature,
     interior_slice,
@@ -15,6 +16,13 @@ from DynamicStromgrenSpherePhotoheating1D.tools import (
     to_kpc,
     to_number_density,
 )
+
+write_initial_condition = base_tools.write_initial_condition
+output_files = base_tools.output_files
+load_history_from_outputs = base_tools.load_history_from_outputs
+load_output_state = base_tools.load_output_state
+save_front_plot = base_tools.save_front_plot
+ionization_front_position = base_tools.ionization_front_position
 
 
 def save_plot(mesh, fluid, config, figure_filename):

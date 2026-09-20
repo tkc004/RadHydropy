@@ -152,7 +152,7 @@ def load_labeled_density_snapshots(outputfilenames, config, output_specs):
 
 def output_files(output_directory, output_filename_prefix):
     pattern = Path(output_directory) / f"{output_filename_prefix}_*.hdf5"
-    return sorted(glob.glob(pattern))
+    return sorted(str(filename) for filename in pattern.parent.glob(pattern.name))
 
 
 def interior_slice(config):
