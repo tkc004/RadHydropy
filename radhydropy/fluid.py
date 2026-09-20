@@ -489,7 +489,7 @@ class Fluid:
                     ),
                 ),
             )
-            if values.ndim == 2:
+            if values.ndim == 2:  # noqa: PLR2004
                 ghost = np.full(
                     (values.shape[0], noghost),
                     initial,

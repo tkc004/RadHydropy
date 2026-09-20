@@ -303,7 +303,7 @@ def main(config_filename=CONFIG):
     )
     physical_tangential_velocity = j / proper_radius
     reconstructed_j = proper_radius * physical_tangential_velocity
-    if radius_error > 1.0e-8 or velocity_error > 1.0e-8:
+    if radius_error > 1.0e-8 or velocity_error > 1.0e-8:  # noqa: PLR2004
         raise RuntimeError("cosmological orbit disagrees with analytic ODE")
     if not np.allclose(reconstructed_j, j, rtol=1.0e-12, atol=1.0e-12):
         raise RuntimeError("specific angular momentum changed under conversion")
@@ -392,12 +392,12 @@ def main(config_filename=CONFIG):
     )
     # The 32-cell Eulerian run is intentionally lightweight; retain a
     # regression tolerance that reflects its finite-volume shell mixing.
-    if simulation_velocity_error > 3.0e-1:
+    if simulation_velocity_error > 3.0e-1:  # noqa: PLR2004
         raise RuntimeError(
             "saved cosmological Rsim velocity disagrees with Eulerian-mapped "
             f"ODE: max error = {simulation_velocity_error:.6g}",
         )
-    if simulation_j_error > 3.0e-3:
+    if simulation_j_error > 3.0e-3:  # noqa: PLR2004
         raise RuntimeError(
             "saved cosmological Rsim J/M drifted from the initialized profile: "
             f"max error = {simulation_j_error:.6g}",

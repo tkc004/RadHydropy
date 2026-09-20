@@ -308,7 +308,8 @@ def Step(  # noqa: N802
     if hydro_integrator not in valid_hydro_integrators:
         raise ValueError(
             "Unknown hydro integrator {!r}; valid options are {}".format(
-                hydro_integrator, ", ".join(valid_hydro_integrators)
+                hydro_integrator,
+                ", ".join(valid_hydro_integrators),
             ),
         )
     source_integrator = str(getattr(sim.par, "source_integrator", "lie")).lower()

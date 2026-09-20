@@ -106,7 +106,7 @@ def rankine_hugoniot_ratios(mach_number, gamma=5.0 / 3.0):
 def rankine_hugoniot_diagnostics(filenames, config):
     """Compare detected shock jumps with Rankine--Hugoniot predictions."""
     profiles = [_snapshot_profiles(filename, config) for filename in filenames]
-    if len(profiles) < 3:
+    if len(profiles) < 3:  # noqa: PLR2004
         return []
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     mu = float(config["initial_condition"]["mu"])
@@ -147,7 +147,7 @@ def rankine_hugoniot_diagnostics(filenames, config):
             * kpc_per_myr_to_km_s
         )
         index = shock_indices[snapshot_index]
-        if index < 5 or index + 5 > len(radius_proper_cgs_cm):
+        if index < 5 or index + 5 > len(radius_proper_cgs_cm):  # noqa: PLR2004
             continue
         upstream = slice(index + 2, index + 5)
         downstream = slice(index - 4, index - 1)

@@ -233,7 +233,7 @@ class Solver:
                 np.asarray(result.cell_photon_density, dtype=float)
                 / scales["number_density_cgs_cm3"]
             )
-            if np.ndim(photon_density_code) != 2:
+            if np.ndim(photon_density_code) != 2:  # noqa: PLR2004
                 raise ValueError(
                     "radiative-transfer result must have shape (ngroup, ncell)",
                 )
@@ -289,7 +289,7 @@ class Solver:
         photon_density_code = (
             np.asarray(result.cell_photon_density, dtype=float) / scales["number_density_cgs_cm3"]
         )
-        if np.ndim(photon_density_code) != 2:
+        if np.ndim(photon_density_code) != 2:  # noqa: PLR2004
             raise ValueError(
                 "radiative-transfer result must have shape (ngroup, ncell)",
             )
@@ -469,7 +469,8 @@ class Solver:
             verbose = 0
         par = par or getattr(mesh, "par", getattr(mesh, "_par", None))
         self._validate_dual_energy_compatibility(
-            fluid, par or getattr(mesh, "par", getattr(mesh, "_par", None))
+            fluid,
+            par or getattr(mesh, "par", getattr(mesh, "_par", None)),
         )
         (
             rho_runtime_code,
@@ -711,7 +712,7 @@ class Solver:
         else:
             pre_runtime_code[invalid_pressure & ~numerical_vacuum] = 0.0
         pre_runtime_code[numerical_vacuum] = 0.0
-        if verbose >= 2:
+        if verbose >= 2:  # noqa: PLR2004
             log_diagnostic(
                 logging.DEBUG,
                 "primitive_state_reconstructed",
@@ -924,7 +925,7 @@ class Solver:
             )
             fluid.InternalEnergy_code[sync] = total_thermal[sync]
             self.dual_energy_synchronization_count += int(np.count_nonzero(sync))
-        if verbose >= 2:
+        if verbose >= 2:  # noqa: PLR2004
             log_diagnostic(
                 logging.DEBUG,
                 "conserved_state_synchronized",
@@ -1530,7 +1531,7 @@ class Solver:
                         low = middle
                     else:
                         high = middle
-                    if high - low <= 1.0e-13:
+                    if high - low <= 1.0e-13:  # noqa: PLR2004
                         break
                 geometry_fraction[index] = low
 
@@ -1620,7 +1621,7 @@ class Solver:
                 invalid_faces = invalid | ru.periodic_roll(invalid, 1)
                 updated_factors = factors.copy()
                 updated_factors[invalid_faces] *= 0.5
-                near_zero = invalid_faces & (updated_factors < 1.0e-12)
+                near_zero = invalid_faces & (updated_factors < 1.0e-12)  # noqa: PLR2004
                 updated_factors[near_zero] = 0.0
                 if np.array_equal(updated_factors, factors):
                     raise ValueError(
@@ -2378,7 +2379,8 @@ class Solver:
                 getattr(mesh, "par", getattr(mesh, "_par", None)),
             )
             self._apply_hydrostatic_core_flux(
-                fluid, getattr(mesh, "par", getattr(mesh, "_par", None))
+                fluid,
+                getattr(mesh, "par", getattr(mesh, "_par", None)),
             )
             self._zero_spherical_origin_flux(mesh, fluid)
             self._apply_local_angular_energy_fallback(
@@ -2402,7 +2404,7 @@ class Solver:
             self._zero_spherical_origin_flux(mesh, fluid)
         else:
             raise ValueError(f"Interface flux method unknown: {method}")
-        if verbose >= 2:
+        if verbose >= 2:  # noqa: PLR2004
             log_diagnostic(
                 logging.DEBUG,
                 "interface_fluxes_constructed",
@@ -2451,7 +2453,8 @@ class Solver:
             angular_flux_area = fluid.AngularMomentum_code.flux * area_runtime_code
             df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
         potential_face = self._gravity_potential_faces(
-            mesh, getattr(mesh, "par", getattr(mesh, "_par", None))
+            mesh,
+            getattr(mesh, "par", getattr(mesh, "_par", None)),
         )
         df_potential = None
         if potential_face is not None:
@@ -2709,7 +2712,7 @@ class Solver:
                     out=np.ones_like(old_density),
                     where=old_density > 0.0,
                 )
-                moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)
+                moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)  # noqa: PLR2004
                 isentropic_internal = previous_internal * np.maximum(
                     density_ratio,
                     0.0,

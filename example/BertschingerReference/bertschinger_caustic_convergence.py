@@ -59,7 +59,7 @@ def main():
                     Path(config["par"]["output"]["directory"])
                     / "BertschingerDarkMatterCaustic.npz",
                 )
-                selected = data["lambda_caustic"][data["xi"] >= 3.0]
+                selected = data["lambda_caustic"][data["xi"] >= 3.0]  # noqa: PLR2004
                 rows.append(
                     (
                         parameter,

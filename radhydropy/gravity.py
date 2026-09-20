@@ -231,7 +231,7 @@ class Gravity:
 
         coord = quantity_to_value(coordinate, code_units.length_unit)
         potential = self.potential_on(coord)
-        if potential.size < 2:
+        if potential.size < 2:  # noqa: PLR2004
             raise ValueError(
                 "At least two coordinate points are required to differentiate the potential",
             )
@@ -245,7 +245,8 @@ class Gravity:
             raise AttributeError("mesh does not provide typed geometry state")
         return self.potential_on(
             _canonical_mesh_geometry_arrays(
-                mesh, getattr(mesh, "par", getattr(mesh, "_par", None))
+                mesh,
+                getattr(mesh, "par", getattr(mesh, "_par", None)),
             )[0],
         )
 

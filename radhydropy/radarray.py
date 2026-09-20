@@ -269,7 +269,7 @@ class RadArray(unyt.unyt_array):
         # ordinary unyt arrays but would change the numerical code values that
         # RadArray promises to preserve.
         if method == "__call__" and rad_inputs and "out" not in kwargs:
-            if ufunc in (np.add, np.subtract) and len(rad_inputs) == 2:
+            if ufunc in (np.add, np.subtract) and len(rad_inputs) == 2:  # noqa: PLR2004
                 left, right = inputs
                 result_value = getattr(np, ufunc.__name__)(
                     left.value,
@@ -281,7 +281,7 @@ class RadArray(unyt.unyt_array):
                     field_spec=rad_inputs[0].field_spec,
                     cosmology=rad_inputs[0].cosmology,
                 )
-            if ufunc in (np.multiply, np.true_divide, np.divide) and len(rad_inputs) == 2:
+            if ufunc in (np.multiply, np.true_divide, np.divide) and len(rad_inputs) == 2:  # noqa: PLR2004
                 left, right = inputs
                 if ufunc is np.multiply:
                     result_value = left.value * right.value

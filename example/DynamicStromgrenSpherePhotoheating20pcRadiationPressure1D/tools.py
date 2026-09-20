@@ -6,14 +6,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 from DynamicStromgrenSpherePhotoheating20pc1D.tools import (
-    pressure_from_radarrays,
     _to_km_s,
-    to_kpc,
-    to_number_density,
     _to_temperature,
     interior_slice,
     load_reference_profile,
+    pressure_from_radarrays,
     scatter_reference,
+    to_kpc,
+    to_number_density,
 )
 
 

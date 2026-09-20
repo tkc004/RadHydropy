@@ -96,7 +96,7 @@ def main(config_filename=DEFAULT_CONFIG):
     max_relative_error = float(np.max(relative_error))
     if not np.all(np.isfinite(numerical_cgs)):
         raise RuntimeError("self-gravity acceleration contains non-finite values")
-    if max_relative_error > 5.0e-3:
+    if max_relative_error > 5.0e-3:  # noqa: PLR2004
         raise RuntimeError(
             f"uniform-sphere self-gravity relative error {max_relative_error:.6g} exceeds tolerance",
         )

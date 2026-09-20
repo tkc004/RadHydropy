@@ -189,14 +189,14 @@ def main(config_filename=CONFIG):
     )
     momentum_error = abs(final_momentum - expected_momentum[-1])
     energy_error = abs(final_energy - expected_energy[-1])
-    if momentum_error > 1.0e-11 or energy_error > 1.0e-11:
+    if momentum_error > 1.0e-11 or energy_error > 1.0e-11:  # noqa: PLR2004
         raise RuntimeError(
             "centrifugal source disagrees with exact work solution: "
             f"momentum error={momentum_error:g} energy error={energy_error:g}",
         )
-    if abs(final_j - j) > 1.0e-12:
+    if abs(final_j - j) > 1.0e-12:  # noqa: PLR2004
         raise RuntimeError("centrifugal source changed signed specific angular momentum")
-    if abs(final_internal - initial_internal) > 1.0e-11:
+    if abs(final_internal - initial_internal) > 1.0e-11:  # noqa: PLR2004
         raise RuntimeError("centrifugal work changed cold internal energy")
 
     figure = ROOT / par["output"]["directory"] / "GasCentrifugalWorkSource1D.jpg"

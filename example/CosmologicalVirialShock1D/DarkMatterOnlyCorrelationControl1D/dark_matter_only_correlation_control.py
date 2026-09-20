@@ -97,7 +97,7 @@ def main(config_filename=CONFIG):
     density_plot_radius = []
     density_plot_contrast = []
     for row, (radius_comoving_code, mass_comoving_code) in enumerate(
-        zip(radii, masses, strict=False)
+        zip(radii, masses, strict=False),
     ):
         order = np.argsort(radius_comoving_code)
         radius_comoving_code = radius_comoving_code[order]

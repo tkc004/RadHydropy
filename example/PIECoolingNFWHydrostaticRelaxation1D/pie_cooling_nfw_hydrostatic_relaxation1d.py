@@ -94,7 +94,7 @@ def main(config_filename=DEFAULT_CONFIG):
         for value in Path(par["output"]["time_list_filename"]).read_text().splitlines()[1:]
     ]
     outputs = all_outputs[: len(scheduled_times)]
-    if len(outputs) < 2:
+    if len(outputs) < 2:  # noqa: PLR2004
         raise RuntimeError("expected at least two saved snapshots")
     results = [et.analyze_snapshot(name, config, halo, temperature_virial_unyt) for name in outputs]
     for result, scheduled_time in zip(results, scheduled_times, strict=False):

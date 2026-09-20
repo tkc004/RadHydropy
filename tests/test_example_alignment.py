@@ -628,7 +628,7 @@ def test_physical_get_fallbacks_are_not_unitless():
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                 continue
-            if node.func.attr != "get" or len(node.args) < 2:
+            if node.func.attr != "get" or len(node.args) < 2:  # noqa: PLR2004
                 continue
             key = _literal_string(node.args[0])
             fallback = node.args[1]

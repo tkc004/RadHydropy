@@ -224,7 +224,7 @@ def main():
     for _label, history in (("Compton-only", compton), ("atomic+Compton", atomic)):
         choices, counts = np.unique(history["source_solver"], return_counts=True)
         ", ".join(f"{choice}={count}" for choice, count in zip(choices, counts, strict=False))
-    if temperature_relative_error_dimensionless > 2.0e-3:
+    if temperature_relative_error_dimensionless > 2.0e-3:  # noqa: PLR2004
         raise RuntimeError("Compton-only EdS comparison failed")
     if not np.all(np.isfinite(atomic["temperature_proper_cgs_K"])):
         raise RuntimeError("atomic+Compton run produced non-finite temperature")

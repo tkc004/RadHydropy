@@ -117,7 +117,7 @@ def main(config_filename=DEFAULT_CONFIG):
     dm_mass_error_dimensionless = (
         abs(final_dm_mass_cgs_g - initial_dm_mass_cgs_g) / initial_dm_mass_cgs_g
     )
-    if gas_mass_error_dimensionless > 1.0e-12 or dm_mass_error_dimensionless > 1.0e-12:
+    if gas_mass_error_dimensionless > 1.0e-12 or dm_mass_error_dimensionless > 1.0e-12:  # noqa: PLR2004
         raise RuntimeError(
             f"mass conservation failed: gas {gas_mass_error_dimensionless:.6g}, dark matter {dm_mass_error_dimensionless:.6g}",
         )

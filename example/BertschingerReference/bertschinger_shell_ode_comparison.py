@@ -160,7 +160,7 @@ def _density_slope_profile(
     log_density = np.full_like(log_radius, np.nan)
     log_density[valid] = np.log(density_proper_code[valid])
     valid_indices = np.flatnonzero(valid)
-    if valid_indices.size < 8:
+    if valid_indices.size < 8:  # noqa: PLR2004
         return None
     slope = np.gradient(log_density, log_radius)
 
@@ -413,7 +413,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
     # each event with r_ta at that same time, not with the later output
     # turnaround radius.
     apocentre_events = tracker.first_apocenter_events()
-    if apocentre_events.size and len(turnaround_values) >= 2:
+    if apocentre_events.size and len(turnaround_values) >= 2:  # noqa: PLR2004
         ta_history = np.asarray(turnaround_values, dtype=float)
         event_time = apocentre_events[:, 0]
         event_ta = np.interp(event_time, ta_history[:, 0], ta_history[:, 1])

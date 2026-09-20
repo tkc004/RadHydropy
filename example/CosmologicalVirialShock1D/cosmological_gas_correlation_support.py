@@ -619,7 +619,7 @@ def plot_baryon_fraction_evolution(
     mass_axis.grid(alpha=0.3, which="both")
     mass_axis.legend(frameon=False)
     finite = np.isfinite(times) & np.isfinite(scale_factors) & (scale_factors > 0.0)
-    if np.count_nonzero(finite) >= 2:
+    if np.count_nonzero(finite) >= 2:  # noqa: PLR2004
         # Place redshift ticks at the actual saved cosmic-time snapshots.
         # This avoids treating code time as Gyr and avoids an interpolated
         # redshift transform whose labels can be misleading between outputs.

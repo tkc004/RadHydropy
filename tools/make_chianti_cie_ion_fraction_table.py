@@ -109,7 +109,7 @@ def read_ioneq_file(filename):
         values = np.asarray(
             [float(line[6 + 10 * i : 6 + 10 * (i + 1)]) for i in range(n_temperature)],
         )
-        if len(header) != 2 or values.size != n_temperature:
+        if len(header) != 2 or values.size != n_temperature:  # noqa: PLR2004
             raise ValueError(f"Malformed ion-fraction row in {filename}: {line[:40]!r}")
 
         atomic_number, ion_stage = (int(value) for value in header)

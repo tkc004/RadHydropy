@@ -461,7 +461,7 @@ def save_front_plot(history, config, figure_filename):
         ls="--",
         label=(
             r"Spitzer, $c_i={:.2f}$ km s$^{{-1}}$".format(
-                initial_condition["ionized_sound_speed"].to_value(unyt.km / unyt.s)
+                initial_condition["ionized_sound_speed"].to_value(unyt.km / unyt.s),
             )
         ),
     )

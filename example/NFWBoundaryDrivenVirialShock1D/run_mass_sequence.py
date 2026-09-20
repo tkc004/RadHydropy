@@ -96,10 +96,10 @@ def _case_diagnostics(config_filename):
     return {
         "mass_proper_Msun": halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun),
         "label": r"$10^{12}\,M_\odot$"
-        if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 5e11
+        if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 5e11  # noqa: PLR2004
         else (
             r"$3\times10^{11}\,M_\odot$"
-            if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 2e11
+            if halo["mass_halo_proper_g_unyt"].to_value(unyt.Msun) > 2e11  # noqa: PLR2004
             else r"$10^{11}\,M_\odot$"
         ),
         "times_proper_Myr": np.asarray(times),

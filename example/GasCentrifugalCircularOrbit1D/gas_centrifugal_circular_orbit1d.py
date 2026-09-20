@@ -266,11 +266,11 @@ def main(config_filename=CONFIG):
         dtype=float,
     )
     saved_energy = np.asarray(saved_fluid.Energy_code[active], dtype=float)
-    if np.max(np.abs(saved_velocity)) > 5.0e-5:
+    if np.max(np.abs(saved_velocity)) > 5.0e-5:  # noqa: PLR2004
         raise RuntimeError("Rsim circular solution developed radial velocity")
     if not np.allclose(saved_j, np.sqrt(central_mass * saved_radius), atol=1.0e-10):
         raise RuntimeError("Rsim changed circular specific angular momentum")
-    if np.max(np.abs(saved_momentum)) > 5.0e-5:
+    if np.max(np.abs(saved_momentum)) > 5.0e-5:  # noqa: PLR2004
         raise RuntimeError("Rsim circular solution developed radial momentum")
     if not np.allclose(saved_mass, simulation_initial_mass[active], rtol=1.0e-10):
         raise RuntimeError("Rsim changed circular mass")
@@ -335,9 +335,9 @@ def main(config_filename=CONFIG):
         + 0.5 * eccentric_j**2 / eccentric_state[0] ** 2
         - central_mass / eccentric_state[0]
     )
-    if eccentric_radius_error > 1.0e-8 or eccentric_velocity_error > 1.0e-8:
+    if eccentric_radius_error > 1.0e-8 or eccentric_velocity_error > 1.0e-8:  # noqa: PLR2004
         raise RuntimeError("eccentric orbit disagrees with analytic ODE")
-    if np.max(np.abs(eccentric_energy - eccentric_energy[0])) > 1.0e-10:
+    if np.max(np.abs(eccentric_energy - eccentric_energy[0])) > 1.0e-10:  # noqa: PLR2004
         raise RuntimeError("eccentric orbit failed specific-energy conservation")
 
     # Drive a moving one-shell Rsim state with the actual centrifugal source.

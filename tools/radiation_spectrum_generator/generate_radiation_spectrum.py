@@ -61,9 +61,9 @@ def verner96_sigma(energy_ev: np.ndarray, parameters: np.ndarray) -> np.ndarray:
 
 
 def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
-    if len(edges_ev) < 2 or np.any(np.diff(edges_ev) <= 0.0):
+    if len(edges_ev) < 2 or np.any(np.diff(edges_ev) <= 0.0):  # noqa: PLR2004
         raise ValueError("group edges must be strictly increasing")
-    if temperature_k <= 0.0 or samples_per_group < 2:
+    if temperature_k <= 0.0 or samples_per_group < 2:  # noqa: PLR2004
         raise ValueError("temperature must be positive and samples_per_group >= 2")
 
     blackbody = BlackBody(temperature=temperature_k * units.K)

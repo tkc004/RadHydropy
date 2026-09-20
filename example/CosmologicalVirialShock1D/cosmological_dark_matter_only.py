@@ -391,7 +391,7 @@ def run_live_shell_density_profiles(config):
             dtype=float,
         )
         valid_reference = np.isfinite(reference_profile) & (reference_profile > 0.0)
-        if np.count_nonzero(valid_reference) >= 2:
+        if np.count_nonzero(valid_reference) >= 2:  # noqa: PLR2004
             reference_density = float(
                 np.exp(
                     np.interp(

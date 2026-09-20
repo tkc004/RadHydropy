@@ -57,7 +57,7 @@ def _gaussian_correlation_mean(radius_comoving_code, correlation_length):
     integral = np.sqrt(np.pi) / 4.0 * erf_x - 0.5 * x * np.exp(-(x**2))
     result = np.divide(3.0 * integral, np.maximum(x**3, 1.0e-30))
     result = np.asarray(result, dtype=float)
-    result[x < 1.0e-4] = 1.0
+    result[x < 1.0e-4] = 1.0  # noqa: PLR2004
     return result
 
 
@@ -68,7 +68,7 @@ def _correlation_profile(radius_comoving_code, table, length_unit_mpc_h):
     table_correlation = np.asarray(table["correlation"], dtype=float)
     if table_radius.ndim != 1 or table_correlation.ndim != 1:
         raise ValueError("linear correlation table arrays must be one-dimensional")
-    if table_radius.size != table_correlation.size or table_radius.size < 2:
+    if table_radius.size != table_correlation.size or table_radius.size < 2:  # noqa: PLR2004
         raise ValueError("linear correlation table arrays have incompatible sizes")
     if np.any(np.diff(table_radius) <= 0.0):
         raise ValueError("linear correlation table radii must be increasing")
@@ -535,7 +535,7 @@ def splashback_radius(
     )
     radius_proper_code = radius_proper_code[valid]
     mass_comoving_code = mass_comoving_code[valid]
-    if radius_proper_code.size < 16:
+    if radius_proper_code.size < 16:  # noqa: PLR2004
         return float("nan")
     order = np.argsort(radius_proper_code)
     radius_proper_code = radius_proper_code[order]
@@ -553,7 +553,7 @@ def splashback_radius(
     shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
     rho_comoving_code = shell_mass_comoving_code / np.maximum(shell_volume, 1.0e-300)
     occupied = rho_comoving_code > 0.0
-    if np.count_nonzero(occupied) < 12:
+    if np.count_nonzero(occupied) < 12:  # noqa: PLR2004
         return float("nan")
     radii = np.sqrt(edges[:-1] * edges[1:])[occupied]
     rho_comoving_code = rho_comoving_code[occupied]
@@ -562,7 +562,7 @@ def splashback_radius(
     # A short boxcar suppresses individual-shell noise while retaining the
     # broad splashback trough.
     window = min(7, log_density.size if log_density.size % 2 else log_density.size - 1)
-    if window >= 3:
+    if window >= 3:  # noqa: PLR2004
         padded = np.pad(log_density, (window // 2,), mode="edge")
         log_density = np.convolve(
             padded,
@@ -577,7 +577,7 @@ def splashback_radius(
     if upper <= lower:
         return float("nan")
     candidates = np.flatnonzero((radii >= lower) & (radii <= upper))
-    if candidates.size < 3:
+    if candidates.size < 3:  # noqa: PLR2004
         return float("nan")
     # Avoid reporting a weak numerical edge as splashback.
     local = candidates[np.argmin(slope[candidates])]
@@ -690,7 +690,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
         & (rho_comoving_code > 0.0)
     )
     shock_cell_index = -1
-    if np.count_nonzero(finite_entropy) >= 7:
+    if np.count_nonzero(finite_entropy) >= 7:  # noqa: PLR2004
         lower_radius = proper[0]
         if np.isfinite(rvir) and rvir > proper[0]:
             # The virial shock is an outer-halo feature.  Exclude inner
@@ -734,7 +734,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
                     finite_entropy[inner]
                     and finite_entropy[outer]
                     and np.isfinite(entropy_jump)
-                    and compression >= 1.2
+                    and compression >= 1.2  # noqa: PLR2004
                     and entropy_jump > 0.0
                     and decelerated
                 ):

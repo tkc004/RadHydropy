@@ -634,13 +634,13 @@ def test_par_constructs_lambda_cdm_from_parameters():
     assert par.simulation.final_time == 2.0 * unyt.s
     assert par.diagnostics.verbose == par.verbose
     assert par.diagnostics.energy_diagnostics is False
-    assert par.mesh.ghost_cells == 2
+    assert par.mesh.ghost_cells == 2  # noqa: PLR2004
     assert par.mesh.area_proper == par.area_proper
     assert par.chemistry.key == "H"
     assert par.chemistry.hydrogen_mass_fraction == pytest.approx(1.0)
     assert par.chemistry.hydrogen_xHI_initial == pytest.approx(1.0)
     assert par.chemistry.helium_coupled_implicit is True
-    assert par.chemistry.implicit_max_iterations == 32
+    assert par.chemistry.implicit_max_iterations == 32  # noqa: PLR2004
     assert par.chemistry.implicit_fallback == "explicit"
     assert par.chemistry.alpha_B is None
     assert par.chemistry.beta is None
@@ -651,7 +651,7 @@ def test_par_constructs_lambda_cdm_from_parameters():
     assert par.dark_matter_config.global_timestep_limit is True
     assert par.radiation.radiative_transfer_method == "long_characteristics"
     assert par.radiation.radiation_pressure_efficiency == pytest.approx(1.0)
-    assert par.radiation.c2ray_max_iterations == 32
+    assert par.radiation.c2ray_max_iterations == 32  # noqa: PLR2004
     assert par.radiation.c2ray_nonconvergence == "warn"
     assert par.radiation.compton_cmb_enabled is False
     assert par.radiation.hydrogen_radiation_evolution is True

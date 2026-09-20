@@ -461,7 +461,7 @@ def main(
     for label, (_, history, _) in by_label.items():
         total_j = np.asarray(history["total_j"], dtype=float)
         scale = max(1.0, abs(total_j[0]))
-        if np.max(np.abs(total_j - total_j[0])) / scale > 1.0e-10:
+        if np.max(np.abs(total_j - total_j[0])) / scale > 1.0e-10:  # noqa: PLR2004
             raise RuntimeError(f"total angular momentum is not conserved for {label}")
 
     saved_histories = {

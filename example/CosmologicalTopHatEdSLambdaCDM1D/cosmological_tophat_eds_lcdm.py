@@ -293,7 +293,7 @@ def run_case(
     _, _final_a, _final_h = cosmology.background_state_from_supercomoving(
         tau_supercomoving_code,
     )
-    if maximum_error > 2.0e-5:
+    if maximum_error > 2.0e-5:  # noqa: PLR2004
         raise RuntimeError(f"{label}: RadHydropy disagrees with reference integration")
     if analytic is None:
         pass

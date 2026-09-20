@@ -75,9 +75,9 @@ def _pressure_diagnostic(snapshot, config):
     )
     # The photoheated ambient gas lies between the wind cavity and the shell.
     # Exclude the shocked wind interior and the dense shell itself.
-    ambient_ionized = (xhi < 0.5) & (radius_proper_pc < radius_shell_proper_pc)
+    ambient_ionized = (xhi < 0.5) & (radius_proper_pc < radius_shell_proper_pc)  # noqa: PLR2004
     if not np.any(ambient_ionized):
-        ambient_ionized = xhi < 0.5
+        ambient_ionized = xhi < 0.5  # noqa: PLR2004
     weighted_volume = float(np.sum(volume_cgs_cm3[ambient_ionized]))
     pressure_gas_proper_cgs_dyn_cm2 = (
         float(
@@ -114,9 +114,9 @@ def pressure_diagnostic_from_profile(profile, config):
         mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * radius_shell_proper_cgs_cm**2)
     )
     photoheated = (
-        (np.arange(radius_proper_pc.size) >= 2)
+        (np.arange(radius_proper_pc.size) >= 2)  # noqa: PLR2004
         & (np.arange(radius_proper_pc.size) < shell_index)
-        & (temperature_proper_cgs_K > 500.0)
+        & (temperature_proper_cgs_K > 500.0)  # noqa: PLR2004
     )
     pressure_gas_proper_cgs_dyn_cm2 = (
         float(

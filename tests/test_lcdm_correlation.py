@@ -36,9 +36,9 @@ def test_table_schema(tmp_path):
         assert np.all(np.diff(k) > 0.0)
         assert np.all(power >= 0.0)
         assert np.all(np.isfinite(correlation))
-        assert handle.attrs["sigma8"] == 0.811
-        assert handle.attrs["omega_m"] == 0.315
-        assert handle.attrs["omega_lambda"] == 0.685
+        assert handle.attrs["sigma8"] == 0.811  # noqa: PLR2004
+        assert handle.attrs["omega_m"] == 0.315  # noqa: PLR2004
+        assert handle.attrs["omega_lambda"] == 0.685  # noqa: PLR2004
 
 
 def test_sigma8_normalization():
@@ -92,5 +92,5 @@ def test_lcdm_correlation_shape():
     correlation = result["correlation"]
 
     assert correlation[radius < 1.0].max() > 1.0
-    assert abs(correlation[-1]) < 1.0e-2
+    assert abs(correlation[-1]) < 1.0e-2  # noqa: PLR2004
     assert np.all(np.isfinite(correlation))
