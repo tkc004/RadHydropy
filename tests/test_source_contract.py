@@ -3,7 +3,6 @@
 import re
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).parents[1]
 SOURCE_ROOT = REPO_ROOT / "radhydropy"
 
@@ -76,3 +75,10 @@ def test_hdf5_legacy_names_are_confined_to_rejection_guards():
     assert "_GENERIC_PRIMITIVE_DATASETS" in source
     assert "unsupported generic field name" in source
     assert "canonical representation-specific" in source
+
+
+def test_runtime_io_diagnostics_use_structured_logging():
+    for relative in (Path("output.py"), Path("io/hdf5.py")):
+        source = (SOURCE_ROOT / relative).read_text(encoding="utf-8")
+        assert "log_diagnostic" in source
+        assert "print(" not in source

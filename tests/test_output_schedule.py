@@ -1,35 +1,34 @@
+import importlib.util
+import os
+import sys
 import tempfile
 import unittest
-from pathlib import Path
-from types import SimpleNamespace
-from tests.parameter_fixtures import parameter_namespace
-from unittest import mock
-import importlib.util
-import sys
-import os
 from contextlib import redirect_stdout
 from io import StringIO
+from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 import numpy as np
 import unyt
 import yaml
 
-from radhydropy.rsim import Rsim
-from radhydropy.params import Par
 import radhydropy.io as rio
-import radhydropy.output as output
-from radhydropy.runtime_fields import MeshGeometryState
+from radhydropy import output
+from radhydropy.params import Par
+from radhydropy.rsim import Rsim
 from radhydropy.rsim.evolution import Evolve
-
+from radhydropy.runtime_fields import MeshGeometryState
+from tests.parameter_fixtures import parameter_namespace
 
 CODE_UNITS = {
-    'name': 'test_units',
-    'InternalUnitSystem': {
-        'UnitMass_in_cgs': 1.0,
-        'UnitLength_in_cgs': 1.0,
-        'UnitVelocity_in_cgs': 1.0,
-        'UnitCurrent_in_cgs': 1.0,
-        'UnitTemp_in_cgs': 1.0,
+    "name": "test_units",
+    "InternalUnitSystem": {
+        "UnitMass_in_cgs": 1.0,
+        "UnitLength_in_cgs": 1.0,
+        "UnitVelocity_in_cgs": 1.0,
+        "UnitCurrent_in_cgs": 1.0,
+        "UnitTemp_in_cgs": 1.0,
     },
 }
 
@@ -45,7 +44,7 @@ class Testing(unittest.TestCase):
 
         def step(**kwargs):
             fluid.time_proper_code += 0.001
-            return {'dt': 0.001, 'hydro_steps': 1, 'source_steps': 0}
+            return {"dt": 0.001, "hydro_steps": 1, "source_steps": 0}
 
         output = StringIO()
         with redirect_stdout(output):
@@ -56,17 +55,17 @@ class Testing(unittest.TestCase):
 
     def test_load_output_time_list_reads_unit_from_first_line(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / 'output_times.txt'
+            path = Path(tmpdir) / "output_times.txt"
             path.write_text(
-                '\n'.join(
+                "\n".join(
                     [
-                        'yr',
-                        '1.0e4',
-                        '2.5e4',
-                        '# comment lines are ignored',
-                        '3.0e4',
-                    ]
-                )
+                        "yr",
+                        "1.0e4",
+                        "2.5e4",
+                        "# comment lines are ignored",
+                        "3.0e4",
+                    ],
+                ),
             )
 
             output_times = rio.load_output_time_list(path)
@@ -79,8 +78,8 @@ class Testing(unittest.TestCase):
 
     def test_run_with_output_times_emits_requested_outputs_in_order(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / 'output_times.txt'
-            path.write_text('\n'.join(['s', '3.0', '1.0']))
+            path = Path(tmpdir) / "output_times.txt"
+            path.write_text("\n".join(["s", "3.0", "1.0"]))
 
             fluid = SimpleNamespace(
                 time_proper_code=0.0 * unyt.s,
@@ -90,7 +89,7 @@ class Testing(unittest.TestCase):
                 outputtimefilename=str(path),
                 timesim=3.0 * unyt.s,
                 outdir=str(tmpdir),
-                outfileprefix='Output',
+                outfileprefix="Output",
             )
             sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
 
@@ -101,7 +100,7 @@ class Testing(unittest.TestCase):
 
             def fake_step(dt=None, mode=None, **kwargs):
                 fluid.time_proper_code += dt
-                return {'dt': dt, 'hydro_steps': 1, 'source_steps': 1}
+                return {"dt": dt, "hydro_steps": 1, "source_steps": 1}
 
             def fake_get_step_time(dt=None, final_time=None):
                 if dt is not None:
@@ -110,11 +109,11 @@ class Testing(unittest.TestCase):
                     return final_time - fluid.time_proper_code
                 return 1.0 * unyt.s
 
-            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+            with mock.patch.object(rio, "write_numbered_hdf5", side_effect=fake_write):
                 sim.GetStepTime = fake_get_step_time
                 rio.run_with_output_times(
                     sim,
-                    mode='sources',
+                    mode="sources",
                     step_backend=fake_step,
                 )
 
@@ -126,10 +125,51 @@ class Testing(unittest.TestCase):
             self.assertEqual(fluid.time_proper_code, 3.0 * unyt.s)
             self.assertEqual(sim.last_step_dt, 2.0 * unyt.s)
 
+    def test_run_with_output_times_snapshots_first_state_past_target(self):
+        """An adaptive step may cross a requested output time."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "output_times.txt"
+            path.write_text("\n".join(["s", "1.0"]))
+            fluid = SimpleNamespace(
+                time_proper_code=0.0 * unyt.s,
+                SetTemperature=lambda: None,
+            )
+            par = parameter_namespace(
+                outputtimefilename=str(path),
+                timesim=2.0 * unyt.s,
+                outdir=str(tmpdir),
+                outfileprefix="Output",
+            )
+            sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
+            writes = []
+
+            def fake_write(current_sim, index):
+                writes.append((index, fluid.time_proper_code.copy()))
+                return str(Path(tmpdir) / ("output_%d.hdf5" % index))
+
+            def fake_step(dt=None, mode=None, **kwargs):
+                fluid.time_proper_code += dt
+                return {"dt": dt, "hydro_steps": 1, "source_steps": 0}
+
+            def fake_get_step_time(dt=None, final_time=None):
+                if final_time == 1.0 * unyt.s:
+                    return 1.5 * unyt.s
+                return final_time - fluid.time_proper_code
+
+            sim.GetStepTime = fake_get_step_time
+            with mock.patch.object(rio, "write_numbered_hdf5", side_effect=fake_write):
+                rio.run_with_output_times(sim, step_backend=fake_step)
+
+            self.assertEqual([index for index, _ in writes], [0, 1, 2])
+            self.assertEqual(
+                [time.to_value(unyt.s) for _, time in writes],
+                [0.0, 1.5, 2.0],
+            )
+
     def test_run_with_output_times_notifies_snapshot_callback_with_written_file(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / 'output_times.txt'
-            path.write_text('\n'.join(['s', '1.0']))
+            path = Path(tmpdir) / "output_times.txt"
+            path.write_text("\n".join(["s", "1.0"]))
             fluid = SimpleNamespace(
                 time_proper_code=0.0 * unyt.s,
                 SetTemperature=lambda: None,
@@ -138,30 +178,30 @@ class Testing(unittest.TestCase):
                 outputtimefilename=str(path),
                 timesim=1.0 * unyt.s,
                 outdir=str(tmpdir),
-                outfileprefix='Output',
+                outfileprefix="Output",
             )
             sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
             callbacks = []
 
             def fake_write(current_sim, index):
-                filename = Path(tmpdir) / ('written_%d.hdf5' % index)
+                filename = Path(tmpdir) / ("written_%d.hdf5" % index)
                 filename.touch()
                 return str(filename)
 
             def fake_step(dt=None, mode=None, **kwargs):
                 fluid.time_proper_code += dt
-                return {'dt': dt, 'hydro_steps': 1, 'source_steps': 0}
+                return {"dt": dt, "hydro_steps": 1, "source_steps": 0}
 
             sim.GetStepTime = lambda dt=None, final_time=None: (
                 final_time - fluid.time_proper_code
             )
-            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+            with mock.patch.object(rio, "write_numbered_hdf5", side_effect=fake_write):
                 rio.run_with_output_times(
                     sim,
-                    mode='sources',
+                    mode="sources",
                     step_backend=fake_step,
                     snapshot_callback=lambda current_sim, filename, index: callbacks.append(
-                        (filename, index, Path(filename).exists())
+                        (filename, index, Path(filename).exists()),
                     ),
                 )
 
@@ -170,8 +210,8 @@ class Testing(unittest.TestCase):
 
     def test_run_with_output_times_orders_pre_step_history_and_snapshot_callbacks(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / 'output_times.txt'
-            path.write_text('\n'.join(['s', '1.0']))
+            path = Path(tmpdir) / "output_times.txt"
+            path.write_text("\n".join(["s", "1.0"]))
             fluid = SimpleNamespace(
                 time_proper_code=0.0 * unyt.s,
                 SetTemperature=lambda: None,
@@ -180,44 +220,44 @@ class Testing(unittest.TestCase):
                 outputtimefilename=str(path),
                 timesim=1.0 * unyt.s,
                 outdir=str(tmpdir),
-                outfileprefix='Output',
+                outfileprefix="Output",
             )
             sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
             events = []
 
             def fake_write(current_sim, index):
-                filename = Path(tmpdir) / ('ordered_%d.hdf5' % index)
+                filename = Path(tmpdir) / ("ordered_%d.hdf5" % index)
                 filename.touch()
-                events.append('write_%d' % index)
+                events.append("write_%d" % index)
                 return str(filename)
 
             def fake_get_step_time(dt=None, final_time=None):
-                events.append('get_step_time')
+                events.append("get_step_time")
                 return final_time - fluid.time_proper_code
 
             def fake_step(dt=None, mode=None, **kwargs):
-                events.append('step')
+                events.append("step")
                 fluid.time_proper_code += dt
-                return {'dt': dt, 'hydro_steps': 1, 'source_steps': 0}
+                return {"dt": dt, "hydro_steps": 1, "source_steps": 0}
 
             sim.GetStepTime = fake_get_step_time
-            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+            with mock.patch.object(rio, "write_numbered_hdf5", side_effect=fake_write):
                 rio.run_with_output_times(
                     sim,
-                    mode='sources',
+                    mode="sources",
                     step_backend=fake_step,
-                    before_step_callback=lambda current_sim: events.append('before_step'),
-                    history_callback=lambda current_sim: events.append('history'),
+                    before_step_callback=lambda current_sim: events.append("before_step"),
+                    history_callback=lambda current_sim: events.append("history"),
                     snapshot_callback=lambda current_sim, filename, index: events.append(
-                        'snapshot_%d' % index
+                        "snapshot_%d" % index,
                     ),
                 )
 
             self.assertEqual(
                 events,
-                ['before_step', 'write_0', 'snapshot_0', 'history',
-                 'before_step', 'get_step_time', 'step', 'history',
-                 'write_1', 'snapshot_1'],
+                ["before_step", "write_0", "snapshot_0", "history",
+                 "before_step", "get_step_time", "step", "history",
+                 "write_1", "snapshot_1"],
             )
 
     def test_fixed_cadence_snapshot_callback_runs_after_initial_write(self):
@@ -225,7 +265,7 @@ class Testing(unittest.TestCase):
             par = parameter_namespace(
                 timesim=0.0 * unyt.s,
                 outdir=str(tmpdir),
-                outfileprefix='Output',
+                outfileprefix="Output",
                 outdeltatime=1.0 * unyt.s,
             )
             fluid = SimpleNamespace(
@@ -235,24 +275,24 @@ class Testing(unittest.TestCase):
             sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
             events = []
             sim.WriteUsedParameters = lambda: None
-            sim.Evolve = lambda **kwargs: events.append('evolve')
+            sim.Evolve = lambda **kwargs: events.append("evolve")
 
             def fake_write(current_sim, index):
-                filename = Path(tmpdir) / ('fixed_%d.hdf5' % index)
+                filename = Path(tmpdir) / ("fixed_%d.hdf5" % index)
                 filename.touch()
-                events.append('write_%d' % index)
+                events.append("write_%d" % index)
                 return str(filename)
 
-            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+            with mock.patch.object(rio, "write_numbered_hdf5", side_effect=fake_write):
                 sim.Run(
                     snapshot_callback=lambda current_sim, filename, index: events.append(
-                        'snapshot_%d_exists_%s' % (index, Path(filename).exists())
+                        "snapshot_%d_exists_%s" % (index, Path(filename).exists()),
                     ),
                 )
 
             self.assertEqual(
                 events,
-                ['write_0', 'snapshot_0_exists_True', 'evolve'],
+                ["write_0", "snapshot_0_exists_True", "evolve"],
             )
 
     def test_fixed_cadence_final_snapshot_callback_uses_written_index(self):
@@ -260,7 +300,7 @@ class Testing(unittest.TestCase):
             par = parameter_namespace(
                 timesim=0.0 * unyt.s,
                 outdir=str(tmpdir),
-                outfileprefix='Output',
+                outfileprefix="Output",
                 outdeltatime=1.0 * unyt.s,
             )
             fluid = SimpleNamespace(
@@ -272,37 +312,37 @@ class Testing(unittest.TestCase):
             sim.WriteUsedParameters = lambda: None
 
             def fake_write(current_sim, index):
-                filename = Path(tmpdir) / ('fixed_%d.hdf5' % index)
+                filename = Path(tmpdir) / ("fixed_%d.hdf5" % index)
                 filename.touch()
                 return str(filename)
 
             def fake_evolve(**kwargs):
-                output_callback = kwargs['output_callback']
+                output_callback = kwargs["output_callback"]
                 output_callback(
-                    sim, {'dt': 1.0 * unyt.s, 'hydro_steps': 1, 'source_steps': 0}
+                    sim, {"dt": 1.0 * unyt.s, "hydro_steps": 1, "source_steps": 0},
                 )
                 output_callback(
-                    sim, {'dt': 1.0 * unyt.s, 'hydro_steps': 1, 'source_steps': 0}
+                    sim, {"dt": 1.0 * unyt.s, "hydro_steps": 1, "source_steps": 0},
                 )
 
             sim.Evolve = fake_evolve
             with mock.patch.object(
-                rio, 'write_numbered_hdf5', side_effect=fake_write
+                rio, "write_numbered_hdf5", side_effect=fake_write,
             ):
                 sim.Run(
                     stop_condition=lambda current_sim: True,
                     snapshot_callback=lambda current_sim, filename, index: callbacks.append(
-                        (Path(filename).stem, index)
+                        (Path(filename).stem, index),
                     ),
                 )
 
-            self.assertEqual(callbacks, [('fixed_0', 0), ('fixed_1', 1), ('fixed_2', 2)])
+            self.assertEqual(callbacks, [("fixed_0", 0), ("fixed_1", 1), ("fixed_2", 2)])
 
     def test_fixed_cadence_output_callback_notifies_after_serialization(self):
         par = parameter_namespace(
             timesim=1.0 * unyt.s,
-            outdir='unused',
-            outfileprefix='Output',
+            outdir="unused",
+            outfileprefix="Output",
             outdeltatime=1.0 * unyt.s,
         )
         fluid = SimpleNamespace(
@@ -311,23 +351,23 @@ class Testing(unittest.TestCase):
         )
         sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
         events = []
-        output_state = {'outtime': 1.0 * unyt.s, 'outindex': 1}
+        output_state = {"outtime": 1.0 * unyt.s, "outindex": 1}
 
         def fake_write(current_sim, index):
-            events.append('write')
-            return 'actual_filename.hdf5'
+            events.append("write")
+            return "actual_filename.hdf5"
 
-        with mock.patch.object(output, 'write_numbered_hdf5', side_effect=fake_write):
+        with mock.patch.object(output, "write_numbered_hdf5", side_effect=fake_write):
             callback = output.hdf5_output_callback(
                 sim,
                 snapshot_callback=lambda current_sim, filename, index: events.append(
-                    ('snapshot', filename, index)
+                    ("snapshot", filename, index),
                 ),
                 output_state=output_state,
             )
-            callback(sim, {'dt': 0.1 * unyt.s})
+            callback(sim, {"dt": 0.1 * unyt.s})
 
-        self.assertEqual(events, ['write', ('snapshot', 'actual_filename.hdf5', 1)])
+        self.assertEqual(events, ["write", ("snapshot", "actual_filename.hdf5", 1)])
 
     def test_run_honors_stop_condition_in_source_only_mode(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -338,7 +378,7 @@ class Testing(unittest.TestCase):
             par = parameter_namespace(
                 timesim=5.0 * unyt.s,
                 outdir=str(tmpdir),
-                outfileprefix='Output',
+                outfileprefix="Output",
                 outdeltatime=1.0 * unyt.s,
             )
             sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
@@ -352,7 +392,7 @@ class Testing(unittest.TestCase):
             def fake_step(dt=None, mode=None, **kwargs):
                 step_modes.append(mode)
                 fluid.time_proper_code += dt
-                return {'dt': dt, 'hydro_steps': 0, 'source_steps': 1}
+                return {"dt": dt, "hydro_steps": 0, "source_steps": 1}
 
             def fake_get_step_time(dt=None, final_time=None):
                 if dt is not None:
@@ -361,16 +401,16 @@ class Testing(unittest.TestCase):
                     return 1.0 * unyt.s
                 return 1.0 * unyt.s
 
-            with mock.patch.object(rio, 'write_numbered_hdf5', side_effect=fake_write):
+            with mock.patch.object(rio, "write_numbered_hdf5", side_effect=fake_write):
                 sim.GetStepTime = fake_get_step_time
                 sim.Step = fake_step
                 rio.run_with_output_times(
                     sim,
-                    mode='sources',
+                    mode="sources",
                 stop_condition=lambda runner: runner.fluid.time_proper_code >= 2.5 * unyt.s,
                 )
 
-            self.assertEqual(step_modes, ['sources', 'sources', 'sources'])
+            self.assertEqual(step_modes, ["sources", "sources", "sources"])
             self.assertEqual([index for index, _ in writes], [0, 1])
             self.assertEqual(
                 [time.to_value(unyt.s) for _, time in writes],
@@ -386,54 +426,54 @@ class Testing(unittest.TestCase):
                 par = parameter_namespace(
                     timesim=0.0 * unyt.s,
                     outdir=str(tmpdir),
-                    outfileprefix='Output',
+                    outfileprefix="Output",
                     outdeltatime=1.0 * unyt.s,
-                    simname='test_run',
+                    simname="test_run",
                 )
                 fluid = SimpleNamespace(
                     time_proper_code=0.0 * unyt.s,
                     SetTemperature=lambda: None,
                 )
                 sim = Rsim.FromComponents(par, SimpleNamespace(), fluid)
-                sim.Step = lambda **kwargs: {'dt': 0.0 * unyt.s, 'hydro_steps': 0, 'source_steps': 0}
+                sim.Step = lambda **kwargs: {"dt": 0.0 * unyt.s, "hydro_steps": 0, "source_steps": 0}
                 sim.Evolve = lambda **kwargs: None
 
-                with mock.patch.object(rio, 'write_numbered_hdf5', lambda *args, **kwargs: None):
+                with mock.patch.object(rio, "write_numbered_hdf5", lambda *args, **kwargs: None):
                     sim.Run()
 
-                used_parameters = Path(tmpdir) / 'used_parameters.yaml'
+                used_parameters = Path(tmpdir) / "used_parameters.yaml"
                 self.assertTrue(used_parameters.exists())
                 payload = yaml.safe_load(used_parameters.read_text())
-                self.assertIn('par', payload)
-                self.assertIn('initial_condition', payload)
-                self.assertEqual(payload['par']['simname'], 'test_run')
-                self.assertEqual(payload['par']['timesim']['value'], 0.0)
-                self.assertEqual(payload['par']['timesim']['unit'], 's')
-                self.assertIsNone(payload['initial_condition'])
+                self.assertIn("par", payload)
+                self.assertIn("initial_condition", payload)
+                self.assertEqual(payload["par"]["simname"], "test_run")
+                self.assertEqual(payload["par"]["timesim"]["value"], 0.0)
+                self.assertEqual(payload["par"]["timesim"]["unit"], "s")
+                self.assertIsNone(payload["initial_condition"])
             finally:
                 os.chdir(cwd)
 
     def test_used_parameters_preserves_nested_runtime_groups(self):
         par = Par({
-            'simulation': {'name': 'nested-test'},
-            'units': {'CodeUnits': CODE_UNITS},
+            "simulation": {"name": "nested-test"},
+            "units": {"CodeUnits": CODE_UNITS},
         })
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / 'used_parameters.yaml'
+            path = Path(tmpdir) / "used_parameters.yaml"
             rio.write_used_parameters(path, par)
             payload = yaml.safe_load(path.read_text())
 
         self.assertEqual(
-            list(payload['par']),
+            list(payload["par"]),
             [
-                'simulation', 'mesh', 'hydrodynamics', 'boundary', 'timestep',
-                'output', 'diagnostics', 'units', 'thermochemistry',
-                'chemistry', 'gravity', 'dark_matter', 'radiation',
+                "simulation", "mesh", "hydrodynamics", "boundary", "timestep",
+                "output", "diagnostics", "units", "thermochemistry",
+                "chemistry", "gravity", "dark_matter", "radiation",
             ],
         )
-        self.assertEqual(payload['par']['simulation']['name'], 'nested-test')
-        self.assertNotIn('simname', payload['par'])
-        self.assertEqual(set(payload), {'par', 'initial_condition', 'example'})
+        self.assertEqual(payload["par"]["simulation"]["name"], "nested-test")
+        self.assertNotIn("simname", payload["par"])
+        self.assertEqual(set(payload), {"par", "initial_condition", "example"})
 
     def test_parameter_tree_converts_numpy_scalars(self):
         self.assertEqual(rio.parameter_tree(np.int64(256)), 256)
@@ -442,12 +482,12 @@ class Testing(unittest.TestCase):
     def test_hydrostatic_example_plots_interior_cells_in_cgs(self):
         example_dir = (
             Path(__file__).resolve().parents[1]
-            / 'example'
-            / 'HydrostaticEquilibrium1D'
+            / "example"
+            / "HydrostaticEquilibrium1D"
         )
-        tools_path = example_dir / 'tools.py'
+        tools_path = example_dir / "tools.py"
         spec = importlib.util.spec_from_file_location(
-            'hydrostatic_equilibrium_tools_test',
+            "hydrostatic_equilibrium_tools_test",
             tools_path,
         )
         module = importlib.util.module_from_spec(spec)
@@ -472,28 +512,28 @@ class Testing(unittest.TestCase):
             fluid.rho_radarray = fluid.rho_proper_code * (unyt.g / unyt.cm**3)
             fluid.vel_radarray = fluid.vel_proper_code * (unyt.cm / unyt.s)
 
-        with mock.patch.object(module.rio, 'readhdf5', fake_readhdf5), \
-            mock.patch.object(module.plt, 'plot', side_effect=fake_plot), \
-            mock.patch.object(module.plt, 'subplot', return_value=None), \
-            mock.patch.object(module.plt, 'ylabel', return_value=None):
+        with mock.patch.object(module.rio, "readhdf5", fake_readhdf5), \
+            mock.patch.object(module.plt, "plot", side_effect=fake_plot), \
+            mock.patch.object(module.plt, "subplot", return_value=None), \
+            mock.patch.object(module.plt, "ylabel", return_value=None):
             module.plot_snapshot(
-                'unused.hdf5',
+                "unused.hdf5",
                 {
-                    'par': {
-                        'mesh': {'grid_cells': 3, 'ghost_cells': 2},
-                        'units': {'CodeUnits': CODE_UNITS},
+                    "par": {
+                        "mesh": {"grid_cells": 3, "ghost_cells": 2},
+                        "units": {"CodeUnits": CODE_UNITS},
                     },
-                    'initial_condition': {
-                        'grid_cells': 3,
-                        'coordinate_system': 'cartesian',
-                        'box_size_proper': 1.0 * unyt.cm,
-                        'time_proper': 0.0 * unyt.s,
-                        'rho_reference_proper': 1.0 * (unyt.g / unyt.cm**3),
-                        'temperature_proper': 1.0 * unyt.K,
-                        'mean_molecular_weight': 1.0,
-                        'gravity_strength': 1.0 * (unyt.cm / unyt.s**2),
+                    "initial_condition": {
+                        "grid_cells": 3,
+                        "coordinate_system": "cartesian",
+                        "box_size_proper": 1.0 * unyt.cm,
+                        "time_proper": 0.0 * unyt.s,
+                        "rho_reference_proper": 1.0 * (unyt.g / unyt.cm**3),
+                        "temperature_proper": 1.0 * unyt.K,
+                        "mean_molecular_weight": 1.0,
+                        "gravity_strength": 1.0 * (unyt.cm / unyt.s**2),
                     },
-                    'example': {},
+                    "example": {},
                 },
             )
 
@@ -520,12 +560,12 @@ class Testing(unittest.TestCase):
     def test_hydrogen_recombination_helper_uses_source_only_wrapper(self):
         example_dir = (
             Path(__file__).resolve().parents[1]
-            / 'example'
-            / 'HydrogenRecombination1D'
+            / "example"
+            / "HydrogenRecombination1D"
         )
-        tools_path = example_dir / 'tools.py'
+        tools_path = example_dir / "tools.py"
         spec = importlib.util.spec_from_file_location(
-            'hydrogen_recombination_tools_test',
+            "hydrogen_recombination_tools_test",
             tools_path,
         )
         module = importlib.util.module_from_spec(spec)
@@ -546,20 +586,20 @@ class Testing(unittest.TestCase):
 
         def fake_runall(**kwargs):
             captured.update(kwargs)
-            self.assertEqual(kwargs['mode'], 'sources')
-            self.assertEqual(kwargs['outputtime'], 0)
-            self.assertTrue(kwargs['stop_condition'](sim))
-            return 'wrapped'
+            self.assertEqual(kwargs["mode"], "sources")
+            self.assertEqual(kwargs["outputtime"], 0)
+            self.assertTrue(kwargs["stop_condition"](sim))
+            return "wrapped"
 
         sim.RunAll = fake_runall
 
         result = module.run_hydrogen_recombination(sim, 0.7)
 
-        self.assertEqual(result, 'wrapped')
-        self.assertEqual(captured['mode'], 'sources')
-        self.assertEqual(captured['outputtime'], 0)
-        self.assertTrue(captured['stop_condition'](sim))
+        self.assertEqual(result, "wrapped")
+        self.assertEqual(captured["mode"], "sources")
+        self.assertEqual(captured["outputtime"], 0)
+        self.assertTrue(captured["stop_condition"](sim))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

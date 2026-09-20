@@ -1,12 +1,13 @@
 """Output-time parsing and simulation output scheduling interfaces."""
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import unyt
 
 
-def load_output_time_list(filename):
+def load_output_time_list(filename: str | None) -> Any:
     """Load explicit output times from a text file."""
     if not filename:
         return None
@@ -20,7 +21,7 @@ def load_output_time_list(filename):
     with outputtimepath.open() as handle:
         for raw_line in handle:
             line = raw_line.strip()
-            if not line or line.startswith('#'):
+            if not line or line.startswith("#"):
                 continue
             tokens = line.split()
             if unit is None:
@@ -37,17 +38,20 @@ def load_output_time_list(filename):
     return np.asarray(output_times, dtype=float) * unyt.Unit(unit)
 
 
-def write_numbered_hdf5(sim, outindex):
+def write_numbered_hdf5(sim: Any, outindex: int) -> Any:
     from radhydropy.output import write_numbered_hdf5 as implementation
 
     return implementation(sim, outindex)
 
 
 def hdf5_output_callback(
-    sim, outputtime=0, output_state=None, snapshot_callback=None,
-):
-    from radhydropy.output import hdf5_output_callback as implementation
+    sim: Any,
+    outputtime: Any = 0,
+    output_state: Any = None,
+    snapshot_callback: Any = None,
+) -> Any:
     from radhydropy import io as public_io
+    from radhydropy.output import hdf5_output_callback as implementation
 
     return implementation(
         sim,
@@ -59,19 +63,19 @@ def hdf5_output_callback(
 
 
 def run_with_output_times(
-    sim,
-    outputtime=0,
-    mode="hydro_sources",
-    advect_chemistry=True,
-    stop_condition=None,
-    step_backend=None,
-    step_backend_kwargs=None,
-    before_step_callback=None,
-    history_callback=None,
-    snapshot_callback=None,
-):
-    from radhydropy.output import run_with_output_times as implementation
+    sim: Any,
+    outputtime: Any = 0,
+    mode: str = "hydro_sources",
+    advect_chemistry: bool = True,
+    stop_condition: Any = None,
+    step_backend: Any = None,
+    step_backend_kwargs: Any = None,
+    before_step_callback: Any = None,
+    history_callback: Any = None,
+    snapshot_callback: Any = None,
+) -> Any:
     from radhydropy import io as public_io
+    from radhydropy.output import run_with_output_times as implementation
 
     return implementation(
         sim,

@@ -5,21 +5,19 @@ from pathlib import Path
 import numpy as np
 import unyt
 
-from radhydropy.arrays import as_named_array
-from radhydropy.thermo_networks.cie.cie_tables import CIETable
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
-from radhydropy.units import _code_units, from_unit_value, to_unit_value
+from radhydropy.diagnostics import thermochemistry_active_mask
+from radhydropy.runtime_fields import runtime_fields
+from radhydropy.state_boundaries import cgs_source_state_from_code
 from radhydropy.thermo_networks.base import ThermochemistryNetwork
+from radhydropy.thermo_networks.cie.cie_tables import CIETable
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.thermo_networks.hydrogen import (
-    _fast_source_scaling,
     _canonical_mesh_geometry_arrays,
+    _fast_source_scaling,
     _rotational_specific_energy_code,
 )
-from radhydropy.diagnostics import thermochemistry_active_mask
-from radhydropy.state_boundaries import cgs_source_state_from_code
-from radhydropy.runtime_fields import runtime_fields
-
+from radhydropy.units import _code_units, from_unit_value, to_unit_value
 
 _TABLE_CACHE = {}
 
@@ -87,7 +85,7 @@ def _state(mesh, fluid, par):
     specific_total_super = primitive_cgs.specific_energy_cgs_erg_g[interior]
     rotational_specific_code = _rotational_specific_energy_code(mesh, fluid, par)
     rotational_specific_super = (
-        rotational_specific_code * code.unit_conversion['velocity_cgs_cm_s']**2
+        rotational_specific_code * code.unit_conversion["velocity_cgs_cm_s"]**2
     )
     specific_internal = np.maximum(
         specific_total_super - 0.5 * velocity_super**2
@@ -100,7 +98,7 @@ def _state(mesh, fluid, par):
         "interior": interior,
         "rho_cgs_g_cm3": rho,
         "active": thermochemistry_active_mask(
-            rho, par, scaling["density_factor"]
+            rho, par, scaling["density_factor"],
         ),
         "volume_cgs_cm3": volume,
         "velocity_cgs_cm_s": velocity,
@@ -225,11 +223,12 @@ class CIECoolingNetwork(ThermochemistryNetwork):
 
     def apply_fast(self, dt, mesh, fluid, par):
         state = _state(mesh, fluid, par)
+        _, _, _, _, volume_runtime_code = _canonical_mesh_geometry_arrays(mesh, par)
         fields = runtime_fields(par)
-        if getattr(fluid, 'runtime_state', None) is None:
+        if getattr(fluid, "runtime_state", None) is None:
             fluid.runtime_fields = fields
             fluid._refresh_runtime_state()
-        if getattr(par, 'supercomoving_coordinates', False):
+        if getattr(par, "supercomoving_coordinates", False):
             rho_runtime_code = fluid.rho_comoving_code
             temp_runtime_code = fluid.temp_supercomoving_code
             pre_runtime_code = fluid.pre_supercomoving_code
@@ -272,7 +271,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
                 / ((state["gamma"] - 1.0) * state["mu"] * PROTON_MASS_CGS)
             )
             state["specific_energy_cgs_erg_g"][active] = np.maximum(
-                state["specific_energy_cgs_erg_g"][active], minimum_energy[active]
+                state["specific_energy_cgs_erg_g"][active], minimum_energy[active],
             )
             remaining_s -= dt_s
             source_steps += 1
@@ -282,14 +281,14 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         internal_super = state["specific_energy_cgs_erg_g"] * state["source_temperature_factor"]
         total_super = internal_super + 0.5 * state["velocity_supercomoving_cgs_cm_s"]**2
         updated_energy = from_unit_value(
-            state["mass_g"] * total_super, code.energy_unit
+            state["mass_g"] * total_super, code.energy_unit,
         )
         rotational_code = _rotational_specific_energy_code(mesh, fluid, par)
         mass_code = (
             np.asarray(fluid.Mass_code[interior], dtype=float)
             if hasattr(fluid, "Mass_code") else
             np.asarray(
-                rho_runtime_code[interior], dtype=float
+                rho_runtime_code[interior], dtype=float,
             )
             * np.asarray(volume_runtime_code[interior], dtype=float)
         )

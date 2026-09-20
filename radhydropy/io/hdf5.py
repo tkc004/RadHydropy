@@ -1,47 +1,46 @@
 """HDF5 input and output helpers for simulations."""
 
+import logging
 from pathlib import Path
 
 import h5py
-import unyt
 import numpy as np
-from radhydropy.units import CodeUnits
+import unyt
+
 from radhydropy.dark_matter import DarkMatterShells
-from radhydropy.runtime_fields import (
-    FluidRuntimeState,
-    PROPER_RUNTIME_FIELDS,
-    SUPERCOMOVING_RUNTIME_FIELDS,
-)
-from radhydropy.io.metadata import (
-    _header_attr_value,
-    _provenance_yaml_text,
-    _read_provenance,
-    _restore_header_attr_value,
-    _write_provenance,
-    parameter_tree,
-    update_used_parameters_yaml,
-    write_used_parameters,
-)
-from radhydropy.io.fields import (
-    attach_dark_matter_radarray_views,
-    attach_radarray_views,
-    normalize_attr_name,
-    populate_group_targets,
-    read_any_dataset,
-    radarray_field_spec,
-    scale_unit_for_key,
-    write_quantity,
-)
+from radhydropy.diagnostic_logging import log_diagnostic
 from radhydropy.io.cosmology import (
     restore_cosmology_context_from_header,
     restore_cosmology_from_header,
     runtime_field_spec,
     write_cosmology_header,
 )
+from radhydropy.io.fields import (
+    attach_dark_matter_radarray_views,
+    attach_radarray_views,
+    normalize_attr_name,
+    populate_group_targets,
+    radarray_field_spec,
+    read_any_dataset,
+    scale_unit_for_key,
+    write_quantity,
+)
+from radhydropy.io.metadata import (
+    _header_attr_value,
+    _read_provenance,
+    _restore_header_attr_value,
+    _write_provenance,
+    update_used_parameters_yaml,
+)
 from radhydropy.io.validation import (
-    SnapshotConfigurationError,
     validate_snapshot_configuration,
 )
+from radhydropy.runtime_fields import (
+    PROPER_RUNTIME_FIELDS,
+    SUPERCOMOVING_RUNTIME_FIELDS,
+    FluidRuntimeState,
+)
+from radhydropy.units import CodeUnits
 
 # Internal names remain stable while the field implementation lives in its
 # dedicated module.  These are direct imports, not public compatibility APIs.
@@ -61,24 +60,29 @@ _attach_dark_matter_radarray_views = attach_dark_matter_radarray_views
 
 _GENERIC_HEADER_DATASETS = frozenset({"time_code", "box_size_code"})
 _GENERIC_PRIMITIVE_DATASETS = frozenset(
-    {"boundary", "rho_code", "vel_code", "temp_code", "pre_code"}
+    {"boundary", "rho_code", "vel_code", "temp_code", "pre_code"},
 )
 
 
 _validate_snapshot_configuration = validate_snapshot_configuration
 
 
-def _writehdf5(ric, ICfilename, *, provenance=None):
-    """Write simulation state to a RadHydropy HDF5 file.
+def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):
+    """Write an already-prepared runtime state to an HDF5 snapshot.
 
     The output file contains a ``Header`` group for metadata and a ``Data``
     group for mesh and fluid arrays. Units are stored as HDF5 attributes.
     """
     ICfilename = str(ICfilename)
-    print(f"--- writing {ICfilename} --- ")
     cosmological_schema = bool(
         getattr(ric.par, "cosmological_expansion", False)
-        and getattr(ric.par, "supercomoving_coordinates", False)
+        and getattr(ric.par, "supercomoving_coordinates", False),
+    )
+    log_diagnostic(
+        logging.INFO,
+        "hdf5_write",
+        filename=ICfilename,
+        representation=("supercomoving" if cosmological_schema else "proper"),
     )
     geometry = ric.mesh.geometry_state
     runtime = ric.fluid.runtime_state
@@ -94,7 +98,7 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
         density_runtime_code = runtime.rho_proper_code
         velocity_runtime_code = runtime.vel_proper_code
         temperature_runtime_code = runtime.temp_proper_code
-    with h5py.File(ICfilename, 'w') as fic:
+    with h5py.File(ICfilename, "w") as fic:
         code_units = getattr(getattr(ric.par, "units", None), "CodeUnits", None)
         # saving initial condition
         # first, save header:
@@ -128,7 +132,7 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
         header.attrs["GridCells"] = int(ric.par.mesh.grid_cells)
         header.attrs["GhostCells"] = int(ric.par.mesh.ghost_cells)
         header.attrs["CoordinateSystem"] = getattr(
-            getattr(ric.par, "simulation", None), "coordinate_system", "cartesian"
+            getattr(ric.par, "simulation", None), "coordinate_system", "cartesian",
         )
         _write_provenance(
             header,
@@ -139,11 +143,11 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
         )
         if hasattr(ric, "cumulative_hydro_boundary_energy"):
             header.attrs["CumulativeHydroBoundaryEnergyCode"] = float(
-                ric.cumulative_hydro_boundary_energy
+                ric.cumulative_hydro_boundary_energy,
             )
         if hasattr(ric, "cumulative_gravity_work"):
             header.attrs["CumulativeGravityWorkCode"] = float(
-                ric.cumulative_gravity_work
+                ric.cumulative_gravity_work,
             )
         _write_cosmology_header(header, ric.par, output_time, code_units)
         _write_quantity(
@@ -378,13 +382,13 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
                             code_units=code_units, scale_key="length_cgs_cm",
                             default_unit=unyt.cm,
                             field_spec_obj=_runtime_field_spec(
-                                dm_radius_name, ric.par, code_units, output_time
+                                dm_radius_name, ric.par, code_units, output_time,
                             ))
             _write_quantity(dmdata, "RadialVelocity", dark_matter.velocity,
                             code_units=code_units, scale_key="velocity_cgs_cm_s",
                             default_unit=unyt.cm / unyt.s,
                             field_spec_obj=_runtime_field_spec(
-                                dm_velocity_name, ric.par, code_units, output_time
+                                dm_velocity_name, ric.par, code_units, output_time,
                             ))
             _write_quantity(dmdata, "Mass", dark_matter.mass,
                             code_units=code_units, scale_key="mass_g",
@@ -405,7 +409,7 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
                                 output_time,
                             ))
             dmdata.attrs["Softening"] = _header_attr_value(
-                dark_matter.softening * code_units.length_unit
+                dark_matter.softening * code_units.length_unit,
             )
 
     if (
@@ -418,7 +422,7 @@ def _writehdf5(ric, ICfilename, *, provenance=None):
         )
 
 def writehdf5(ric, ICfilename, *, provenance=None):
-    """Write an initial-condition or snapshot HDF5 file.
+    """Prepare and write an initial-condition HDF5 file.
 
     Representation-aware IC values are prepared by the shared
     :class:`InitialConditionWriter` boundary before serialization.
@@ -431,32 +435,32 @@ def writehdf5(ric, ICfilename, *, provenance=None):
     ).write(ICfilename)
 
 
-def readhdf5(par, mesh, fluid, ICfilename): 
+def readhdf5(par, mesh, fluid, ICfilename):
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects.
 
     Canonical representation-specific datasets are restored into the runtime
     code-unit system when ``CodeUnits`` is available in the file header.
     """
     ICfilename = str(ICfilename)
-    print(f"--- reading {ICfilename} --- ")
-    with h5py.File(ICfilename, 'r') as fic:
+    log_diagnostic(logging.INFO, "hdf5_read", filename=ICfilename)
+    with h5py.File(ICfilename, "r") as fic:
         expected_coordsys = par.simulation.coordinate_system
         expected_nogrid = getattr(
-            getattr(par, 'mesh', None), 'grid_cells', None
+            getattr(par, "mesh", None), "grid_cells", None,
         )
         # saving initial condition
         # first, save header:
         header = fic["Header"]
         if "CodeUnits" not in header.attrs:
             raise ValueError(
-                "IC file is missing Header.attrs['CodeUnits']; cannot read datasets without a code-unit mapping."
+                "IC file is missing Header.attrs['CodeUnits']; cannot read datasets without a code-unit mapping.",
             )
         code_units = _restore_header_attr_value(header.attrs["CodeUnits"])
         if isinstance(code_units, dict):
             code_units = CodeUnits.from_mapping(code_units)
         if not isinstance(code_units, CodeUnits):
             raise ValueError(
-                "IC file Header.attrs['CodeUnits'] is not a valid CodeUnits mapping."
+                "IC file Header.attrs['CodeUnits'] is not a valid CodeUnits mapping.",
             )
         _validate_snapshot_configuration(par, header, code_units)
         file_provenance = _read_provenance(header)
@@ -470,29 +474,29 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 if hasattr(par, "set_code_units"):
                     par.set_code_units(restored)
                 else:
-                    setattr(par, "CodeUnits", restored)
+                    par.CodeUnits = restored
                 continue
             setattr(par, key, restored)
         _restore_cosmology_from_header(par, header, code_units)
         _restore_cosmology_context_from_header(par, header)
-        if hasattr(par, 'mesh'):
-            if 'GridCells' in header.attrs:
-                par.mesh.grid_cells = int(header.attrs['GridCells'])
-            if 'GhostCells' in header.attrs:
-                par.mesh.ghost_cells = int(header.attrs['GhostCells'])
-        if hasattr(par, 'simulation') and 'CoordinateSystem' in header.attrs:
-            par.simulation.coordinate_system = header.attrs['CoordinateSystem']
+        if hasattr(par, "mesh"):
+            if "GridCells" in header.attrs:
+                par.mesh.grid_cells = int(header.attrs["GridCells"])
+            if "GhostCells" in header.attrs:
+                par.mesh.ghost_cells = int(header.attrs["GhostCells"])
+        if hasattr(par, "simulation") and "CoordinateSystem" in header.attrs:
+            par.simulation.coordinate_system = header.attrs["CoordinateSystem"]
         coordinate_system = par.simulation.coordinate_system
         if expected_coordsys is not None and coordinate_system != expected_coordsys:
             raise Exception(
                 "Coordinate systems in IC (%s) and run (%s) do not agree!"
-                % (coordinate_system, expected_coordsys)
+                % (coordinate_system, expected_coordsys),
             )
         grid_cells = par.mesh.grid_cells
         if expected_nogrid is not None and grid_cells != expected_nogrid:
             raise Exception(
                 "Number of grids in IC (%s) and run (%s) do not agree!"
-                % (grid_cells, expected_nogrid)
+                % (grid_cells, expected_nogrid),
             )
         gdata = fic["Data"]
         generic_header_names = (
@@ -503,14 +507,14 @@ def readhdf5(par, mesh, fluid, ICfilename):
             names = ", ".join(sorted(generic_header_names))
             raise ValueError(
                 f"HDF5 header uses unsupported generic field name(s): {names}; "
-                "use the representation-specific schema"
+                "use the representation-specific schema",
             )
         generic_data_names = _GENERIC_PRIMITIVE_DATASETS.intersection(gdata.keys())
         if generic_data_names:
             names = ", ".join(sorted(generic_data_names))
             raise ValueError(
                 f"HDF5 data uses unsupported generic field name(s): {names}; "
-                "use the representation-specific schema"
+                "use the representation-specific schema",
             )
         # The canonical representation is encoded by the typed header
         # datasets.  Parameter attributes may contain stale fields from an
@@ -528,15 +532,15 @@ def readhdf5(par, mesh, fluid, ICfilename):
         if not canonical_cosmological_schema and not canonical_proper_schema:
             raise ValueError(
                 "HDF5 header has no canonical representation-specific time and "
-                "box-size datasets"
+                "box-size datasets",
             )
         if canonical_cosmological_schema:
             required_header_names = {
-                "tau_supercomoving_code", "box_size_comoving_code"
+                "tau_supercomoving_code", "box_size_comoving_code",
             }
         else:
             required_header_names = {
-                "time_proper_code", "box_size_proper_code"
+                "time_proper_code", "box_size_proper_code",
             }
         missing_header_names = required_header_names.difference(header.keys())
         if missing_header_names:
@@ -565,7 +569,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 setattr(par, parameter_name, _restore_header_attr_value(header.attrs[header_name]))
         if canonical_cosmological_schema:
             par.tau_supercomoving_code = np.asarray(
-                getattr(par, "tau_supercomoving_code"), dtype=float
+                par.tau_supercomoving_code, dtype=float,
             )
             cosmic_time = header.attrs.get("time_cosmic_code", header.attrs.get("CosmicTime"))
             if cosmic_time is not None:
@@ -574,11 +578,11 @@ def readhdf5(par, mesh, fluid, ICfilename):
             par._sync_simulation_parameters()
         if hasattr(par, "_sync_mesh_parameters"):
             par._sync_mesh_parameters()
-        if hasattr(par, 'load_radiation_spectrum'):
+        if hasattr(par, "load_radiation_spectrum"):
             par.load_radiation_spectrum(
-                par.output.directory
+                par.output.directory,
             )
-        if hasattr(par, 'simulation'):
+        if hasattr(par, "simulation"):
             time_field = (
                 "tau_supercomoving_code"
                 if canonical_cosmological_schema
@@ -592,11 +596,11 @@ def readhdf5(par, mesh, fluid, ICfilename):
             runtime_time = getattr(par, time_field)
             if hasattr(runtime_time, "to_value"):
                 runtime_time = float(
-                    np.asarray(runtime_time.to_value(code_units.time_unit))
+                    np.asarray(runtime_time.to_value(code_units.time_unit)),
                 )
             else:
                 runtime_time = float(
-                    np.asarray(runtime_time, dtype=float).reshape(-1)[0]
+                    np.asarray(runtime_time, dtype=float).reshape(-1)[0],
                 )
             setattr(par.simulation, time_field, runtime_time)
             if canonical_cosmological_schema:
@@ -616,11 +620,11 @@ def readhdf5(par, mesh, fluid, ICfilename):
             runtime_time = getattr(par, time_field)
             if hasattr(runtime_time, "to_value"):
                 runtime_time = float(
-                    np.asarray(runtime_time.to_value(code_units.time_unit))
+                    np.asarray(runtime_time.to_value(code_units.time_unit)),
                 )
             else:
                 runtime_time = float(
-                    np.asarray(runtime_time, dtype=float).reshape(-1)[0]
+                    np.asarray(runtime_time, dtype=float).reshape(-1)[0],
                 )
             if canonical_cosmological_schema:
                 fluid.tau_supercomoving_code = runtime_time
@@ -696,7 +700,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 rho_proper_code=fluid.rho_proper_code,
                 vel_proper_code=fluid.vel_proper_code,
                 pre_proper_code=getattr(
-                    fluid, "pre_proper_code", np.zeros_like(fluid.rho_proper_code)
+                    fluid, "pre_proper_code", np.zeros_like(fluid.rho_proper_code),
                 ),
                 temp_proper_code=fluid.temp_proper_code,
                 time_proper_code=getattr(fluid, "time_proper_code", 0.0),
@@ -710,7 +714,7 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 rho_comoving_code=fluid.rho_comoving_code,
                 vel_supercomoving_code=fluid.vel_supercomoving_code,
                 pre_supercomoving_code=getattr(
-                    fluid, "pre_supercomoving_code", np.zeros_like(fluid.rho_comoving_code)
+                    fluid, "pre_supercomoving_code", np.zeros_like(fluid.rho_comoving_code),
                 ),
                 temp_supercomoving_code=fluid.temp_supercomoving_code,
                 tau_supercomoving_code=getattr(fluid, "tau_supercomoving_code", 0.0),
@@ -754,10 +758,10 @@ def readhdf5(par, mesh, fluid, ICfilename):
                 scale_map=dm_scale_map,
             )
             snapshot = {
-                "radius": getattr(par, "Radius"),
-                "velocity": getattr(par, "RadialVelocity"),
-                "mass": getattr(par, "Mass"),
-                "angular_momentum": getattr(par, "SpecificAngularMomentum"),
+                "radius": par.Radius,
+                "velocity": par.RadialVelocity,
+                "mass": par.Mass,
+                "angular_momentum": par.SpecificAngularMomentum,
                 "softening": _restore_header_attr_value(dmdata.attrs.get("Softening", 0.0)),
             }
             par.dark_matter_snapshot = snapshot
@@ -810,6 +814,7 @@ def loadhdf5(config, ICfilename):
     groups are present in the file. Live shell solver state remains available
     through ``snapshot.par.dark_matter``; the typed analysis view is exposed
     as ``snapshot.dark_matter``.
+
     """
     if not hasattr(config, "__getitem__"):
         raise TypeError("loadhdf5 expects a nested configuration mapping")
@@ -837,6 +842,6 @@ def loadhdf5(config, ICfilename):
         ICfilename,
     )
     restored.dark_matter = getattr(
-        restored.par, "dark_matter_radarrays", None
+        restored.par, "dark_matter_radarrays", None,
     )
     return restored

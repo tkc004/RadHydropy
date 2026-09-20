@@ -23,7 +23,47 @@ dependencies = [
 test = [
     "pytest",
 ]
+quality = [
+    "mypy>=1.10",
+    "ruff>=0.6",
+]
 docs = [
     "matplotlib",
     "sphinx>=7",
 ]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = [
+    "build",
+    "dist",
+    "docs/_build",
+]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "S101",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.mypy]
+python_version = "3.10"
+files = [
+    "radhydropy/runtime_fields.py",
+    "radhydropy/diagnostic_logging.py",
+    "radhydropy/io/__init__.py",
+    "radhydropy/io/scheduling.py",
+]
+check_untyped_defs = true
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+follow_imports = "skip"
+no_implicit_optional = true
+show_error_codes = true
