@@ -132,7 +132,7 @@ def main(config_filename=CONFIG):
         )
         binned_mass = np.bincount(
             bin_index,
-            weights=mass,
+            weights=mass_comoving_code,
             minlength=bin_edges.size - 1,
         )
         binned_volume = np.bincount(

@@ -288,11 +288,11 @@ def main(config_filename=DEFAULT_CONFIG, adiabatic_only=False):
     stability_report = directory / "NFWBoundaryDrivenVirialShock1D_PIEStability.txt"
     stability_figure = directory / "NFWBoundaryDrivenVirialShock1D_PIEStability.jpg"
     adiabatic_times = _scheduled_times_myr(
-        adiabatic["output"]["time_list_filename"],
+        adiabatic_config["par"]["output"]["time_list_filename"],
         len(adiabatic_files),
     )
     pie_times = _scheduled_times_myr(
-        pie["output"]["time_list_filename"],
+        pie_config["par"]["output"]["time_list_filename"],
         len(pie_files),
         offset_myr=exampleparams["adiabatic_final_time"].to_value(unyt.Myr),
     )

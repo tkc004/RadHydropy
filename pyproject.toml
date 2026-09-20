@@ -59,6 +59,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
 
+[tool.ruff.lint.pylint]
+max-statements = 150
+
 [tool.mypy]
 python_version = "3.10"
 files = [

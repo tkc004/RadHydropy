@@ -17,6 +17,7 @@ import unyt
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = REPO_ROOT / "example"
+DEFAULT_CONFIG = Path(__file__).with_suffix(".yaml")
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(EXAMPLE_ROOT) not in sys.path:

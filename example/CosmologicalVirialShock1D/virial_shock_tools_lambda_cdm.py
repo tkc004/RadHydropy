@@ -399,6 +399,7 @@ def splashback_radius(
 def profiles(sim, dark_matter, time_cosmic_code, config):
     """Measure virial, shock, disc radii and enclosed total masses."""
     initial_condition = config["initial_condition"]
+    code_unit_system = config["_code_unit_system"]
     cosmology = config["_cosmology"]
     first = int(sim.par.noghost)
     last = first + int(sim.par.nogrid)
@@ -477,7 +478,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
     else:
         tvir = float("nan")
 
-    np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / a**2
+    temp_phys = np.asarray(sim.fluid.temp_supercomoving_code[first:last], dtype=float) / a**2
     velocity_phys = np.asarray(
         cosmology.physical_velocity(
             x,

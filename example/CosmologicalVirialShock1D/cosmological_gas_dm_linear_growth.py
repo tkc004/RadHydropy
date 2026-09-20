@@ -306,7 +306,7 @@ def _make_matched_initial_state(config):
         softening=float(par.get("dark_matter", {}).get("softening", 0.0)),
         code_units=code_unit_system,
     )
-    return initial, shells
+    return initial_writer, shells
 
 
 def _snapshot(
@@ -633,7 +633,7 @@ def run(
     config["_code_unit_system"] = units
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table
-    _initial, dm = _make_matched_initial_state(config)
+    initial_writer, dm = _make_matched_initial_state(config)
     initial_writer.write(ic_filename)
     initial_shell_mass_order = np.asarray(dm.mass, dtype=float).copy()
     if np.unique(initial_shell_mass_order).size != dm.number_of_shells:
@@ -682,7 +682,7 @@ def run(
     sim.par.dark_matter_background_fraction = 1.0 - baryon_fraction
     sim.par.gas_background_fraction = baryon_fraction
 
-    initial_time = quantity_to_value(initial_condition["time_cosmic"], code_unit_system.time_unit)
+    initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
     final_time = (
         float(final_time_override)
         if final_time_override is not None
@@ -694,17 +694,17 @@ def run(
     temperature_proper_code = (
         quantity_to_value(
             initial_condition["cie_temperature_proper"],
-            code_unit_system.temperature_unit,
+            units.temperature_unit,
         )
         * initial_scale_factor**2
     )
     diagnostic_radius_inner_comoving_code = quantity_to_value(
         example["radius_diagnostic_inner_comoving"],
-        code_unit_system.length_unit,
+        units.length_unit,
     )
     diagnostic_radius_outer_comoving_code = quantity_to_value(
         example["radius_diagnostic_outer_comoving"],
-        code_unit_system.length_unit,
+        units.length_unit,
     )
     snapshot_count = int(example.get("snapshot_count", 9))
     snapshot_times = np.geomspace(initial_time, final_time, snapshot_count)

@@ -1158,6 +1158,10 @@ class Solver:
 
         return _set_angular_momentum_flux(*args, **kwargs)
 
+    def set_angular_momentum_flux(self, *args, **kwargs):
+        """Construct the optional angular-momentum face flux."""
+        return self._set_angular_momentum_flux(*args, **kwargs)
+
     def _limit_angular_momentum_flux(self, *args, **kwargs):
         from .angular_momentum import _limit_angular_momentum_flux  # noqa: PLC0415
 
@@ -1168,10 +1172,18 @@ class Solver:
 
         return _set_rotational_energy_flux(self, *args, **kwargs)
 
+    def set_rotational_energy_flux(self, *args, **kwargs):
+        """Construct the optional rotational-energy face flux."""
+        return self._set_rotational_energy_flux(*args, **kwargs)
+
     def _apply_local_angular_energy_fallback(self, *args, **kwargs):
         from .angular_momentum import _apply_local_angular_energy_fallback  # noqa: PLC0415
 
         return _apply_local_angular_energy_fallback(self, *args, **kwargs)
+
+    def apply_local_angular_energy_fallback(self, *args, **kwargs):
+        """Apply the local angular-energy admissibility fallback."""
+        return self._apply_local_angular_energy_fallback(*args, **kwargs)
 
     def SetFaceLR(self, mesh, fluid, boundcond, order=0):  # noqa: N802
         """Construct left and right states at cell faces.
@@ -1342,6 +1354,905 @@ class Solver:
             radius=radius,
         )
 
+    def _apply_unlimited_face_fluxes(
+        self,
+        fluid,
+        dt,
+        mesh,
+        par,
+        mass_face,
+        mom_face,
+        energy_face,
+        geometric_mom=None,
+        angular_face=None,
+    ):
+        """Apply face corrections without the positivity limiter."""
+        dt_value = float(np.asarray(dt, dtype=float))
+        geometry = self._geometry_state(mesh, par)
+        area = np.asarray(geometry.area_runtime_code, dtype=float)
+        mass_update = np.asarray(mass_face, dtype=float) * area
+        mom_update = np.asarray(mom_face, dtype=float) * area
+        energy_update = np.asarray(energy_face, dtype=float) * area
+        fluid.Mass_code += dt_value * (mass_update - ru.periodic_roll(mass_update, -1))
+        fluid.Mom_code += dt_value * (
+            mom_update
+            - ru.periodic_roll(mom_update, -1)
+            + (np.asarray(geometric_mom, dtype=float) if geometric_mom is not None else 0.0)
+        )
+        fluid.Energy_code += dt_value * (energy_update - ru.periodic_roll(energy_update, -1))
+        if angular_face is not None and hasattr(fluid, "AngularMomentum_code"):
+            angular_update = np.asarray(angular_face, dtype=float) * area
+            fluid.AngularMomentum_code += dt_value * (
+                angular_update - ru.periodic_roll(angular_update, -1)
+            )
+        self.last_face_limiter_factors = np.ones_like(np.asarray(mass_face, dtype=float))
+        return 1.0
+
+    def _positivity_context(self, fluid, mesh, par, dt):
+        """Build arrays and predicates shared by face-flux recovery."""
+        dt_value = float(np.asarray(dt, dtype=float))
+        mass = np.asarray(fluid.Mass_code, dtype=float).copy()
+        momentum = np.asarray(fluid.Mom_code, dtype=float).copy()
+        energy = np.asarray(fluid.Energy_code, dtype=float).copy()
+        angular = (
+            np.asarray(fluid.AngularMomentum_code, dtype=float).copy()
+            if hasattr(fluid, "AngularMomentum_code")
+            else None
+        )
+        geometry = self._geometry_state(mesh, par)
+        radius = (
+            np.abs(np.asarray(geometry.coordinate_runtime_code, dtype=float))
+            if angular is not None
+            else None
+        )
+        count = len(mass)
+        first = int(par.mesh.ghost_cells) if par is not None else 0
+        last = min(first + int(par.mesh.grid_cells), count) if par is not None else count
+        physical = np.zeros(count, dtype=bool)
+        physical[first:last] = True
+        volume = np.asarray(geometry.volume_runtime_code, dtype=float)
+        mass_floor = (
+            max(0.0, float(np.asarray(getattr(par, "positivity_density_floor", 0.0)))) * volume
+        )
+        energy_floor = (
+            max(0.0, float(np.asarray(getattr(par, "positivity_energy_floor", 0.0)))) * volume
+        )
+        relative_tolerance = (
+            1.0e-6
+            if self._dual_energy_enabled(par) and hasattr(fluid, "InternalEnergy_code")
+            else 1.0e-12
+        )
+        vacuum_mass = float(np.asarray(getattr(par, "cfl_density_floor", 0.0))) * volume
+        vacuum = mass <= np.maximum(vacuum_mass, 0.0)
+        mass[vacuum] = 0.0
+        momentum[vacuum] = 0.0
+        energy[vacuum] = 0.0
+        fluid.Mass_code[vacuum] = 0.0
+        fluid.Mom_code[vacuum] = 0.0
+        fluid.Energy_code[vacuum] = 0.0
+        if angular is not None:
+            angular[vacuum] = 0.0
+
+        def valid(mass_value, momentum_value, energy_value, angular_value=None):
+            result = self._positive_conserved_state(
+                mass_value,
+                momentum_value,
+                energy_value,
+                mass_floor=mass_floor,
+                energy_floor=energy_floor,
+                relative_tolerance=relative_tolerance,
+                angular_momentum=angular_value,
+                radius=radius,
+            )
+            result[~physical] = True
+            return result
+
+        def cell_valid(index, mass_value, momentum_value, energy_value, angular_value=None):
+            if not (
+                math.isfinite(mass_value)
+                and math.isfinite(momentum_value)
+                and math.isfinite(energy_value)
+                and mass_value >= mass_floor[index]
+            ):
+                return False
+            if mass_value <= mass_floor[index]:
+                return energy_value >= energy_floor[index]
+            kinetic_value = 0.5 * momentum_value**2 / mass_value
+            rotational_value = 0.0
+            if angular_value is not None and radius is not None and radius[index] > 0.0:
+                rotational_value = 0.5 * angular_value**2 / (mass_value * radius[index] ** 2)
+            internal_value = energy_value - kinetic_value - rotational_value
+            tolerance = relative_tolerance * max(
+                abs(energy_value),
+                kinetic_value,
+                abs(energy_floor[index]),
+                _FLOAT_TINY,
+            )
+            return internal_value >= energy_floor[index] - tolerance * (1.0 - 1.0e-8)
+
+        return {
+            "dt": dt_value,
+            "mass": mass,
+            "momentum": momentum,
+            "energy": energy,
+            "angular": angular,
+            "geometry": geometry,
+            "radius": radius,
+            "physical": physical,
+            "mass_floor": mass_floor,
+            "energy_floor": energy_floor,
+            "relative_tolerance": relative_tolerance,
+            "valid": valid,
+            "cell_valid": cell_valid,
+        }
+
+    def _limit_geometry_momentum(self, context, geometric_mom):
+        """Limit the spherical pressure-geometry momentum source."""
+        momentum = context["momentum"]
+        geometry_increment = np.zeros_like(momentum)
+        geometry_fraction = np.ones(len(momentum), dtype=float)
+        if geometric_mom is None:
+            return geometry_increment, geometry_fraction
+        geometry_increment = context["dt"] * np.asarray(geometric_mom, dtype=float)
+        mass = context["mass"]
+        energy = context["energy"]
+        angular = context["angular"]
+        valid = context["valid"]
+        cell_valid = context["cell_valid"]
+        affected = (
+            context["physical"]
+            & valid(mass, momentum, energy, angular)
+            & ~valid(
+                mass,
+                momentum + geometry_increment,
+                energy,
+                angular,
+            )
+        )
+        for index in np.flatnonzero(affected):
+            low, high = 0.0, 1.0
+            for _ in range(48):
+                middle = 0.5 * (low + high)
+                trial = momentum[index] + middle * geometry_increment[index]
+                if cell_valid(
+                    index,
+                    mass[index],
+                    trial,
+                    energy[index],
+                    angular[index] if angular is not None else None,
+                ):
+                    low = middle
+                else:
+                    high = middle
+                if high - low <= 1.0e-13:
+                    break
+            geometry_fraction[index] = low
+        return geometry_increment, geometry_fraction
+
+    def _recover_invariant_domain_faces(
+        self,
+        context,
+        mass_face,
+        delta_mass,
+        delta_mom,
+        delta_energy,
+        delta_angular,
+        geometry_increment,
+        geometry_fraction,
+    ):
+        """Recover face fluxes with vectorized invariant-domain bisection."""
+        mass = context["mass"]
+        momentum = context["momentum"]
+        energy = context["energy"]
+        angular = context["angular"]
+        valid = context["valid"]
+        base_mom = momentum + geometry_fraction * geometry_increment
+        base_angular = angular.copy() if angular is not None else None
+        if not np.all(valid(mass, base_mom, energy, base_angular)):
+            raise ValueError(
+                "hydro state is outside positivity domain before invariant-domain face recovery",
+            )
+
+        def line_state(scale):
+            face_mass = delta_mass * scale
+            face_mom = delta_mom * scale
+            face_energy = delta_energy * scale
+            state_mass = mass + face_mass - ru.periodic_roll(face_mass, -1)
+            state_mom = base_mom + face_mom - ru.periodic_roll(face_mom, -1)
+            state_energy = energy + face_energy - ru.periodic_roll(face_energy, -1)
+            state_angular = (
+                base_angular + delta_angular * scale - ru.periodic_roll(delta_angular * scale, -1)
+                if base_angular is not None
+                else None
+            )
+            return state_mass, state_mom, state_energy, state_angular
+
+        factors = np.ones(len(mass_face), dtype=float)
+        for _ in range(64):
+            state = line_state(factors)
+            invalid = ~valid(*state)
+            if not np.any(invalid):
+                break
+            invalid_faces = invalid | ru.periodic_roll(invalid, 1)
+            updated_factors = factors.copy()
+            updated_factors[invalid_faces] *= 0.5
+            near_zero = invalid_faces & (updated_factors < 1.0e-12)  # noqa: PLR2004
+            updated_factors[near_zero] = 0.0
+            if np.array_equal(updated_factors, factors):
+                raise ValueError(
+                    "invariant-domain local face recovery did not converge",
+                )
+            factors = updated_factors
+        else:
+            raise ValueError(
+                "invariant-domain local face recovery exceeded iteration limit",
+            )
+        return (*line_state(factors), factors)
+
+    def _repair_wind_reservoir(self, fluid, par, context, mass, momentum, energy):
+        """Restore a WindSph floor using the imposed wind state."""
+        boundary = getattr(par, "boundary", None)
+        if boundary is None or getattr(boundary, "condition", None) != "WindSph":
+            return mass, momentum, energy
+        mass_floor = context["mass_floor"]
+        physical = context["physical"]
+        wind_density = float(np.asarray(boundary.rho_outflow_proper))
+        wind_velocity = float(np.asarray(boundary.vel_outflow_proper))
+        wind_pressure = float(
+            np.asarray(
+                fluid.eos.pressure(
+                    boundary.rho_outflow_proper,
+                    boundary.temperature_outflow_proper,
+                    boundary.outflow_mu,
+                ),
+            ),
+        )
+        wind_internal = (
+            wind_pressure / wind_density / (fluid.eos.gamma - 1.0)
+            if wind_density > 0.0 and not fluid.eos.is_isothermal
+            else 0.0
+        )
+        wind_specific_energy = 0.5 * wind_velocity**2 + wind_internal
+        missing_mass = np.maximum(mass_floor - mass, 0.0)
+        reservoir_cells = physical & (missing_mass > 0.0)
+        if np.any(reservoir_cells):
+            momentum[reservoir_cells] += missing_mass[reservoir_cells] * wind_velocity
+            energy[reservoir_cells] += missing_mass[reservoir_cells] * wind_specific_energy
+            mass[reservoir_cells] += missing_mass[reservoir_cells]
+            self._last_wind_reservoir_mass = float(
+                np.sum(missing_mass[reservoir_cells]),
+            )
+        else:
+            self._last_wind_reservoir_mass = 0.0
+
+        kinetic = np.divide(
+            0.5 * momentum**2,
+            mass,
+            out=np.zeros_like(mass),
+            where=mass > 0.0,
+        )
+        floor_edge = physical & (mass <= mass_floor * (1.0 + 1.0e-12))
+        energy_deficit = floor_edge & (energy < kinetic + context["energy_floor"])
+        for index in np.flatnonzero(energy_deficit):
+            base_mass = mass[index]
+            base_momentum = momentum[index]
+            base_energy = energy[index]
+            required_energy = context["energy_floor"][index]
+
+            def reservoir_valid(
+                delta_mass,
+                base_mass=base_mass,
+                base_momentum=base_momentum,
+                base_energy=base_energy,
+                required_energy=required_energy,
+            ):
+                trial_mass = base_mass + delta_mass
+                trial_momentum = base_momentum + delta_mass * wind_velocity
+                trial_energy = base_energy + delta_mass * wind_specific_energy
+                return trial_energy - (0.5 * trial_momentum**2 / trial_mass) >= required_energy
+
+            low = 0.0
+            high = max(base_mass, mass_floor[index], 1.0) * 1.0e-12
+            for _ in range(96):
+                if reservoir_valid(high):
+                    break
+                high *= 2.0
+            if not reservoir_valid(high):
+                raise ValueError(
+                    "wind reservoir could not restore conservative "
+                    "energy admissibility at cell %d" % index,
+                )
+            for _ in range(64):
+                middle = 0.5 * (low + high)
+                if reservoir_valid(middle):
+                    high = middle
+                else:
+                    low = middle
+            mass[index] += high
+            momentum[index] += high * wind_velocity
+            energy[index] += high * wind_specific_energy
+            self._last_wind_reservoir_mass += high
+        return mass, momentum, energy
+
+    def _analytical_scalar_validators(
+        self,
+        *,
+        factors,
+        total_mass,
+        total_mom,
+        total_energy,
+        total_angular,
+        delta_mass,
+        delta_mom,
+        delta_energy,
+        delta_angular,
+        physical,
+        mass_floor,
+        energy_floor,
+        radius,
+        cell_valid,
+        count,
+    ):
+        """Build scalar paired-face admissibility and root validators."""
+
+        def adjacent_valid(face, factor):
+            """Check only the two cells changed by one face trial."""
+            left = (face - 1) % count
+            right = face
+            increment = factor - factors[face]
+            trial_mass_left = total_mass[left] - increment * delta_mass[face]
+            trial_mom_left = total_mom[left] - increment * delta_mom[face]
+            trial_energy_left = total_energy[left] - increment * delta_energy[face]
+            trial_mass_right = total_mass[right] + increment * delta_mass[face]
+            trial_mom_right = total_mom[right] + increment * delta_mom[face]
+            trial_energy_right = total_energy[right] + increment * delta_energy[face]
+            trial_angular_left = (
+                total_angular[left] - increment * delta_angular[face]
+                if total_angular is not None
+                else None
+            )
+            trial_angular_right = (
+                total_angular[right] + increment * delta_angular[face]
+                if total_angular is not None
+                else None
+            )
+            indices = [index for index in (left, right) if physical[index]]
+            if not indices:
+                return True
+            for index in indices:
+                trial_mass_value = trial_mass_left if index == left else trial_mass_right
+                trial_mom_value = trial_mom_left if index == left else trial_mom_right
+                trial_energy_value = trial_energy_left if index == left else trial_energy_right
+                trial_angular_value = trial_angular_left if index == left else trial_angular_right
+                if not cell_valid(
+                    index,
+                    trial_mass_value,
+                    trial_mom_value,
+                    trial_energy_value,
+                    trial_angular_value,
+                ):
+                    return False
+            return True
+
+        def analytical_adjacent_factor(face, current):
+            """Return a quadratic admissible factor, or ``None``."""
+            left = (face - 1) % count
+            right = face
+            max_increment = 1.0 - current
+            if max_increment <= 0.0:
+                return 1.0
+            largest = max_increment
+            for index, sign in ((left, -1.0), (right, 1.0)):
+                if not physical[index]:
+                    continue
+                mass0 = float(total_mass[index])
+                mom0 = float(total_mom[index])
+                energy0 = float(total_energy[index])
+                mass_limit = float(mass_floor[index])
+                energy_limit = float(energy_floor[index])
+                if not (
+                    math.isfinite(mass0)
+                    and math.isfinite(mom0)
+                    and math.isfinite(energy0)
+                    and mass0 >= mass_limit
+                ):
+                    return None
+                dm = sign * float(delta_mass[face])
+                dp = sign * float(delta_mom[face])
+                de = sign * float(delta_energy[face])
+                mass_bound = max_increment
+                if dm < 0.0:
+                    mass_bound = min(
+                        mass_bound,
+                        (mass0 - mass_limit) / -dm,
+                    )
+                if mass_bound < 0.0:
+                    return None
+                angular0 = angular_delta = radius_value = 0.0
+                if total_angular is not None:
+                    radius_value = float(radius[index])
+                    if radius_value <= 0.0 or not math.isfinite(radius_value):
+                        return None
+                    angular0 = float(total_angular[index])
+                    angular_delta = sign * float(delta_angular[face])
+                rotational_factor = 1.0 / radius_value**2 if total_angular is not None else 0.0
+                energy0 -= energy_limit
+                a = dm * de - 0.5 * dp**2 - (0.5 * rotational_factor * angular_delta**2)
+                b = (
+                    mass0 * de
+                    + dm * energy0
+                    - mom0 * dp
+                    - rotational_factor * angular0 * angular_delta
+                )
+                c = mass0 * energy0 - 0.5 * mom0**2 - 0.5 * rotational_factor * angular0**2
+                if c < 0.0:
+                    return None
+                value_at_bound = (a * mass_bound + b) * mass_bound + c
+                if value_at_bound >= 0.0:
+                    continue
+                if abs(a) <= _FLOAT_TINY:
+                    if b >= 0.0:
+                        return None
+                    root = -c / b
+                else:
+                    discriminant = b**2 - 4.0 * a * c
+                    if discriminant < 0.0:
+                        return None
+                    root_a = (-b - math.sqrt(discriminant)) / (2.0 * a)
+                    root_b = (-b + math.sqrt(discriminant)) / (2.0 * a)
+                    positive_roots = [
+                        candidate for candidate in (root_a, root_b) if candidate >= 0.0
+                    ]
+                    if not positive_roots:
+                        return None
+                    root = min(positive_roots)
+                if not math.isfinite(root):
+                    return None
+                largest = min(largest, root)
+            candidate = current + max(0.0, largest)
+            return candidate if adjacent_valid(face, candidate) else None
+
+        return adjacent_valid, analytical_adjacent_factor
+
+    def _analytical_batch_validators(
+        self,
+        *,
+        factors,
+        total_mass,
+        total_mom,
+        total_energy,
+        total_angular,
+        delta_mass,
+        delta_mom,
+        delta_energy,
+        physical,
+        mass_floor,
+        energy_floor,
+        radius,
+        relative_tolerance,
+        delta_angular,
+        count,
+    ):
+        """Build vectorized paired-face admissibility and root validators."""
+
+        def batch_cell_valid(
+            mass_value,
+            momentum_value,
+            energy_value,
+            indices,
+            angular_value=None,
+        ):
+            """Vectorized admissibility check for disjoint face pairs."""
+            mass_limit = mass_floor[indices]
+            energy_limit = energy_floor[indices]
+            result = (
+                np.isfinite(mass_value)
+                & np.isfinite(momentum_value)
+                & np.isfinite(energy_value)
+                & (mass_value >= mass_limit)
+            )
+            at_floor = result & (mass_value <= mass_limit)
+            result[at_floor] = energy_value[at_floor] >= energy_limit[at_floor]
+            positive = result & ~at_floor
+            if np.any(positive):
+                kinetic = np.zeros_like(energy_value)
+                kinetic[positive] = 0.5 * momentum_value[positive] ** 2 / mass_value[positive]
+                rotational = np.zeros_like(energy_value)
+                if angular_value is not None and radius is not None:
+                    valid_radius = positive & (radius[indices] > 0.0)
+                    rotational[valid_radius] = (
+                        0.5
+                        * angular_value[valid_radius] ** 2
+                        / (mass_value[valid_radius] * radius[indices][valid_radius] ** 2)
+                    )
+                internal = energy_value - kinetic - rotational
+                tolerance = relative_tolerance * np.maximum.reduce(
+                    (
+                        np.abs(energy_value),
+                        kinetic,
+                        np.abs(energy_limit),
+                        np.full_like(energy_value, _FLOAT_TINY),
+                    ),
+                )
+                tolerance *= 1.0 - 1.0e-8
+                result[positive] = (
+                    internal[positive] >= energy_limit[positive] - tolerance[positive]
+                )
+            return result
+
+        def batch_adjacent_valid(face_values, factor_values):
+            """Check a disjoint face group without scalar callbacks."""
+            left = (face_values - 1) % count
+            right = face_values
+            increment = factor_values - factors[face_values]
+            left_mass = total_mass[left] - increment * delta_mass[face_values]
+            left_mom = total_mom[left] - increment * delta_mom[face_values]
+            left_energy = total_energy[left] - increment * delta_energy[face_values]
+            right_mass = total_mass[right] + increment * delta_mass[face_values]
+            right_mom = total_mom[right] + increment * delta_mom[face_values]
+            right_energy = total_energy[right] + increment * delta_energy[face_values]
+            left_angular = right_angular = None
+            if total_angular is not None:
+                left_angular = total_angular[left] - increment * delta_angular[face_values]
+                right_angular = total_angular[right] + increment * delta_angular[face_values]
+            return (
+                ~physical[left]
+                | batch_cell_valid(
+                    left_mass,
+                    left_mom,
+                    left_energy,
+                    left,
+                    left_angular,
+                )
+            ) & (
+                ~physical[right]
+                | batch_cell_valid(
+                    right_mass,
+                    right_mom,
+                    right_energy,
+                    right,
+                    right_angular,
+                )
+            )
+
+        def batch_analytical_factors(face_values):
+            """Solve the invariant-domain quadratics for a face group."""
+            current = factors[face_values].copy()
+            largest = np.ones_like(current) - current
+            possible = np.ones(len(face_values), dtype=bool)
+            for side, sign in ((face_values - 1, -1.0), (face_values, 1.0)):
+                physical_side = physical[side]
+                if not np.any(physical_side):
+                    continue
+                mass0 = total_mass[side]
+                mom0 = total_mom[side]
+                energy0 = total_energy[side] - energy_floor[side]
+                dm = sign * delta_mass[face_values]
+                dp = sign * delta_mom[face_values]
+                de = sign * delta_energy[face_values]
+                finite = (
+                    np.isfinite(mass0)
+                    & np.isfinite(mom0)
+                    & np.isfinite(energy0)
+                    & (mass0 >= mass_floor[side])
+                )
+                possible &= ~physical_side | finite
+                mass_bound = np.ones_like(largest)
+                decreasing_mass = dm < 0.0
+                mass_bound[decreasing_mass] = (
+                    mass0[decreasing_mass] - mass_floor[side][decreasing_mass]
+                ) / -dm[decreasing_mass]
+                largest = np.minimum(largest, mass_bound)
+                angular0 = np.zeros_like(mass0)
+                angular_delta = np.zeros_like(mass0)
+                rotational_factor = np.zeros_like(mass0)
+                if total_angular is not None:
+                    angular0 = total_angular[side]
+                    angular_delta = sign * delta_angular[face_values]
+                    radius_side = radius[side]
+                    valid_radius = np.isfinite(radius_side) & (radius_side > 0.0)
+                    possible &= ~physical_side | valid_radius
+                    rotational_factor[valid_radius] = 1.0 / radius_side[valid_radius] ** 2
+                a = dm * de - 0.5 * dp**2 - (0.5 * rotational_factor * angular_delta**2)
+                b = (
+                    mass0 * de
+                    + dm * energy0
+                    - mom0 * dp
+                    - rotational_factor * angular0 * angular_delta
+                )
+                c = mass0 * energy0 - 0.5 * mom0**2 - 0.5 * rotational_factor * angular0**2
+                possible &= ~physical_side | (c >= 0.0)
+                bounded = physical_side & (c >= 0.0)
+                value_bound = (a * largest + b) * largest + c
+                bounded_failure = bounded & (value_bound < 0.0)
+                linear = bounded_failure & (np.abs(a) <= _FLOAT_TINY)
+                linear_bad = linear & (b >= 0.0)
+                possible &= ~linear_bad
+                linear_root = np.divide(
+                    -c,
+                    b,
+                    out=np.zeros_like(c),
+                    where=linear & (b != 0.0),
+                )
+                quadratic = bounded_failure & ~linear
+                discriminant = b**2 - 4.0 * a * c
+                possible &= ~quadratic | (discriminant >= 0.0)
+                sqrt_discriminant = np.sqrt(
+                    np.maximum(discriminant, 0.0),
+                )
+                root_a = np.divide(
+                    -b - sqrt_discriminant,
+                    2.0 * a,
+                    out=np.zeros_like(a),
+                    where=quadratic & (a != 0.0),
+                )
+                root_b = np.divide(
+                    -b + sqrt_discriminant,
+                    2.0 * a,
+                    out=np.zeros_like(a),
+                    where=quadratic & (a != 0.0),
+                )
+                root_a = np.where(root_a >= 0.0, root_a, np.inf)
+                root_b = np.where(root_b >= 0.0, root_b, np.inf)
+                root = np.where(linear, linear_root, np.minimum(root_a, root_b))
+                possible &= ~bounded_failure | np.isfinite(root)
+                largest = np.minimum(largest, np.where(bounded_failure, root, largest))
+            candidates = current + np.maximum(largest, 0.0)
+            possible &= batch_adjacent_valid(face_values, candidates)
+            return candidates, possible
+
+        return batch_cell_valid, batch_adjacent_valid, batch_analytical_factors
+
+    def _recover_analytical_faces(
+        self,
+        context,
+        par,
+        mass_face,
+        delta_mass,
+        delta_mom,
+        delta_energy,
+        delta_angular,
+        geometry_increment,
+        geometry_fraction,
+    ):
+        """Recover paired face factors with sequential analytical limiting."""
+        mass = context["mass"]
+        momentum = context["momentum"]
+        energy = context["energy"]
+        angular = context["angular"]
+        radius = context["radius"]
+        physical = context["physical"]
+        mass_floor = context["mass_floor"]
+        energy_floor = context["energy_floor"]
+        relative_tolerance = context["relative_tolerance"]
+        valid = context["valid"]
+        cell_valid = context["cell_valid"]
+        count = len(mass)
+        # Construct the limited update from a known admissible state.
+        # Increasing one face coefficient changes only its two adjacent
+        # cells with equal-and-opposite corrections.  Accept an increase
+        # only while both cells remain admissible, so global admissibility
+        # is an invariant of the construction rather than something a
+        # fixed number of repair passes must recover afterward.
+        factors = np.zeros(len(mass_face), dtype=float)
+        momentum = momentum + geometry_fraction * geometry_increment
+        total_mass = mass.copy()
+        total_mom = momentum.copy()
+        total_energy = energy.copy()
+        total_angular = angular.copy() if angular is not None else None
+        if not np.all(valid(total_mass, total_mom, total_energy, total_angular)):
+            invalid = ~valid(total_mass, total_mom, total_energy, total_angular)
+            index = int(np.flatnonzero(invalid)[0])
+            mass_value = float(total_mass[index])
+            momentum_value = float(total_mom[index])
+            energy_value = float(total_energy[index])
+            kinetic_value = 0.5 * momentum_value**2 / mass_value if mass_value > 0.0 else 0.0
+            angular_value = float(total_angular[index]) if total_angular is not None else 0.0
+            radius_value = float(radius[index]) if radius is not None else float("nan")
+            rotational_value = (
+                0.5 * angular_value**2 / (mass_value * radius_value**2)
+                if mass_value > 0.0 and radius_value > 0.0
+                else 0.0
+            )
+            internal_value = energy_value - kinetic_value - rotational_value
+            specific_value = angular_value / mass_value if mass_value > 0.0 else 0.0
+            raise ValueError(
+                "hydro state is outside positivity domain before paired "
+                "face construction at cell %d "
+                "(mass=%s mom=%s energy=%s radius=%s J=%s j=%s "
+                "kinetic=%s rotational=%s internal=%s)"
+                % (
+                    index,
+                    mass_value,
+                    momentum_value,
+                    energy_value,
+                    radius_value,
+                    angular_value,
+                    specific_value,
+                    kinetic_value,
+                    rotational_value,
+                    internal_value,
+                ),
+            )
+
+        adjacent_valid, analytical_adjacent_factor = self._analytical_scalar_validators(
+            factors=factors,
+            total_mass=total_mass,
+            total_mom=total_mom,
+            total_energy=total_energy,
+            total_angular=total_angular,
+            delta_mass=delta_mass,
+            delta_mom=delta_mom,
+            delta_energy=delta_energy,
+            delta_angular=delta_angular,
+            physical=physical,
+            mass_floor=mass_floor,
+            energy_floor=energy_floor,
+            radius=radius,
+            cell_valid=cell_valid,
+            count=count,
+        )
+        batch_cell_valid, batch_adjacent_valid, batch_analytical_factors = (
+            self._analytical_batch_validators(
+                factors=factors,
+                total_mass=total_mass,
+                total_mom=total_mom,
+                total_energy=total_energy,
+                total_angular=total_angular,
+                delta_mass=delta_mass,
+                delta_mom=delta_mom,
+                delta_energy=delta_energy,
+                physical=physical,
+                mass_floor=mass_floor,
+                energy_floor=energy_floor,
+                radius=radius,
+                relative_tolerance=relative_tolerance,
+                delta_angular=delta_angular,
+                count=count,
+            )
+        )
+
+        def recover_analytical_group(face_values):
+            active = factors[face_values] < 1.0 - factor_tolerance
+            if not np.any(active):
+                factors[face_values] = 1.0
+                return 0.0
+            active_faces = face_values[active]
+            current = factors[active_faces].copy()
+            full = batch_adjacent_valid(
+                active_faces,
+                np.ones_like(current),
+            )
+            accepted = np.ones_like(current)
+            needs_fallback = ~full
+            if np.any(needs_fallback):
+                candidates, possible = batch_analytical_factors(
+                    active_faces[needs_fallback],
+                )
+                candidate_positions = np.flatnonzero(needs_fallback)
+                accepted[candidate_positions[possible]] = candidates[possible]
+                fallback_faces = active_faces[candidate_positions[~possible]]
+                for face in fallback_faces:
+                    current_face = factors[face]
+                    low, high = current_face, 1.0
+                    for _ in range(recovery_iterations):
+                        middle = 0.5 * (low + high)
+                        if adjacent_valid(face, middle):
+                            low = middle
+                        else:
+                            high = middle
+                        if high - low <= factor_tolerance:
+                            break
+                    accepted[np.where(active_faces == face)[0][0]] = low
+            increment = accepted - current
+            left = (active_faces - 1) % count
+            right = active_faces
+            total_mass[left] -= increment * delta_mass[active_faces]
+            total_mass[right] += increment * delta_mass[active_faces]
+            total_mom[left] -= increment * delta_mom[active_faces]
+            total_mom[right] += increment * delta_mom[active_faces]
+            total_energy[left] -= increment * delta_energy[active_faces]
+            total_energy[right] += increment * delta_energy[active_faces]
+            factors[active_faces] = accepted
+            return float(np.max(increment)) if increment.size else 0.0
+
+        # Alternate traversal direction to reduce ordering bias.  The
+        # first sweep already produces a globally admissible update;
+        # later sweeps only recover additional face flux monotonically.
+        # Keep the recovery policy independent of geometry and energy
+        # formulation; reducing it for cold spherical dual-energy runs
+        # would be a performance heuristic rather than a numerical
+        # criterion and could leave more ordering-dependent limiting.
+        max_recovery_sweeps = 8
+        recovery_iterations = 48
+        factor_tolerance = 1.0e-13
+        factor_method = str(
+            getattr(
+                par,
+                "positivity_factor_method",
+                "invariant_domain",
+            ),
+        ).lower()
+
+        # Parity batching is intentionally disabled until its altered
+        # recovery ordering is proven equivalent for coupled interfaces.
+        if False:
+            for sweep in range(max_recovery_sweeps):
+                largest_increase = 0.0
+                parities = (0, 1) if sweep % 2 == 0 else (1, 0)
+                for parity in parities:
+                    faces = np.arange(
+                        parity,
+                        len(mass_face),
+                        2,
+                        dtype=int,
+                    )
+                    largest_increase = max(
+                        largest_increase,
+                        recover_analytical_group(faces),
+                    )
+                if np.all(factors >= 1.0 - factor_tolerance):
+                    factors[...] = 1.0
+                    break
+                if largest_increase <= factor_tolerance:
+                    break
+        else:
+            for sweep in range(max_recovery_sweeps):
+                largest_increase = 0.0
+                faces = (
+                    range(len(mass_face)) if sweep % 2 == 0 else range(len(mass_face) - 1, -1, -1)
+                )
+                for face in faces:
+                    current = factors[face]
+                    if current >= 1.0 - factor_tolerance:
+                        factors[face] = 1.0
+                        continue
+                    if adjacent_valid(face, 1.0):
+                        accepted = 1.0
+                    else:
+                        accepted = (
+                            analytical_adjacent_factor(face, current)
+                            if factor_method == "analytical"
+                            else None
+                        )
+                        if accepted is None:
+                            # The current coefficient is known admissible.
+                            # Search only upward, never stepping outside the
+                            # invariant domain.
+                            low, high = current, 1.0
+                            for _ in range(recovery_iterations):
+                                middle = 0.5 * (low + high)
+                                if adjacent_valid(face, middle):
+                                    low = middle
+                                else:
+                                    high = middle
+                                if high - low <= factor_tolerance:
+                                    break
+                            accepted = low
+                    largest_increase = max(
+                        largest_increase,
+                        accepted - current,
+                    )
+                    increment = accepted - current
+                    left = (face - 1) % count
+                    right = face
+                    total_mass[left] -= increment * delta_mass[face]
+                    total_mom[left] -= increment * delta_mom[face]
+                    total_energy[left] -= increment * delta_energy[face]
+                    total_mass[right] += increment * delta_mass[face]
+                    total_mom[right] += increment * delta_mom[face]
+                    total_energy[right] += increment * delta_energy[face]
+                    if total_angular is not None:
+                        total_angular[left] -= increment * delta_angular[face]
+                        total_angular[right] += increment * delta_angular[face]
+                    factors[face] = accepted
+                if np.all(factors >= 1.0 - factor_tolerance):
+                    factors[...] = 1.0
+                    break
+                if largest_increase <= factor_tolerance:
+                    break
+        return total_mass, total_mom, total_energy, total_angular, factors
+
     def _positivity_limited_face_fluxes(
         self,
         fluid,
@@ -1365,175 +2276,30 @@ class Solver:
         nonuniform spherical faces).
         """
         if not getattr(par, "positivity_preserving", True):
-            dt_value = float(np.asarray(dt, dtype=float))
-            geometry = self._geometry_state(mesh, par)
-            area_runtime_code = np.asarray(geometry.area_runtime_code, dtype=float)
-            fluid.Mass_code += dt_value * (
-                np.asarray(mass_face, dtype=float) * area_runtime_code
-                - ru.periodic_roll(np.asarray(mass_face, dtype=float) * area_runtime_code, -1)
+            return self._apply_unlimited_face_fluxes(
+                fluid,
+                dt,
+                mesh,
+                par,
+                mass_face,
+                mom_face,
+                energy_face,
+                geometric_mom,
+                angular_face,
             )
-            fluid.Mom_code += dt_value * (
-                np.asarray(mom_face, dtype=float) * area_runtime_code
-                - ru.periodic_roll(np.asarray(mom_face, dtype=float) * area_runtime_code, -1)
-                + (np.asarray(geometric_mom, dtype=float) if geometric_mom is not None else 0.0)
-            )
-            fluid.Energy_code += dt_value * (
-                np.asarray(energy_face, dtype=float) * area_runtime_code
-                - ru.periodic_roll(np.asarray(energy_face, dtype=float) * area_runtime_code, -1)
-            )
-            if angular_face is not None and hasattr(fluid, "AngularMomentum_code"):
-                angular_area = np.asarray(angular_face, dtype=float) * area_runtime_code
-                fluid.AngularMomentum_code += dt_value * (
-                    angular_area - ru.periodic_roll(angular_area, -1)
-                )
-            self.last_face_limiter_factors = np.ones_like(
-                np.asarray(mass_face, dtype=float),
-            )
-            return 1.0
-        dt_value = float(np.asarray(dt, dtype=float))
-        mass = np.asarray(fluid.Mass_code, dtype=float).copy()
-        momentum = np.asarray(fluid.Mom_code, dtype=float).copy()
-        energy = np.asarray(fluid.Energy_code, dtype=float).copy()
-        angular = (
-            np.asarray(fluid.AngularMomentum_code, dtype=float).copy()
-            if angular_face is not None
-            else None
-        )
-        geometry = self._geometry_state(mesh, par)
-        radius = (
-            np.abs(np.asarray(geometry.coordinate_runtime_code, dtype=float))
-            if angular is not None
-            else None
-        )
-        count = len(mass)
-        if par is None:
-            first, last = 0, count
-        else:
-            first = int(par.mesh.ghost_cells)
-            last = min(first + int(par.mesh.grid_cells), count)
-        physical = np.zeros(count, dtype=bool)
-        physical[first:last] = True
-        volume_runtime_code = np.asarray(geometry.volume_runtime_code, dtype=float)
-        mass_floor = (
-            max(
-                0.0,
-                float(np.asarray(getattr(par, "positivity_density_floor", 0.0))),
-            )
-            * volume_runtime_code
-        )
-        energy_floor = (
-            max(
-                0.0,
-                float(np.asarray(getattr(par, "positivity_energy_floor", 0.0))),
-            )
-            * volume_runtime_code
-        )
-        relative_tolerance = (
-            # Keep the same roundoff allowance used by the global increment
-            # limiter.  Dual energy may tolerate tiny E-K cancellation, but
-            # it must still reject a substantive K > E state.
-            1.0e-6
-            if self._dual_energy_enabled(par) and hasattr(fluid, "InternalEnergy_code")
-            else 1.0e-12
-        )
+        context = self._positivity_context(fluid, mesh, par, dt)
+        dt_value = context["dt"]
+        mass = context["mass"]
+        momentum = context["momentum"]
+        energy = context["energy"]
+        angular = context["angular"]
+        geometry = context["geometry"]
+        valid = context["valid"]
 
-        # Numerical vacuum is not a resolved state and should not contribute
-        # a spurious momentum/energy constraint to its neighboring face.
-        vacuum_mass = (
-            float(np.asarray(getattr(par, "cfl_density_floor", 0.0))) * volume_runtime_code
+        geometry_increment, geometry_fraction = self._limit_geometry_momentum(
+            context,
+            geometric_mom,
         )
-        vacuum = mass <= np.maximum(vacuum_mass, 0.0)
-        mass[vacuum] = 0.0
-        momentum[vacuum] = 0.0
-        energy[vacuum] = 0.0
-        fluid.Mass_code[vacuum] = 0.0
-        fluid.Mom_code[vacuum] = 0.0
-        fluid.Energy_code[vacuum] = 0.0
-        if angular is not None:
-            angular[vacuum] = 0.0
-
-        def valid(mass_value, momentum_value, energy_value, angular_value=None):
-            # Dual energy protects pressure reconstruction when E-K loses
-            # precision, but it cannot make an inadmissible conservative
-            # state valid.  Require total energy to contain at least the
-            # kinetic energy (up to the small roundoff tolerance above).
-            # Otherwise the limiter could pass K > E to the next primitive
-            # reconstruction and let the dual field hide the violation.
-            result = self._positive_conserved_state(
-                mass_value,
-                momentum_value,
-                energy_value,
-                mass_floor=mass_floor,
-                energy_floor=energy_floor,
-                relative_tolerance=relative_tolerance,
-                angular_momentum=angular_value,
-                radius=radius,
-            )
-            result[~physical] = True
-            return result
-
-        def cell_valid(index, mass_value, momentum_value, energy_value, angular_value=None):
-            """Check one trial cell without NumPy allocation."""
-            if not (
-                math.isfinite(mass_value)
-                and math.isfinite(momentum_value)
-                and math.isfinite(energy_value)
-                and mass_value >= mass_floor[index]
-            ):
-                return False
-            if mass_value <= mass_floor[index]:
-                return energy_value >= energy_floor[index]
-            kinetic_value = 0.5 * momentum_value**2 / mass_value
-            rotational_value = 0.0
-            if angular_value is not None and radius is not None and radius[index] > 0.0:
-                rotational_value = 0.5 * angular_value**2 / (mass_value * radius[index] ** 2)
-            internal_value = energy_value - kinetic_value - rotational_value
-            tolerance = relative_tolerance * max(
-                abs(energy_value),
-                kinetic_value,
-                abs(energy_floor[index]),
-                _FLOAT_TINY,
-            )
-            # Leave a tiny margin for the different evaluation order used by
-            # the final vectorized admissibility check.  This is only an
-            # internal limiter margin; the public roundoff tolerance remains
-            # exactly ``relative_tolerance``.
-            tolerance *= 1.0 - 1.0e-8
-            return internal_value >= energy_floor[index] - tolerance
-
-        geometry_increment = np.zeros_like(momentum)
-        geometry_fraction = np.ones(len(momentum), dtype=float)
-        if geometric_mom is not None:
-            # The spherical pressure geometry term is a momentum source while
-            # total energy remains governed by the conservative energy flux.
-            # In a nearly pressureless cell, applying the full source can
-            # make K exceed E even though the pre-source state is admissible.
-            # Limit only this local momentum increment to the first admissible
-            # boundary; do not add compensating energy.
-            geometry_increment = dt_value * np.asarray(geometric_mom, dtype=float)
-            base_valid = valid(mass, momentum, energy, angular)
-            full_geometry_momentum = momentum + geometry_increment
-            full_valid = valid(mass, full_geometry_momentum, energy, angular)
-            affected = physical & base_valid & ~full_valid
-            for index in np.flatnonzero(affected):
-                low, high = 0.0, 1.0
-                for _ in range(48):
-                    middle = 0.5 * (low + high)
-                    trial_momentum = momentum[index] + middle * geometry_increment[index]
-                    trial_valid = cell_valid(
-                        index,
-                        mass[index],
-                        trial_momentum,
-                        energy[index],
-                        angular[index] if angular is not None else None,
-                    )
-                    if trial_valid:
-                        low = middle
-                    else:
-                        high = middle
-                    if high - low <= 1.0e-13:  # noqa: PLR2004
-                        break
-                geometry_fraction[index] = low
 
         mass_face = np.asarray(mass_face, dtype=float)
         mom_face = np.asarray(mom_face, dtype=float)
@@ -1580,623 +2346,41 @@ class Solver:
             ),
         ).lower()
         if factor_method == "invariant_domain":
-            # The geometry source is limited first.  The remaining face
-            # update is a line segment from this admissible state to the full
-            # conservative update, so convexity of the Euler invariant domain
-            # makes a vectorized bisection safe and conservative.
-            base_mom = momentum + geometry_fraction * geometry_increment
-            base_angular = angular.copy() if angular is not None else None
-            if not np.all(valid(mass, base_mom, energy, base_angular)):
-                raise ValueError(
-                    "hydro state is outside positivity domain before "
-                    "invariant-domain face recovery",
-                )
-
-            def line_state(scale):
-                face_mass = delta_mass * scale
-                face_mom = delta_mom * scale
-                face_energy = delta_energy * scale
-                state_mass = mass + face_mass - ru.periodic_roll(face_mass, -1)
-                state_mom = base_mom + face_mom - ru.periodic_roll(face_mom, -1)
-                state_energy = energy + face_energy - ru.periodic_roll(face_energy, -1)
-                state_angular = (
-                    base_angular
-                    + delta_angular * scale
-                    - ru.periodic_roll(delta_angular * scale, -1)
-                    if base_angular is not None
-                    else None
-                )
-                return state_mass, state_mom, state_energy, state_angular
-
-            # Reduce only faces touching cells that fail the invariant-domain
-            # test.  This is a local vectorized iteration: smooth/unaffected
-            # regions retain alpha_face=1 rather than inheriting a global
-            # restrictive factor from one interface.
-            factors = np.ones(len(mass_face), dtype=float)
-            for _ in range(64):
-                state = line_state(factors)
-                invalid = ~valid(*state)
-                if not np.any(invalid):
-                    break
-                invalid_faces = invalid | ru.periodic_roll(invalid, 1)
-                updated_factors = factors.copy()
-                updated_factors[invalid_faces] *= 0.5
-                near_zero = invalid_faces & (updated_factors < 1.0e-12)  # noqa: PLR2004
-                updated_factors[near_zero] = 0.0
-                if np.array_equal(updated_factors, factors):
-                    raise ValueError(
-                        "invariant-domain local face recovery did not converge",
-                    )
-                factors = updated_factors
-            else:
-                raise ValueError(
-                    "invariant-domain local face recovery exceeded iteration limit",
-                )
-            mass, momentum, energy, total_angular = line_state(factors)
+            mass, momentum, energy, total_angular, factors = self._recover_invariant_domain_faces(
+                context,
+                mass_face,
+                delta_mass,
+                delta_mom,
+                delta_energy,
+                delta_angular,
+                geometry_increment,
+                geometry_fraction,
+            )
         elif np.all(valid(full_mass, full_mom, full_energy, full_angular)):
             factors = np.ones(len(mass_face), dtype=float)
             mass, momentum, energy = full_mass, full_mom, full_energy
             total_angular = full_angular
         else:
-            # Construct the limited update from a known admissible state.
-            # Increasing one face coefficient changes only its two adjacent
-            # cells with equal-and-opposite corrections.  Accept an increase
-            # only while both cells remain admissible, so global admissibility
-            # is an invariant of the construction rather than something a
-            # fixed number of repair passes must recover afterward.
-            factors = np.zeros(len(mass_face), dtype=float)
-            momentum = momentum + geometry_fraction * geometry_increment
-            total_mass = mass.copy()
-            total_mom = momentum.copy()
-            total_energy = energy.copy()
-            total_angular = angular.copy() if angular is not None else None
-            if not np.all(valid(total_mass, total_mom, total_energy, total_angular)):
-                invalid = ~valid(total_mass, total_mom, total_energy, total_angular)
-                index = int(np.flatnonzero(invalid)[0])
-                mass_value = float(total_mass[index])
-                momentum_value = float(total_mom[index])
-                energy_value = float(total_energy[index])
-                kinetic_value = 0.5 * momentum_value**2 / mass_value if mass_value > 0.0 else 0.0
-                angular_value = float(total_angular[index]) if total_angular is not None else 0.0
-                radius_value = float(radius[index]) if radius is not None else float("nan")
-                rotational_value = (
-                    0.5 * angular_value**2 / (mass_value * radius_value**2)
-                    if mass_value > 0.0 and radius_value > 0.0
-                    else 0.0
-                )
-                internal_value = energy_value - kinetic_value - rotational_value
-                specific_value = angular_value / mass_value if mass_value > 0.0 else 0.0
-                raise ValueError(
-                    "hydro state is outside positivity domain before paired "
-                    "face construction at cell %d "
-                    "(mass=%s mom=%s energy=%s radius=%s J=%s j=%s "
-                    "kinetic=%s rotational=%s internal=%s)"
-                    % (
-                        index,
-                        mass_value,
-                        momentum_value,
-                        energy_value,
-                        radius_value,
-                        angular_value,
-                        specific_value,
-                        kinetic_value,
-                        rotational_value,
-                        internal_value,
-                    ),
-                )
-
-            def adjacent_valid(face, factor):
-                """Check only the two cells changed by one face trial."""
-                left = (face - 1) % count
-                right = face
-                increment = factor - factors[face]
-                trial_mass_left = total_mass[left] - increment * delta_mass[face]
-                trial_mom_left = total_mom[left] - increment * delta_mom[face]
-                trial_energy_left = total_energy[left] - increment * delta_energy[face]
-                trial_mass_right = total_mass[right] + increment * delta_mass[face]
-                trial_mom_right = total_mom[right] + increment * delta_mom[face]
-                trial_energy_right = total_energy[right] + increment * delta_energy[face]
-                trial_angular_left = (
-                    total_angular[left] - increment * delta_angular[face]
-                    if total_angular is not None
-                    else None
-                )
-                trial_angular_right = (
-                    total_angular[right] + increment * delta_angular[face]
-                    if total_angular is not None
-                    else None
-                )
-                indices = [index for index in (left, right) if physical[index]]
-                if not indices:
-                    return True
-                for index in indices:
-                    trial_mass_value = trial_mass_left if index == left else trial_mass_right
-                    trial_mom_value = trial_mom_left if index == left else trial_mom_right
-                    trial_energy_value = trial_energy_left if index == left else trial_energy_right
-                    trial_angular_value = (
-                        trial_angular_left if index == left else trial_angular_right
-                    )
-                    if not cell_valid(
-                        index,
-                        trial_mass_value,
-                        trial_mom_value,
-                        trial_energy_value,
-                        trial_angular_value,
-                    ):
-                        return False
-                return True
-
-            def analytical_adjacent_factor(face, current):
-                """Return a quadratic admissible factor, or ``None``."""
-                left = (face - 1) % count
-                right = face
-                max_increment = 1.0 - current
-                if max_increment <= 0.0:
-                    return 1.0
-                largest = max_increment
-                for index, sign in ((left, -1.0), (right, 1.0)):
-                    if not physical[index]:
-                        continue
-                    mass0 = float(total_mass[index])
-                    mom0 = float(total_mom[index])
-                    energy0 = float(total_energy[index])
-                    mass_limit = float(mass_floor[index])
-                    energy_limit = float(energy_floor[index])
-                    if not (
-                        math.isfinite(mass0)
-                        and math.isfinite(mom0)
-                        and math.isfinite(energy0)
-                        and mass0 >= mass_limit
-                    ):
-                        return None
-                    dm = sign * float(delta_mass[face])
-                    dp = sign * float(delta_mom[face])
-                    de = sign * float(delta_energy[face])
-                    mass_bound = max_increment
-                    if dm < 0.0:
-                        mass_bound = min(
-                            mass_bound,
-                            (mass0 - mass_limit) / -dm,
-                        )
-                    if mass_bound < 0.0:
-                        return None
-                    angular0 = angular_delta = radius_value = 0.0
-                    if total_angular is not None:
-                        radius_value = float(radius[index])
-                        if radius_value <= 0.0 or not math.isfinite(radius_value):
-                            return None
-                        angular0 = float(total_angular[index])
-                        angular_delta = sign * float(delta_angular[face])
-                    rotational_factor = 1.0 / radius_value**2 if total_angular is not None else 0.0
-                    energy0 -= energy_limit
-                    a = dm * de - 0.5 * dp**2 - (0.5 * rotational_factor * angular_delta**2)
-                    b = (
-                        mass0 * de
-                        + dm * energy0
-                        - mom0 * dp
-                        - rotational_factor * angular0 * angular_delta
-                    )
-                    c = mass0 * energy0 - 0.5 * mom0**2 - 0.5 * rotational_factor * angular0**2
-                    if c < 0.0:
-                        return None
-                    value_at_bound = (a * mass_bound + b) * mass_bound + c
-                    if value_at_bound >= 0.0:
-                        continue
-                    if abs(a) <= _FLOAT_TINY:
-                        if b >= 0.0:
-                            return None
-                        root = -c / b
-                    else:
-                        discriminant = b**2 - 4.0 * a * c
-                        if discriminant < 0.0:
-                            return None
-                        root_a = (-b - math.sqrt(discriminant)) / (2.0 * a)
-                        root_b = (-b + math.sqrt(discriminant)) / (2.0 * a)
-                        positive_roots = [
-                            candidate for candidate in (root_a, root_b) if candidate >= 0.0
-                        ]
-                        if not positive_roots:
-                            return None
-                        root = min(positive_roots)
-                    if not math.isfinite(root):
-                        return None
-                    largest = min(largest, root)
-                candidate = current + max(0.0, largest)
-                return candidate if adjacent_valid(face, candidate) else None
-
-            def batch_cell_valid(
-                mass_value,
-                momentum_value,
-                energy_value,
-                indices,
-                angular_value=None,
-            ):
-                """Vectorized admissibility check for disjoint face pairs."""
-                mass_limit = mass_floor[indices]
-                energy_limit = energy_floor[indices]
-                result = (
-                    np.isfinite(mass_value)
-                    & np.isfinite(momentum_value)
-                    & np.isfinite(energy_value)
-                    & (mass_value >= mass_limit)
-                )
-                at_floor = result & (mass_value <= mass_limit)
-                result[at_floor] = energy_value[at_floor] >= energy_limit[at_floor]
-                positive = result & ~at_floor
-                if np.any(positive):
-                    kinetic = np.zeros_like(energy_value)
-                    kinetic[positive] = 0.5 * momentum_value[positive] ** 2 / mass_value[positive]
-                    rotational = np.zeros_like(energy_value)
-                    if angular_value is not None and radius is not None:
-                        valid_radius = positive & (radius[indices] > 0.0)
-                        rotational[valid_radius] = (
-                            0.5
-                            * angular_value[valid_radius] ** 2
-                            / (mass_value[valid_radius] * radius[indices][valid_radius] ** 2)
-                        )
-                    internal = energy_value - kinetic - rotational
-                    tolerance = relative_tolerance * np.maximum.reduce(
-                        (
-                            np.abs(energy_value),
-                            kinetic,
-                            np.abs(energy_limit),
-                            np.full_like(energy_value, _FLOAT_TINY),
-                        ),
-                    )
-                    tolerance *= 1.0 - 1.0e-8
-                    result[positive] = (
-                        internal[positive] >= energy_limit[positive] - tolerance[positive]
-                    )
-                return result
-
-            def batch_adjacent_valid(face_values, factor_values):
-                """Check a disjoint face group without scalar callbacks."""
-                left = (face_values - 1) % count
-                right = face_values
-                increment = factor_values - factors[face_values]
-                left_mass = total_mass[left] - increment * delta_mass[face_values]
-                left_mom = total_mom[left] - increment * delta_mom[face_values]
-                left_energy = total_energy[left] - increment * delta_energy[face_values]
-                right_mass = total_mass[right] + increment * delta_mass[face_values]
-                right_mom = total_mom[right] + increment * delta_mom[face_values]
-                right_energy = total_energy[right] + increment * delta_energy[face_values]
-                left_angular = right_angular = None
-                if total_angular is not None:
-                    left_angular = total_angular[left] - increment * delta_angular[face_values]
-                    right_angular = total_angular[right] + increment * delta_angular[face_values]
-                return (
-                    ~physical[left]
-                    | batch_cell_valid(
-                        left_mass,
-                        left_mom,
-                        left_energy,
-                        left,
-                        left_angular,
-                    )
-                ) & (
-                    ~physical[right]
-                    | batch_cell_valid(
-                        right_mass,
-                        right_mom,
-                        right_energy,
-                        right,
-                        right_angular,
-                    )
-                )
-
-            def batch_analytical_factors(face_values):
-                """Solve the invariant-domain quadratics for a face group."""
-                current = factors[face_values].copy()
-                largest = np.ones_like(current) - current
-                possible = np.ones(len(face_values), dtype=bool)
-                for side, sign in ((face_values - 1, -1.0), (face_values, 1.0)):
-                    physical_side = physical[side]
-                    if not np.any(physical_side):
-                        continue
-                    mass0 = total_mass[side]
-                    mom0 = total_mom[side]
-                    energy0 = total_energy[side] - energy_floor[side]
-                    dm = sign * delta_mass[face_values]
-                    dp = sign * delta_mom[face_values]
-                    de = sign * delta_energy[face_values]
-                    finite = (
-                        np.isfinite(mass0)
-                        & np.isfinite(mom0)
-                        & np.isfinite(energy0)
-                        & (mass0 >= mass_floor[side])
-                    )
-                    possible &= ~physical_side | finite
-                    mass_bound = np.ones_like(largest)
-                    decreasing_mass = dm < 0.0
-                    mass_bound[decreasing_mass] = (
-                        mass0[decreasing_mass] - mass_floor[side][decreasing_mass]
-                    ) / -dm[decreasing_mass]
-                    largest = np.minimum(largest, mass_bound)
-                    angular0 = np.zeros_like(mass0)
-                    angular_delta = np.zeros_like(mass0)
-                    rotational_factor = np.zeros_like(mass0)
-                    if total_angular is not None:
-                        angular0 = total_angular[side]
-                        angular_delta = sign * delta_angular[face_values]
-                        radius_side = radius[side]
-                        valid_radius = np.isfinite(radius_side) & (radius_side > 0.0)
-                        possible &= ~physical_side | valid_radius
-                        rotational_factor[valid_radius] = 1.0 / radius_side[valid_radius] ** 2
-                    a = dm * de - 0.5 * dp**2 - (0.5 * rotational_factor * angular_delta**2)
-                    b = (
-                        mass0 * de
-                        + dm * energy0
-                        - mom0 * dp
-                        - rotational_factor * angular0 * angular_delta
-                    )
-                    c = mass0 * energy0 - 0.5 * mom0**2 - 0.5 * rotational_factor * angular0**2
-                    possible &= ~physical_side | (c >= 0.0)
-                    bounded = physical_side & (c >= 0.0)
-                    value_bound = (a * largest + b) * largest + c
-                    bounded_failure = bounded & (value_bound < 0.0)
-                    linear = bounded_failure & (np.abs(a) <= _FLOAT_TINY)
-                    linear_bad = linear & (b >= 0.0)
-                    possible &= ~linear_bad
-                    linear_root = np.divide(
-                        -c,
-                        b,
-                        out=np.zeros_like(c),
-                        where=linear & (b != 0.0),
-                    )
-                    quadratic = bounded_failure & ~linear
-                    discriminant = b**2 - 4.0 * a * c
-                    possible &= ~quadratic | (discriminant >= 0.0)
-                    sqrt_discriminant = np.sqrt(
-                        np.maximum(discriminant, 0.0),
-                    )
-                    root_a = np.divide(
-                        -b - sqrt_discriminant,
-                        2.0 * a,
-                        out=np.zeros_like(a),
-                        where=quadratic & (a != 0.0),
-                    )
-                    root_b = np.divide(
-                        -b + sqrt_discriminant,
-                        2.0 * a,
-                        out=np.zeros_like(a),
-                        where=quadratic & (a != 0.0),
-                    )
-                    root_a = np.where(root_a >= 0.0, root_a, np.inf)
-                    root_b = np.where(root_b >= 0.0, root_b, np.inf)
-                    root = np.where(linear, linear_root, np.minimum(root_a, root_b))
-                    possible &= ~bounded_failure | np.isfinite(root)
-                    largest = np.minimum(largest, np.where(bounded_failure, root, largest))
-                candidates = current + np.maximum(largest, 0.0)
-                possible &= batch_adjacent_valid(face_values, candidates)
-                return candidates, possible
-
-            def recover_analytical_group(face_values):
-                active = factors[face_values] < 1.0 - factor_tolerance
-                if not np.any(active):
-                    factors[face_values] = 1.0
-                    return 0.0
-                active_faces = face_values[active]
-                current = factors[active_faces].copy()
-                full = batch_adjacent_valid(
-                    active_faces,
-                    np.ones_like(current),
-                )
-                accepted = np.ones_like(current)
-                needs_fallback = ~full
-                if np.any(needs_fallback):
-                    candidates, possible = batch_analytical_factors(
-                        active_faces[needs_fallback],
-                    )
-                    candidate_positions = np.flatnonzero(needs_fallback)
-                    accepted[candidate_positions[possible]] = candidates[possible]
-                    fallback_faces = active_faces[candidate_positions[~possible]]
-                    for face in fallback_faces:
-                        current_face = factors[face]
-                        low, high = current_face, 1.0
-                        for _ in range(recovery_iterations):
-                            middle = 0.5 * (low + high)
-                            if adjacent_valid(face, middle):
-                                low = middle
-                            else:
-                                high = middle
-                            if high - low <= factor_tolerance:
-                                break
-                        accepted[np.where(active_faces == face)[0][0]] = low
-                increment = accepted - current
-                left = (active_faces - 1) % count
-                right = active_faces
-                total_mass[left] -= increment * delta_mass[active_faces]
-                total_mass[right] += increment * delta_mass[active_faces]
-                total_mom[left] -= increment * delta_mom[active_faces]
-                total_mom[right] += increment * delta_mom[active_faces]
-                total_energy[left] -= increment * delta_energy[active_faces]
-                total_energy[right] += increment * delta_energy[active_faces]
-                factors[active_faces] = accepted
-                return float(np.max(increment)) if increment.size else 0.0
-
-            # Alternate traversal direction to reduce ordering bias.  The
-            # first sweep already produces a globally admissible update;
-            # later sweeps only recover additional face flux monotonically.
-            # Keep the recovery policy independent of geometry and energy
-            # formulation; reducing it for cold spherical dual-energy runs
-            # would be a performance heuristic rather than a numerical
-            # criterion and could leave more ordering-dependent limiting.
-            max_recovery_sweeps = 8
-            recovery_iterations = 48
-            factor_tolerance = 1.0e-13
-            factor_method = str(
-                getattr(
-                    par,
-                    "positivity_factor_method",
-                    "invariant_domain",
-                ),
-            ).lower()
-
-            # Parity batching is intentionally disabled until its altered
-            # recovery ordering is proven equivalent for coupled interfaces.
-            if False:
-                for sweep in range(max_recovery_sweeps):
-                    largest_increase = 0.0
-                    parities = (0, 1) if sweep % 2 == 0 else (1, 0)
-                    for parity in parities:
-                        faces = np.arange(
-                            parity,
-                            len(mass_face),
-                            2,
-                            dtype=int,
-                        )
-                        largest_increase = max(
-                            largest_increase,
-                            recover_analytical_group(faces),
-                        )
-                    if np.all(factors >= 1.0 - factor_tolerance):
-                        factors[...] = 1.0
-                        break
-                    if largest_increase <= factor_tolerance:
-                        break
-            else:
-                for sweep in range(max_recovery_sweeps):
-                    largest_increase = 0.0
-                    faces = (
-                        range(len(mass_face))
-                        if sweep % 2 == 0
-                        else range(len(mass_face) - 1, -1, -1)
-                    )
-                    for face in faces:
-                        current = factors[face]
-                        if current >= 1.0 - factor_tolerance:
-                            factors[face] = 1.0
-                            continue
-                        if adjacent_valid(face, 1.0):
-                            accepted = 1.0
-                        else:
-                            accepted = (
-                                analytical_adjacent_factor(face, current)
-                                if factor_method == "analytical"
-                                else None
-                            )
-                            if accepted is None:
-                                # The current coefficient is known admissible.
-                                # Search only upward, never stepping outside the
-                                # invariant domain.
-                                low, high = current, 1.0
-                                for _ in range(recovery_iterations):
-                                    middle = 0.5 * (low + high)
-                                    if adjacent_valid(face, middle):
-                                        low = middle
-                                    else:
-                                        high = middle
-                                    if high - low <= factor_tolerance:
-                                        break
-                                accepted = low
-                        largest_increase = max(
-                            largest_increase,
-                            accepted - current,
-                        )
-                        increment = accepted - current
-                        left = (face - 1) % count
-                        right = face
-                        total_mass[left] -= increment * delta_mass[face]
-                        total_mom[left] -= increment * delta_mom[face]
-                        total_energy[left] -= increment * delta_energy[face]
-                        total_mass[right] += increment * delta_mass[face]
-                        total_mom[right] += increment * delta_mom[face]
-                        total_energy[right] += increment * delta_energy[face]
-                        if total_angular is not None:
-                            total_angular[left] -= increment * delta_angular[face]
-                            total_angular[right] += increment * delta_angular[face]
-                        factors[face] = accepted
-                    if np.all(factors >= 1.0 - factor_tolerance):
-                        factors[...] = 1.0
-                        break
-                    if largest_increase <= factor_tolerance:
-                        break
-                mass, momentum, energy = total_mass, total_mom, total_energy
-
-        # A WindSph density floor is a wind reservoir, not an independent
-        # thermal-energy repair.  If a limited update leaves a physical cell
-        # below the requested floor, replenish the missing mass with the
-        # same specific momentum and total energy as the imposed wind.
-        # Applying all three increments together preserves the meaning of the
-        # floor and keeps the conservative state check below authoritative.
-        boundary = getattr(par, "boundary", None)
-        if boundary is not None and getattr(boundary, "condition", None) == "WindSph":
-            wind_density = float(np.asarray(boundary.rho_outflow_proper))
-            wind_velocity = float(np.asarray(boundary.vel_outflow_proper))
-            wind_pressure = float(
-                np.asarray(
-                    fluid.eos.pressure(
-                        boundary.rho_outflow_proper,
-                        boundary.temperature_outflow_proper,
-                        boundary.outflow_mu,
-                    ),
-                ),
+            mass, momentum, energy, total_angular, factors = self._recover_analytical_faces(
+                context,
+                par,
+                mass_face,
+                delta_mass,
+                delta_mom,
+                delta_energy,
+                delta_angular,
+                geometry_increment,
+                geometry_fraction,
             )
-            wind_internal = (
-                wind_pressure / wind_density / (fluid.eos.gamma - 1.0)
-                if wind_density > 0.0 and not fluid.eos.is_isothermal
-                else 0.0
-            )
-            wind_specific_energy = 0.5 * wind_velocity**2 + wind_internal
 
-            missing_mass = np.maximum(mass_floor - mass, 0.0)
-            reservoir_cells = physical & (missing_mass > 0.0)
-            if np.any(reservoir_cells):
-                momentum[reservoir_cells] += missing_mass[reservoir_cells] * wind_velocity
-                energy[reservoir_cells] += missing_mass[reservoir_cells] * wind_specific_energy
-                mass[reservoir_cells] += missing_mass[reservoir_cells]
-                self._last_wind_reservoir_mass = float(
-                    np.sum(missing_mass[reservoir_cells]),
-                )
-            else:
-                self._last_wind_reservoir_mass = 0.0
-
-            # A spherical pressure update can leave a cell exactly on the
-            # density floor with a small kinetic-energy deficit.  In that
-            # case add the smallest further parcel of the same wind state
-            # that restores the conservative invariant.  This is still a
-            # coupled reservoir operation; it is not a thermal-energy patch.
-            kinetic = np.divide(
-                0.5 * momentum**2,
-                mass,
-                out=np.zeros_like(mass),
-                where=mass > 0.0,
-            )
-            floor_edge = physical & (mass <= mass_floor * (1.0 + 1.0e-12))
-            energy_deficit = floor_edge & (energy < kinetic + energy_floor)
-            for index in np.flatnonzero(energy_deficit):
-                base_mass = mass[index]
-                base_momentum = momentum[index]
-                base_energy = energy[index]
-                required_energy = energy_floor[index]
-
-                def reservoir_valid(delta_mass):
-                    trial_mass = base_mass + delta_mass
-                    trial_momentum = base_momentum + delta_mass * wind_velocity
-                    trial_energy = base_energy + delta_mass * wind_specific_energy
-                    return trial_energy - (0.5 * trial_momentum**2 / trial_mass) >= required_energy
-
-                low = 0.0
-                high = max(base_mass, mass_floor[index], 1.0) * 1.0e-12
-                for _ in range(96):
-                    if reservoir_valid(high):
-                        break
-                    high *= 2.0
-                if not reservoir_valid(high):
-                    raise ValueError(
-                        "wind reservoir could not restore conservative "
-                        "energy admissibility at cell %d" % index,
-                    )
-                for _ in range(64):
-                    middle = 0.5 * (low + high)
-                    if reservoir_valid(middle):
-                        high = middle
-                    else:
-                        low = middle
-                mass[index] += high
-                momentum[index] += high * wind_velocity
-                energy[index] += high * wind_specific_energy
-                self._last_wind_reservoir_mass += high
+        mass, momentum, energy = self._repair_wind_reservoir(
+            fluid,
+            par,
+            context,
+            mass,
+            momentum,
+            energy,
+        )
 
         if not np.all(valid(mass, momentum, energy, total_angular)):
             invalid = ~valid(mass, momentum, energy, total_angular)
@@ -2348,70 +2532,17 @@ class Solver:
 
     def SetInterFaceFlux(self, mesh, fluid, boundcond, method="Rusanov", verbose=None, order=0):  # noqa: N802
         """Set interface fluxes using GLF, Rusanov, or HLLC fluxes."""
-        if verbose is None:
-            verbose = 0
-        geometry = self._geometry_state(mesh, getattr(mesh, "par", getattr(mesh, "_par", None)))
-        if method in ("GLF", "Rusanov", "HLLC"):
-            if method == "GLF":
-                # Global Lax Friedrich scheme
-                # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)
-                # simple to implement but very diffusive
-                # calculate cmax
-                fluid.cmax = geometry.width_runtime_code / np.amin(self.dt)
-            elif method == "Rusanov":
-                # Local Lax Friedrich schem
-                # F_(l+1/2) = 0.5*(F_L+F_R)+0.5*cmax*(q_L-q_R)
-                # simple to implement but less diffusive
-                fluid.cmax = np.maximum(fluid.vsignal_code, ru.periodic_roll(fluid.vsignal_code, 1))
-            else:  # HLLC uses Rusanov speeds for CFL and vacuum fallback.
-                fluid.cmax = np.maximum(fluid.vsignal_code, ru.periodic_roll(fluid.vsignal_code, 1))
+        from .flux_pipeline import set_interface_flux  # noqa: PLC0415
 
-            self.SetFaceLR(mesh, fluid, boundcond, order=order)
-            self.SetFluxOnFace(
-                fluid,
-                boundcond,
-                order=order,
-                par=getattr(mesh, "par", getattr(mesh, "_par", None)),
-                method=method,
-            )
-            self._apply_low_density_flux_mask(
-                fluid,
-                getattr(mesh, "par", getattr(mesh, "_par", None)),
-            )
-            self._apply_hydrostatic_core_flux(
-                fluid,
-                getattr(mesh, "par", getattr(mesh, "_par", None)),
-            )
-            self._zero_spherical_origin_flux(mesh, fluid)
-            self._apply_local_angular_energy_fallback(
-                mesh,
-                fluid,
-                getattr(mesh, "par", getattr(mesh, "_par", None)),
-            )
-            angular_momentum_face = self._set_angular_momentum_flux(
-                fluid,
-                order=order,
-            )
-            self._set_rotational_energy_flux(
-                mesh,
-                fluid,
-                getattr(mesh, "par", getattr(mesh, "_par", None)),
-                j_face=angular_momentum_face,
-            )
-            # Optional fluxes are constructed after the primary hydro fluxes;
-            # enforce the exact-origin condition once more at the end so a
-            # later reconstruction cannot repopulate that face.
-            self._zero_spherical_origin_flux(mesh, fluid)
-        else:
-            raise ValueError(f"Interface flux method unknown: {method}")
-        if verbose >= 2:  # noqa: PLR2004
-            log_diagnostic(
-                logging.DEBUG,
-                "interface_fluxes_constructed",
-                mass_flux=fluid.Mass_code.flux,
-                momentum_flux=fluid.Mom_code.flux,
-                energy_flux=fluid.Energy_code.flux,
-            )
+        return set_interface_flux(
+            self,
+            mesh,
+            fluid,
+            boundcond,
+            method=method,
+            verbose=verbose,
+            order=order,
+        )
 
     def AddFluxes(self, dt: float, mesh, fluid, boundcond):  # noqa: N802
         """Apply interface fluxes to conserved quantities and advance time."""

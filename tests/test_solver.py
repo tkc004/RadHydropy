@@ -236,6 +236,35 @@ class Mesh:
 
 
 class Testing(unittest.TestCase):
+    def test_interface_flux_facade_delegates_to_pipeline(self):
+        """The public solver method preserves the extracted pipeline contract."""
+        solver = Solver()
+        mesh = object()
+        fluid = object()
+        with patch(
+            "radhydropy.solver.flux_pipeline.set_interface_flux",
+            return_value="constructed",
+        ) as pipeline:
+            result = solver.SetInterFaceFlux(
+                mesh,
+                fluid,
+                "Periodic",
+                method="HLLC",
+                verbose=2,
+                order=1,
+            )
+
+        self.assertEqual(result, "constructed")
+        pipeline.assert_called_once_with(
+            solver,
+            mesh,
+            fluid,
+            "Periodic",
+            method="HLLC",
+            verbose=2,
+            order=1,
+        )
+
     def test_gravity_roundoff_energy_synchronization_repairs_only_tiny_deficit(self):
         geometry = SimpleNamespace(
             volume_runtime_code=np.array([1.0]),
@@ -1219,6 +1248,167 @@ class Testing(unittest.TestCase):
         self.assertTrue(np.all(fluid.Energy_code >= 0.0))
         self.assertAlmostEqual(float(np.sum(fluid.Mass_code)), 4.0)
         self.assertAlmostEqual(float(np.sum(fluid.Energy_code)), 4.0)
+
+    def test_invariant_domain_recovery_returns_local_admissible_factors(self):
+        """The invariant-domain helper limits only the restrictive faces."""
+        solver = Solver()
+        cell_count = 3
+        mass = np.ones(cell_count)
+        momentum = np.zeros(cell_count)
+        energy = np.ones(cell_count)
+        mass_floor = np.zeros(cell_count)
+        energy_floor = np.zeros(cell_count)
+
+        def valid(mass_value, momentum_value, energy_value, angular_value=None):
+            del angular_value
+            internal = energy_value - 0.5 * momentum_value**2 / mass_value
+            return (mass_value >= mass_floor) & (internal >= energy_floor)
+
+        def cell_valid(index, mass_value, momentum_value, energy_value, angular_value=None):
+            del angular_value
+            return (
+                bool(
+                    valid(
+                        np.array([mass_value]),
+                        np.array([momentum_value]),
+                        np.array([energy_value]),
+                    )[0],
+                )
+                and index >= 0
+            )
+
+        context = {
+            "mass": mass,
+            "momentum": momentum,
+            "energy": energy,
+            "angular": None,
+            "valid": valid,
+            "cell_valid": cell_valid,
+        }
+        delta_mass = np.zeros(cell_count)
+        delta_mom = np.array([0.0, 10.0, 0.0])
+        delta_energy = np.zeros(cell_count)
+
+        _, recovered_momentum, _, _, factors = solver._recover_invariant_domain_faces(
+            context,
+            np.zeros(cell_count),
+            delta_mass,
+            delta_mom,
+            delta_energy,
+            None,
+            np.zeros(cell_count),
+            np.ones(cell_count),
+        )
+
+        self.assertTrue(np.all(factors >= 0.0))
+        self.assertTrue(np.all(factors <= 1.0))
+        self.assertTrue(np.any(factors < 1.0))
+        self.assertTrue(np.all(valid(mass, recovered_momentum, energy)))
+
+    def test_analytical_recovery_preserves_conservative_admissibility(self):
+        """The analytical helper recovers paired faces conservatively."""
+        solver = Solver()
+        cell_count = 3
+        mass = np.ones(cell_count)
+        momentum = np.zeros(cell_count)
+        energy = np.ones(cell_count)
+        mass_floor = np.zeros(cell_count)
+        energy_floor = np.zeros(cell_count)
+
+        def valid(mass_value, momentum_value, energy_value, angular_value=None):
+            del angular_value
+            internal = energy_value - 0.5 * momentum_value**2 / mass_value
+            return (mass_value >= mass_floor) & (internal >= energy_floor)
+
+        def cell_valid(index, mass_value, momentum_value, energy_value, angular_value=None):
+            del angular_value
+            return (
+                bool(
+                    valid(
+                        np.array([mass_value]),
+                        np.array([momentum_value]),
+                        np.array([energy_value]),
+                    )[0],
+                )
+                and index >= 0
+            )
+
+        context = {
+            "mass": mass,
+            "momentum": momentum,
+            "energy": energy,
+            "angular": None,
+            "radius": None,
+            "physical": np.ones(cell_count, dtype=bool),
+            "mass_floor": mass_floor,
+            "energy_floor": energy_floor,
+            "relative_tolerance": 1.0e-12,
+            "valid": valid,
+            "cell_valid": cell_valid,
+        }
+        delta_mass = np.zeros(cell_count)
+        delta_mom = np.array([0.0, 10.0, 0.0])
+        delta_energy = np.zeros(cell_count)
+        par = SimpleNamespace(positivity_factor_method="analytical")
+
+        recovered_mass, recovered_momentum, recovered_energy, _, factors = (
+            solver._recover_analytical_faces(
+                context,
+                par,
+                np.zeros(cell_count),
+                delta_mass,
+                delta_mom,
+                delta_energy,
+                None,
+                np.zeros(cell_count),
+                np.ones(cell_count),
+            )
+        )
+
+        self.assertTrue(np.all(valid(recovered_mass, recovered_momentum, recovered_energy)))
+        self.assertAlmostEqual(float(np.sum(recovered_mass)), float(np.sum(mass)))
+        self.assertAlmostEqual(float(np.sum(recovered_momentum)), float(np.sum(momentum)))
+        self.assertAlmostEqual(float(np.sum(recovered_energy)), float(np.sum(energy)))
+        self.assertTrue(np.any(factors < 1.0))
+
+    def test_wind_reservoir_repair_replenishes_floor_with_wind_state(self):
+        """WindSph repair adds coupled mass, momentum, and energy parcels."""
+        wind_eos = SimpleNamespace(
+            gamma=5.0 / 3.0,
+            is_isothermal=False,
+            pressure=lambda rho, temperature, mu: np.asarray(rho) * 0.0 + 1.0,
+        )
+        fluid = SimpleNamespace(eos=wind_eos)
+        par = SimpleNamespace(
+            boundary=SimpleNamespace(
+                condition="WindSph",
+                rho_outflow_proper=1.0,
+                vel_outflow_proper=2.0,
+                temperature_outflow_proper=1.0,
+                outflow_mu=1.0,
+            ),
+        )
+        context = {
+            "mass_floor": np.array([1.0, 1.0]),
+            "energy_floor": np.zeros(2),
+            "physical": np.ones(2, dtype=bool),
+        }
+        mass = np.array([0.5, 2.0])
+        momentum = np.zeros(2)
+        energy = np.array([0.5, 2.0])
+
+        repaired_mass, repaired_momentum, repaired_energy = Solver()._repair_wind_reservoir(
+            fluid,
+            par,
+            context,
+            mass,
+            momentum,
+            energy,
+        )
+
+        np.testing.assert_allclose(repaired_mass, [1.0, 2.0])
+        np.testing.assert_allclose(repaired_momentum, [1.0, 0.0])
+        np.testing.assert_allclose(repaired_energy, [2.25, 2.0])
 
     def test_paired_face_limiter_reaches_global_admissibility_for_coupled_faces(self):
         """Neighboring restrictions must not survive a fixed repair count."""

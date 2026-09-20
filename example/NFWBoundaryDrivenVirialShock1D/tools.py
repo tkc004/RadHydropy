@@ -440,10 +440,11 @@ def pie_stability_diagnostics(
         profile = profiles[i]
         index = indices[i]
         upstream = slice(index + 2, index + 5)
-        float(np.median(profile["rho_proper_cgs_g_cm3"][upstream]))
+        rho0 = float(np.median(profile["rho_proper_cgs_g_cm3"][upstream]))
         temperature_upstream_proper_cgs_K = float(
             np.median(profile["temperature_proper_cgs_K"][upstream]),
         )
+        temp0 = temperature_upstream_proper_cgs_K
         velocity_upstream_proper_km_s = float(
             np.median(profile["vel_peculiar_proper_km_s"][upstream]),
         )

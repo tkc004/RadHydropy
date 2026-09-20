@@ -77,6 +77,7 @@ def write_initial_condition(config):
 
 
 def load_output_state(outputfilename, config):
+    code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     snapshot = Rsim(config["par"])
     rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, outputfilename)
     par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
