@@ -45,7 +45,7 @@ def test_explicit_hydrogen_source_rejects_invalid_timestep(
     )
 
     with pytest.raises(RuntimeError, match="hydrogen explicit source timestep") as exc:
-        hydrogen_network._explicit_source_state_update(
+        hydrogen_network.explicit_source_state_update(
             state,
             remaining_s=10.0,
             par=SimpleNamespace(verbose=0),

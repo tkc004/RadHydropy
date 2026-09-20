@@ -212,7 +212,7 @@ def _front_radius_kpc(state, neutral_fraction=0.5):
 def _recombination_rate(state, par):
     alpha = state.get("alpha_B_cgs_cm3_s", getattr(par, "hydrogen_alpha_B", None))
     if alpha is None:
-        alpha = hydrogen._cgs_alpha_B(state["temperature_cgs_K"])
+        alpha = hydrogen.cgs_alpha_B(state["temperature_cgs_K"])
     elif hasattr(alpha, "to_value"):
         alpha = alpha.to_value(unyt.cm**3 / unyt.s)
     ionized = 1.0 - state["xHI"]
@@ -354,12 +354,12 @@ def _advance(state, par, dt_s, update_chemistry):
     alpha_parameter = state.get("alpha_B_cgs_cm3_s")
     beta_parameter = state.get("beta_cgs_cm3_s")
     alpha_values = (
-        hydrogen._cgs_alpha_B(temperature)
+        hydrogen.cgs_alpha_B(temperature)
         if alpha_parameter is None
         else _cell_values(alpha_parameter, ncell)
     )
     beta_values = (
-        hydrogen._cgs_beta(temperature)
+        hydrogen.cgs_beta(temperature)
         if beta_parameter is None
         else _cell_values(beta_parameter, ncell)
     )
@@ -439,7 +439,7 @@ def _advance(state, par, dt_s, update_chemistry):
         state["xHI"] = final_fraction
     state["ngamma_cgs_cm3"] = photon_density[0] if ngroup == 1 else photon_density
     if update_chemistry and dt_s > 0.0:
-        thermal_rate = hydrogen._cgs_source_thermal_rate(
+        thermal_rate = hydrogen.cgs_source_thermal_rate(
             state["rho_cgs_g_cm3"],
             temperature,
             mean_fraction,
@@ -467,7 +467,7 @@ def _advance(state, par, dt_s, update_chemistry):
                     state["specific_total_energy_cgs_erg_g"] + energy_update,
                     state.get("specific_kinetic_energy_cgs_erg_g", 0.0),
                 )
-                hydrogen._fast_update_temperature_from_energy(state)
+                hydrogen.fast_update_temperature_from_energy(state)
             else:
                 state["specific_energy_cgs_erg_g"] = np.maximum(
                     state["specific_energy_cgs_erg_g"] + energy_update,
@@ -527,7 +527,7 @@ def _hhe_set_trial(local, values):
 def _hhe_derivative(local, photon_density):
     """Return d(xHI,xHeI,xHeIII,u)/dt for one H/He cell.
 
-    ``hydrogen_helium._rates`` includes the optional metal PIE closure in the
+    ``hydrogen_helium.rates`` includes the optional metal PIE closure in the
     thermal component.  Because this derivative is evaluated for every
     Newton trial, the PIE table is implicitly coupled to the trial
     temperature and local ``U`` rather than applied as an explicit correction.
@@ -539,7 +539,7 @@ def _hhe_derivative(local, photon_density):
     # reaches the local ODE, suppressing the high-energy He II channel.
     if photon_density.ndim == 1:
         photon_density = photon_density[:, None]
-    d_hi, d_hei, d_heiii, thermal = hydrogen_helium._rates(
+    d_hi, d_hei, d_heiii, thermal = hydrogen_helium.rates(
         local,
         photon_density,
     )
@@ -831,7 +831,7 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
         photon_density[:, cell] = cell_transport.photon_density
         incoming = cell_transport.outgoing_rate
 
-    hydrogen_helium._closure(state)
+    hydrogen_helium.closure(state)
     state["ngamma_cgs_cm3"] = photon_density[0] if ngroup == 1 else photon_density
     return C2RayResult(
         photon_density=photon_density,
@@ -913,3 +913,7 @@ def sync_fluid_photon_density(fluid, photon_density, par, interior):
             destination[...] = photon_density_code
         else:
             destination[interior] = photon_density_code
+
+
+hhe_cell_state = _hhe_cell_state
+hhe_derivative = _hhe_derivative

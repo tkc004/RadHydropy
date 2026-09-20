@@ -900,7 +900,7 @@ class InitialConditionWriter:
             original_ghost_cells = int(par.mesh.ghost_cells)
             par.mesh.grid_cells = active_count
             par.mesh.ghost_cells = max(1, original_ghost_cells)
-            mesh._par = par
+            mesh.par = par
             simulation.SetMesh()
             fluid.SetUpFluid(par, mesh=mesh)
             if source_ngamma_values is not None:

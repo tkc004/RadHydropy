@@ -3,7 +3,6 @@
 """Utilities for the early isothermal H II region expansion example."""
 
 import glob
-import os
 from pathlib import Path
 
 import matplotlib as mpl
@@ -151,7 +150,7 @@ def load_labeled_density_snapshots(outputfilenames, config, output_specs):
 
 
 def output_files(output_directory, output_filename_prefix):
-    pattern = os.path.join(output_directory, f"{output_filename_prefix}_*.hdf5")
+    pattern = Path(output_directory) / f"{output_filename_prefix}_*.hdf5"
     return sorted(glob.glob(pattern))
 
 

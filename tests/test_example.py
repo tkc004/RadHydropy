@@ -755,7 +755,7 @@ class Testing(unittest.TestCase):
             "xHI": np.array([0.5]),
             "temperature_cgs_K": np.array([1.0e4]),
         }
-        snapshot = sim._snapshot_static_state(
+        snapshot = sim.snapshot_static_state(
             state,
             2.0 * (1.0 * unyt.Myr).to_value(unyt.s),
         )

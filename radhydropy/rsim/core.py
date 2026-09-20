@@ -25,6 +25,10 @@ class Rsim:
 
         return _initialize_runtime_state(self, *args, **kwargs)
 
+    def initialize_runtime_state(self, *args, **kwargs):
+        """Initialize runtime state through the public simulation API."""
+        return self._initialize_runtime_state(*args, **kwargs)
+
     def __init__(self, params) -> None:
         """Create a simulation from a run-parameter dictionary."""
         self._start_time = time.time()
@@ -32,7 +36,7 @@ class Rsim:
         self.mesh = Mesh()
         self.par = Par(params)
         self.solver = Solver()
-        self._initialize_runtime_state()
+        self.initialize_runtime_state()
         self.fluid.eos = EOS(
             self.par.hydrodynamics.eos_type,
             self.par.hydrodynamics.gamma,
@@ -47,8 +51,8 @@ class Rsim:
         sim.mesh = mesh
         sim.fluid = fluid
         sim.solver = solver if solver is not None else Solver()
-        sim._start_time = time.time()
-        sim._initialize_runtime_state()
+        sim.start_time = time.time()
+        sim.initialize_runtime_state()
         return sim
 
     def Callreadhdf5(self):  # noqa: N802
@@ -80,6 +84,10 @@ class Rsim:
         from .initialization import _require_code_units  # noqa: PLC0415
 
         return _require_code_units(self)
+
+    def require_code_units(self):
+        """Return the configured code-unit system."""
+        return self._require_code_units()
 
     def WriteUsedParameters(self, filename="used_parameters.yaml"):  # noqa: N802
         """Write the active runtime parameters to a text file in the CWD."""
@@ -162,6 +170,10 @@ class Rsim:
         """Synchronize thermochemistry internal energy through the public API."""
         return self._synchronize_thermochemistry_internal_energy()
 
+    def clone_fluid(self, fluid=None):
+        """Return a deep copy of a fluid state."""
+        return self._clone_fluid(fluid)
+
     def _clone_fluid(self, fluid=None):
         """Return a deep copy of the supplied fluid state."""
         if fluid is None:
@@ -179,6 +191,10 @@ class Rsim:
             apply_gravity=apply_gravity,
         )
 
+    def hydro_step_once(self, dt, fluid=None, advect_chemistry=True, apply_gravity=True):
+        """Advance one hydro step through the public simulation API."""
+        return self._hydro_step_once(dt, fluid, advect_chemistry, apply_gravity)
+
     def _hydro_step_ssprk2(self, dt, advect_chemistry=True, apply_gravity=True):
         from .stepping import _hydro_step_ssprk2  # noqa: PLC0415
 
@@ -189,10 +205,18 @@ class Rsim:
             apply_gravity=apply_gravity,
         )
 
+    def hydro_step_ssprk2(self, dt, advect_chemistry=True, apply_gravity=True):
+        """Advance one SSPRK2 hydro step through the public simulation API."""
+        return self._hydro_step_ssprk2(dt, advect_chemistry, apply_gravity)
+
     def _accumulate_gravity_work(self):
         from .sources import _accumulate_gravity_work  # noqa: PLC0415
 
         return _accumulate_gravity_work(self)
+
+    def accumulate_gravity_work(self):
+        """Accumulate diagnostics from the most recent gravity update."""
+        return self._accumulate_gravity_work()
 
     def Step(  # noqa: N802
         self,
@@ -243,60 +267,96 @@ class Rsim:
 
         return _static_front_radius_from_state(self, *args, **kwargs)
 
+    def static_front_radius_from_state(self, *args, **kwargs):
+        return self._static_front_radius_from_state(*args, **kwargs)
+
     def _append_static_history(self, *args, **kwargs):
         from .static_thermochemistry import _append_static_history  # noqa: PLC0415
 
         return _append_static_history(self, *args, **kwargs)
+
+    def append_static_history(self, *args, **kwargs):
+        return self._append_static_history(*args, **kwargs)
 
     def _snapshot_static_state(self, *args, **kwargs):
         from .static_thermochemistry import _snapshot_static_state  # noqa: PLC0415
 
         return _snapshot_static_state(self, *args, **kwargs)
 
+    def snapshot_static_state(self, *args, **kwargs):
+        return self._snapshot_static_state(*args, **kwargs)
+
     def _initial_static_history(self, *args, **kwargs):
         from .static_thermochemistry import _initial_static_history  # noqa: PLC0415
 
         return _initial_static_history(self, *args, **kwargs)
+
+    def initial_static_history(self, *args, **kwargs):
+        return self._initial_static_history(*args, **kwargs)
 
     def _static_reference_time_seconds(self, *args, **kwargs):
         from .static_thermochemistry import _static_reference_time_seconds  # noqa: PLC0415
 
         return _static_reference_time_seconds(self, *args, **kwargs)
 
+    def static_reference_time_seconds(self, *args, **kwargs):
+        return self._static_reference_time_seconds(*args, **kwargs)
+
     def _static_step_limit_seconds(self, *args, **kwargs):
         from .static_thermochemistry import _static_step_limit_seconds  # noqa: PLC0415
 
         return _static_step_limit_seconds(self, *args, **kwargs)
+
+    def static_step_limit_seconds(self, *args, **kwargs):
+        return self._static_step_limit_seconds(*args, **kwargs)
 
     def _static_recombination_rate(self, *args, **kwargs):
         from .static_thermochemistry import _static_recombination_rate  # noqa: PLC0415
 
         return _static_recombination_rate(self, *args, **kwargs)
 
+    def static_recombination_rate(self, *args, **kwargs):
+        return self._static_recombination_rate(*args, **kwargs)
+
     def _apply_static_thermal_update(self, *args, **kwargs):
         from .static_thermochemistry import _apply_static_thermal_update  # noqa: PLC0415
 
         return _apply_static_thermal_update(self, *args, **kwargs)
+
+    def apply_static_thermal_update(self, *args, **kwargs):
+        return self._apply_static_thermal_update(*args, **kwargs)
 
     def _advance_source_thermochemistry_state(self, *args, **kwargs):
         from .static_thermochemistry import _advance_source_thermochemistry_state  # noqa: PLC0415
 
         return _advance_source_thermochemistry_state(self, *args, **kwargs)
 
+    def advance_source_thermochemistry_state(self, *args, **kwargs):
+        return self._advance_source_thermochemistry_state(*args, **kwargs)
+
     def _refresh_static_photon_density(self, *args, **kwargs):
         from .static_thermochemistry import _refresh_static_photon_density  # noqa: PLC0415
 
         return _refresh_static_photon_density(self, *args, **kwargs)
+
+    def refresh_static_photon_density(self, *args, **kwargs):
+        return self._refresh_static_photon_density(*args, **kwargs)
 
     def _store_static_reference_snapshot(self, *args, **kwargs):
         from .static_thermochemistry import _store_static_reference_snapshot  # noqa: PLC0415
 
         return _store_static_reference_snapshot(self, *args, **kwargs)
 
+    def store_static_reference_snapshot(self, *args, **kwargs):
+        return self._store_static_reference_snapshot(*args, **kwargs)
+
     def _finish_static_thermochemistry(self, *args, **kwargs):
         from .static_thermochemistry import _finish_static_thermochemistry  # noqa: PLC0415
 
         return _finish_static_thermochemistry(self, *args, **kwargs)
+
+    def finish_static_thermochemistry(self, *args, **kwargs):
+        return self._finish_static_thermochemistry(*args, **kwargs)
 
     def EvolveStaticThermochemistry(  # noqa: N802
         self,

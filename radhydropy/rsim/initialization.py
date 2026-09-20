@@ -21,7 +21,7 @@ from radhydropy.units import (
 
 def Callreadhdf5(sim):  # noqa: N802
     """Read the configured initial-condition HDF5 file."""
-    sim._require_code_units()
+    sim.require_code_units()
     rio.readhdf5(
         sim.par,
         sim.mesh,
@@ -113,7 +113,7 @@ def SetInitFluid(sim):  # noqa: N802
                 "cosmological startup time mismatch after fluid synchronization: "
                 f"initial_tau={initial_tau}, fluid_tau={fluid_tau}",
             )
-    sim.mesh._par = sim.par
+    sim.mesh.par = sim.par
     sim.solver.InitializeHydrostaticCore(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, "verbose", 0))
@@ -123,8 +123,8 @@ def SetInitFluid(sim):  # noqa: N802
 
 def ConvertParametersToCodeUnits(sim):  # noqa: N802
     """Convert only the runtime parameters into the internal unit system."""
-    code = sim._require_code_units()
-    if getattr(sim, "_runtime_parameters_converted_to_code_units", False):
+    code = sim.require_code_units()
+    if getattr(sim, "runtime_parameters_converted_to_code_units", False):
         return
 
     units = code_units_from_system(code)
@@ -233,23 +233,23 @@ def ConvertParametersToCodeUnits(sim):  # noqa: N802
     _require_unitless_runtime_parameters(sim)
     source_rate = getattr(sim.par, "source_photon_rate", None)
     if source_rate is None and hasattr(sim.par, "_parameter"):
-        source_rate = sim.par._parameter(
+        source_rate = sim.par.parameter(
             "source_photon_rate",
             0.0 / unyt.s,
         )
     if source_rate is None:
         source_rate = 0.0 / unyt.s
     if hasattr(source_rate, "to_value"):
-        sim.par._static_source_rate_s = float(source_rate.to_value(1.0 / unyt.s))
+        sim.par.static_source_rate_s = float(source_rate.to_value(1.0 / unyt.s))
     else:
-        sim.par._static_source_rate_s = float(
+        sim.par.static_source_rate_s = float(
             code_quantity_to_cgs(
                 source_rate,
                 code,
                 "photon_rate_per_s",
             ),
         )
-    sim._runtime_parameters_converted_to_code_units = True
+    sim.runtime_parameters_converted_to_code_units = True
 
 
 def _require_unitless_runtime_parameters(sim):

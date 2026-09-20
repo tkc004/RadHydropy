@@ -61,6 +61,14 @@ class MetalPIETable:
         self._log_heating = np.log10(np.maximum(self._heating, 1.0e-99))
         self._log_cooling = np.log10(np.maximum(self._cooling, 1.0e-99))
 
+    @property
+    def heating(self):
+        return self._heating
+
+    @property
+    def cooling(self):
+        return self._cooling
+
     @staticmethod
     def _bracket(grid, value):
         value = np.clip(np.asarray(value, dtype=float), grid[0], grid[-1])

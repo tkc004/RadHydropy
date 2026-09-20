@@ -17,12 +17,12 @@ if str(EXAMPLE_ROOT) not in sys.path:
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
-mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
+cache_dir = Path(tempfile.gettempdir()) / "radhydropy-cache"
+mplconfig_dir = Path(tempfile.gettempdir()) / "radhydropy-matplotlib"
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
-os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
+os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
 import example_utils as eu
 
@@ -71,23 +71,17 @@ def main(config_filename=DEFAULT_CONFIG):
     sim.Run(mode="hydro")
 
     output_files = [
-        os.path.join(par["output"]["directory"], name)
+        Path(par["output"]["directory"]) / name
         for name in sorted(os.listdir(par["output"]["directory"]))
         if name.startswith(par["output"]["filename_prefix"] + "_") and name.endswith(".hdf5")
     ]
-    figure_filename = os.path.join(
-        par["output"]["directory"],
-        "NFWVirialShock1D.jpg",
-    )
+    figure_filename = Path(par["output"]["directory"]) / "NFWVirialShock1D.jpg"
     et.plot_snapshots(output_files, config, figure_filename)
     rh_rows = et.rankine_hugoniot_diagnostics(
         output_files,
         config,
     )
-    rh_filename = os.path.join(
-        par["output"]["directory"],
-        "NFWVirialShock1D_RankineHugoniot.txt",
-    )
+    rh_filename = Path(par["output"]["directory"]) / "NFWVirialShock1D_RankineHugoniot.txt"
     et.write_rankine_hugoniot_report(rh_rows, rh_filename)
     for _row in rh_rows:
         pass

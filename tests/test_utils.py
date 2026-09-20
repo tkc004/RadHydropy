@@ -95,13 +95,13 @@ class Testing(unittest.TestCase):
         )
 
         alpha_b = rth.cgs_alpha_B(temp.to_value(unyt.K)) * (unyt.cm**3 / unyt.s)
-        beta = rth._cgs_beta(temp.to_value(unyt.K)) * (unyt.cm**3 / unyt.s)
-        gamma_ion = rth._cgs_gamma_ion_eHI(temp.to_value(unyt.K)) * (unyt.erg * unyt.cm**3 / unyt.s)
-        gamma_line = rth._cgs_gamma_line_eHI(temp.to_value(unyt.K)) * (
+        beta = rth.cgs_beta(temp.to_value(unyt.K)) * (unyt.cm**3 / unyt.s)
+        gamma_ion = rth.cgs_gamma_ion_eHI(temp.to_value(unyt.K)) * (unyt.erg * unyt.cm**3 / unyt.s)
+        gamma_line = rth.cgs_gamma_line_eHI(temp.to_value(unyt.K)) * (
             unyt.erg * unyt.cm**3 / unyt.s
         )
-        gamma_b = rth._cgs_gamma_B_eHII(temp.to_value(unyt.K)) * (unyt.erg * unyt.cm**3 / unyt.s)
-        gamma_ff = rth._cgs_gamma_ff_eHII(temp.to_value(unyt.K)) * (unyt.erg * unyt.cm**3 / unyt.s)
+        gamma_b = rth.cgs_gamma_B_eHII(temp.to_value(unyt.K)) * (unyt.erg * unyt.cm**3 / unyt.s)
+        gamma_ff = rth.cgs_gamma_ff_eHII(temp.to_value(unyt.K)) * (unyt.erg * unyt.cm**3 / unyt.s)
 
         self.assertEqual(alpha_b.units, unyt.cm**3 / unyt.s)
         self.assertEqual(beta.units, unyt.cm**3 / unyt.s)

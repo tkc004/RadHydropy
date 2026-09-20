@@ -238,6 +238,11 @@ class DarkMatterShells:
             self._mass_prefix_cache = np.concatenate(([0.0], np.cumsum(self.mass)))
         return self._mass_prefix_cache
 
+    @property
+    def mass_prefix_cache(self):
+        """Return the cached cumulative shell-mass array, if available."""
+        return self._mass_prefix_cache
+
     def enclosed_mass(self, radius=None):
         """Return enclosed shell mass using half the mass at a shell radius."""
         if radius is None:

@@ -15,12 +15,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
-mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
+cache_dir = Path(tempfile.gettempdir()) / "radhydropy-cache"
+mplconfig_dir = Path(tempfile.gettempdir()) / "radhydropy-matplotlib"
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
-os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
+os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]

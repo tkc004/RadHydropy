@@ -76,7 +76,7 @@ def FinalizeHydroStep(  # noqa: N802
         )
     if advect_chemistry:
         sim.AdvectChemistryScalars(dt, old_mass, mass_flux, fluid=fluid)
-    sim._sync_hydro_state(fluid=fluid)
+    sim.sync_hydro_state(fluid=fluid)
     sim.solver.ApplyHydrostaticCore(sim.mesh, fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, fluid, verbose=getattr(sim.par, "verbose", 0))
     diagnostics.check_conserved_energy_admissibility(
@@ -117,7 +117,7 @@ def _synchronize_thermochemistry_internal_energy(sim):
     cooling/heating change when primitive variables are reconstructed.
     """
     if not (
-        sim.solver._dual_energy_enabled(sim.par)
+        sim.solver.dual_energy_enabled(sim.par)
         and hasattr(sim.fluid, "InternalEnergy_code")
         and rtc.thermochemistry_enabled(sim.fluid, sim.par)
     ):
@@ -137,7 +137,7 @@ def _synchronize_thermochemistry_internal_energy(sim):
     )
     thermal = total_energy - kinetic
     if getattr(sim.par, "gas_rotational_energy", False):
-        rotational = sim.solver._rotational_energy_from_conserved(
+        rotational = sim.solver.rotational_energy_from_conserved(
             sim.mesh,
             sim.fluid,
             sim.par,

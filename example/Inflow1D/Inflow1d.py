@@ -19,7 +19,7 @@ from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 import matplotlib as mpl
 
@@ -68,7 +68,7 @@ def main(config_filename=DEFAULT_CONFIG):
             markevery=1,
             color=next(color_cycle)["color"],
         )
-    figure_filename = os.path.join(output["directory"], config["example"]["plot_filename"])
+    figure_filename = Path(output["directory"]) / config["example"]["plot_filename"]
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()

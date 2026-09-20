@@ -19,7 +19,7 @@ from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 import matplotlib as mpl
 
@@ -48,9 +48,8 @@ def main(config_filename=DEFAULT_CONFIG):
     plt.gca()
     color_cycle = iter(mpl.rcParams["axes.prop_cycle"])
     for outindex in exampleparams["output_indices"]:
-        outfilename = os.path.join(
-            config["par"]["output"]["directory"],
-            config["par"]["output"]["filename_prefix"] + "_%03d" % outindex + ".hdf5",
+        outfilename = Path(config["par"]["output"]["directory"]) / (
+            config["par"]["output"]["filename_prefix"] + "_%03d" % outindex + ".hdf5"
         )
         et.plot_snapshot(
             outfilename,
@@ -61,10 +60,7 @@ def main(config_filename=DEFAULT_CONFIG):
             markevery=10,
             color=next(color_cycle)["color"],
         )
-    figure_filename = os.path.join(
-        config["par"]["output"]["directory"],
-        exampleparams["plot"]["filename"],
-    )
+    figure_filename = Path(config["par"]["output"]["directory"]) / exampleparams["plot"]["filename"]
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()

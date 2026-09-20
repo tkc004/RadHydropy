@@ -189,11 +189,11 @@ def test_c2ray_hydrogen_helium_pie_enters_implicit_thermal_rate():
         },
     )
     photon_density = np.array([[1.0e-4], [2.0e-4]])
-    with_pie = c2ray._hhe_cell_state(state, 0)
-    without_pie = c2ray._hhe_cell_state(state, 0)
+    with_pie = c2ray.hhe_cell_state(state, 0)
+    without_pie = c2ray.hhe_cell_state(state, 0)
     without_pie["metal_pie_table"] = None
-    pie_derivative = c2ray._hhe_derivative(with_pie, photon_density)
-    hhe_derivative = c2ray._hhe_derivative(without_pie, photon_density)
+    pie_derivative = c2ray.hhe_derivative(with_pie, photon_density)
+    hhe_derivative = c2ray.hhe_derivative(without_pie, photon_density)
 
     # The ionization derivatives are unchanged by the metal-only table, while
     # the implicit thermal derivative contains its net heating/cooling rate.

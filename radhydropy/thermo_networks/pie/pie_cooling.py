@@ -233,6 +233,10 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         )
         return half_energy, converged
 
+    def implicit_converged_step(self, state, old_energy, dt_s, floor_cgs_K):  # noqa: N803
+        """Perform one converged implicit thermal update."""
+        return self._implicit_converged_step(state, old_energy, dt_s, floor_cgs_K)
+
     def _explicit_fallback_step(self, state, old_energy, remaining_s, floor_cgs_K):  # noqa: N803
         """Advance one chunk with the existing cooling-time subcycling."""
         state["specific_energy_cgs_erg_g"] = old_energy.copy()

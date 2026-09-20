@@ -17,12 +17,12 @@ if str(EXAMPLE_ROOT) not in sys.path:
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
-mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
+cache_dir = Path(tempfile.gettempdir()) / "radhydropy-cache"
+mplconfig_dir = Path(tempfile.gettempdir()) / "radhydropy-matplotlib"
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
-os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
+os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
 import example_utils as eu
 
@@ -76,16 +76,12 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     sim.Run(mode="hydro")
 
-    final_outfile = os.path.join(
-        par["output"]["directory"],
-        par["output"]["filename_prefix"] + "_001.hdf5",
+    final_outfile = Path(par["output"]["directory"]) / (
+        par["output"]["filename_prefix"] + "_001.hdf5"
     )
     if not os.path.exists(final_outfile):
         raise FileNotFoundError(f"Expected evolved snapshot at {final_outfile}")
-    figure_filename = os.path.join(
-        par["output"]["directory"],
-        "NFWHydrostaticEquilibrium1D.jpg",
-    )
+    figure_filename = Path(par["output"]["directory"]) / "NFWHydrostaticEquilibrium1D.jpg"
     et.read_and_plot(
         final_outfile,
         config,

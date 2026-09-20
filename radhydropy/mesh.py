@@ -20,6 +20,7 @@ class Mesh:
     def __init__(self):
         self.runtime_fields = None
         self.geometry_state = None
+        self.par = None
 
     def SetUpMesh(self, par):  # noqa: N802
         """Build ghost cells and geometric factors from run parameters.

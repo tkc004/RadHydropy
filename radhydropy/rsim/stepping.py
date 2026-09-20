@@ -246,16 +246,16 @@ def _hydro_step_ssprk2(
     apply_gravity=True,
 ):
     """Advance hydro variables with the SSPRK2 strong-stability-preserving scheme."""
-    initial_state = sim._clone_fluid()
-    stage1 = sim._clone_fluid()
-    sim._hydro_step_once(
+    initial_state = sim.clone_fluid()
+    stage1 = sim.clone_fluid()
+    sim.hydro_step_once(
         dt,
         fluid=stage1,
         advect_chemistry=advect_chemistry,
         apply_gravity=apply_gravity,
     )
-    stage2 = sim._clone_fluid(stage1)
-    sim._hydro_step_once(
+    stage2 = sim.clone_fluid(stage1)
+    sim.hydro_step_once(
         dt,
         fluid=stage2,
         advect_chemistry=advect_chemistry,
@@ -346,7 +346,7 @@ def Step(  # noqa: N802
             where=mass_before > 0.0,
         )
         if sim.energy_diagnostics_enabled:
-            sim._thermal_energy_before_hydro = energy_before - kinetic_before
+            sim.thermal_energy_before_hydro = energy_before - kinetic_before
     result = {
         "dt": dt,
         "hydro_steps": 0,
@@ -362,12 +362,12 @@ def Step(  # noqa: N802
     )
     if source_integrator == "strang":
         sim.solver.ApplyGravity(0.5 * dt, sim.mesh, sim.fluid, sim.par)
-        sim._accumulate_gravity_work()
+        sim.accumulate_gravity_work()
         sim.sync_hydro_state()
 
     if mode in ("hydro", "hydro_sources"):
         if hydro_integrator == "ssprk2":
-            result = sim._hydro_step_ssprk2(
+            result = sim.hydro_step_ssprk2(
                 dt,
                 advect_chemistry=advect_chemistry,
                 apply_gravity=False,
@@ -384,7 +384,7 @@ def Step(  # noqa: N802
                     sim.fluid,
                     sim.par,
                 )
-                sim._accumulate_gravity_work()
+                sim.accumulate_gravity_work()
                 diagnostics.check_conserved_energy_admissibility(
                     sim,
                     stage="gravity update",
@@ -414,7 +414,7 @@ def Step(  # noqa: N802
                 temperature_before=temperature_before,
                 gravity_dt=(0.5 * dt if source_integrator == "strang" else dt),
             )
-            sim._accumulate_gravity_work()
+            sim.accumulate_gravity_work()
             first = int(sim.par.mesh.ghost_cells)
             last = first + int(sim.par.mesh.grid_cells)
             mass = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
@@ -480,7 +480,7 @@ def Step(  # noqa: N802
         )
         sim.last_source_result = source_result
         sim.last_source_dt = dt
-        sim._synchronize_thermochemistry_internal_energy()
+        sim.synchronize_thermochemistry_internal_energy()
         # Source updates can change temperature, pressure, and chemistry
         # fields, so refresh the boundary state before the next loop.
         if mode == "sources":

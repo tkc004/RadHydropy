@@ -121,8 +121,8 @@ def test_pie_matches_values_at_table_nodes(tmp_path):
         10.0 ** table.log_density[j],
         10.0 ** table.log_ionization_parameter[k],
     )
-    assert np.isclose(heating, table._heating[i, j, k, 0])
-    assert np.isclose(cooling, table._cooling[i, j, k, 0])
+    assert np.isclose(heating, table.heating[i, j, k, 0])
+    assert np.isclose(cooling, table.cooling[i, j, k, 0])
 
 
 def test_pie_log_interpolation_matches_power_laws(tmp_path):
@@ -277,7 +277,7 @@ def test_pie_uvbg_implicit_step_converges_against_half_steps():
         "mu": mu,
     }
     old_energy = state["specific_energy_cgs_erg_g"].copy()
-    new_energy, converged = network._implicit_converged_step(
+    new_energy, converged = network.implicit_converged_step(
         state,
         old_energy,
         1.0e10,

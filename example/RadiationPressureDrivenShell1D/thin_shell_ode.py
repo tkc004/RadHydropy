@@ -22,7 +22,7 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT):
         sys.path.insert(0, str(path))
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 
 import example_utils as eu

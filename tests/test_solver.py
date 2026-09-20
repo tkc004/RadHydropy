@@ -374,7 +374,7 @@ class Testing(unittest.TestCase):
         par.gas_angular_momentum = True
         par.gas_specific_angular_momentum = 0.25
         mesh = make_code_mesh(n=12)
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
         self.assertTrue(hasattr(fluid, "specific_angular_momentum_code"))
@@ -427,7 +427,7 @@ class Testing(unittest.TestCase):
         par = make_code_par("Periodic")
         par.gas_angular_momentum = True
         mesh = make_code_mesh(n=12)
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(n=8)
         fluid.vel_proper_code[:] = 0.25
         fluid.SetUpFluid(par, mesh=mesh)
@@ -464,7 +464,7 @@ class Testing(unittest.TestCase):
         par.gas_angular_momentum = True
         par.positivity_preserving = False
         mesh = make_code_mesh(n=12)
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(n=8)
         fluid.vel_proper_code[:] = 0.25
         fluid.SetUpFluid(par, mesh=mesh)
@@ -494,7 +494,7 @@ class Testing(unittest.TestCase):
         par.gas_angular_momentum = True
         par.positivity_preserving = False
         mesh = make_code_mesh(n=12)
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
         fluid.specific_angular_momentum_code[:] = np.array(
@@ -530,7 +530,7 @@ class Testing(unittest.TestCase):
         par.gas_rotational_energy = True
         mesh = make_code_mesh(n=12)
         mesh.coordsys = "spherical"
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
         fluid.specific_angular_momentum_code[:] = np.linspace(
@@ -560,7 +560,7 @@ class Testing(unittest.TestCase):
         mesh.coordsys = "spherical"
         mesh.boundary = np.arange(1.0, 14.0)
         mesh.coordinate = 0.5 * (mesh.boundary[:-1] + mesh.boundary[1:])
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
         fluid.vel_proper_code[:] = 0.2
@@ -693,7 +693,7 @@ class Testing(unittest.TestCase):
             ),
         )
         mesh = make_code_mesh()
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid()
         fluid.pre_proper_code = fluid.eos.pressure(
             fluid.rho_proper_code,
@@ -732,7 +732,7 @@ class Testing(unittest.TestCase):
             ),
         )
         mesh = make_code_mesh()
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid()
         fluid.pre_proper_code = fluid.eos.pressure(
             fluid.rho_proper_code,
@@ -814,7 +814,7 @@ class Testing(unittest.TestCase):
         par.dual_energy = True
         mesh = make_code_mesh(n=12)
         mesh.coordsys = "spherical"
-        mesh._par = par
+        mesh.par = par
         mesh.coordinate = np.arange(12, dtype=float) + 0.5
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
@@ -927,7 +927,7 @@ class Testing(unittest.TestCase):
         par.positivity_preserving = False
         mesh = make_code_mesh(n=12)
         mesh.coordsys = "spherical"
-        mesh._par = par
+        mesh.par = par
         mesh.coordinate = np.arange(12, dtype=float) + 1.0
         fluid = make_code_fluid(n=8)
         fluid.vel_proper_code[:] = 0.1 + 0.01 * np.arange(8)
@@ -996,7 +996,7 @@ class Testing(unittest.TestCase):
     def test_periodic_boundary_fluxes_match_after_reconstruction(self):
         par = make_code_par("Periodic")
         mesh = make_code_mesh(n=12)
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(n=8)
         fluid.SetUpFluid(par, mesh=mesh)
         fluid.rho_proper_code[2:6] = [1.0, 1.0, 0.125, 0.125]
@@ -1202,7 +1202,7 @@ class Testing(unittest.TestCase):
         par.positivity_preserving = True
         par.positivity_factor_method = "invariant_domain"
         mesh = make_code_mesh(4)
-        mesh._par = par
+        mesh.par = par
         fluid = SimpleNamespace(
             Mass_code=as_named_array(np.ones(4)),
             Mom_code=as_named_array(np.zeros(4)),
@@ -1234,7 +1234,7 @@ class Testing(unittest.TestCase):
         par.dual_energy = True
         par.positivity_factor_method = "analytical"
         mesh = make_code_mesh(5)
-        mesh._par = par
+        mesh.par = par
         mass = np.array(
             [
                 0.8673953529245595,
@@ -1298,7 +1298,7 @@ class Testing(unittest.TestCase):
         )
         solver = Solver()
 
-        solver._positivity_limited_face_fluxes(
+        solver.positivity_limited_face_fluxes(
             fluid,
             1.0,
             mesh,
@@ -1316,8 +1316,8 @@ class Testing(unittest.TestCase):
         self.assertAlmostEqual(float(np.sum(fluid.Mass_code)), float(np.sum(mass)))
         self.assertAlmostEqual(float(np.sum(fluid.Mom_code)), float(np.sum(momentum)))
         self.assertAlmostEqual(float(np.sum(fluid.Energy_code)), float(np.sum(energy)))
-        self.assertTrue(np.any(solver._last_face_limiter_factors < 1.0))
-        self.assertTrue(np.any(solver._last_face_limiter_factors > 0.0))
+        self.assertTrue(np.any(solver.last_face_limiter_factors < 1.0))
+        self.assertTrue(np.any(solver.last_face_limiter_factors > 0.0))
 
     def test_dual_energy_rejects_total_energy_below_kinetic_energy(self):
         """Dual energy must not hide an inadmissible conservative state."""
@@ -1332,7 +1332,7 @@ class Testing(unittest.TestCase):
         par.cfl_density_floor = 0.0
         par.dual_energy = True
         mesh = make_code_mesh(1)
-        mesh._par = par
+        mesh.par = par
         fluid = SimpleNamespace(
             Mass_code=as_named_array(np.array([1.0])),
             Mom_code=as_named_array(np.array([10.0])),
@@ -1341,7 +1341,7 @@ class Testing(unittest.TestCase):
             time=0.0,
         )
         with self.assertRaisesRegex(ValueError, "outside positivity domain"):
-            Solver()._positivity_limited_face_fluxes(
+            Solver().positivity_limited_face_fluxes(
                 fluid,
                 1.0,
                 mesh,
@@ -1362,7 +1362,7 @@ class Testing(unittest.TestCase):
         par.dual_energy = True
         par.dual_energy_pressure_selection = "switch"
         mesh = make_code_mesh(1)
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(1)
         fluid.rho_proper_code[:] = 1.0
         fluid.vel_proper_code[:] = 10.0
@@ -1391,7 +1391,7 @@ class Testing(unittest.TestCase):
         par.dual_energy = True
         par.dual_energy_pressure_selection = "internal"
         mesh = make_code_mesh(1)
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(1)
         fluid.rho_proper_code[:] = 1.0
         fluid.vel_proper_code[:] = 10.0
@@ -1421,7 +1421,7 @@ class Testing(unittest.TestCase):
         par.dual_energy_pressure_selection = "switch"
         par.dual_energy_pressure_floor = 1.0e-20
         mesh = make_code_mesh(1)
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid(1)
         fluid.rho_proper_code[:] = 1.0
         fluid.vel_proper_code[:] = 10.0
@@ -1717,7 +1717,7 @@ class Testing(unittest.TestCase):
         par = make_code_par()
         par.cfl_density_floor = 1.0e-9
         mesh = make_code_mesh()
-        mesh._par = par
+        mesh.par = par
         fluid = make_code_fluid()
         fluid.rho_proper_code[3] = 1.0e-12
         fluid.vel_proper_code[3] = 1.0e3

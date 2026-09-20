@@ -72,7 +72,7 @@ class Solver:
     def _geometry_state(self, mesh, par):
         """Return the representation-selected typed mesh geometry."""
         if par is None:
-            par = getattr(mesh, "_par", None)
+            par = getattr(mesh, "par", getattr(mesh, "_par", None))
         geometry = getattr(mesh, "geometry_state", None)
         if geometry is None:
             raise ValueError("solver requires typed mesh geometry state")
@@ -305,7 +305,7 @@ class Solver:
         boundary = np.asarray(
             self._geometry_state(
                 mesh,
-                getattr(mesh, "_par", None),
+                getattr(mesh, "par", getattr(mesh, "_par", None)),
             ).boundary_runtime_code,
             dtype=float,
         )
@@ -467,8 +467,10 @@ class Solver:
         """Update primitive variables from conserved quantities."""
         if verbose is None:
             verbose = 0
-        par = par or getattr(mesh, "_par", None)
-        self._validate_dual_energy_compatibility(fluid, par or getattr(mesh, "_par", None))
+        par = par or getattr(mesh, "par", getattr(mesh, "_par", None))
+        self._validate_dual_energy_compatibility(
+            fluid, par or getattr(mesh, "par", getattr(mesh, "_par", None))
+        )
         (
             rho_runtime_code,
             vel_runtime_code,
@@ -722,7 +724,7 @@ class Solver:
         """Update conserved mass, momentum, and energy from primitive variables."""
         if verbose is None:
             verbose = 0
-        par = getattr(mesh, "_par", None)
+        par = getattr(mesh, "par", getattr(mesh, "_par", None))
         self._validate_dual_energy_compatibility(fluid, par)
         (
             rho_runtime_code,
@@ -784,7 +786,7 @@ class Solver:
             )
         vol = self._geometry_state(
             mesh,
-            getattr(mesh, "_par", None),
+            getattr(mesh, "par", getattr(mesh, "_par", None)),
         ).volume_runtime_code
         fluid.Mass_code = as_named_array(rho_runtime_code * vol)
         fluid.Mom_code = as_named_array(rho_runtime_code * vel_runtime_code * vol)
@@ -935,7 +937,7 @@ class Solver:
 
     def SetGradient(self, mesh, fluid):  # noqa: N802
         """Calculate centered gradients for density, velocity, and pressure."""
-        par = getattr(mesh, "_par", None)
+        par = getattr(mesh, "par", getattr(mesh, "_par", None))
         width_runtime_code = self._geometry_state(mesh, par).width_runtime_code
         self._fluid_primitive_state(fluid, par)
         periodic = (
@@ -1182,7 +1184,7 @@ class Solver:
 
     def _apply_cosmological_background_boundary_face(self, mesh, fluid, order):
         """Replace the outer face states with the homogeneous EdS state."""
-        par = getattr(mesh, "_par", None)
+        par = getattr(mesh, "par", getattr(mesh, "_par", None))
         if par is None or not getattr(
             par,
             "cosmological_background_boundary_reconstruction",
@@ -1383,7 +1385,7 @@ class Solver:
                 fluid.AngularMomentum_code += dt_value * (
                     angular_area - ru.periodic_roll(angular_area, -1)
                 )
-            self._last_face_limiter_factors = np.ones_like(
+            self.last_face_limiter_factors = np.ones_like(
                 np.asarray(mass_face, dtype=float),
             )
             return 1.0
@@ -1565,7 +1567,7 @@ class Solver:
             fluid.Energy_code[...] = full_energy
             if full_angular is not None:
                 fluid.AngularMomentum_code[...] = full_angular
-            self._last_face_limiter_factors = np.ones_like(
+            self.last_face_limiter_factors = np.ones_like(
                 np.asarray(mass_face, dtype=float),
             )
             return 1.0
@@ -2209,8 +2211,21 @@ class Solver:
         fluid.Energy_code[...] = energy
         if total_angular is not None:
             fluid.AngularMomentum_code[...] = total_angular
-        self._last_face_limiter_factors = factors
+        self.last_face_limiter_factors = factors
         return float(np.min(factors)) if factors.size else 1.0
+
+    def positivity_limited_face_fluxes(self, *args, **kwargs):
+        """Apply the positivity-preserving face-flux limiter."""
+        return self._positivity_limited_face_fluxes(*args, **kwargs)
+
+    @property
+    def last_face_limiter_factors(self):
+        """Return the most recent per-face positivity limiter factors."""
+        return getattr(self, "_last_face_limiter_factors", None)
+
+    @last_face_limiter_factors.setter
+    def last_face_limiter_factors(self, factors):
+        self._last_face_limiter_factors = factors
 
     def _apply_wind_reservoir_flux(self, dt, mesh, fluid, par):
         """Restore rejected WindSph boundary flux as one coupled parcel."""
@@ -2334,7 +2349,7 @@ class Solver:
         """Set interface fluxes using GLF, Rusanov, or HLLC fluxes."""
         if verbose is None:
             verbose = 0
-        geometry = self._geometry_state(mesh, getattr(mesh, "_par", None))
+        geometry = self._geometry_state(mesh, getattr(mesh, "par", getattr(mesh, "_par", None)))
         if method in ("GLF", "Rusanov", "HLLC"):
             if method == "GLF":
                 # Global Lax Friedrich scheme
@@ -2355,19 +2370,21 @@ class Solver:
                 fluid,
                 boundcond,
                 order=order,
-                par=getattr(mesh, "_par", None),
+                par=getattr(mesh, "par", getattr(mesh, "_par", None)),
                 method=method,
             )
             self._apply_low_density_flux_mask(
                 fluid,
-                getattr(mesh, "_par", None),
+                getattr(mesh, "par", getattr(mesh, "_par", None)),
             )
-            self._apply_hydrostatic_core_flux(fluid, getattr(mesh, "_par", None))
+            self._apply_hydrostatic_core_flux(
+                fluid, getattr(mesh, "par", getattr(mesh, "_par", None))
+            )
             self._zero_spherical_origin_flux(mesh, fluid)
             self._apply_local_angular_energy_fallback(
                 mesh,
                 fluid,
-                getattr(mesh, "_par", None),
+                getattr(mesh, "par", getattr(mesh, "_par", None)),
             )
             angular_momentum_face = self._set_angular_momentum_flux(
                 fluid,
@@ -2376,7 +2393,7 @@ class Solver:
             self._set_rotational_energy_flux(
                 mesh,
                 fluid,
-                getattr(mesh, "_par", None),
+                getattr(mesh, "par", getattr(mesh, "_par", None)),
                 j_face=angular_momentum_face,
             )
             # Optional fluxes are constructed after the primary hydro fluxes;
@@ -2401,13 +2418,13 @@ class Solver:
             dt,
             mesh,
             fluid,
-            getattr(mesh, "_par", None),
+            getattr(mesh, "par", getattr(mesh, "_par", None)),
         )
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
-        geometry = self._geometry_state(mesh, getattr(mesh, "_par", None))
+        geometry = self._geometry_state(mesh, getattr(mesh, "par", getattr(mesh, "_par", None)))
         area_runtime_code = geometry.area_runtime_code
-        par = getattr(mesh, "_par", None)
+        par = getattr(mesh, "par", getattr(mesh, "_par", None))
         pressure_runtime_code = None
         velocity_runtime_code = None
         if getattr(mesh, "coordsys", None) == "spherical" or (
@@ -2433,7 +2450,9 @@ class Solver:
         if hasattr(fluid, "AngularMomentum_code"):
             angular_flux_area = fluid.AngularMomentum_code.flux * area_runtime_code
             df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
-        potential_face = self._gravity_potential_faces(mesh, getattr(mesh, "_par", None))
+        potential_face = self._gravity_potential_faces(
+            mesh, getattr(mesh, "par", getattr(mesh, "_par", None))
+        )
         df_potential = None
         if potential_face is not None:
             potential_flux_area = potential_face * fluid.Mass_code.flux * area_runtime_code
@@ -2445,7 +2464,7 @@ class Solver:
             df_Mom_code += pressure_runtime_code * (area_right - area_runtime_code)
 
         dual_energy = (
-            self._dual_energy_enabled(getattr(mesh, "_par", None))
+            self._dual_energy_enabled(getattr(mesh, "par", getattr(mesh, "_par", None)))
             and hasattr(fluid, "InternalEnergy_code")
             and getattr(fluid.eos, "is_polytropic", False)
         )
@@ -2495,7 +2514,7 @@ class Solver:
         if getattr(mesh, "coordsys", None) == "spherical":
             area_right = ru.periodic_roll(area_runtime_code, -1)
             geometric_mom = pressure_runtime_code * (area_right - area_runtime_code)
-        self._positivity_limited_face_fluxes(
+        self.positivity_limited_face_fluxes(
             fluid,
             dt,
             mesh,
@@ -2516,7 +2535,7 @@ class Solver:
             dt,
             mesh,
             fluid,
-            getattr(mesh, "_par", None),
+            getattr(mesh, "par", getattr(mesh, "_par", None)),
         )
         if df_InternalEnergy is not None:
             # Couple the dual-energy advection to the same face coefficients
@@ -2582,7 +2601,7 @@ class Solver:
             conservative_internal -= self._rotational_energy_from_conserved(
                 mesh,
                 fluid,
-                getattr(mesh, "_par", None),
+                getattr(mesh, "par", getattr(mesh, "_par", None)),
             )
             first = int(par.mesh.ghost_cells)
             count = int(par.mesh.grid_cells)
@@ -2727,7 +2746,7 @@ class Solver:
                 limited_potential_flux_area - ru.periodic_roll(limited_potential_flux_area, -1)
             )
         # Advance the representation-specific runtime clock.
-        par = getattr(mesh, "_par", None)
+        par = getattr(mesh, "par", getattr(mesh, "_par", None))
         if getattr(par, "supercomoving_coordinates", False):
             fluid.tau_supercomoving_code += dt
         else:

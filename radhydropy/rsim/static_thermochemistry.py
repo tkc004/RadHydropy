@@ -42,7 +42,7 @@ def _append_static_history(
     ionized_atoms = np.sum(ionized * state["nH_cgs_cm3"] * state["volume_cgs_cm3"])
     volume_photons = np.sum(ngamma_cgs_cm3 * state["volume_cgs_cm3"])
     history["time_Myr"].append(time_s * seconds_to_myr)
-    history["front_radius_kpc"].append(sim._static_front_radius_from_state(state))
+    history["front_radius_kpc"].append(sim.static_front_radius_from_state(state))
     history["injected_photons"].append(source_rate_s * time_s)
     history["ionized_atoms"].append(ionized_atoms)
     history["recombined_photons"].append(recombined_photons)
@@ -143,15 +143,15 @@ def _apply_static_thermal_update(sim, state, ngamma_cgs_cm3, thermal_rate, dt_s)
 
 
 def _advance_source_thermochemistry_state(sim, state, ngamma_cgs_cm3, dt_s, thermal_rate):
-    recombination_rate_start = sim._static_recombination_rate(state)
+    recombination_rate_start = sim.static_recombination_rate(state)
     if getattr(sim.par, "thermochemistry_network", "hydrogen") == "hydrogen_helium":
         rtc.coupled_implicit_update(state, ngamma_cgs_cm3, dt_s, sim.par)
     else:
-        sim._apply_static_thermal_update(state, ngamma_cgs_cm3, thermal_rate, dt_s)
+        sim.apply_static_thermal_update(state, ngamma_cgs_cm3, thermal_rate, dt_s)
         rtc.ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s, sim.par)
     if getattr(sim.par, "hydrogen_thermal_coupling", True):
         rtc.update_temperature_from_energy(state)
-    recombination_rate_end = sim._static_recombination_rate(state)
+    recombination_rate_end = sim.static_recombination_rate(state)
     return 0.5 * (recombination_rate_start + recombination_rate_end) * dt_s
 
 
@@ -169,7 +169,7 @@ def _store_static_reference_snapshot(sim, history, state, time_s, reference_time
         and "reference_snapshot" not in history
         and time_s >= reference_time_s
     ):
-        history["reference_snapshot"] = sim._snapshot_static_state(state, time_s)
+        history["reference_snapshot"] = sim.snapshot_static_state(state, time_s)
 
 
 def _finish_static_thermochemistry(sim, state, time_s):
@@ -187,7 +187,7 @@ def _finish_static_thermochemistry(sim, state, time_s):
         state["ngamma_cgs_cm3"] = rrt.trace_photon_density(state, sim.par)
     state["time_s"] = time_s
     rtc.apply_state(state, sim.fluid, sim.par)
-    sim.fluid._refresh_runtime_state()
+    sim.fluid.refresh_runtime_state()
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
 
 
@@ -203,18 +203,18 @@ def EvolveStaticThermochemistry(  # noqa: N802
     code_units = getattr(sim.par, "CodeUnits", None)
     final_time_s = time_seconds(final_time, code_units)
     dtmax_s = time_seconds(source_timestep, code_units)
-    reference_time_s = sim._static_reference_time_seconds(reference_time)
+    reference_time_s = sim.static_reference_time_seconds(reference_time)
     if getattr(sim.par, "radiative_transfer_temporal_scheme", "c2ray") == "c2ray":
         history = rtc.evolve_static_source_state(
             state,
             sim.par,
             final_time_s=final_time_s,
             dtmax_s=dtmax_s,
-            source_rate_s=getattr(sim.par, "_static_source_rate_s", 0.0),
+            source_rate_s=getattr(sim.par, "static_source_rate_s", 0.0),
             include_thermal_history=include_thermal_history,
             reference_time_s=reference_time_s,
         )
-        sim._finish_static_thermochemistry(
+        sim.finish_static_thermochemistry(
             state,
             state.get("time_s", final_time_s),
         )
@@ -222,12 +222,12 @@ def EvolveStaticThermochemistry(  # noqa: N802
     ngamma_cgs_cm3 = rrt.trace_photon_density(state, sim.par)
     recombined_photons = 0.0
     time_s = 0.0
-    source_rate_s = getattr(sim.par, "_static_source_rate_s", 0.0)
+    source_rate_s = getattr(sim.par, "static_source_rate_s", 0.0)
     seconds_to_myr = 1.0 / (1.0 * unyt.Myr).to_value(unyt.s)
-    history = sim._initial_static_history(
+    history = sim.initial_static_history(
         include_thermal_history=include_thermal_history,
     )
-    sim._append_static_history(
+    sim.append_static_history(
         history,
         state,
         ngamma_cgs_cm3,
@@ -239,7 +239,7 @@ def EvolveStaticThermochemistry(  # noqa: N802
     step = 0
     rt_updates = 1
     while time_s < final_time_s:
-        remaining_s, dtmax_step_s = sim._static_step_limit_seconds(
+        remaining_s, dtmax_step_s = sim.static_step_limit_seconds(
             time_s,
             final_time_s,
             dtmax_s,
@@ -253,7 +253,7 @@ def EvolveStaticThermochemistry(  # noqa: N802
             remaining_s,
             dtmax_step_s,
         )
-        recombined_photons += sim._advance_source_thermochemistry_state(
+        recombined_photons += sim.advance_source_thermochemistry_state(
             state,
             ngamma_cgs_cm3,
             dt_s,
@@ -261,7 +261,7 @@ def EvolveStaticThermochemistry(  # noqa: N802
         )
         time_s += dt_s
         step += 1
-        updated_ngamma, updates = sim._refresh_static_photon_density(
+        updated_ngamma, updates = sim.refresh_static_photon_density(
             state,
             step,
             time_s,
@@ -270,13 +270,13 @@ def EvolveStaticThermochemistry(  # noqa: N802
         if updated_ngamma is not None:
             ngamma_cgs_cm3 = updated_ngamma
             rt_updates += updates
-        sim._store_static_reference_snapshot(
+        sim.store_static_reference_snapshot(
             history,
             state,
             time_s,
             reference_time_s,
         )
-        sim._append_static_history(
+        sim.append_static_history(
             history,
             state,
             ngamma_cgs_cm3,
@@ -286,7 +286,7 @@ def EvolveStaticThermochemistry(  # noqa: N802
             seconds_to_myr,
         )
 
-    sim._finish_static_thermochemistry(state, time_s)
+    sim.finish_static_thermochemistry(state, time_s)
     history["chemistry_steps"] = step
     history["evolution_steps"] = step
     history["radiative_transfer_updates"] = rt_updates

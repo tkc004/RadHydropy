@@ -231,7 +231,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         fields = runtime_fields(par)
         if getattr(fluid, "runtime_state", None) is None:
             fluid.runtime_fields = fields
-            fluid._refresh_runtime_state()
+            fluid.refresh_runtime_state()
         if getattr(par, "supercomoving_coordinates", False):
             rho_runtime_code = fluid.rho_comoving_code
             temp_runtime_code = fluid.temp_supercomoving_code

@@ -84,12 +84,12 @@ def test_sort_invalidates_mass_prefix_cache_after_reordering():
         code_units=code_units(),
     )
     shells.enclosed_mass()
-    assert shells._mass_prefix_cache is not None
+    assert shells.mass_prefix_cache is not None
 
     shells.radius[:] = [2.0, 1.0]
     shells.sort_by_radius()
 
-    assert shells._mass_prefix_cache is None
+    assert shells.mass_prefix_cache is None
     assert np.allclose(shells.enclosed_mass(), [1.0, 2.5])
 
 

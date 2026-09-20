@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
-os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
+os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
 import matplotlib as mpl
 
@@ -109,10 +109,7 @@ def main(config_filename=DEFAULT_CONFIG):
     if not np.isfinite(max_error) or max_error > 5.0e-3:
         raise RuntimeError(f"top-hat gravity error {max_error:.6g} exceeds tolerance")
 
-    filename = os.path.join(
-        config["par"]["output"]["directory"],
-        "EinsteinDeSitterTopHatGravity1D.jpg",
-    )
+    filename = Path(config["par"]["output"]["directory"]) / "EinsteinDeSitterTopHatGravity1D.jpg"
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(radius_comoving_code, numerical[physical], label="numerical")
     axes[0].plot(radius_comoving_code, analytic, "--", label="analytic")

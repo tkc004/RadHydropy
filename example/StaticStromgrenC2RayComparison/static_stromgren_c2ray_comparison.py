@@ -28,12 +28,12 @@ static_example = Path(__file__).resolve().parents[1] / "StaticStromgrenSphere1D"
 if str(static_example) not in sys.path:
     sys.path.insert(0, str(static_example))
 
-cache_dir = os.path.join(tempfile.gettempdir(), "radhydropy-cache")
-mplconfig_dir = os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib")
+cache_dir = Path(tempfile.gettempdir()) / "radhydropy-cache"
+mplconfig_dir = Path(tempfile.gettempdir()) / "radhydropy-matplotlib"
 os.makedirs(cache_dir, exist_ok=True)
 os.makedirs(mplconfig_dir, exist_ok=True)
-os.environ.setdefault("XDG_CACHE_HOME", cache_dir)
-os.environ.setdefault("MPLCONFIGDIR", mplconfig_dir)
+os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
+os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
 import example_utils as eu
 import stromgren_analytic as sa

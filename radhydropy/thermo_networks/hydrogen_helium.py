@@ -535,7 +535,7 @@ def apply_state(state, fluid, par):
     fields = runtime_fields(par)
     if getattr(fluid, "runtime_state", None) is None:
         fluid.runtime_fields = fields
-        fluid._refresh_runtime_state()
+        fluid.refresh_runtime_state()
     if getattr(par, "supercomoving_coordinates", False):
         temp_runtime_code = fluid.temp_supercomoving_code
         pre_runtime_code = fluid.pre_supercomoving_code
@@ -646,3 +646,7 @@ class HydrogenHeliumNetwork(ThermochemistryNetwork):
 
     def apply_fast(self, dt, mesh, fluid, par):
         raise NotImplementedError("hydrogen_helium uses the static local subcycle path")
+
+
+closure = _closure
+rates = _rates

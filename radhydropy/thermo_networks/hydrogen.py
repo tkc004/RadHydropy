@@ -2276,7 +2276,7 @@ def _fast_sync_state_to_fluid(state, fluid, par):
     runtime_state = getattr(fluid, "runtime_state", None)
     if runtime_state is None and hasattr(fluid, "_refresh_runtime_state"):
         fluid.runtime_fields = fields
-        fluid._refresh_runtime_state()
+        fluid.refresh_runtime_state()
         runtime_state = fluid.runtime_state
     _, _, _, temp_runtime_code, _ = _canonical_fluid_primitive_arrays(fluid, par)
     temperature_runtime_code = np.asarray(
@@ -2848,3 +2848,14 @@ class HydrogenNetwork(ThermochemistryNetwork):
             par,
             transport_result=transport_result,
         )
+
+
+# Public names for source-rate helpers used by the C2Ray integration layer.
+cgs_beta = _cgs_beta
+cgs_gamma_line_eHI = _cgs_gamma_line_eHI
+cgs_gamma_ion_eHI = _cgs_gamma_ion_eHI
+cgs_gamma_ff_eHII = _cgs_gamma_ff_eHII
+cgs_gamma_B_eHII = _cgs_gamma_B_eHII
+cgs_source_thermal_rate = _cgs_source_thermal_rate
+fast_update_temperature_from_energy = _fast_update_temperature_from_energy
+explicit_source_state_update = _explicit_source_state_update

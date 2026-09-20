@@ -4,6 +4,7 @@
 
 import os
 import sys
+from pathlib import Path
 
 import matplotlib as mpl
 
@@ -28,7 +29,7 @@ from radhydropy.units import (
 )
 
 static_stromgren_dir = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "StaticStromgrenSphere1D"),
+    Path(os.path.dirname(__file__)) / ".." / "StaticStromgrenSphere1D",
 )
 if static_stromgren_dir not in sys.path:
     sys.path.append(static_stromgren_dir)

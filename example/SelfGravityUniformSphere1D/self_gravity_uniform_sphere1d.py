@@ -17,7 +17,7 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 import matplotlib as mpl
 
@@ -101,10 +101,7 @@ def main(config_filename=DEFAULT_CONFIG):
             f"uniform-sphere self-gravity relative error {max_relative_error:.6g} exceeds tolerance",
         )
 
-    figure_filename = os.path.join(
-        config["par"]["output"]["directory"],
-        "SelfGravityUniformSphere1D.jpg",
-    )
+    figure_filename = Path(config["par"]["output"]["directory"]) / "SelfGravityUniformSphere1D.jpg"
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(radius_proper_pc, numerical_cgs, label="numerical")
     axes[0].plot(radius_proper_pc, analytic_cgs, "--", label="analytic")

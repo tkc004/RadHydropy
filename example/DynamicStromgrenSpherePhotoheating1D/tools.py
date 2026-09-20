@@ -214,7 +214,7 @@ def load_output_state(outputfilename, config):
 
 
 def output_files(output_directory, output_filename_prefix):
-    pattern = os.path.join(output_directory, f"{output_filename_prefix}_*.hdf5")
+    pattern = Path(output_directory) / f"{output_filename_prefix}_*.hdf5"
     filenames = []
     for filename in glob.glob(pattern):
         stem = Path(filename).stem

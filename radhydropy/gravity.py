@@ -244,7 +244,9 @@ class Gravity:
         if not hasattr(mesh, "geometry_state"):
             raise AttributeError("mesh does not provide typed geometry state")
         return self.potential_on(
-            _canonical_mesh_geometry_arrays(mesh, getattr(mesh, "_par", None))[0],
+            _canonical_mesh_geometry_arrays(
+                mesh, getattr(mesh, "par", getattr(mesh, "_par", None))
+            )[0],
         )
 
     def self_acceleration_on_mesh(self, mesh, rho, par):
@@ -441,7 +443,7 @@ class Gravity:
         """Return the total external plus self-gravity acceleration."""
         coordinate = _canonical_mesh_geometry_arrays(
             mesh,
-            par or getattr(mesh, "_par", None),
+            par or getattr(mesh, "par", getattr(mesh, "_par", None)),
         )[0]
         if not self.externalgravity and not self.selfgravity and self.dark_matter is None:
             return np.zeros_like(coordinate, dtype=float)

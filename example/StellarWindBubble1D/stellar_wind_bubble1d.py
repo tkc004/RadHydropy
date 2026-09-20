@@ -19,7 +19,7 @@ from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 import matplotlib as mpl
 
@@ -42,9 +42,8 @@ def load_snapshots(config, max_outputs=10, start_index=1):
     """Load example outputs into lightweight snapshot wrappers."""
     snapshots = []
     for outindex in range(start_index, max_outputs):
-        outfilename = os.path.join(
-            config["par"]["output"]["directory"],
-            config["par"]["output"]["filename_prefix"] + "_%03d" % outindex + ".hdf5",
+        outfilename = Path(config["par"]["output"]["directory"]) / (
+            config["par"]["output"]["filename_prefix"] + "_%03d" % outindex + ".hdf5"
         )
         snapshots.append(et.load_output_state(outfilename, config))
     return snapshots
@@ -75,35 +74,27 @@ def main(config_filename=DEFAULT_CONFIG, plot_only=False):
     figure_prefix = example_config.get("figure_prefix", "StellarWindBubble1D")
 
     profile_figure = et.make_profile_figure(snapshots, config)
-    profile_figure_filename = os.path.join(
-        output_config["directory"],
-        f"{figure_prefix}_profiles.jpg",
-    )
+    profile_figure_filename = Path(output_config["directory"]) / f"{figure_prefix}_profiles.jpg"
     profile_figure.savefig(profile_figure_filename, dpi=200)
     plt.close(profile_figure)
 
     radius_figure = et.make_radius_figure(snapshots, config)
-    radius_figure_filename = os.path.join(
-        output_config["directory"],
-        f"{figure_prefix}_radius.jpg",
-    )
+    radius_figure_filename = Path(output_config["directory"]) / f"{figure_prefix}_radius.jpg"
     radius_figure.savefig(radius_figure_filename, dpi=200)
     plt.close(radius_figure)
 
     velocity_figure = et.make_velocity_figure(snapshots, config)
     if velocity_figure is not None:
-        velocity_figure_filename = os.path.join(
-            output_config["directory"],
-            f"{figure_prefix}_velocity.jpg",
+        velocity_figure_filename = (
+            Path(output_config["directory"]) / f"{figure_prefix}_velocity.jpg"
         )
         velocity_figure.savefig(velocity_figure_filename, dpi=200)
         plt.close(velocity_figure)
 
     pressure_figure = et.make_pressure_figure(snapshots, config)
     if pressure_figure is not None:
-        pressure_figure_filename = os.path.join(
-            output_config["directory"],
-            f"{figure_prefix}_pressure.jpg",
+        pressure_figure_filename = (
+            Path(output_config["directory"]) / f"{figure_prefix}_pressure.jpg"
         )
         pressure_figure.savefig(pressure_figure_filename, dpi=200)
         plt.close(pressure_figure)

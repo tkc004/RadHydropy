@@ -18,7 +18,7 @@ from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 import matplotlib as mpl
 
@@ -71,10 +71,7 @@ def main(config_filename=DEFAULT_CONFIG):
         markevery=1,
         color="C0",
     )
-    figure_filename = os.path.join(
-        config["par"]["output"]["directory"],
-        "HydrostaticEquilibrium1D.jpg",
-    )
+    figure_filename = Path(config["par"]["output"]["directory"]) / "HydrostaticEquilibrium1D.jpg"
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()

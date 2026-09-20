@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-os.environ.setdefault("MPLCONFIGDIR", os.path.join("/tmp", "radhydropy-matplotlib"))
+os.environ.setdefault("MPLCONFIGDIR", str(Path("/tmp") / "radhydropy-matplotlib"))
 import matplotlib as mpl
 
 mpl.use("Agg")

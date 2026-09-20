@@ -114,7 +114,7 @@ class Testing(unittest.TestCase):
         fluid = Fluid()
         fluid.eos = EOS("isothermal", gamma=1.0, code_units=CODE_UNITS)
         mesh = Mesh()
-        mesh._par = SimpleNamespace(dual_energy=True)
+        mesh.par = SimpleNamespace(dual_energy=True)
 
         with self.assertRaisesRegex(ValueError, "dual energy is not supported"):
             Solver().SetConserved(mesh, fluid)

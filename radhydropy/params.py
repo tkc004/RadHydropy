@@ -921,6 +921,10 @@ class Par:
     def _parameter(self, name, default=None):
         return self._parameter_values.get(name, default)
 
+    def parameter(self, name, default=None):
+        """Return a normalized parameter value by name."""
+        return self._parameter(name, default)
+
     def _initialize_parameter_groups(self):
         self._sync_hydrodynamics_parameters()
         self._sync_boundary_parameters()

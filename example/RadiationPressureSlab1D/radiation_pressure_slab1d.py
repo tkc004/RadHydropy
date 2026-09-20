@@ -27,7 +27,7 @@ example_root = Path(__file__).resolve().parents[1]
 if str(example_root) not in sys.path:
     sys.path.insert(0, str(example_root))
 
-os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"))
+os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
 import example_utils as eu
 

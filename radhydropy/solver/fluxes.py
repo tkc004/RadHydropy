@@ -256,7 +256,7 @@ def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
 
 def set_face_lr(solver, mesh, fluid, order=0):
     """Construct left and right primitive states at cell faces."""
-    par = getattr(mesh, "_par", None)
+    par = getattr(mesh, "par", getattr(mesh, "_par", None))
     geometry = solver.geometry_state(mesh, par)
     density_code, velocity_code, pressure_code, _ = solver.active_primitive_arrays(fluid, par)
     if order not in (0, 1):

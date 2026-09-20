@@ -9,7 +9,7 @@ from pathlib import Path
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    os.path.join("/tmp", "radhydropy-matplotlib"),
+    str(Path("/tmp") / "radhydropy-matplotlib"),
 )
 import matplotlib as mpl
 

@@ -18,7 +18,7 @@ from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    os.path.join(tempfile.gettempdir(), "radhydropy-matplotlib"),
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 import matplotlib as mpl
 
@@ -67,9 +67,8 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     mainrun.Run(mode="hydro")
 
-    final_outfile = os.path.join(
-        nested["par"]["output"]["directory"],
-        nested["par"]["output"]["filename_prefix"] + "_001.hdf5",
+    final_outfile = Path(nested["par"]["output"]["directory"]) / (
+        nested["par"]["output"]["filename_prefix"] + "_001.hdf5"
     )
     et.plot_snapshot(
         final_outfile,
@@ -80,9 +79,8 @@ def main(config_filename=DEFAULT_CONFIG):
         markevery=1,
         color="C0",
     )
-    figure_filename = os.path.join(
-        nested["par"]["output"]["directory"],
-        "BallisticInfallSphericalPointMass1D.jpg",
+    figure_filename = (
+        Path(nested["par"]["output"]["directory"]) / "BallisticInfallSphericalPointMass1D.jpg"
     )
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
