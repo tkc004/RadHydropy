@@ -1,4 +1,6 @@
-"""Check passive gas angular-momentum storage through a short hydro run."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Check passive gas angular-momentum storage through a short hydro run."""  # noqa: CPY001
 
 import argparse
 import os

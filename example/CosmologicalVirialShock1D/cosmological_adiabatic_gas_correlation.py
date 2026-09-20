@@ -1,10 +1,12 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Adiabatic gas plus live-DM correlation-function collapse experiment.
 
 This is the gas-bearing companion to ``cosmological_dark_matter_only.py``.
 It starts at z=100 with the tabulated LCDM correlation-function perturbation,
 evolves 1024 live dark-matter shells and the Eulerian gas mesh, and saves the
 gas density profile at regular cosmic-time intervals.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import sys

@@ -1,4 +1,6 @@
-"""Initial conditions and diagnostics for the cosmological virial-shock test."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Initial conditions and diagnostics for the cosmological virial-shock test."""  # noqa: CPY001
 
 from math import erf
 
@@ -277,7 +279,7 @@ def build_initial_condition(config):
         / PROTON_MASS_CGS
     )
     redshift = 1.0 / a - 1.0
-    xHI = None
+    xHI = None  # noqa: N806
     specific_angular_momentum_code = None
     if bool(initial_condition.get("cmb_equilibrium_initial", False)):
         temp_phys = np.full(
@@ -288,7 +290,7 @@ def build_initial_condition(config):
             grid_cells,
             cmb_equilibrium_electron_fraction(initial_condition),
         )
-        xHI = 1.0 - electron_fraction
+        xHI = 1.0 - electron_fraction  # noqa: N806
         mu = 1.0 / (float(initial_condition["hydrogen_mass_fraction"]) * (2.0 - xHI))
     elif redshift > float(initial_condition.get("uv_background_on_redshift", 10.0)):
         temp_phys = quantity_to_value(
@@ -357,7 +359,7 @@ def build_initial_condition(config):
 def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1.0e4):
     """Return the tabulated UVB PIE temperature (heating=cooling)."""
     logt = np.linspace(table.log_temperature[0], table.log_temperature[-1], 512)
-    temperature_proper_cgs_K = 10.0**logt
+    temperature_proper_cgs_K = 10.0**logt  # noqa: N806
     heating, cooling = table.rates(
         temperature_proper_cgs_K,
         hydrogen_number_density_cgs_cm3,

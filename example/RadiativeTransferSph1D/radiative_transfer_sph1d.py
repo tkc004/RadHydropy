@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Spherical long-characteristic radiative-transfer example.
 
 A source at the coordinate origin emits ionizing photons at a constant rate.
@@ -10,7 +12,7 @@ The example builds the static spherical problem from YAML parameters, applies
 the long-characteristic radiative-transfer update once through ``Rsim``, writes
 an HDF5 snapshot, reloads that snapshot, and compares the result with the
 analytic optically thin spherical dilution solution.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import os

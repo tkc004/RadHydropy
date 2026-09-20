@@ -1,4 +1,6 @@
-"""Boundary-condition orchestration for the hydrodynamics solver."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Boundary-condition orchestration for the hydrodynamics solver."""  # noqa: CPY001
 
 from radhydropy.units import code_unit_scales
 

@@ -1,4 +1,6 @@
-"""Helper utilities for the spherical stellar-wind bubble example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helper utilities for the spherical stellar-wind bubble example."""  # noqa: CPY001
 
 import matplotlib as mpl
 
@@ -133,7 +135,7 @@ def numerical_forward_shock_radius(rout, search_fraction=0.1):
     boundary_proper_unyt = _boundary_proper_unyt(rout)
     x_proper_code = 0.5 * (boundary_proper_unyt[1:] + boundary_proper_unyt[:-1])
     rho_proper_cgs_g_cm3 = _rho_proper_unyt(rout).to(unyt.g / unyt.cm**3)
-    temperature_cgs_K = _temp_proper_unyt(rout).to(unyt.K)
+    temperature_cgs_K = _temp_proper_unyt(rout).to(unyt.K)  # noqa: N806
     pressure_bubble_proper_unyt = (
         rho_proper_cgs_g_cm3 / (rout.fluid.mu * unyt.mp) * unyt.kb * temperature_cgs_K
     ).to(unyt.dyn / unyt.cm**2)
@@ -379,7 +381,7 @@ def make_radius_figure(snapshots, config):
         if numerical_radius is None:
             continue
         weaver_radius = weaver_forward_shock_radius(rout, config)
-        time_proper_Myr = _time_proper(rout).to_value(unyt.Myr)
+        time_proper_Myr = _time_proper(rout).to_value(unyt.Myr)  # noqa: N806
         numerical_times.append(time_proper_Myr)
         numerical_radii.append(numerical_radius.to_value(unyt.pc))
         weaver_times.append(time_proper_Myr)
@@ -424,7 +426,7 @@ def numerical_bubble_pressure(rout, radius_shell_proper_unyt):
     coordinate_values = coordinate_values[nonnegative]
     radius_shell_proper_pc = radius_shell_proper_unyt.to_value(unyt.pc)
     rho_proper_cgs_g_cm3 = _rho_proper_unyt(rout).to(unyt.g / unyt.cm**3)
-    temperature_cgs_K = _temp_proper_unyt(rout).to(unyt.K)
+    temperature_cgs_K = _temp_proper_unyt(rout).to(unyt.K)  # noqa: N806
     pressure_bubble_proper_unyt = (
         rho_proper_cgs_g_cm3 / (rout.fluid.mu * unyt.mp) * unyt.kb * temperature_cgs_K
     ).to(unyt.dyn / unyt.cm**2)
@@ -494,7 +496,7 @@ def collect_shell_diagnostics(snapshots, config):
         ],
         unyt.dyn / unyt.cm**2,
     )
-    time_proper_Myr = np.array(
+    time_proper_Myr = np.array(  # noqa: N806
         [float(time_proper_unyt.to_value(unyt.Myr)) for time_proper_unyt in times_proper_unyt],
         dtype=float,
     )

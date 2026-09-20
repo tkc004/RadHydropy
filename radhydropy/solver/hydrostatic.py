@@ -1,4 +1,6 @@
-"""Fixed pressure-supported central-core operations."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Fixed pressure-supported central-core operations."""  # noqa: CPY001
 
 import numpy as np
 

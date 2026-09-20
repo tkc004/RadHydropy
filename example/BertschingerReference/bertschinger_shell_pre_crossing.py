@@ -1,4 +1,6 @@
-"""Pre-crossing Lagrangian-shell comparison with Bertschinger Eq. (4.1)."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Pre-crossing Lagrangian-shell comparison with Bertschinger Eq. (4.1)."""  # noqa: CPY001
 
 import argparse
 import os

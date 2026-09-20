@@ -1,4 +1,6 @@
-"""Supercomoving eccentric-orbit benchmark with centrifugal support."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Supercomoving eccentric-orbit benchmark with centrifugal support."""  # noqa: CPY001
 
 import os
 import sys

@@ -1,4 +1,6 @@
-"""Initial condition and plotting helpers for outflow into vacuum."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Initial condition and plotting helpers for outflow into vacuum."""  # noqa: CPY001
 
 import numpy as np
 

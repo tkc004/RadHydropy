@@ -1,4 +1,6 @@
-"""Output-time parsing and simulation output scheduling interfaces."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Output-time parsing and simulation output scheduling interfaces."""  # noqa: CPY001
 
 from pathlib import Path
 from typing import Any

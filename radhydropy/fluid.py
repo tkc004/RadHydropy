@@ -1,4 +1,6 @@
-"""Fluid state container and primitive thermodynamic updates."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Fluid state container and primitive thermodynamic updates."""  # noqa: CPY001
 
 import numpy as np
 import unyt
@@ -219,10 +221,10 @@ class Fluid:
         )
 
     def SetHydrogenHeliumMu(self, hydrogen_mass_fraction=0.75, helium_mass_fraction=0.25):
-        xHI = np.asarray(self.xHI, dtype=float)
+        xHI = np.asarray(self.xHI, dtype=float)  # noqa: N806
         np.asarray(self.xHeI, dtype=float)
-        xHeII = np.asarray(self.xHeII, dtype=float)
-        xHeIII = np.asarray(self.xHeIII, dtype=float)
+        xHeII = np.asarray(self.xHeII, dtype=float)  # noqa: N806
+        xHeIII = np.asarray(self.xHeIII, dtype=float)  # noqa: N806
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             density = self.rho_proper_code
         elif self.runtime_fields is SUPERCOMOVING_RUNTIME_FIELDS:
@@ -231,8 +233,8 @@ class Fluid:
             raise UnitBoundaryError(
                 "SetHydrogenHeliumMu requires configured representation-specific runtime fields",
             )
-        nH = hydrogen_mass_fraction * np.asarray(density, dtype=float) / unyt.mp.to_value(unyt.g)
-        nHe = (
+        nH = hydrogen_mass_fraction * np.asarray(density, dtype=float) / unyt.mp.to_value(unyt.g)  # noqa: N806
+        nHe = (  # noqa: N806
             helium_mass_fraction
             * np.asarray(density, dtype=float)
             / (4.0 * unyt.mp.to_value(unyt.g))

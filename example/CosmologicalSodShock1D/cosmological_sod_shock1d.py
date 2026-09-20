@@ -1,4 +1,6 @@
-"""Sod shock tube in an expanding Einstein--de Sitter background."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Sod shock tube in an expanding Einstein--de Sitter background."""  # noqa: CPY001
 
 import argparse
 import copy

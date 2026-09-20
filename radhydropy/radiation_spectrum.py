@@ -1,4 +1,6 @@
-"""Load radiation-spectrum data used by the runtime parameter system."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Load radiation-spectrum data used by the runtime parameter system."""  # noqa: CPY001
 
 from pathlib import Path
 

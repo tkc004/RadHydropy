@@ -1,10 +1,12 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Noh spherical implosion benchmark for spherical pressure work.
 
 Uniform cold gas moves inward in a spherical domain and reflects at the
 origin.  The converging flow produces a central shock and converts kinetic
 energy into thermal energy.  The runner repeats the problem at several
 resolutions and compares final radial profiles.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import copy

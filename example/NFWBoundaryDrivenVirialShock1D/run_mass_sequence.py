@@ -1,4 +1,6 @@
-"""Run and compare stable, marginal, and low-mass virial-shock cases."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Run and compare stable, marginal, and low-mass virial-shock cases."""  # noqa: CPY001
 
 import argparse
 import os
@@ -75,7 +77,7 @@ def _case_diagnostics(config_filename):
         initial_condition["mu"],
     )
     stability_by_time = {row["time_proper_Myr"]: row for row in stability}
-    shock_radius_over_R200_dimensionless = []
+    shock_radius_over_R200_dimensionless = []  # noqa: N806
     gamma_eff_dimensionless = []
     for filename, time in zip(files, times, strict=False):
         snapshot = load_output_state(filename, config)
@@ -112,7 +114,7 @@ def _write_summary(cases, filename):
             "halo_mass_proper_Msun time_proper_Myr shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n",
         )
         for case in cases:
-            for time_proper_Myr, radius_dimensionless, gamma_eff_dimensionless in zip(
+            for time_proper_Myr, radius_dimensionless, gamma_eff_dimensionless in zip(  # noqa: N806
                 case["times_proper_Myr"],
                 case["shock_radius_over_R200_dimensionless"],
                 case["gamma_eff_dimensionless"],

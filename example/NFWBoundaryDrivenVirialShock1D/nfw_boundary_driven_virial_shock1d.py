@@ -1,4 +1,6 @@
-"""Boundary-fed virial shock in a fixed NFW halo, with an HM12 PIE restart."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Boundary-fed virial shock in a fixed NFW halo, with an HM12 PIE restart."""  # noqa: CPY001
 
 import argparse
 import copy

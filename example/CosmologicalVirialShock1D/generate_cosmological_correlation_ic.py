@@ -1,4 +1,6 @@
-"""Generate the z=100 correlation-function cosmological initial condition."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Generate the z=100 correlation-function cosmological initial condition."""  # noqa: CPY001
 
 import argparse
 import sys

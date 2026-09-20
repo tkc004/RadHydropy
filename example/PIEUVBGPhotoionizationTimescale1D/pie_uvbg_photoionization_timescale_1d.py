@@ -1,4 +1,6 @@
-"""Test thermal approach to HM12 PIE equilibrium over an ionization timescale."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Test thermal approach to HM12 PIE equilibrium over an ionization timescale."""  # noqa: CPY001
 
 import argparse
 import os
@@ -122,7 +124,7 @@ def main(config_filename=DEFAULT_CONFIG):
     hydrogen_number_densities_cgs_cm3 = (0.1, 1.0, 10.0)
     results = []
     for hydrogen_number_density_cgs_cm3 in hydrogen_number_densities_cgs_cm3:
-        temperature_equilibrium_cgs_K = _equilibrium_temperature(
+        temperature_equilibrium_cgs_K = _equilibrium_temperature(  # noqa: N806
             table,
             hydrogen_number_density_cgs_cm3,
             redshift,
@@ -170,7 +172,7 @@ def main(config_filename=DEFAULT_CONFIG):
             # the saved snapshots from that list.
             scheduled_times = np.concatenate(([0.0], output_times_yr, [timesim_yr]))
             time_yr = scheduled_times[: len(history)]
-            temperature_proper_cgs_K = np.array(
+            temperature_proper_cgs_K = np.array(  # noqa: N806
                 [item["temperature_proper_cgs_K"] for item in history],
             )
             time_over_photoionization_timescale_dimensionless = (
@@ -208,7 +210,7 @@ def main(config_filename=DEFAULT_CONFIG):
             for result in results
             if result["hydrogen_number_density_cgs_cm3"] == hydrogen_number_density_cgs_cm3
         ]
-        temperature_equilibrium_cgs_K = density_results[0]["temperature_equilibrium_cgs_K"]
+        temperature_equilibrium_cgs_K = density_results[0]["temperature_equilibrium_cgs_K"]  # noqa: N806
         fig, (ax_temp, ax_error) = plt.subplots(
             2,
             1,

@@ -1,4 +1,6 @@
-"""Typed code-to-cgs source-state construction for hydrogen chemistry."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Typed code-to-cgs source-state construction for hydrogen chemistry."""  # noqa: CPY001
 
 import numpy as np
 import unyt
@@ -40,7 +42,7 @@ def build_source_state(
     interior = interior_slice(par)
     fields = runtime_fields(par)
     runtime = fluid.runtime_state
-    xHI = as_named_array(runtime.xHI_dimensionless[interior].copy())
+    xHI = as_named_array(runtime.xHI_dimensionless[interior].copy())  # noqa: N806
     gamma = getattr(
         getattr(fluid, "eos", None),
         "gamma",
@@ -51,7 +53,7 @@ def build_source_state(
 
     _, _, _, temp_runtime_code, _ = canonical_fluid_primitive_arrays(fluid, par)
     temperature_code = temp_runtime_code[interior]
-    temperature_cgs_K = temperature_code * code_units.unit_conversion["temperature_cgs_K"]
+    temperature_cgs_K = temperature_code * code_units.unit_conversion["temperature_cgs_K"]  # noqa: N806
     specific_energy_cgs_erg_g = (
         BOLTZMANN_CONSTANT_CGS * temperature_cgs_K / ((gamma - 1.0) * mu * PROTON_MASS_CGS)
     )
@@ -126,9 +128,9 @@ def build_source_state(
         code_units.energy_unit,
         default=DEFAULT_EPSILON_GAMMA_CGS_ERG,
     )
-    alpha_B = getattr(par, "hydrogen_alpha_B", None)
+    alpha_B = getattr(par, "hydrogen_alpha_B", None)  # noqa: N806
     if alpha_B is not None:
-        alpha_B = alpha_B.to_value(code_units.volume_unit / code_units.time_unit)
+        alpha_B = alpha_B.to_value(code_units.volume_unit / code_units.time_unit)  # noqa: N806
     beta = getattr(par, "hydrogen_beta", None)
     if beta is not None:
         beta = beta.to_value(code_units.volume_unit / code_units.time_unit)

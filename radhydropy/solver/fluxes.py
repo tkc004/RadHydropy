@@ -1,4 +1,6 @@
-"""Interface-state and Riemann flux calculations."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Interface-state and Riemann flux calculations."""  # noqa: CPY001
 
 import numpy as np
 
@@ -38,12 +40,12 @@ def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
     the vacuum examples: HLLC's star-state formula is undefined when one
     side has zero density.
     """
-    rho_L = np.asarray(rho_L, dtype=float)
-    vel_L = np.asarray(vel_L, dtype=float)
-    pre_L = np.asarray(pre_L, dtype=float)
-    rho_R = np.asarray(rho_R, dtype=float)
-    vel_R = np.asarray(vel_R, dtype=float)
-    pre_R = np.asarray(pre_R, dtype=float)
+    rho_L = np.asarray(rho_L, dtype=float)  # noqa: N806
+    vel_L = np.asarray(vel_L, dtype=float)  # noqa: N806
+    pre_L = np.asarray(pre_L, dtype=float)  # noqa: N806
+    rho_R = np.asarray(rho_R, dtype=float)  # noqa: N806
+    vel_R = np.asarray(vel_R, dtype=float)  # noqa: N806
+    pre_R = np.asarray(pre_R, dtype=float)  # noqa: N806
     valid = (
         np.isfinite(rho_L)
         & np.isfinite(vel_L)
@@ -56,23 +58,23 @@ def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
         & (pre_L > 0.0)
         & (pre_R > 0.0)
     )
-    sound_L = np.zeros_like(rho_L)
-    sound_R = np.zeros_like(rho_R)
+    sound_L = np.zeros_like(rho_L)  # noqa: N806
+    sound_R = np.zeros_like(rho_R)  # noqa: N806
     with np.errstate(divide="ignore", invalid="ignore"):
-        sound_L = np.sqrt(gamma * pre_L / rho_L)
-        sound_R = np.sqrt(gamma * pre_R / rho_R)
+        sound_L = np.sqrt(gamma * pre_L / rho_L)  # noqa: N806
+        sound_R = np.sqrt(gamma * pre_R / rho_R)  # noqa: N806
     valid &= np.isfinite(sound_L) & np.isfinite(sound_R)
 
-    energy_L = pre_L / (gamma - 1.0) + 0.5 * rho_L * vel_L**2
-    energy_R = pre_R / (gamma - 1.0) + 0.5 * rho_R * vel_R**2
-    flux_L = np.stack(
+    energy_L = pre_L / (gamma - 1.0) + 0.5 * rho_L * vel_L**2  # noqa: N806
+    energy_R = pre_R / (gamma - 1.0) + 0.5 * rho_R * vel_R**2  # noqa: N806
+    flux_L = np.stack(  # noqa: N806
         (
             rho_L * vel_L,
             rho_L * vel_L**2 + pre_L,
             vel_L * (gamma * pre_L / (gamma - 1.0) + 0.5 * rho_L * vel_L**2),
         ),
     )
-    flux_R = np.stack(
+    flux_R = np.stack(  # noqa: N806
         (
             rho_R * vel_R,
             rho_R * vel_R**2 + pre_R,
@@ -81,24 +83,24 @@ def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
     )
     result = 0.5 * (flux_L + flux_R)
     with np.errstate(divide="ignore", invalid="ignore"):
-        wave_L = np.minimum(vel_L - sound_L, vel_R - sound_R)
-        wave_R = np.maximum(vel_L + sound_L, vel_R + sound_R)
-        wave_M = (
+        wave_L = np.minimum(vel_L - sound_L, vel_R - sound_R)  # noqa: N806
+        wave_R = np.maximum(vel_L + sound_L, vel_R + sound_R)  # noqa: N806
+        wave_M = (  # noqa: N806
             pre_R - pre_L + rho_L * vel_L * (wave_L - vel_L) - rho_R * vel_R * (wave_R - vel_R)
         ) / (rho_L * (wave_L - vel_L) - rho_R * (wave_R - vel_R))
-        pressure_M = pre_L + rho_L * (wave_L - vel_L) * (wave_M - vel_L)
-        rho_star_L = rho_L * (wave_L - vel_L) / (wave_L - wave_M)
-        rho_star_R = rho_R * (wave_R - vel_R) / (wave_R - wave_M)
-        energy_star_L = ((wave_L - vel_L) * energy_L - pre_L * vel_L + pressure_M * wave_M) / (
+        pressure_M = pre_L + rho_L * (wave_L - vel_L) * (wave_M - vel_L)  # noqa: N806
+        rho_star_L = rho_L * (wave_L - vel_L) / (wave_L - wave_M)  # noqa: N806
+        rho_star_R = rho_R * (wave_R - vel_R) / (wave_R - wave_M)  # noqa: N806
+        energy_star_L = ((wave_L - vel_L) * energy_L - pre_L * vel_L + pressure_M * wave_M) / (  # noqa: N806
             wave_L - wave_M
         )
-        energy_star_R = ((wave_R - vel_R) * energy_R - pre_R * vel_R + pressure_M * wave_M) / (
+        energy_star_R = ((wave_R - vel_R) * energy_R - pre_R * vel_R + pressure_M * wave_M) / (  # noqa: N806
             wave_R - wave_M
         )
-    star_L = np.stack((rho_star_L, rho_star_L * wave_M, energy_star_L))
-    star_R = np.stack((rho_star_R, rho_star_R * wave_M, energy_star_R))
-    flux_star_L = flux_L + wave_L * (star_L - np.stack((rho_L, rho_L * vel_L, energy_L)))
-    flux_star_R = flux_R + wave_R * (star_R - np.stack((rho_R, rho_R * vel_R, energy_R)))
+    star_L = np.stack((rho_star_L, rho_star_L * wave_M, energy_star_L))  # noqa: N806
+    star_R = np.stack((rho_star_R, rho_star_R * wave_M, energy_star_R))  # noqa: N806
+    flux_star_L = flux_L + wave_L * (star_L - np.stack((rho_L, rho_L * vel_L, energy_L)))  # noqa: N806
+    flux_star_R = flux_R + wave_R * (star_R - np.stack((rho_R, rho_R * vel_R, energy_R)))  # noqa: N806
     left = wave_L >= 0.0
     left_star = (wave_L < 0.0) & (wave_M >= 0.0)
     right_star = (wave_M < 0.0) & (wave_R > 0.0)
@@ -113,7 +115,7 @@ def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):
 
 def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
     states = fluid.eos.fluxes(rho_L, vel_L, pre_L)
-    states_R = fluid.eos.fluxes(rho_R, vel_R, pre_R)
+    states_R = fluid.eos.fluxes(rho_R, vel_R, pre_R)  # noqa: N806
     if method != "HLLC" or not getattr(fluid.eos, "is_polytropic", False):
         return tuple(
             ru.CalInterFaceFluxGLF(left, right, qleft, qright, fluid.cmax)
@@ -149,17 +151,17 @@ def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):
 def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
     """Assemble limited mass, momentum, and energy face fluxes."""
     density_code, velocity_code, pressure_code, _ = solver._active_primitive_arrays(fluid, par)
-    rho_L, vel_L, pre_L = vacuum_safe_primitive_state(
+    rho_L, vel_L, pre_L = vacuum_safe_primitive_state(  # noqa: N806
         density_code.L,
         velocity_code.L,
         pressure_code.L,
     )
-    rho_R, vel_R, pre_R = vacuum_safe_primitive_state(
+    rho_R, vel_R, pre_R = vacuum_safe_primitive_state(  # noqa: N806
         density_code.R,
         velocity_code.R,
         pressure_code.R,
     )
-    Mass_flux_0, Mom_flux_0, Energy_flux_0 = interface_fluxes(
+    Mass_flux_0, Mom_flux_0, Energy_flux_0 = interface_fluxes(  # noqa: N806
         fluid,
         rho_L,
         vel_L,
@@ -177,17 +179,17 @@ def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
         fluid.angular_momentum_mom_flux_low = as_named_array(Mom_flux_0.copy())
         fluid.angular_momentum_energy_flux_low = as_named_array(Energy_flux_0.copy())
     elif order == 1:
-        rho_L, vel_L, pre_L = vacuum_safe_primitive_state(
+        rho_L, vel_L, pre_L = vacuum_safe_primitive_state(  # noqa: N806
             density_code.L.first,
             velocity_code.L.first,
             pressure_code.L.first,
         )
-        rho_R, vel_R, pre_R = vacuum_safe_primitive_state(
+        rho_R, vel_R, pre_R = vacuum_safe_primitive_state(  # noqa: N806
             density_code.R.first,
             velocity_code.R.first,
             pressure_code.R.first,
         )
-        Mass_flux_1, Mom_flux_1, Energy_flux_1 = interface_fluxes(
+        Mass_flux_1, Mom_flux_1, Energy_flux_1 = interface_fluxes(  # noqa: N806
             fluid,
             rho_L,
             vel_L,

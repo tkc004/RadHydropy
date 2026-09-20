@@ -1,4 +1,6 @@
-"""Run a uniform high-Mach advection test for the dual-energy scheme."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Run a uniform high-Mach advection test for the dual-energy scheme."""  # noqa: CPY001
 
 import argparse
 import sys

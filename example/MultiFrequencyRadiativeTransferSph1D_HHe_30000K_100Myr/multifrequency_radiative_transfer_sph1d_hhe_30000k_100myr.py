@@ -1,4 +1,6 @@
-"""Five-group H/He multifrequency static Strömgren sphere at 30,000 K."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Five-group H/He multifrequency static Strömgren sphere at 30,000 K."""  # noqa: CPY001
 
 import argparse
 import sys

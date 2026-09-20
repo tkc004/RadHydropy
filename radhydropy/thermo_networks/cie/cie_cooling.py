@@ -1,4 +1,6 @@
-"""Collisional-ionization-equilibrium radiative cooling network."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Collisional-ionization-equilibrium radiative cooling network."""  # noqa: CPY001
 
 from pathlib import Path
 
@@ -170,9 +172,9 @@ class CIECoolingNetwork(ThermochemistryNetwork):
     def thermal_rate(self, state, ngamma_cgs_cm3):
         table = _get_table(state["par"])
         metallicity = state["metallicity"]
-        nH = state["rho_cgs_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS
+        nH = state["rho_cgs_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS  # noqa: N806
         ne = nH * table.electron_fraction(state["temperature_cgs_K"], metallicity)
-        Lambda = table.cooling_coefficient(state["temperature_cgs_K"], ne, metallicity)
+        Lambda = table.cooling_coefficient(state["temperature_cgs_K"], ne, metallicity)  # noqa: N806
         return -ne * nH * Lambda + cmb_compton_rate(
             state["temperature_cgs_K"],
             ne,
@@ -254,7 +256,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         source_steps = 0
         active = np.asarray(state["active"], dtype=bool)
         floor = getattr(par, "cooling_temperature_floor", 1.0)
-        floor_cgs_K = float(to_unit_value(floor, unyt.K))
+        floor_cgs_K = float(to_unit_value(floor, unyt.K))  # noqa: N806
         while remaining_s > 0.0:
             _update_temperature(state)
             dt_s, rate = self.get_timestep(state, None, remaining_s, remaining_s)

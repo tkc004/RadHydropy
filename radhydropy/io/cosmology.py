@@ -1,4 +1,6 @@
-"""Cosmology-specific HDF5 headers and field metadata."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Cosmology-specific HDF5 headers and field metadata."""  # noqa: CPY001
 
 import numpy as np
 import unyt
@@ -49,7 +51,7 @@ def write_cosmology_header(header, par, output_time, code_units):
     header.attrs["SupercomovingTimeUnits"] = str(code_units.time_unit)
     header.attrs["HubbleParameter"] = float(cosmology.hubble(cosmic_time))
     header.attrs["HubbleParameterUnits"] = str(1.0 / code_units.time_unit)
-    hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
+    hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(  # noqa: N806
         unyt.km / unyt.s,
     ) / code_units.length_unit.to_value(unyt.Mpc)
     header.attrs["HubbleParameterKmS_Mpc"] = (
@@ -139,13 +141,13 @@ def runtime_field_spec(field_name, par, code_units, output_time):
     else:
         cosmic_time = float(output_time)
     scale_factor = float(cosmology.scale_factor(cosmic_time))
-    hubble_parameter_km_s_Mpc = None
+    hubble_parameter_km_s_Mpc = None  # noqa: N806
     if field_name == "vel_supercomoving_code":
         hubble_code = float(cosmology.hubble(cosmic_time))
-        hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(
+        hubble_unit_km_s_Mpc = code_units.velocity_unit.to_value(  # noqa: N806
             unyt.km / unyt.s,
         ) / code_units.length_unit.to_value(unyt.Mpc)
-        hubble_parameter_km_s_Mpc = hubble_code * hubble_unit_km_s_Mpc
+        hubble_parameter_km_s_Mpc = hubble_code * hubble_unit_km_s_Mpc  # noqa: N806
     return field_spec(
         field_name,
         code_units,

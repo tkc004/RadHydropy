@@ -1,4 +1,6 @@
-"""Plot energy accounting inside an evolving multiple of the virial radius."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Plot energy accounting inside an evolving multiple of the virial radius."""  # noqa: CPY001
 
 import argparse
 from pathlib import Path

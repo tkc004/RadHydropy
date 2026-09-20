@@ -1,4 +1,6 @@
-"""20 pc dynamic Stromgren sphere with direct radiation pressure."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""20 pc dynamic Stromgren sphere with direct radiation pressure."""  # noqa: CPY001
 
 import argparse
 import sys
@@ -219,7 +221,7 @@ def main(config_filename=DEFAULT_CONFIG):
         Path(output["directory"]) / f"{figure_stem}_IFront.jpg",
     )
 
-    time_proper_Myr = np.asarray(momentum_history["time_proper_cgs_s"]) / (1.0 * unyt.Myr).to_value(
+    time_proper_Myr = np.asarray(momentum_history["time_proper_cgs_s"]) / (1.0 * unyt.Myr).to_value(  # noqa: N806
         unyt.s,
     )
     momentum_unit = unyt.g * unyt.cm / unyt.s

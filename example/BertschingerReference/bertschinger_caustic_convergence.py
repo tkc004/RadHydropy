@@ -1,4 +1,6 @@
-"""Convergence study for the Bertschinger shell-ensemble caustic estimate."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Convergence study for the Bertschinger shell-ensemble caustic estimate."""  # noqa: CPY001
 
 import tempfile
 from copy import deepcopy

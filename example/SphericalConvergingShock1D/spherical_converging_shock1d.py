@@ -1,10 +1,12 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Spherical converging-flow shock benchmark.
 
 This is a controlled, gravity-free test of the spherical Euler/Riemann path.
 Uniform gas starts with inward radial velocity and reflects at the origin and
 outer wall.  Once the inward flow reaches the origin, a converging shock must
 convert kinetic energy into thermal energy while conserving total energy.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import sys

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Late phase isothermal H II region expansion in spherical 1D.
 
 This example is from STARBENCH: The D-type expansion of an H II region
@@ -15,7 +17,7 @@ ionized media are both treated with a simplified isothermal closure:
 
 The example is YAML-driven, writes HDF5 snapshots, reloads those snapshots,
 and plots the ionization-front history and density profiles from the saved outputs.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import os

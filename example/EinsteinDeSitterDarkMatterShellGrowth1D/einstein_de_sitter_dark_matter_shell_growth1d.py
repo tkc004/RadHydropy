@@ -1,4 +1,6 @@
-"""Einstein--de Sitter linear growth of collisionless dark-matter shells."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Einstein--de Sitter linear growth of collisionless dark-matter shells."""  # noqa: CPY001
 
 import argparse
 import os

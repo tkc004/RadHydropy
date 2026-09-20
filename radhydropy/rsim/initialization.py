@@ -1,4 +1,6 @@
-"""Rsim execution subsystem helpers."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Rsim execution subsystem helpers."""  # noqa: CPY001
 
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass

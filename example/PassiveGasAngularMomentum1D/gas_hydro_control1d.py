@@ -1,4 +1,6 @@
-"""Hydro control case without gas angular-momentum storage or advection."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Hydro control case without gas angular-momentum storage or advection."""  # noqa: CPY001
 
 import argparse
 import os

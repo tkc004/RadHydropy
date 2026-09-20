@@ -1,4 +1,6 @@
-"""Non-RT photoionization-equilibrium cooling with a fixed UV background."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Non-RT photoionization-equilibrium cooling with a fixed UV background."""  # noqa: CPY001
 
 import numpy as np
 
@@ -72,7 +74,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         return np.zeros_like(state["temperature_cgs_K"])
 
     def thermal_rate(self, state, ngamma_cgs_cm3):
-        nH = state["rho_cgs_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS
+        nH = state["rho_cgs_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS  # noqa: N806
         heating, cooling = state["par"].metal_pie_table.rates(
             state["temperature_cgs_K"],
             nH,
@@ -134,8 +136,8 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
     def _implicit_energy_step(self, state, old_energy, dt_s, floor_cgs_K):
         """Solve one backward-Euler thermal step with vectorized bisection."""
         table = state["par"].metal_pie_table
-        lower_cgs_K = max(float(floor_cgs_K), 10.0 ** float(table.log_temperature[0]))
-        upper_cgs_K = 10.0 ** float(table.log_temperature[-1])
+        lower_cgs_K = max(float(floor_cgs_K), 10.0 ** float(table.log_temperature[0]))  # noqa: N806
+        upper_cgs_K = 10.0 ** float(table.log_temperature[-1])  # noqa: N806
         lower = np.full_like(old_energy, lower_cgs_K, dtype=float)
         upper = np.full_like(old_energy, upper_cgs_K, dtype=float)
         rho = np.maximum(state["rho_cgs_g_cm3"], 1.0e-99)
@@ -253,7 +255,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         state = self.source_state(mesh, fluid, par)
         code = state["code"]
         remaining_s = float(to_unit_value(dt, code.time_unit)) * state["source_scale_factor"] ** 2
-        floor_cgs_K = float(
+        floor_cgs_K = float(  # noqa: N806
             to_unit_value(getattr(par, "cooling_temperature_floor", 1.0), "K"),
         )
         source_steps = 0

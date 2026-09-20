@@ -1,4 +1,6 @@
-"""Compare C²-Ray and instantaneous Strömgren-sphere front propagation."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Compare C²-Ray and instantaneous Strömgren-sphere front propagation."""  # noqa: CPY001
 
 import argparse
 import csv
@@ -107,11 +109,11 @@ def _plot(histories, config, filename):
             label=legend,
         )
     reference = histories["instantaneous_100000"]
-    reference_time_proper_Myr = np.asarray(reference["time_proper_Myr"])
+    reference_time_proper_Myr = np.asarray(reference["time_proper_Myr"])  # noqa: N806
     reference_radius_proper_kpc = np.asarray(reference["front_radius_proper_kpc"])
     for label, history in histories.items():
         color, linestyle, _ = styles[label]
-        time_samples_proper_Myr = np.asarray(history["time_proper_Myr"])
+        time_samples_proper_Myr = np.asarray(history["time_proper_Myr"])  # noqa: N806
         radius_samples_proper_kpc = np.asarray(history["front_radius_proper_kpc"])
         reference_at_time = np.interp(
             time_samples_proper_Myr,
@@ -133,7 +135,7 @@ def _plot(histories, config, filename):
         )
     initial = config["initial_condition"]
     example = config["example"]
-    time_proper_Myr = (
+    time_proper_Myr = (  # noqa: N806
         np.linspace(0.0, config["par"]["simulation"]["final_time"].to_value(unyt.Myr), 1200)
         * unyt.Myr
     )
@@ -190,7 +192,7 @@ def _write_summary(histories, config, filename):
             ],
         )
         for label, history in histories.items():
-            for time_proper_Myr, radius_proper_kpc in zip(
+            for time_proper_Myr, radius_proper_kpc in zip(  # noqa: N806
                 history["time_proper_Myr"],
                 history["front_radius_proper_kpc"],
                 strict=False,

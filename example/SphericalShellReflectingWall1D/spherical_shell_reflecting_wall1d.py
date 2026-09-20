@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Cold spherical shell falling onto a finite reflecting wall.
 
 This is deliberately a short, order-zero HLLC validation problem.  Unlike a
 spherical mesh that touches ``r=0``, the inner face has finite area, so the
 reflected Riemann problem is retained and can be diagnosed directly.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import sys

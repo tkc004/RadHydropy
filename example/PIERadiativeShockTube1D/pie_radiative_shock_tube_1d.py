@@ -1,4 +1,6 @@
-"""HM12 PIE radiative colliding-flow shock-tube benchmark."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""HM12 PIE radiative colliding-flow shock-tube benchmark."""  # noqa: CPY001
 
 import argparse
 import copy
@@ -111,7 +113,7 @@ def _shock_diagnostics(result, table, config):
     # barely developed initial transient rather than the displayed shock.
     shock_snapshot = snapshot
     rho_proper_cgs_g_cm3 = shock_snapshot["rho_proper_cgs_g_cm3"]
-    temperature_proper_cgs_K = shock_snapshot["temperature_proper_cgs_K"]
+    temperature_proper_cgs_K = shock_snapshot["temperature_proper_cgs_K"]  # noqa: N806
     vel_proper_cgs_cm_s = shock_snapshot["vel_peculiar_proper_cgs_cm_s"]
     boundary_proper_cgs_cm = shock_snapshot["boundary_proper_cgs_cm"]
     centers_proper_cgs_cm = 0.5 * (boundary_proper_cgs_cm[1:] + boundary_proper_cgs_cm[:-1])

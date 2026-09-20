@@ -1,4 +1,6 @@
-"""Analytic reference profile for the spherical outflow example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Analytic reference profile for the spherical outflow example."""  # noqa: CPY001
 
 
 def density_profile_proper_unyt(

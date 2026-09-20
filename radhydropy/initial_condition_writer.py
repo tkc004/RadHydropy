@@ -1,4 +1,6 @@
-"""Shared RadArray-to-runtime initial-condition writer boundary."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Shared RadArray-to-runtime initial-condition writer boundary."""  # noqa: CPY001
 
 import warnings
 
@@ -143,7 +145,7 @@ class InitialConditionWriter:
                     cosmology_model.scale_factor(cosmic_time_code),
                 )
                 hubble_code = float(cosmology_model.hubble(cosmic_time_code))
-                hubble_unit_km_s_Mpc = self.code_units.velocity_unit.to_value(
+                hubble_unit_km_s_Mpc = self.code_units.velocity_unit.to_value(  # noqa: N806
                     "km/s",
                 ) / self.code_units.length_unit.to_value("Mpc")
                 simulation.par.cosmology_context = CosmologyContext(
@@ -374,7 +376,7 @@ class InitialConditionWriter:
                 )
         if field_name is None:
             field_name = self._primitive_field_name(values, context, representation)
-        hubble_parameter_km_s_Mpc = (
+        hubble_parameter_km_s_Mpc = (  # noqa: N806
             context.hubble_parameter_km_s_Mpc if field_name == "vel_supercomoving_code" else None
         )
         spec = field_spec(

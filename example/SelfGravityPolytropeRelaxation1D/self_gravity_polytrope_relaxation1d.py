@@ -1,4 +1,6 @@
-"""Relax a perturbed self-gravitating n=1 polytrope toward equilibrium."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Relax a perturbed self-gravitating n=1 polytrope toward equilibrium."""  # noqa: CPY001
 
 import argparse
 import os

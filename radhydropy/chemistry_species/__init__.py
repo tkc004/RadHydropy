@@ -1,4 +1,6 @@
-"""Species-level chemistry helpers."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Species-level chemistry helpers."""  # noqa: CPY001
 
 from . import helium, hydrogen, metal, molecule
 

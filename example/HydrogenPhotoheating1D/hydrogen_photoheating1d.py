@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Optically thin hydrogen photoheating and recombination parcel.
 
 An initially neutral pure-hydrogen parcel with fixed total density is exposed
@@ -5,7 +7,7 @@ to a spatially uniform ionizing radiation field. The radiation is treated as
 optically thin, so the photon density is fixed while the source is on and set
 to zero when the source switches off. The run writes HDF5 snapshots, reloads
 them, and plots the thermal and ionization history from those outputs.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import os

@@ -1,4 +1,6 @@
-"""Few-cell uniform EdS Compton/atomic thermo-chemistry comparison."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Few-cell uniform EdS Compton/atomic thermo-chemistry comparison."""  # noqa: CPY001
 
 import sys
 from pathlib import Path

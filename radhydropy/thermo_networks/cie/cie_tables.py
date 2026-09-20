@@ -1,4 +1,6 @@
-"""Cached CHIANTI CIE ion-fraction and cooling-table interpolation."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Cached CHIANTI CIE ion-fraction and cooling-table interpolation."""  # noqa: CPY001
 
 from pathlib import Path
 
@@ -85,7 +87,7 @@ class CIETable:
 
     def electron_fraction(self, temperature_cgs_K, metallicity):
         """Return ``ne / nH`` for temperature and metallicity arrays."""
-        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
         log_temperature = np.log10(np.maximum(temperature_cgs_K, 1.0))
         key = float(metallicity)
         if key not in self._electron_fraction_cache:
@@ -104,7 +106,7 @@ class CIETable:
 
     def cooling_coefficient(self, temperature_cgs_K, electron_density, metallicity):
         """Return Lambda in erg cm^3 s^-1 using log-space interpolation."""
-        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+        temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
         electron_density = np.asarray(electron_density, dtype=float)
         log_temperature = np.log10(np.maximum(temperature_cgs_K, 1.0))
         log_density = np.log10(np.maximum(electron_density, 1.0e-99))

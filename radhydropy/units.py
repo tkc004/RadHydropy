@@ -1,4 +1,6 @@
-"""Shared helpers for internal code-unit handling."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Shared helpers for internal code-unit handling."""  # noqa: CPY001
 
 from dataclasses import dataclass
 from functools import cached_property

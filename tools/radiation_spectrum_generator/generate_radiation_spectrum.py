@@ -1,4 +1,6 @@
-"""Generate a blackbody radiation-spectrum HDF5 file independently."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Generate a blackbody radiation-spectrum HDF5 file independently."""  # noqa: CPY001
 
 from __future__ import annotations
 

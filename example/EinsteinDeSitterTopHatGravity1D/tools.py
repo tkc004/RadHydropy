@@ -1,4 +1,6 @@
-"""Initial conditions and analytic solution for the EdS top-hat test."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Initial conditions and analytic solution for the EdS top-hat test."""  # noqa: CPY001
 
 import numpy as np
 
@@ -91,7 +93,7 @@ def build_initial_condition(config):
         * (1.0 + float(initial_condition["overdensity"]) * inside)
         * np.ones(grid_cells)
     )
-    temperature_cgs_K = quantity_to_value(
+    temperature_cgs_K = quantity_to_value(  # noqa: N806
         initial_condition["temperature_proper"],
         code_units.temperature_unit,
     )

@@ -1,4 +1,6 @@
-"""Regression tests for nested YAML settings reaching the runtime parameter object."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Regression tests for nested YAML settings reaching the runtime parameter object."""  # noqa: CPY001
 
 from types import SimpleNamespace
 

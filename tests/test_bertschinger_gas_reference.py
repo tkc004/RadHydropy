@@ -1,4 +1,6 @@
-"""Focused checks for the standalone Bertschinger gas reference."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Focused checks for the standalone Bertschinger gas reference."""  # noqa: CPY001
 
 import importlib.util
 import sys

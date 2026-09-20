@@ -1,4 +1,6 @@
-"""Hydro plus centrifugal-source expansion benchmark."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Hydro plus centrifugal-source expansion benchmark."""  # noqa: CPY001
 
 import os
 import sys

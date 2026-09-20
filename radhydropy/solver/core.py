@@ -1,4 +1,6 @@
-"""Finite-volume hydrodynamics solver operations."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Finite-volume hydrodynamics solver operations."""  # noqa: CPY001
 
 import logging
 import math
@@ -154,7 +156,7 @@ class Solver:
             submesh.face_area_cgs_cm2 = (
                 np.asarray(area_field[interior], dtype=float) * scales["area_cgs_cm2"]
             )
-        group_edges_eV = getattr(par, "radiation_group_edges_eV", None)
+        group_edges_eV = getattr(par, "radiation_group_edges_eV", None)  # noqa: N806
         if group_edges_eV is not None:
             sigma_groups = getattr(par, "radiation_group_sigma_gamma", None)
             if sigma_groups is None:
@@ -2284,7 +2286,7 @@ class Solver:
             fluid.Mass_code.flux * area_runtime_code,
             -1,
         )
-        df_Mom_code = fluid.Mom_code.flux * area_runtime_code - ru.periodic_roll(
+        df_Mom_code = fluid.Mom_code.flux * area_runtime_code - ru.periodic_roll(  # noqa: N806
             fluid.Mom_code.flux * area_runtime_code,
             -1,
         )
@@ -2292,10 +2294,10 @@ class Solver:
             fluid.Energy_code.flux * area_runtime_code,
             -1,
         )
-        df_AngularMomentum = None
+        df_AngularMomentum = None  # noqa: N806
         if hasattr(fluid, "AngularMomentum_code"):
             angular_flux_area = fluid.AngularMomentum_code.flux * area_runtime_code
-            df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
+            df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)  # noqa: N806
         potential_face = self._gravity_potential_faces(mesh, getattr(mesh, "_par", None))
         df_potential = None
         if potential_face is not None:
@@ -2305,14 +2307,14 @@ class Solver:
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.
             area_right = ru.periodic_roll(area_runtime_code, -1)
-            df_Mom_code += pressure_runtime_code * (area_right - area_runtime_code)
+            df_Mom_code += pressure_runtime_code * (area_right - area_runtime_code)  # noqa: N806
 
         dual_energy = (
             self._dual_energy_enabled(getattr(mesh, "_par", None))
             and hasattr(fluid, "InternalEnergy_code")
             and getattr(fluid.eos, "is_polytropic", False)
         )
-        df_InternalEnergy = None
+        df_InternalEnergy = None  # noqa: N806
         if dual_energy:
             velocity_left = np.asarray(velocity_runtime_code.L, dtype=float)
             velocity_right = np.asarray(velocity_runtime_code.R, dtype=float)
@@ -2342,14 +2344,14 @@ class Solver:
             origin_face = self._spherical_origin_face_index(mesh)
             if origin_face is not None:
                 internal_flux[origin_face] = 0.0
-            df_InternalEnergy = internal_flux * area_runtime_code - ru.periodic_roll(
+            df_InternalEnergy = internal_flux * area_runtime_code - ru.periodic_roll(  # noqa: N806
                 internal_flux * area_runtime_code,
                 -1,
             )
             if getattr(mesh, "coordsys", None) == "spherical":
                 # Account for spherical pressure work using the same
                 # interface pressure implied by the Riemann momentum flux.
-                df_InternalEnergy -= (
+                df_InternalEnergy -= (  # noqa: N806
                     ru.periodic_roll(face_pressure * face_velocity * area_runtime_code, -1)
                     - face_pressure * face_velocity * area_runtime_code
                 )

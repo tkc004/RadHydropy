@@ -1,4 +1,6 @@
-"""Plotting and numerical helper functions for the cosmological gas example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Plotting and numerical helper functions for the cosmological gas example."""  # noqa: CPY001
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1012,7 +1014,7 @@ def _instantaneous_source_diagnostics(sim, gas_profile):
     )
     rho_comoving_code = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
     specific_energy = np.asarray(state["specific_energy_cgs_erg_g"], dtype=float)
-    temperature_proper_cgs_K = np.asarray(state["temperature_cgs_K"], dtype=float)
+    temperature_proper_cgs_K = np.asarray(state["temperature_cgs_K"], dtype=float)  # noqa: N806
     mu = np.asarray(
         state.get(
             "mu",

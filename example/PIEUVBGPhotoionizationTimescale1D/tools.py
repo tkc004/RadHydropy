@@ -1,4 +1,6 @@
-"""Helpers for the HM12 PIE photoionization-timescale example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helpers for the HM12 PIE photoionization-timescale example."""  # noqa: CPY001
 
 from pathlib import Path
 

@@ -1,4 +1,6 @@
-import unittest
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+import unittest  # noqa: CPY001
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -100,14 +102,14 @@ class EOS:
         return (energy_density - 0.5 * rho * vel**2) * (self.gamma - 1.0)
 
     def fluxes(self, rho, vel, pressure):
-        Fmass = rho * vel
+        Fmass = rho * vel  # noqa: N806
         qmass = rho
-        Fmom = rho * vel * vel
+        Fmom = rho * vel * vel  # noqa: N806
         Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0 * rho[0] * vel[0] ** 2
-        Fmom += pressure
+        Fmom += pressure  # noqa: N806
         qmom = rho * vel
-        FEn = vel * (self.gamma * pressure / (self.gamma - 1.0) + 0.5 * rho * vel**2)
-        qEn = pressure / (self.gamma - 1.0) + rho * vel**2 * 0.5
+        FEn = vel * (self.gamma * pressure / (self.gamma - 1.0) + 0.5 * rho * vel**2)  # noqa: N806
+        qEn = pressure / (self.gamma - 1.0) + rho * vel**2 * 0.5  # noqa: N806
         return Fmass, qmass, Fmom, qmom, FEn, qEn
 
 
@@ -1489,7 +1491,7 @@ class Testing(unittest.TestCase):
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
         energy_before = fluid.Energy_code.copy()
-        xHI_before = fluid.xHI.copy()
+        xHI_before = fluid.xHI.copy()  # noqa: N806
 
         Solver().ApplyThermochemistryFast(1.0e6, mesh, fluid, par)
 
@@ -1511,7 +1513,7 @@ class Testing(unittest.TestCase):
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
         energy_before = fluid.Energy_code.copy()
-        xHI_before = fluid.xHI.copy()
+        xHI_before = fluid.xHI.copy()  # noqa: N806
 
         Solver().ApplyThermochemistryFast(1.0e6, mesh, fluid, par)
 
@@ -1535,7 +1537,7 @@ class Testing(unittest.TestCase):
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
         energy_before = fluid.Energy_code.copy()
-        xHI_before = fluid.xHI.copy()
+        xHI_before = fluid.xHI.copy()  # noqa: N806
         ngamma_code_before = fluid.ngamma_code.copy()
 
         Solver().ApplyThermochemistryFast(1.0e2, mesh, fluid, par)
@@ -1565,7 +1567,7 @@ class Testing(unittest.TestCase):
         fluid.SetPressure()
         Solver().SetConserved(mesh, fluid)
         energy_before = fluid.Energy_code.copy()
-        xHI_before = fluid.xHI.copy()
+        xHI_before = fluid.xHI.copy()  # noqa: N806
         ngamma_code_before = fluid.ngamma_code.copy()
 
         Solver().ApplyThermochemistryFast(1.0e2, mesh, fluid, par)

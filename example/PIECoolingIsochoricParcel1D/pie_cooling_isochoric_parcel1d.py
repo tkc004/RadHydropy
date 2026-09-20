@@ -1,4 +1,6 @@
-"""Isochoric HM12 PIE heating/cooling parcel benchmark."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Isochoric HM12 PIE heating/cooling parcel benchmark."""  # noqa: CPY001
 
 import argparse
 import copy
@@ -79,7 +81,7 @@ def _snapshot(filename, config, time_proper_Myr=None):
     first = int(snapshot.par.mesh.ghost_cells)
     last = first + int(snapshot.par.mesh.grid_cells)
     code_units = snapshot.par.units.CodeUnits
-    snapshot_time_proper_Myr = float(
+    snapshot_time_proper_Myr = float(  # noqa: N806
         snapshot.fluid.time_proper_code,
     ) * code_units.time_unit.to_value(unyt.Myr)
     return {
@@ -165,7 +167,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
         * temperature_proper_cgs_K
         / ((hydro["gamma"] - 1.0) * initial_condition["mean_molecular_weight"] * PROTON_MASS_G)
     )
-    thermal_time_proper_Myr = (
+    thermal_time_proper_Myr = (  # noqa: N806
         thermal_energy / max(abs(initial_net_rate_cgs_erg_cm3_s), 1.0e-99) / SECONDS_PER_MYR
     )
     equilibrium = _equilibrium_temperature(
@@ -278,7 +280,7 @@ def _plot(results, config, filename):
                 line.get_color(),
             ),
         )
-    for temperature_proper_cgs_K, rate, color in right_markers:
+    for temperature_proper_cgs_K, rate, color in right_markers:  # noqa: N806
         axes[1].plot(
             temperature_proper_cgs_K,
             rate,
@@ -327,7 +329,7 @@ def main(config_filename=DEFAULT_CONFIG):
     METALLICITY = float(thermo["metallicity"])
     REDSHIFT = float(thermo["metal_pie_redshift"])
     results = []
-    for label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K in CASES:
+    for label, hydrogen_number_density_cgs_cm3, temperature_proper_cgs_K in CASES:  # noqa: N806
         results.append(
             _run_case(
                 config,

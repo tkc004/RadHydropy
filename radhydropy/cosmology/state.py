@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Typed conversions between comoving and proper cosmological states.
 
 The solver-side state is expressed in comoving/supercomoving code variables.
 Physics source terms cross this module once and receive proper CGS values.
 Representation and unit names are deliberately part of every public field.
-"""
+"""  # noqa: CPY001
 
 from dataclasses import dataclass
 

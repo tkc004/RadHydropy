@@ -1,4 +1,6 @@
-"""Numerical solver subsystem helpers."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Numerical solver subsystem helpers."""  # noqa: CPY001
 
 import numpy as np
 import unyt

@@ -1,4 +1,6 @@
-"""Executable conversion checks for RadHydropy's representation-aware arrays."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Executable conversion checks for RadHydropy's representation-aware arrays."""  # noqa: CPY001
 
 import sys
 from pathlib import Path
@@ -20,7 +22,7 @@ CONFIG_FILE = Path(__file__).with_name("radarray_conversion1d.yaml")
 
 
 def _rad_array(values, field_name, code_units, cosmology):
-    hubble_parameter_km_s_Mpc = (
+    hubble_parameter_km_s_Mpc = (  # noqa: N806
         cosmology.hubble_parameter_km_s_Mpc if field_name == "vel_supercomoving_code" else None
     )
     return RadArray(
@@ -43,7 +45,7 @@ def run(config_file=CONFIG_FILE):
     code_units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     gamma = float(config["par"]["hydrodynamics"]["gamma"])
     scale_factor = float(config["example"]["scale_factor"])
-    hubble_parameter_km_s_Mpc = float(
+    hubble_parameter_km_s_Mpc = float(  # noqa: N806
         config["example"]["hubble_parameter"].to_value("km/(s*Mpc)"),
     )
     cosmology = CosmologyContext(

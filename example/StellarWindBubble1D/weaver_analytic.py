@@ -1,4 +1,6 @@
-"""Weaver et al. (1977) energy-driven stellar-wind bubble helper."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Weaver et al. (1977) energy-driven stellar-wind bubble helper."""  # noqa: CPY001
 
 from __future__ import annotations
 

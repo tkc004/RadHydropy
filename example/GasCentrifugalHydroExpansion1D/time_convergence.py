@@ -1,4 +1,6 @@
-"""Timestep convergence study for the coupled centrifugal source update."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Timestep convergence study for the coupled centrifugal source update."""  # noqa: CPY001
 
 import copy
 import sys

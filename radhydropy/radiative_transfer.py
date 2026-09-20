@@ -1,4 +1,6 @@
-"""Optional one-dimensional long-characteristic radiative transfer."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Optional one-dimensional long-characteristic radiative transfer."""  # noqa: CPY001
 
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -567,8 +569,8 @@ def trace_photon_density(state, par):
     code = _code_units(par)
     mesh = _state_mesh_for_radiative_transfer(state, par)
     rho_proper_cgs_g_cm3 = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
-    xHI_dimensionless = np.asarray(state["xHI"], dtype=float)
-    group_edges_eV = getattr(par, "radiation_group_edges_eV", None)
+    xHI_dimensionless = np.asarray(state["xHI"], dtype=float)  # noqa: N806
+    group_edges_eV = getattr(par, "radiation_group_edges_eV", None)  # noqa: N806
     if group_edges_eV is not None:
         sigma_groups = getattr(par, "radiation_group_sigma_gamma", None)
         if sigma_groups is None:
@@ -608,10 +610,10 @@ def trace_photon_density(state, par):
                 "photon_rate_per_s",
             )
         if hasattr(state, "get") and "xHeI" in state:
-            nH = (
+            nH = (  # noqa: N806
                 getattr(par, "hydrogen_mass_fraction", 0.7) * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
             )
-            nHe = (
+            nHe = (  # noqa: N806
                 getattr(par, "helium_mass_fraction", 0.28)
                 * rho_proper_cgs_g_cm3
                 / (4.0 * PROTON_MASS_CGS)

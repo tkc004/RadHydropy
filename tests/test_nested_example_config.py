@@ -1,4 +1,6 @@
-"""Contract tests for the direct nested example-configuration API."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Contract tests for the direct nested example-configuration API."""  # noqa: CPY001
 
 import sys
 from pathlib import Path

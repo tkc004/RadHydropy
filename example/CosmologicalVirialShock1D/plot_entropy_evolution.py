@@ -1,4 +1,6 @@
-"""Plot the defined gas entropy proxy, ``T / rho**(gamma - 1)``."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Plot the defined gas entropy proxy, ``T / rho**(gamma - 1)``."""  # noqa: CPY001
 
 import argparse
 from pathlib import Path
@@ -40,7 +42,7 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, exclude_outer_cells=2):
     times = np.asarray(data["time_cosmic_Gyr"], dtype=float)
     radius_comoving_code = np.asarray(data["radius_comoving_kpc"], dtype=float)
     rho_comoving_code = np.asarray(data["rho_proper_code"], dtype=float)
-    temperature_proper_cgs_K = np.asarray(data["temperature_proper_cgs_K"], dtype=float)
+    temperature_proper_cgs_K = np.asarray(data["temperature_proper_cgs_K"], dtype=float)  # noqa: N806
     scale = np.asarray(data["scale_factor"], dtype=float)
     rvir = np.asarray(data["rvir_proper_kpc"], dtype=float)
     rshock = np.asarray(data["rshock_kpc"], dtype=float)

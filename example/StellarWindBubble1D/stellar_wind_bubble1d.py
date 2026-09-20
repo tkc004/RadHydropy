@@ -1,4 +1,6 @@
-import argparse
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+import argparse  # noqa: CPY001
 import os
 import sys
 import tempfile

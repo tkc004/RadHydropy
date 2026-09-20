@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Write radial-profile CSV files from stellar-wind HDF5 snapshots.
 
 Run without arguments to process every ``Output_*.hdf5`` in this directory.
 CSV files are written to the ``radial_profiles`` subdirectory. Pass one
 snapshot path to write the generic ``radial_profile.csv`` file there.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import sys
@@ -55,7 +57,7 @@ def process_snapshots(snapshot_directory=EXAMPLE_DIR, config_filename=DEFAULT_CO
 
     csv_files = []
     for snapshot in snapshots:
-        time_proper_Myr = snapshot_time_myr(snapshot, config)
+        time_proper_Myr = snapshot_time_myr(snapshot, config)  # noqa: N806
         time_label = f"{time_proper_Myr:.6g}"
         csv_filename = csv_directory / f"radial_profile_{time_label}Myr.csv"
         csv_files.append(write_snapshot_profile(snapshot, config, csv_filename))

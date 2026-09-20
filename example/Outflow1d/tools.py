@@ -1,4 +1,6 @@
-"""Helper utilities for the cartesian outflow example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helper utilities for the cartesian outflow example."""  # noqa: CPY001
 
 import matplotlib as mpl
 

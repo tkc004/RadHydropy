@@ -1,10 +1,12 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Plot gas energy audits and saved dark-matter energy proxies.
 
 The adiabatic gas run saves an exact cell-integrated energy audit.  Its
 dark-matter profile file does not save shell velocities or force work, so the
 dark-matter curves below are reconstructed from finite differences of the
 saved proper shell radii and are intentionally labelled as proxies.
-"""
+"""  # noqa: CPY001
 
 from pathlib import Path
 
@@ -167,7 +169,7 @@ def main():
     axes[2, 0].set_xlabel("cosmic time [Gyr]")
     axes[2, 0].legend(frameon=False, fontsize=8)
 
-    dm_time_cosmic_Gyr = np.asarray(dark_matter["time_cosmic_Gyr"], dtype=float)
+    dm_time_cosmic_Gyr = np.asarray(dark_matter["time_cosmic_Gyr"], dtype=float)  # noqa: N806
     axes[0, 1].plot(dm_time_cosmic_Gyr, dm_kinetic, label="kinetic proxy")
     axes[0, 1].plot(dm_time_cosmic_Gyr, dm_potential, label="gravity proxy")
     axes[0, 1].plot(dm_time_cosmic_Gyr, dm_total, label="total proxy", color="black", lw=2.0)

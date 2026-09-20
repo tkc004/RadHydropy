@@ -1,4 +1,6 @@
-import hashlib
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+import hashlib  # noqa: CPY001
 import os
 import tempfile
 import unittest

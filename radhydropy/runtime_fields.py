@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Canonical runtime field names selected by the simulation representation.
 
 The solver operates on one explicit representation at a time.  This module
 contains the naming contract used while migrating solver consumers; it does
 not provide legacy aliases or fallback lookups.
-"""
+"""  # noqa: CPY001
 
 from dataclasses import dataclass
 from typing import Any, cast

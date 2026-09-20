@@ -1,4 +1,6 @@
-"""Spherical collisionless dark-matter shell dynamics."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Spherical collisionless dark-matter shell dynamics."""  # noqa: CPY001
 
 import numpy as np
 

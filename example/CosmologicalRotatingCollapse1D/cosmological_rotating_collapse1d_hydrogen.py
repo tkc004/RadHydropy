@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Verify hydrogen cooling preserves rotational energy in a rotating gas cell.
 
 This is a source-only companion to the rotating-collapse example.  Mass,
 angular momentum, radius, and radial velocity are held fixed; only the
 thermal chemistry source is applied.
-"""
+"""  # noqa: CPY001
 
 import sys
 from pathlib import Path

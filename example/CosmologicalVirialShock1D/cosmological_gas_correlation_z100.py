@@ -1,4 +1,6 @@
-"""Adiabatic gas collapse from the z=100 LCDM correlation-function IC."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Adiabatic gas collapse from the z=100 LCDM correlation-function IC."""  # noqa: CPY001
 
 import argparse
 import sys
@@ -170,14 +172,14 @@ def run(
             "initial gas/total mass fraction does not match baryon_fraction",
         )
     initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    temperature_proper_cgs_K = (
+    temperature_proper_cgs_K = (  # noqa: N806
         float(np.median(initial.fluid.temp_supercomoving_code))
         / float(
             cosmology.scale_factor(initial_time),
         )
         ** 2
     )
-    cmb_temperature_0_cgs_K = float(
+    cmb_temperature_0_cgs_K = float(  # noqa: N806
         initial_condition["cmb_temperature_0"].to_value(unyt.K),
     )
     expected_temperature = cmb_temperature_0_cgs_K * (

@@ -1,4 +1,6 @@
-"""Uniform spherical HM12 PIE cooling/heating hydro test."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Uniform spherical HM12 PIE cooling/heating hydro test."""  # noqa: CPY001
 
 import argparse
 import copy
@@ -87,7 +89,7 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, table):
     if len(snapshots) < 2:
         raise RuntimeError(f"expected initial and final snapshots in {output_dir}")
 
-    temperature_proper_cgs_K = float(
+    temperature_proper_cgs_K = float(  # noqa: N806
         case_config["initial_condition"]["temperature_proper"].to_value(unyt.K),
     )
     _heating, _cooling = table.rates(

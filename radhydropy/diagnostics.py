@@ -1,4 +1,6 @@
-"""Runtime diagnostics for hydro and thermo-chemistry simulations."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Runtime diagnostics for hydro and thermo-chemistry simulations."""  # noqa: CPY001
 
 import logging
 from pathlib import Path

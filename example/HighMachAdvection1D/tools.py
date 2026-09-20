@@ -1,4 +1,6 @@
-"""Initial conditions and diagnostics for high-Mach advection."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Initial conditions and diagnostics for high-Mach advection."""  # noqa: CPY001
 
 import numpy as np
 from basic_hydro_utils import make_initial_condition

@@ -1,4 +1,6 @@
-"""Hydrogen thermo-chemistry rates and source terms."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Hydrogen thermo-chemistry rates and source terms."""  # noqa: CPY001
 
 import numpy as np
 
@@ -29,5 +31,5 @@ def clip_neutral_fraction(xHI):
 
 def mean_molecular_weight_mu(xHI, hydrogen_mass_fraction=1.0):
     """Return mean molecular weight for a pure H mixture with neutral fraction ``xHI``."""
-    xHI = clip_neutral_fraction(xHI)
+    xHI = clip_neutral_fraction(xHI)  # noqa: N806
     return 1.0 / (hydrogen_mass_fraction * (2.0 - xHI))

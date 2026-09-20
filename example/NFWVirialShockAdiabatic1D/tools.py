@@ -1,4 +1,6 @@
-"""Initial conditions, diagnostics, and plotting for the adiabatic benchmark."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Initial conditions, diagnostics, and plotting for the adiabatic benchmark."""  # noqa: CPY001
 
 import matplotlib as mpl
 
@@ -88,11 +90,11 @@ def _snapshot_profiles(filename, config):
     active_slice = slice(nghost, -nghost if nghost else None)
     radius_proper_cgs_cm_unyt = radius_proper_cgs_cm_unyt[active_slice]
     rho_proper_cgs_g_cm3_unyt = rout.fluid.rho_radarray.to(unyt.g / unyt.cm**3)[active_slice]
-    temperature_proper_cgs_K_unyt = rout.fluid.temp_radarray.to(unyt.K)[active_slice]
+    temperature_proper_cgs_K_unyt = rout.fluid.temp_radarray.to(unyt.K)[active_slice]  # noqa: N806
     vel_peculiar_proper_cgs_cm_s_unyt = (
         rout.fluid.vel_radarray.to(unyt.cm / unyt.s)[active_slice] / 1.0e5
     )
-    time_proper_Myr = time_seconds(rout.fluid.time_proper_code, code_units) / (
+    time_proper_Myr = time_seconds(rout.fluid.time_proper_code, code_units) / (  # noqa: N806
         1.0e6 * 365.25 * 86400.0
     )
     return (
@@ -134,7 +136,7 @@ def rankine_hugoniot_diagnostics(filenames, config, halo):
     virial_radius_proper_kpc = halo["radius_virial_proper_kpc_unyt"].to_value(unyt.kpc)
     shock_positions = []
     shock_indices = []
-    for _, radius_proper_kpc, _, temperature_proper_K, _ in profiles:
+    for _, radius_proper_kpc, _, temperature_proper_K, _ in profiles:  # noqa: N806
         index, position = _locate_shock(
             radius_proper_kpc,
             temperature_proper_K,
@@ -146,14 +148,14 @@ def rankine_hugoniot_diagnostics(filenames, config, halo):
     rows = []
     for snapshot_index in range(1, len(profiles) - 1):
         (
-            time_proper_Myr,
+            time_proper_Myr,  # noqa: N806
             radius_proper_kpc,
             density_proper_cgs_g_cm3,
-            temperature_proper_K,
+            temperature_proper_K,  # noqa: N806
             velocity_proper_km_s,
         ) = profiles[snapshot_index]
-        previous_time_proper_Myr = profiles[snapshot_index - 1][0]
-        next_time_proper_Myr = profiles[snapshot_index + 1][0]
+        previous_time_proper_Myr = profiles[snapshot_index - 1][0]  # noqa: N806
+        next_time_proper_Myr = profiles[snapshot_index + 1][0]  # noqa: N806
         dt_proper_myr = next_time_proper_Myr - previous_time_proper_Myr
         if dt_proper_myr <= 0.0:
             continue
@@ -169,8 +171,8 @@ def rankine_hugoniot_diagnostics(filenames, config, halo):
         downstream = slice(index - 4, index - 1)
         density_upstream_proper_cgs_g_cm3 = float(np.median(density_proper_cgs_g_cm3[upstream]))
         density_downstream_proper_cgs_g_cm3 = float(np.median(density_proper_cgs_g_cm3[downstream]))
-        temperature_upstream_proper_K = float(np.median(temperature_proper_K[upstream]))
-        temperature_downstream_proper_K = float(np.median(temperature_proper_K[downstream]))
+        temperature_upstream_proper_K = float(np.median(temperature_proper_K[upstream]))  # noqa: N806
+        temperature_downstream_proper_K = float(np.median(temperature_proper_K[downstream]))  # noqa: N806
         vel_upstream_proper_km_s = float(np.median(velocity_proper_km_s[upstream]))
         sound_speed = (
             np.sqrt(
@@ -235,10 +237,10 @@ def plot_snapshots(filenames, config, halo, figure_filename):
     ).to_value(unyt.K)
     for color, filename in zip(colors, filenames, strict=False):
         (
-            time_proper_Myr,
+            time_proper_Myr,  # noqa: N806
             radius_proper_kpc,
             density_proper_cgs_g_cm3,
-            temperature_proper_cgs_K,
+            temperature_proper_cgs_K,  # noqa: N806
             _,
         ) = _snapshot_profiles(
             filename,

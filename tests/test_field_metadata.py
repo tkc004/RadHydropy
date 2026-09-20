@@ -1,4 +1,6 @@
-import unittest
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+import unittest  # noqa: CPY001
 
 from radhydropy.field_metadata import (
     _FIELD_DEFINITIONS,

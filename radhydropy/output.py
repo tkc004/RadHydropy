@@ -1,4 +1,6 @@
-"""Simulation output scheduling helpers."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Simulation output scheduling helpers."""  # noqa: CPY001
 
 import logging
 

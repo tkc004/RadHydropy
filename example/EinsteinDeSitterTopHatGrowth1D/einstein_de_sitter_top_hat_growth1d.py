@@ -1,4 +1,6 @@
-"""Einstein--de Sitter linear-growth test for a spherical top-hat."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Einstein--de Sitter linear-growth test for a spherical top-hat."""  # noqa: CPY001
 
 import argparse
 import os

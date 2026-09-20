@@ -1,4 +1,6 @@
-"""Photoheated 20 pc Stromgren sphere with a central stellar wind."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Photoheated 20 pc Stromgren sphere with a central stellar wind."""  # noqa: CPY001
 
 import argparse
 import os
@@ -87,7 +89,7 @@ def _pressure_diagnostic(snapshot, config):
         if weighted_volume > 0.0
         else 0.0
     )
-    time_proper_Myr = float(np.asarray(et._to_myr(fluid.time_proper_code, config)))
+    time_proper_Myr = float(np.asarray(et._to_myr(fluid.time_proper_code, config)))  # noqa: N806
     return (
         time_proper_Myr,
         wind_pressure_proper_cgs_dyn_cm2,
@@ -101,7 +103,7 @@ def pressure_diagnostic_from_profile(profile, config):
     fields = np.genfromtxt(profile, delimiter=",", names=True)
     radius_proper_pc = np.asarray(fields["RADIUS_PC"], dtype=float)
     hydrogen_number_density_cgs_cm3 = np.asarray(fields["DENSITY_CM3"], dtype=float)
-    temperature_proper_cgs_K = np.asarray(fields["TEMP_cgs_K"], dtype=float)
+    temperature_proper_cgs_K = np.asarray(fields["TEMP_cgs_K"], dtype=float)  # noqa: N806
     shell_index = 2 + int(np.argmax(hydrogen_number_density_cgs_cm3[2:]))
     radius_shell_proper_pc = float(radius_proper_pc[shell_index])
     example = config["example"]
@@ -127,7 +129,7 @@ def pressure_diagnostic_from_profile(profile, config):
         if np.any(photoheated)
         else 0.0
     )
-    time_proper_Myr = float(Path(profile).stem.rsplit("_", 1)[-1].replace("Myr", ""))
+    time_proper_Myr = float(Path(profile).stem.rsplit("_", 1)[-1].replace("Myr", ""))  # noqa: N806
     return (
         time_proper_Myr,
         wind_pressure_proper_cgs_dyn_cm2,
@@ -141,7 +143,7 @@ def save_pressure_ratio_plot(diagnostics, output_dir):
     diagnostics = np.asarray(diagnostics, dtype=float)
     diagnostics = diagnostics[np.argsort(diagnostics[:, 0])]
     (
-        time_proper_Myr,
+        time_proper_Myr,  # noqa: N806
         pressure_wind_proper_dyn_cm2,
         pressure_gas_proper_dyn_cm2,
         radius_shell_proper_pc,
@@ -236,7 +238,7 @@ def main(config_filename=None):
     )
     snapshots = [_pressure_diagnostic(filename, config) for filename in output_files]
     diagnostics = np.asarray(snapshots, dtype=float)
-    time_proper_Myr = diagnostics[:, 0]
+    time_proper_Myr = diagnostics[:, 0]  # noqa: N806
     pressure_wind_proper_dyn_cm2 = diagnostics[:, 1]
     pressure_gas_proper_dyn_cm2 = diagnostics[:, 2]
     radius_shell_proper_pc = diagnostics[:, 3]

@@ -1,4 +1,6 @@
-"""Helper utilities for the fixed-field photoionization example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helper utilities for the fixed-field photoionization example."""  # noqa: CPY001
 
 import glob
 
@@ -112,7 +114,7 @@ def save_history_plot(history, filename, config, target_xHI):
     initial = config["initial_condition"]
 
     time_proper_yr = np.asarray(history["time_proper_yr"])
-    xHI = np.asarray(history["xHI"])
+    xHI = np.asarray(history["xHI"])  # noqa: N806
     positive_time_yr = time_proper_yr[time_proper_yr > 0.0]
     if positive_time_yr.size > 0:
         dense_time_yr = np.logspace(

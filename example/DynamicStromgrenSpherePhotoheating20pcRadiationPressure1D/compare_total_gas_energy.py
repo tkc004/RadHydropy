@@ -1,4 +1,6 @@
-"""Compare total gas energy with and without direct radiation pressure."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Compare total gas energy with and without direct radiation pressure."""  # noqa: CPY001
 
 import argparse
 import sys
@@ -62,7 +64,7 @@ def _snapshot_energy(snapshot, config, tools):
     kinetic_energy_cgs_erg = float(
         np.sum(0.5 * density_cgs_g_cm3 * velocity_cgs_cm_s**2 * volume_cgs_cm3),
     )
-    time_proper_Myr = float(
+    time_proper_Myr = float(  # noqa: N806
         np.asarray(fluid.time_proper_code) * (1.0 * code.time_unit).to_value(unyt.Myr),
     )
     return (

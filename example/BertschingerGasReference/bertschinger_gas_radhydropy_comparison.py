@@ -1,4 +1,6 @@
-"""Run RadHydropy and compare it with the standalone Bertschinger solution."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Run RadHydropy and compare it with the standalone Bertschinger solution."""  # noqa: CPY001
 
 import argparse
 import os

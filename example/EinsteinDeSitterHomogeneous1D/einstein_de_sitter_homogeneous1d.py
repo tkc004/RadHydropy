@@ -1,4 +1,6 @@
-"""Phase 1 Einstein--de Sitter homogeneous expansion diagnostic."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Phase 1 Einstein--de Sitter homogeneous expansion diagnostic."""  # noqa: CPY001
 
 import sys
 from pathlib import Path

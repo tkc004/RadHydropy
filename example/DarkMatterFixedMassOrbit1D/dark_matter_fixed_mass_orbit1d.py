@@ -1,4 +1,6 @@
-"""Compare a dark-matter shell orbit with its fixed-mass analytic ODE."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Compare a dark-matter shell orbit with its fixed-mass analytic ODE."""  # noqa: CPY001
 
 import argparse
 import os
@@ -137,7 +139,7 @@ def main(config_filename=DEFAULT_CONFIG):
         "pc",
     )
     reference_pc = quantity_to_value(reference_radius * code_units.length_unit, "pc")
-    time_proper_Myr = quantity_to_value(numerical_time * code_units.time_unit, "Myr")
+    time_proper_Myr = quantity_to_value(numerical_time * code_units.time_unit, "Myr")  # noqa: N806
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].plot(time_proper_Myr, radius_proper_pc, label="shell integrator")
     axes[0].plot(time_proper_Myr, reference_pc, "--", label="fixed-mass reference")

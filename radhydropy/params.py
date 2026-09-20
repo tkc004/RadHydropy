@@ -1,4 +1,6 @@
-"""Default simulation parameters and parameter container."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Default simulation parameters and parameter container."""  # noqa: CPY001
 
 import copy
 import warnings

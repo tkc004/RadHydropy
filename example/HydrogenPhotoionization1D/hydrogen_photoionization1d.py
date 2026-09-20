@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Fixed-radiation hydrogen photoionization box.
 
 The gas starts neutral at ``T = 2e4 K`` and ``nH = 1 cm^-3``. A fixed,
@@ -6,7 +8,7 @@ radiation-field evolution and thermal source update are disabled. The run
 stops once the gas is 99 percent ionized, writes HDF5 snapshots, reloads them,
 and plots the neutral-fraction evolution against the analytic fixed-field
 solution.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import os

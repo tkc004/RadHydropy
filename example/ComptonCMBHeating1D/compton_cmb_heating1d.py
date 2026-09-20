@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Fixed-density CMB Compton heating and cooling benchmark.
 
 The example runs a hot cooling parcel and a cold heating parcel at fixed
 redshift, then compares both source integrations with the analytic exponential
 solution for Compton coupling to an isotropic CMB background.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import copy
@@ -159,7 +161,7 @@ def _run_case(
     }
     myr_seconds = float((1.0 * unyt.Myr).to_value(unyt.s))
     time_s = np.asarray(history["time_proper_Myr"]) * myr_seconds
-    temperature_cgs_K = np.asarray(history["mean_temperature_proper_cgs_K"])
+    temperature_cgs_K = np.asarray(history["mean_temperature_proper_cgs_K"])  # noqa: N806
     if example.get("compare_compton_analytic", True):
         analytic = _analytic_temperature(
             time_s,
@@ -242,7 +244,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 temperature_proper_unyt,
             )
 
-    cmb_temperature_0_cgs_K = float(
+    cmb_temperature_0_cgs_K = float(  # noqa: N806
         config["par"]["thermochemistry"]["cmb_temperature_0"].to_value(unyt.K),
     )
     cmb_temperature = cmb_temperature_0_cgs_K * (
@@ -258,7 +260,7 @@ def main(config_filename=DEFAULT_CONFIG):
         gridspec_kw={"height_ratios": (2.0, 1.0)},
     )
     for label, (time_s, temperature, analytic) in histories.items():
-        time_proper_Myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))
+        time_proper_Myr = time_s / float((1.0 * unyt.Myr).to_value(unyt.s))  # noqa: N806
         temperature_axis.plot(
             time_proper_Myr,
             temperature,

@@ -1,4 +1,6 @@
-"""Interpolation for photoionization-equilibrium heating and cooling tables."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Interpolation for photoionization-equilibrium heating and cooling tables."""  # noqa: CPY001
 
 from pathlib import Path
 

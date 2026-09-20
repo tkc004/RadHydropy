@@ -1,4 +1,6 @@
-"""Helper utilities for the cartesian inflow example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helper utilities for the cartesian inflow example."""  # noqa: CPY001
 
 import matplotlib.pyplot as plt
 import numpy as np

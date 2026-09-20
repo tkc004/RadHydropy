@@ -1,4 +1,6 @@
-"""Adiabatic accretion shock benchmark for a 1e12 Msun NFW halo."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Adiabatic accretion shock benchmark for a 1e12 Msun NFW halo."""  # noqa: CPY001
 
 import argparse
 import os

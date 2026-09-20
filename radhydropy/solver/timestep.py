@@ -1,4 +1,6 @@
-"""CFL timestep calculation for the finite-volume solver."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""CFL timestep calculation for the finite-volume solver."""  # noqa: CPY001
 
 import logging
 
@@ -14,7 +16,7 @@ from radhydropy.runtime_fields import (
 def get_time_step(solver, mesh, fluid, par, CFL=None):
     """Return a CFL-limited timestep in the active time coordinate."""
     if CFL is None:
-        CFL = par.hydrodynamics.CFL
+        CFL = par.hydrodynamics.CFL  # noqa: N806
     geometry = getattr(mesh, "geometry_state", None)
     if geometry is not None:
         mesh_coordinate, _, width_runtime_code, area_runtime_code, volume_runtime_code = (

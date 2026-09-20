@@ -1,4 +1,6 @@
-"""Gas-free DM control for the z=100 correlation-function IC."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Gas-free DM control for the z=100 correlation-function IC."""  # noqa: CPY001
 
 import sys
 from pathlib import Path

@@ -1,4 +1,6 @@
-"""Launch the preserved LambdaCDM dark-matter-only workflow."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Launch the preserved LambdaCDM dark-matter-only workflow."""  # noqa: CPY001
 
 import runpy
 import sys

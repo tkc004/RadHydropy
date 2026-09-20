@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Photoheated Stromgren sphere with hydrodynamic expansion.
 
 The example is configured from YAML, writes HDF5 snapshots during the run,
 reloads those saved outputs, and plots the final profiles and ionization-front
 history from the on-disk snapshots rather than from live simulation state.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import os

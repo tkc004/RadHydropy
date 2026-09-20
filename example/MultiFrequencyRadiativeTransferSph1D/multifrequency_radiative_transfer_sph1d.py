@@ -1,4 +1,6 @@
-"""Pure-hydrogen multifrequency long-characteristic radiation example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Pure-hydrogen multifrequency long-characteristic radiation example."""  # noqa: CPY001
 
 import argparse
 import os
@@ -69,17 +71,17 @@ def _save_plot(output_filename, config, figure_filename, config_filename):
     )
     radius_proper_radarray = 0.5 * (boundary_proper_radarray[:-1] + boundary_proper_radarray[1:])
     radius_proper_kpc = radius_proper_radarray.to("kpc").value
-    xHI = np.asarray(
+    xHI = np.asarray(  # noqa: N806
         active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
         dtype=float,
     )
-    xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)
+    xHII = np.clip(1.0 - xHI, 1.0e-12, 1.0)  # noqa: N806
     temperature_proper_radarray = active_radarray(
         snapshot.fluid.temp_radarray,
         active_cells,
         ghost_cells,
     )
-    temperature_cgs_K = temperature_proper_radarray.to("K").value
+    temperature_cgs_K = temperature_proper_radarray.to("K").value  # noqa: N806
     ngamma_radarray = active_radarray(
         snapshot.fluid.ngamma_radarray,
         active_cells,

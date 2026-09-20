@@ -1,4 +1,6 @@
-"""Focused checks for the gravity-free spherical PIE shock example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Focused checks for the gravity-free spherical PIE shock example."""  # noqa: CPY001
 
 import importlib.util
 from pathlib import Path

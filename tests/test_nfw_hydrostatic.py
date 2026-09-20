@@ -1,4 +1,6 @@
-import importlib.util
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+import importlib.util  # noqa: CPY001
 from pathlib import Path
 
 import numpy as np

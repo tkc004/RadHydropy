@@ -1,4 +1,6 @@
-"""Plot gas energy components summed over all physical cells."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Plot gas energy components summed over all physical cells."""  # noqa: CPY001
 
 from pathlib import Path
 

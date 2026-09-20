@@ -1,4 +1,6 @@
-"""Analytic static Stromgren sphere helpers."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Analytic static Stromgren sphere helpers."""  # noqa: CPY001
 
 import numpy as np
 import unyt

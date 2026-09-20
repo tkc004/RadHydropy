@@ -1,4 +1,6 @@
-"""Helpers for the 20 pc Stromgren sphere with a stellar-wind boundary."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helpers for the 20 pc Stromgren sphere with a stellar-wind boundary."""  # noqa: CPY001
 
 from pathlib import Path
 

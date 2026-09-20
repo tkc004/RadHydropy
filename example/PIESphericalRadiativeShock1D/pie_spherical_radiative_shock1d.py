@@ -1,4 +1,6 @@
-"""Gravity-free spherical radiative-shock overstability experiment."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Gravity-free spherical radiative-shock overstability experiment."""  # noqa: CPY001
 
 import argparse
 import copy
@@ -140,7 +142,7 @@ def _run_case(config, label, title, pie_enabled, metallicity, table):
     report = case_dir / "ShockHistory.txt"
     with report.open("w", encoding="utf-8") as stream:
         stream.write("time_proper_Myr shock_radius_proper_kpc\n")
-        for time_proper_Myr, radius_proper_kpc in history:
+        for time_proper_Myr, radius_proper_kpc in history:  # noqa: N806
             stream.write(f"{time_proper_Myr:.8g} {radius_proper_kpc:.8g}\n")
         stream.write("\nfinal_cooling_diagnostics\n")
         if cooling is None:
@@ -194,7 +196,7 @@ def main(config_filename=DEFAULT_CONFIG):
             ),
         )
         sample_times = result["history"][sample_indices, 0]
-        for index, _time_proper_Myr in zip(sample_indices, sample_times, strict=False):
+        for index, _time_proper_Myr in zip(sample_indices, sample_times, strict=False):  # noqa: N806
             snapshot = load_output_state(result["snapshots"][index], result["config"])
             radius_proper_cgs_cm = (
                 0.5

@@ -1,4 +1,6 @@
-"""Analytic background cosmologies used by cosmological test problems."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Analytic background cosmologies used by cosmological test problems."""  # noqa: CPY001
 
 from dataclasses import dataclass
 from functools import cache, lru_cache

@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Analytic H II-region fronts in a core plus power-law cloud.
 
 This is deliberately independent of :mod:`radhydropy`.  It implements the
@@ -10,7 +12,7 @@ R proportional to t**(4/(7-2*w)) scaling.
 Run from this directory with::
 
     python power_law_hii_region_analytic.py
-"""
+"""  # noqa: CPY001
 
 from __future__ import annotations
 

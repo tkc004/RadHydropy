@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Typed boundaries between physical quantities and runtime arrays.
 
 This module is intentionally independent of the solver.  It establishes the
@@ -5,7 +7,7 @@ unit contract that solver and source-process callers can adopt incrementally:
 Representation-specific code states contain numeric code-unit arrays, while
 ``CgsSourceState`` contains numeric cgs arrays.  Physical inputs must cross
 the boundary as real ``unyt`` quantities.
-"""
+"""  # noqa: CPY001
 
 from dataclasses import dataclass, fields
 

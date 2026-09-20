@@ -1,4 +1,6 @@
-"""Plot the H/He snapshot against the supplied reference profiles."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Plot the H/He snapshot against the supplied reference profiles."""  # noqa: CPY001
 
 import argparse
 import sys
@@ -41,7 +43,7 @@ def main(snapshot_filename=SNAPSHOT, figure_filename=FIGURE, config_filename=CON
         active_cells,
         ghost_cells,
     )
-    temperature_cgs_K = temperature_proper_radarray.to("K").value
+    temperature_cgs_K = temperature_proper_radarray.to("K").value  # noqa: N806
     xhi = np.asarray(
         active_radarray(snapshot.fluid.xHI, active_cells, ghost_cells),
         dtype=float,

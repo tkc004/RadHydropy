@@ -1,4 +1,6 @@
-"""HDF5 storage for the multifrequency radiation spectrum."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""HDF5 storage for the multifrequency radiation spectrum."""  # noqa: CPY001
 
 from pathlib import Path
 

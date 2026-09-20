@@ -1,4 +1,6 @@
-"""Conservative remapping of Lagrangian spherical shells to Eulerian cells."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Conservative remapping of Lagrangian spherical shells to Eulerian cells."""  # noqa: CPY001
 
 import numpy as np
 from scipy.integrate import solve_ivp

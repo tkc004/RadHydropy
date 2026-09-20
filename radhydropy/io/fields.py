@@ -1,4 +1,6 @@
-"""Dataset scaling and canonical field restoration helpers."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Dataset scaling and canonical field restoration helpers."""  # noqa: CPY001
 
 import h5py
 import numpy as np

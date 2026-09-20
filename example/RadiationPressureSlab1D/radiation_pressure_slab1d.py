@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """One-dimensional slab accelerated by direct radiation pressure.
 
 The incoming photon flux is transported from the left boundary.  The example
 records the gas momentum and compares it with the momentum carried by the
 absorbed photons, ``E_absorbed / c``.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import os

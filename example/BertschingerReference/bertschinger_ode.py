@@ -1,4 +1,6 @@
-r"""Numerical reference solver for Bertschinger (1985), equation (4.1)."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+r"""Numerical reference solver for Bertschinger (1985), equation (4.1)."""  # noqa: CPY001
 
 from dataclasses import dataclass
 

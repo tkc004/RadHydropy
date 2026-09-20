@@ -1,4 +1,6 @@
-"""Analytic and I/O helpers for the self-gravitating n=1 polytrope."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Analytic and I/O helpers for the self-gravitating n=1 polytrope."""  # noqa: CPY001
 
 import numpy as np
 import unyt

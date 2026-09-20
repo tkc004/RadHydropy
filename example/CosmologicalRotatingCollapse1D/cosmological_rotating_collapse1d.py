@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Compare rotating and nonrotating spherical collapse in an EdS universe.
 
 This is a one-dimensional spherical centrifugal-barrier benchmark.  It is not
 a multidimensional disk-formation calculation: each shell carries its own
 conserved signed specific angular momentum.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import copy

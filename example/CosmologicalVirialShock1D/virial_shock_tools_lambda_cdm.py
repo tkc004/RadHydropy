@@ -1,4 +1,6 @@
-"""Initial conditions and diagnostics for the cosmological virial-shock test."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Initial conditions and diagnostics for the cosmological virial-shock test."""  # noqa: CPY001
 
 from math import erf
 
@@ -174,7 +176,7 @@ def density_contrast_profile(radius_comoving_code, config, length_unit_mpc_h=1.0
 def pie_temperature(table, hydrogen_number_density_cgs_cm3, redshift, fallback=1.0e4):
     """Return the tabulated UVB PIE temperature (heating=cooling)."""
     logt = np.linspace(table.log_temperature[0], table.log_temperature[-1], 512)
-    temperature_proper_cgs_K = 10.0**logt
+    temperature_proper_cgs_K = 10.0**logt  # noqa: N806
     heating, cooling = table.rates(
         temperature_proper_cgs_K,
         hydrogen_number_density_cgs_cm3,

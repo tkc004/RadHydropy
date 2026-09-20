@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Generate an optically-thin CHIANTI cooling table as a function of:
 
     metallicity Z/Zsun,
@@ -42,7 +44,7 @@ Example:
         --workers 4 \
         --metallicities 0.0 0.01 0.03 0.1 0.3 1.0 3.0
 
-"""
+"""  # noqa: CPY001
 
 import argparse
 import multiprocessing as mp
@@ -362,7 +364,7 @@ def compute_cooling_grid(
         Shape is (nT, nne).
 
     """
-    nT = len(temperatures)
+    nT = len(temperatures)  # noqa: N806
     nne = len(electron_densities)
 
     if workers < 1:
@@ -447,8 +449,8 @@ def build_metallicity_table(
     if clip_negative_metal_cooling:
         metal_cooling_solar = np.maximum(metal_cooling_solar, 0.0)
 
-    nZ = len(metallicities)
-    nT, nne = cooling_solar.shape
+    nZ = len(metallicities)  # noqa: N806
+    nT, nne = cooling_solar.shape  # noqa: N806
 
     cooling_table = np.zeros((nZ, nT, nne), dtype=float)
 

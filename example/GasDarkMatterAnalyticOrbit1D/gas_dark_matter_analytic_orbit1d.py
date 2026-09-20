@@ -1,4 +1,6 @@
-"""Analytic time-evolution benchmark for a shell in a gas+DM background."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Analytic time-evolution benchmark for a shell in a gas+DM background."""  # noqa: CPY001
 
 import argparse
 import os
@@ -109,7 +111,7 @@ def main(config_filename=DEFAULT_CONFIG):
     np.max(np.abs(numerical_radius_code - reference_state[0]))
     np.max(np.abs(numerical_velocity_code - reference_state[1]))
 
-    time_proper_Myr = quantity_to_value(numerical_time_code * code_units.time_unit, "Myr")
+    time_proper_Myr = quantity_to_value(numerical_time_code * code_units.time_unit, "Myr")  # noqa: N806
     radius_proper_pc = quantity_to_value(numerical_radius_code * code_units.length_unit, "pc")
     reference_pc = quantity_to_value(reference_state[0] * code_units.length_unit, "pc")
     velocity_kms = quantity_to_value(numerical_velocity_code * code_units.velocity_unit, "km/s")

@@ -1,4 +1,6 @@
-"""Gravity helpers for optional self-gravity and external potentials."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Gravity helpers for optional self-gravity and external potentials."""  # noqa: CPY001
 
 import numpy as np
 import unyt

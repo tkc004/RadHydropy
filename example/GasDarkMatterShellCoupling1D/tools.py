@@ -1,4 +1,6 @@
-"""Initial-condition and dark-matter helpers for the coupled example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Initial-condition and dark-matter helpers for the coupled example."""  # noqa: CPY001
 
 import numpy as np
 

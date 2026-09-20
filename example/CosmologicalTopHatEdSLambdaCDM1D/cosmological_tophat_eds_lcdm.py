@@ -1,4 +1,6 @@
-"""Compare cosmological dark-matter top-hat trajectories: EdS versus LCDM."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Compare cosmological dark-matter top-hat trajectories: EdS versus LCDM."""  # noqa: CPY001
 
 import copy
 import sys

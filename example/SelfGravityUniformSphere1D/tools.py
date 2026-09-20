@@ -1,4 +1,6 @@
-"""Helpers for the uniform-density spherical self-gravity diagnostic."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helpers for the uniform-density spherical self-gravity diagnostic."""  # noqa: CPY001
 
 import numpy as np
 import unyt

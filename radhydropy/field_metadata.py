@@ -1,4 +1,6 @@
-"""Immutable metadata for dimensional, representation-aware fields."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Immutable metadata for dimensional, representation-aware fields."""  # noqa: CPY001
 
 import math
 from dataclasses import dataclass
@@ -221,7 +223,7 @@ def _code_unit_cgs(code_units, property_name):
 
 def hubble_parameter_code(code_units, hubble_parameter_km_s_Mpc):
     """Convert an observational Hubble parameter to inverse code time."""
-    unit_hubble_km_s_Mpc = code_units.velocity_unit.to_value(
+    unit_hubble_km_s_Mpc = code_units.velocity_unit.to_value(  # noqa: N806
         unyt.km / unyt.s,
     ) / code_units.length_unit.to_value(unyt.Mpc)
     return float(hubble_parameter_km_s_Mpc) / float(unit_hubble_km_s_Mpc)
@@ -370,7 +372,7 @@ class FieldSpec:
                 raise TypeError(
                     "FieldSpec.hubble_parameter_km_s_Mpc must be real or None",
                 )
-            hubble_parameter_km_s_Mpc = float(self.hubble_parameter_km_s_Mpc)
+            hubble_parameter_km_s_Mpc = float(self.hubble_parameter_km_s_Mpc)  # noqa: N806
             if not math.isfinite(hubble_parameter_km_s_Mpc):
                 raise ValueError(
                     "FieldSpec.hubble_parameter_km_s_Mpc must be finite",

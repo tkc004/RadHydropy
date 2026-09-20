@@ -1,4 +1,6 @@
-"""Runtime callback coordination for the cosmological gas example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Runtime callback coordination for the cosmological gas example."""  # noqa: CPY001
 
 from pathlib import Path
 

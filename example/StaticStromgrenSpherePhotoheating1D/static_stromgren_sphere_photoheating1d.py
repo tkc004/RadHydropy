@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Static Stromgren sphere with photoheating.
 
 This repeats the static Stromgren sphere benchmark, but lets the hydrogen
@@ -5,7 +7,7 @@ source update heat and cool the gas. Hydrodynamic motion is disabled: density
 is fixed and only radiative transfer, chemistry, and thermal source terms are
 advanced. The example is configured from YAML, writes HDF5 snapshots, reloads
 the final snapshot, and plots from the saved output rather than live state.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import os

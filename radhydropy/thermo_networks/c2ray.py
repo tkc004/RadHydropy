@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Causal C2-Ray source integration for hydrogen and hydrogen/helium.
 
 This module intentionally keeps the original C2-Ray ordering: cells are
@@ -8,7 +10,7 @@ The hydrogen path retains its analytic local update.  The optional H/He path
 uses the same causal transport ordering with a coupled implicit local solve.
 C²-Ray is the default radiative-transfer temporal scheme; the ordinary
 instantaneous path remains available when explicitly selected.
-"""
+"""  # noqa: CPY001
 
 import warnings
 from dataclasses import dataclass
@@ -328,7 +330,7 @@ def _advance(state, par, dt_s, update_chemistry):
     volume = geometry.volume_cgs_cm3
     ncell = width.size
     ngroup = sigma.size
-    nH = (
+    nH = (  # noqa: N806
         np.asarray(state["rho_cgs_g_cm3"], dtype=float)
         * float(
             state.get("hydrogen_mass_fraction", getattr(par, "hydrogen_mass_fraction", 1.0)),

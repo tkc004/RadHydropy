@@ -1,4 +1,6 @@
-"""Run the RadHydropy fixed-mass thin-shell radiation-pressure example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Run the RadHydropy fixed-mass thin-shell radiation-pressure example."""  # noqa: CPY001
 
 import argparse
 import os

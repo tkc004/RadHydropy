@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Photoheated Stromgren sphere in a 20 pc, 100 cm^-3 cloud.
 
 This is a compact variant of the DynamicStromgrenSpherePhotoheating1D
 example.  It uses the same tested workflow and helper implementation while
 keeping its configuration and generated outputs separate.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import os

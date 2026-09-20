@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Hydrogen thermo-chemistry network.
 
 This module contains the current hydrogen-only rate network.  The public
 dispatcher in :mod:`radhydropy.thermo_chemistry` calls this through the
 ``HydrogenNetwork`` interface.
-"""
+"""  # noqa: CPY001
 
 import copy
 import logging
@@ -121,7 +123,7 @@ def _parameter_value(par, name, default=None):
 
 
 def _cgs_alpha_B(temperature_cgs_K):
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
     if np.any(valid):
@@ -132,7 +134,7 @@ def _cgs_alpha_B(temperature_cgs_K):
 
 def _cgs_alpha_A(temperature_cgs_K):
     """H II case-A recombination coefficient (Hui & Gnedin 1997)."""
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
     if np.any(valid):
@@ -142,7 +144,7 @@ def _cgs_alpha_A(temperature_cgs_K):
 
 
 def _cgs_beta(temperature_cgs_K):
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
     if np.any(valid):
@@ -161,7 +163,7 @@ def collisional_equilibrium_neutral_fraction(temperature_cgs_K):
 
 
 def _cgs_gamma_line_eHI(temperature_cgs_K):
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
     if np.any(valid):
@@ -172,7 +174,7 @@ def _cgs_gamma_line_eHI(temperature_cgs_K):
 
 
 def _cgs_gamma_ion_eHI(temperature_cgs_K):
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
     if np.any(valid):
@@ -183,7 +185,7 @@ def _cgs_gamma_ion_eHI(temperature_cgs_K):
 
 
 def _cgs_gamma_ff_eHII(temperature_cgs_K):
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
     if np.any(valid):
@@ -195,7 +197,7 @@ def _cgs_gamma_ff_eHII(temperature_cgs_K):
 
 
 def _cgs_gamma_B_eHII(temperature_cgs_K):
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
     if np.any(valid):
@@ -207,7 +209,7 @@ def _cgs_gamma_B_eHII(temperature_cgs_K):
 
 def _cgs_gamma_A_eHII(temperature_cgs_K):
     """H II case-A recombination cooling coefficient."""
-    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
+    temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)  # noqa: N806
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
     if np.any(valid):
@@ -245,19 +247,19 @@ def _cgs_source_thermal_rate(
     compton_cmb_redshift=0.0,
     cmb_temperature_0_cgs_K=2.7255,
 ):
-    xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
+    xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)  # noqa: N806
     ionized = 1.0 - xHI
-    nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
+    nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)  # noqa: N806
     if atomic_cooling:
-        eHI_cooling = _cgs_gamma_line_eHI(temperature_cgs_K)
+        eHI_cooling = _cgs_gamma_line_eHI(temperature_cgs_K)  # noqa: N806
         if collisional_ionization:
-            eHI_cooling += _cgs_gamma_ion_eHI(temperature_cgs_K)
-        eHII_cooling = _cgs_gamma_ff_eHII(temperature_cgs_K)
+            eHI_cooling += _cgs_gamma_ion_eHI(temperature_cgs_K)  # noqa: N806
+        eHII_cooling = _cgs_gamma_ff_eHII(temperature_cgs_K)  # noqa: N806
         if recombination:
-            eHII_cooling += _cgs_gamma_B_eHII(temperature_cgs_K)
+            eHII_cooling += _cgs_gamma_B_eHII(temperature_cgs_K)  # noqa: N806
     else:
-        eHI_cooling = np.zeros_like(temperature_cgs_K, dtype=float)
-        eHII_cooling = np.zeros_like(temperature_cgs_K, dtype=float)
+        eHI_cooling = np.zeros_like(temperature_cgs_K, dtype=float)  # noqa: N806
+        eHII_cooling = np.zeros_like(temperature_cgs_K, dtype=float)  # noqa: N806
     cooling = nH**2 * (xHI * ionized * eHI_cooling + ionized**2 * eHII_cooling)
     if ngamma_cgs_cm3 is None:
         heating_cgs_erg_cm3_s = np.zeros_like(cooling, dtype=float)
@@ -302,9 +304,9 @@ def _cgs_static_neutral_fraction_rate(
     recombination_coefficient_cgs_cm3_s=None,
     ionization_coefficient_cgs_cm3_s=None,
 ):
-    xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
+    xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)  # noqa: N806
     ionized = 1.0 - xHI
-    nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
+    nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)  # noqa: N806
     if not recombination:
         recombination_coefficient_cgs_cm3_s = np.zeros_like(
             temperature_cgs_K,
@@ -356,8 +358,8 @@ def _cgs_static_neutral_fraction_implicit_update(
     recombination_coefficient_cgs_cm3_s=None,
     ionization_coefficient_cgs_cm3_s=None,
 ):
-    xHI = np.clip(np.asarray(xHI, dtype=float), 1.0e-12, 1.0 - 1.0e-12)
-    nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
+    xHI = np.clip(np.asarray(xHI, dtype=float), 1.0e-12, 1.0 - 1.0e-12)  # noqa: N806
+    nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)  # noqa: N806
     if recombination:
         if recombination_coefficient_cgs_cm3_s is None:
             recombination_coefficient_cgs_cm3_s = _cgs_alpha_B(temperature_cgs_K)
@@ -473,7 +475,7 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
     neutral_mass = np.asarray(fluid.xHI) * old_mass
     neutral_flux = x_face * mass_flux
     neutral_mass += (neutral_flux * face_area - np.roll(neutral_flux * face_area, -1)) * dt
-    xHI = ru.SafeDivide(neutral_mass, fluid.Mass_code)
+    xHI = ru.SafeDivide(neutral_mass, fluid.Mass_code)  # noqa: N806
     fluid.xHI = rh.clip_neutral_fraction(np.asarray(xHI, dtype=float))
 
 
@@ -513,8 +515,8 @@ def trace_spherical_tau(mesh, rho, xHI, hydrogen_mass_fraction, sigma_gamma):
         np.abs(boundary_runtime_code[1:] - boundary_runtime_code[:-1]),
         code.length_unit,
     )
-    nH_cgs_cm3 = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
-    xHI = rh.clip_neutral_fraction(xHI)
+    nH_cgs_cm3 = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)  # noqa: N806
+    xHI = rh.clip_neutral_fraction(xHI)  # noqa: N806
     tau = sigma_gamma_cgs_cm2 * nH_cgs_cm3 * xHI * width_cgs_cm
     return as_named_array(np.maximum(tau, 0.0))
 
@@ -525,7 +527,7 @@ def ionization_fraction_rate(state, ngamma_cgs_cm3):
     recombination = state["recombination"]
     collisional_ionization = state["collisional_ionization"]
     sigma_gamma_cgs_cm2 = state["sigma_gamma_cgs_cm2"]
-    alpha_B_cgs_cm3_s = state["alpha_B_cgs_cm3_s"]
+    alpha_B_cgs_cm3_s = state["alpha_B_cgs_cm3_s"]  # noqa: N806
     beta_cgs_cm3_s = state["beta_cgs_cm3_s"]
     return _cgs_static_neutral_fraction_rate(
         state["rho_cgs_g_cm3"],
@@ -567,7 +569,7 @@ def thermal_rate(state, ngamma_cgs_cm3):
 
 def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, verbose=False):
     """Return a source substep for a float thermo-chemistry state."""
-    source_CFL = state["source_CFL"]
+    source_CFL = state["source_CFL"]  # noqa: N806
     dtmin_s = state["dtmin_s"]
     candidates = []
     debug_lines = []
@@ -672,7 +674,7 @@ def update_temperature_from_energy(state):
 
 def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s):
     """Implicitly update the chemistry fraction for a float state."""
-    xHI = np.clip(np.asarray(state["xHI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
+    xHI = np.clip(np.asarray(state["xHI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)  # noqa: N806
     hydrogen_mass_fraction = state["hydrogen_mass_fraction"]
     recombination = state["recombination"]
     collisional_ionization = state["collisional_ionization"]
@@ -833,7 +835,7 @@ def _fast_source_state(mesh, fluid, par):
         * unit_conversion["density_cgs_g_cm3"]
         / scaling["density_factor"]
     )
-    temperature_cgs_K = (
+    temperature_cgs_K = (  # noqa: N806
         np.asarray(temp_runtime_code[interior], dtype=float)
         * unit_conversion["temperature_cgs_K"]
         / scaling["temperature_factor"]
@@ -1136,8 +1138,8 @@ def _apply_compton_only_source(state, dt_s):
         state.get("active", np.asarray(state["rho_cgs_g_cm3"]) > 0.0),
         dtype=bool,
     )
-    xHI = np.clip(np.asarray(state["xHI"], dtype=float), 0.0, 1.0)
-    nH = _cgs_hydrogen_number_density(
+    xHI = np.clip(np.asarray(state["xHI"], dtype=float), 0.0, 1.0)  # noqa: N806
+    nH = _cgs_hydrogen_number_density(  # noqa: N806
         state["rho_cgs_g_cm3"],
         state["hydrogen_mass_fraction"],
     )

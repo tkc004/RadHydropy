@@ -1,4 +1,6 @@
-"""Generate a collisionless Bertschinger (1985) similarity reference profile."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Generate a collisionless Bertschinger (1985) similarity reference profile."""  # noqa: CPY001
 
 import argparse
 import os

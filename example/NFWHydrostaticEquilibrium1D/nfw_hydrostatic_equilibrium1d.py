@@ -1,4 +1,6 @@
-"""Hydrostatic gas in a 1e8 Msun NFW dark-matter halo."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Hydrostatic gas in a 1e8 Msun NFW dark-matter halo."""  # noqa: CPY001
 
 import argparse
 import os

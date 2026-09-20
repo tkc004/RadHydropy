@@ -1,4 +1,6 @@
-"""Conversions between physical and supercomoving fluid variables."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Conversions between physical and supercomoving fluid variables."""  # noqa: CPY001
 
 import numpy as np
 

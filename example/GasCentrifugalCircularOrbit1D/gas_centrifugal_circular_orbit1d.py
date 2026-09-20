@@ -1,4 +1,6 @@
-"""Analytic circular-orbit check for gas centrifugal support."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Analytic circular-orbit check for gas centrifugal support."""  # noqa: CPY001
 
 import os
 import sys

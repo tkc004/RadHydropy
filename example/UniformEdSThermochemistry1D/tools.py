@@ -1,4 +1,6 @@
-"""Initial conditions and analytic reference for the uniform EdS source test."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Initial conditions and analytic reference for the uniform EdS source test."""  # noqa: CPY001
 
 import numpy as np
 import unyt
@@ -41,7 +43,7 @@ def build_initial_condition(config):
         * unyt.g
         / unyt.cm**3
     )
-    xHI_dimensionless = float(initial_condition["xHI"])
+    xHI_dimensionless = float(initial_condition["xHI"])  # noqa: N806
     mu_dimensionless = 1.0 / (hydrogen_mass_fraction * (2.0 - xHI_dimensionless))
     writer.fluid.rho_radarray = writer.radarray(
         np.ones(count) * rho_proper_cgs_g_cm3_unyt,

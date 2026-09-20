@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Read a CHIANTI CIE table and calculate electron density.
 
 For a hydrogen-nuclei density nH, the calculation is
@@ -7,7 +9,7 @@ For a hydrogen-nuclei density nH, the calculation is
 
 The ion fractions are in collisional ionization equilibrium, so they do not
 explicitly depend on density. Metallicity scales elements heavier than He.
-"""
+"""  # noqa: CPY001
 
 import argparse
 from pathlib import Path

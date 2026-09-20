@@ -1,4 +1,6 @@
-"""Helpers for the uniform HM12 PIE cooling example."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helpers for the uniform HM12 PIE cooling example."""  # noqa: CPY001
 
 import numpy as np
 import unyt

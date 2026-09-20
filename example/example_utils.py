@@ -1,4 +1,6 @@
-"""Shared helpers for example scripts in this directory."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Shared helpers for example scripts in this directory."""  # noqa: CPY001
 
 import csv
 from collections.abc import Mapping
@@ -120,7 +122,7 @@ def snapshot_physical_fields(hdf5_filename, config):
         length_cgs_cm = float(code_units.length_unit.to_value(unyt.cm))
         density_cgs_g_cm3 = float(code_units.density_unit.to_value(unyt.g / unyt.cm**3))
         velocity_cgs_cm_s = float(code_units.velocity_unit.to_value(unyt.cm / unyt.s))
-        temperature_cgs_K = float(code_units.temperature_unit.to_value(unyt.K))
+        temperature_cgs_K = float(code_units.temperature_unit.to_value(unyt.K))  # noqa: N806
         gamma = float(par.hydrodynamics.gamma)
         return {
             "boundary_proper_cgs_cm": physical_radius(
@@ -215,7 +217,7 @@ def write_radial_profile_csv(hdf5_filename, config, csv_filename=None):
             dtype=float,
         )
         rho_proper_cgs_g_cm3 = np.asarray(fields["rho_proper_cgs_g_cm3"], dtype=float)
-        temperature_proper_cgs_K = np.asarray(fields["temperature_proper_cgs_K"], dtype=float)
+        temperature_proper_cgs_K = np.asarray(fields["temperature_proper_cgs_K"], dtype=float)  # noqa: N806
         boundary_count = len(boundary_proper_cgs_cm)
         cell_count = len(vel_peculiar_proper_cgs_cm_s)
     else:
@@ -266,7 +268,7 @@ def write_radial_profile_csv(hdf5_filename, config, csv_filename=None):
             * float(code_units.density_unit.to_value(unyt.g / unyt.cm**3))
             / (1.0 * unyt.mp).to_value(unyt.g)
         )
-        temperature_proper_cgs_K = temp_proper_code * float(
+        temperature_proper_cgs_K = temp_proper_code * float(  # noqa: N806
             code_units.temperature_unit.to_value(unyt.K),
         )
 

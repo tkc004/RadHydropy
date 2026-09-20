@@ -1,4 +1,6 @@
-"""Inject a spherical outflow into an initially exact vacuum."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Inject a spherical outflow into an initially exact vacuum."""  # noqa: CPY001
 
 import argparse
 import sys

@@ -1,4 +1,6 @@
-"""Compare homogeneous adiabatic temperature evolution with cosmology tools."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Compare homogeneous adiabatic temperature evolution with cosmology tools."""  # noqa: CPY001
 
 import copy
 import sys

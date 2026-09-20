@@ -1,4 +1,6 @@
-"""Plotting helpers for RadHydropy outputs."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Plotting helpers for RadHydropy outputs."""  # noqa: CPY001
 
 import matplotlib.pyplot as plt
 import numpy as np

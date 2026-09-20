@@ -1,4 +1,6 @@
-"""Pure dark-matter spherical shells with self-gravity and crossings."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Pure dark-matter spherical shells with self-gravity and crossings."""  # noqa: CPY001
 
 import argparse
 import os
@@ -85,7 +87,7 @@ def main(config_filename=DEFAULT_CONFIG):
 
     radius_unit = code_units.length_unit
     radius_proper_pc = quantity_to_value(history_radius * radius_unit, "pc")
-    time_proper_Myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value("Myr")
+    time_proper_Myr = np.asarray(history_time_proper_code) * code_units.time_unit.to_value("Myr")  # noqa: N806
     energy_fractional_change = np.abs(
         (history_energy - history_energy[0]) / max(abs(history_energy[0]), np.finfo(float).tiny),
     )

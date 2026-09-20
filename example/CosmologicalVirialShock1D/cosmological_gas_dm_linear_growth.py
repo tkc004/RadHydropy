@@ -1,10 +1,12 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Cheap pre-crossing gas/live-DM linear-growth consistency test.
 
 The calculation evolves a low-amplitude copy of the LCDM correlation-function
 perturbation with negligible gas pressure.  It compares enclosed gas and dark
 matter overdensities and peculiar velocities with the Einstein--de Sitter
 growing mode, while aborting before the first collisionless-shell crossing.
-"""
+"""  # noqa: CPY001
 
 import argparse
 import copy
@@ -161,7 +163,7 @@ def _set_background_state(
     index = first + int(sim.par.mesh.grid_cells) - 1
     rho_comoving_code = float(sim.par.boundary.rho_inflow_proper)
     vel_supercomoving_code = float(sim.par.boundary.vel_inflow_proper)
-    temperature_proper_cgs_K = float(sim.par.boundary.temperature_inflow_proper)
+    temperature_proper_cgs_K = float(sim.par.boundary.temperature_inflow_proper)  # noqa: N806
     boundary_mu = float(sim.par.boundary.inflow_mu)
     pre_supercomoving_code = float(
         np.asarray(

@@ -1,4 +1,6 @@
-"""Analytic spherical self-gravity diagnostic for a uniform gas sphere."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Analytic spherical self-gravity diagnostic for a uniform gas sphere."""  # noqa: CPY001
 
 import argparse
 import os

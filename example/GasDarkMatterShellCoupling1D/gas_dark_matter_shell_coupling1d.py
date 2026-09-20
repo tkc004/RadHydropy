@@ -1,4 +1,6 @@
-"""Run a spherical gas simulation coupled to live dark-matter shells."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Run a spherical gas simulation coupled to live dark-matter shells."""  # noqa: CPY001
 
 import argparse
 import os

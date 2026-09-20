@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Generate an HDF5 lookup table for CHIANTI CIE ion fractions.
 
 The generated ``ion_fraction`` dataset has axes:
@@ -7,7 +9,7 @@ The generated ``ion_fraction`` dataset has axes:
 
 where ``ion_stage`` is the number of electrons removed. For example, stage
 0 is neutral hydrogen and stage 1 is H II.
-"""
+"""  # noqa: CPY001
 
 import argparse
 from pathlib import Path

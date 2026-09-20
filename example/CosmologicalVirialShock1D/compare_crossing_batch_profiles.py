@@ -1,4 +1,6 @@
-"""Compare saved gas and dark-matter profiles for crossing-batch runs."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Compare saved gas and dark-matter profiles for crossing-batch runs."""  # noqa: CPY001
 
 from pathlib import Path
 

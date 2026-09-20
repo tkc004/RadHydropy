@@ -1,4 +1,6 @@
-"""Helpers for the Einstein--de Sitter linear-growth benchmark."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Helpers for the Einstein--de Sitter linear-growth benchmark."""  # noqa: CPY001
 
 import numpy as np
 

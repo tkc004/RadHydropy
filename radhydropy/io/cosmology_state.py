@@ -1,4 +1,6 @@
-"""Canonical HDF5 boundary for typed supercomoving cosmological states."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Canonical HDF5 boundary for typed supercomoving cosmological states."""  # noqa: CPY001
 
 import h5py
 import numpy as np

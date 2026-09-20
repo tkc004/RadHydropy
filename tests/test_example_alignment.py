@@ -1,9 +1,11 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Repository-wide contract checks for the maintained example workflows.
 
 These checks are intentionally source-oriented.  The ordinary example tests
 exercise selected workflows; this module makes the conventions from the
 example-maintenance skill fail fast for every example and every YAML file.
-"""
+"""  # noqa: CPY001
 
 from __future__ import annotations
 

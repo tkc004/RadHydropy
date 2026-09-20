@@ -1,10 +1,12 @@
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
 """Cosmological background models and runtime state conversions.
 
 The package façade keeps the public ``radhydropy.cosmology`` import focused
 on the background models while exposing the representation-aware runtime
 types and conversion helpers from their responsibility-specific modules.
 Persisted HDF5 schema remains under :mod:`radhydropy.io`.
-"""
+"""  # noqa: CPY001
 
 from radhydropy.cosmology.background import EinsteinDeSitter, LambdaCDM
 from radhydropy.cosmology.context import CosmologyContext

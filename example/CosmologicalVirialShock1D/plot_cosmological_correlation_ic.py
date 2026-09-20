@@ -1,4 +1,6 @@
-"""Plot and verify a generated z=100 correlation-function IC file."""
+# Copyright (C) 2026 Tsang Keung Chan
+# SPDX-License-Identifier: AGPL-3.0
+"""Plot and verify a generated z=100 correlation-function IC file."""  # noqa: CPY001
 
 import argparse
 import sys
@@ -117,7 +119,7 @@ def main(config_filename=DEFAULT_CONFIG):
     ) / (rho_background * scale_factor**3 * fb * target_volume)
 
     rho_proper_cgs_g_cm3 = rho_comoving_code * float(units.density_unit) / scale_factor**3
-    temperature_proper_cgs_K = (
+    temperature_proper_cgs_K = (  # noqa: N806
         temp_supercomoving_code * float(units.temperature_unit) / scale_factor**2
     )
     hubble_vel_proper_cgs_cm_s = (
