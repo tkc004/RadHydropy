@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
+DEFAULT_CONFIG = Path(__file__).with_name("static_stromgren_c2ray_comparison.yaml")
+
 repo_root = Path(__file__).resolve().parents[2]
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
@@ -215,7 +217,7 @@ def _write_summary(histories, config, filename):
             abs(history["front_radius_proper_kpc"][-1] - analytic_final)
 
 
-def main(config_filename=Path(__file__).with_name("static_stromgren_c2ray_comparison.yaml")):
+def main(config_filename=DEFAULT_CONFIG):
     nested = eu.load_nested_example_config(config_filename)
 
     example = nested["example"]

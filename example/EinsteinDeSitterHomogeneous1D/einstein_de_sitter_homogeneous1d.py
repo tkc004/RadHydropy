@@ -19,8 +19,10 @@ from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value
 
+DEFAULT_CONFIG = Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")
 
-def main(config_filename=Path(__file__).with_name("einstein_de_sitter_homogeneous1d.yaml")):
+
+def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])

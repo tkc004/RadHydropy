@@ -4,8 +4,8 @@
 
 import argparse
 import copy
-from functools import partial
 import sys
+from functools import partial
 from pathlib import Path
 
 import matplotlib as mpl

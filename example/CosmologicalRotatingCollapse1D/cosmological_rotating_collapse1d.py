@@ -9,10 +9,10 @@ conserved signed specific angular momentum.
 
 import argparse
 import copy
-from functools import partial
 import os
 import sys
 import tempfile
+from functools import partial
 from pathlib import Path
 
 os.environ.setdefault(

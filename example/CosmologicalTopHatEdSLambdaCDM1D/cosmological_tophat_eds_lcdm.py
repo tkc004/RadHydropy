@@ -320,13 +320,13 @@ def make_comparison(
         sharex=True,
         gridspec_kw={"height_ratios": (3, 1)},
     )
-    for label, code_class, omega_m, omega_lambda, final_scale_factor in cases:
+    for label, code_class, omega_m, omega_lambda, case_final_scale_factor in cases:
         history, analytic, big_bang_time = run_case(
             label,
             code_class,
             omega_m,
             omega_lambda,
-            final_scale_factor,
+            case_final_scale_factor,
             target_mass,
             initial_overdensity,
         )
