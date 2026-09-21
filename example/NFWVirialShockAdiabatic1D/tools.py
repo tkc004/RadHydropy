@@ -5,6 +5,8 @@
 import matplotlib as mpl
 
 mpl.use("Agg")
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -214,7 +216,7 @@ def write_rankine_hugoniot_report(rows, filename):
         "density_ratio_predicted_dimensionless temperature_ratio_measured_dimensionless "
         "temperature_ratio_predicted_dimensionless\n"
     )
-    with open(filename, "w", encoding="utf-8") as report:
+    with Path(filename).open("w", encoding="utf-8") as report:
         report.write(header)
         report.writelines(
             "{time_proper_Myr:.8g} {shock_radius_proper_kpc:.8g} "

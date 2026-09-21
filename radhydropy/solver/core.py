@@ -2630,10 +2630,6 @@ class Solver:
             angular_flux_area = fluid.AngularMomentum_code.flux * area_runtime_code
             df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
         potential_face = self._gravity_potential_faces(mesh, par)
-        df_potential = None
-        if potential_face is not None:
-            potential_flux_area = potential_face * fluid.Mass_code.flux * area_runtime_code
-            df_potential = potential_flux_area - ru.periodic_roll(potential_flux_area, -1)
         if getattr(mesh, "coordsys", None) == "spherical":
             # Spherical momentum needs the geometric pressure term from the
             # changing face area, not just the flux divergence.

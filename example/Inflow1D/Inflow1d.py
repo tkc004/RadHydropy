@@ -53,7 +53,6 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
-    ax = plt.gca()
     outputfiles = sorted(
         Path(output["directory"]).glob(f"{output['filename_prefix']}_*.hdf5"),
     )

@@ -539,7 +539,7 @@ def write_hdf5(
 def main():
     args = parse_args()
 
-    if os.path.exists(args.output) and not args.overwrite:
+    if Path(args.output).exists() and not args.overwrite:
         sys.exit(1)
 
     xuvtop = check_environment(args.xuvtop)

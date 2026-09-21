@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Helper utilities for the optically thin photoheating example."""
 
-import glob
-
 import matplotlib as mpl
 
 mpl.use("Agg")
 import time
+from pathlib import Path
 
 import hydrogen_photoheating_reference as hpr
 import matplotlib.pyplot as plt
@@ -146,7 +145,9 @@ def load_history_from_outputs(outputfiles, config):
 
 
 def output_files(output_directory, output_filename_prefix):
-    return sorted(glob.glob(output_directory + "/" + output_filename_prefix + "_*.hdf5"))
+    return sorted(
+        Path(output_directory).glob(f"{output_filename_prefix}_*.hdf5"),
+    )
 
 
 def _as_time_quantity(value, unit):

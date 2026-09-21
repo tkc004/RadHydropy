@@ -48,7 +48,6 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
-    ax = plt.gca()
     color_cycle = iter(plt.rcParams["axes.prop_cycle"])
     for outindex in range(0, 9, 2):
         outfilename = Path(output["directory"]) / (

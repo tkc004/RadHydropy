@@ -71,7 +71,7 @@ def main(config_filename=DEFAULT_CONFIG):
     final_outfile = Path(config["par"]["output"]["directory"]) / (
         config["par"]["output"]["filename_prefix"] + "_001.hdf5"
     )
-    if not os.path.exists(final_outfile):
+    if not Path(final_outfile).exists():
         raise FileNotFoundError(
             f"Expected an evolved snapshot at {final_outfile}, but it was not written.",
         )

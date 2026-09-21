@@ -33,7 +33,7 @@ DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_isobaric_parcel1d.yaml"
 
 def _write_case_csv(result, filename):
     fields = tuple(result)
-    with open(filename, "w", newline="", encoding="utf-8") as handle:
+    with Path(filename).open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(fields)
         writer.writerows(zip(*(result[field] for field in fields), strict=False))
@@ -234,7 +234,7 @@ def main(config_filename=DEFAULT_CONFIG):
             ),
         )
     report = EXAMPLE_DIR / "PIECoolingIsobaricParcel1D_ThermalReport.txt"
-    with open(report, "w", encoding="utf-8") as handle:
+    with report.open("w", encoding="utf-8") as handle:
         handle.write(
             "case nH_initial_cgs_cm3 T_initial_cgs_K T_final_cgs_K nH_final_cgs_cm3 "
             "max_growth_Myr^-1 min_growth_Myr^-1 max_abs_gamma_eff "

@@ -43,7 +43,7 @@ def test_production_source_does_not_reintroduce_legacy_runtime_names():
         source = filename.read_text(encoding="utf-8")
         for name in LEGACY_RUNTIME_NAMES:
             if re.search(rf"\b{re.escape(name)}\b", source):
-                failures.append(f"{relative}: contains forbidden runtime name {name!r}")
+                failures.extend([f"{relative}: contains forbidden runtime name {name!r}"])
     assert not failures, "\n".join(failures)
 
 

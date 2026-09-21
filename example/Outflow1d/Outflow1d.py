@@ -46,7 +46,6 @@ def main(config_filename=DEFAULT_CONFIG):
     ric.write(config["par"]["simulation"]["initial_condition_filename"], validate=True)
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
-    ax = plt.gca()
     color_cycle = iter(plt.rcParams["axes.prop_cycle"])
     for outindex in exampleparams["output_indices"]:
         outfilename = Path(config["par"]["output"]["directory"]) / (

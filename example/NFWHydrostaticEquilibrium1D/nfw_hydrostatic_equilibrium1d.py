@@ -78,7 +78,7 @@ def main(config_filename=DEFAULT_CONFIG):
     final_outfile = Path(par["output"]["directory"]) / (
         par["output"]["filename_prefix"] + "_001.hdf5"
     )
-    if not os.path.exists(final_outfile):
+    if not Path(final_outfile).exists():
         raise FileNotFoundError(f"Expected evolved snapshot at {final_outfile}")
     figure_filename = Path(par["output"]["directory"]) / "NFWHydrostaticEquilibrium1D.jpg"
     et.read_and_plot(

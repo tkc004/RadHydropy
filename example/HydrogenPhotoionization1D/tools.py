@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Helper utilities for the fixed-field photoionization example."""
 
-import glob
-
 import matplotlib as mpl
 
 mpl.use("Agg")
+from pathlib import Path
+
 import hydrogen_photoionization_analytic as hpa
 import matplotlib.pyplot as plt
 import numpy as np
@@ -107,7 +107,9 @@ def load_history_from_outputs(outputfiles, config):
 
 
 def output_files(output_directory, output_filename_prefix):
-    return sorted(glob.glob(output_directory + "/" + output_filename_prefix + "_*.hdf5"))
+    return sorted(
+        Path(output_directory).glob(f"{output_filename_prefix}_*.hdf5"),
+    )
 
 
 def save_history_plot(history, filename, config, target_xHI):  # noqa: N803

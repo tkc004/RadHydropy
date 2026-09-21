@@ -1027,33 +1027,36 @@ def _fast_source_state(mesh, fluid, par):
         unyt.g / unyt.cm**3,
         default=None,
     )
-    if skip_floor_cells and source_density_floor is not None:
-        if state["temperature_floor_cgs_K"] > 0.0:
-            at_temperature_floor = temperature_cgs_K <= state["temperature_floor_cgs_K"] * (
-                1.0 + state["temperature_floor_tolerance"]
-            )
-            skip = (
-                np.asarray(state["active"], dtype=bool)
-                & (rho_cgs_g_cm3 <= float(source_density_floor))
-                & at_temperature_floor
-            )
-            if getattr(par, "hydrogen_implicit_debug", False):
-                diagnostic_cells = np.where(
-                    rho_cgs_g_cm3 <= float(source_density_floor),
-                )[0]
-                for cell in diagnostic_cells:
-                    floor = state["temperature_floor_cgs_K"]
-                    log_diagnostic(
-                        logging.DEBUG,
-                        "hydrogen_source_floor_mask",
-                        cell=int(cell),
-                        density_cgs_g_cm3=float(rho_cgs_g_cm3[cell]),
-                        temperature_cgs_K=float(temperature_cgs_K[cell]),
-                        temperature_floor_cgs_K=float(floor),
-                        temperature_ratio=float(temperature_cgs_K[cell] / floor),
-                        skip=bool(skip[cell]),
-                    )
-            state["active"] = np.asarray(state["active"], dtype=bool) & ~skip
+    if (
+        skip_floor_cells
+        and source_density_floor is not None
+        and state["temperature_floor_cgs_K"] > 0.0
+    ):
+        at_temperature_floor = temperature_cgs_K <= state["temperature_floor_cgs_K"] * (
+            1.0 + state["temperature_floor_tolerance"]
+        )
+        skip = (
+            np.asarray(state["active"], dtype=bool)
+            & (rho_cgs_g_cm3 <= float(source_density_floor))
+            & at_temperature_floor
+        )
+        if getattr(par, "hydrogen_implicit_debug", False):
+            diagnostic_cells = np.where(
+                rho_cgs_g_cm3 <= float(source_density_floor),
+            )[0]
+            for cell in diagnostic_cells:
+                floor = state["temperature_floor_cgs_K"]
+                log_diagnostic(
+                    logging.DEBUG,
+                    "hydrogen_source_floor_mask",
+                    cell=int(cell),
+                    density_cgs_g_cm3=float(rho_cgs_g_cm3[cell]),
+                    temperature_cgs_K=float(temperature_cgs_K[cell]),
+                    temperature_floor_cgs_K=float(floor),
+                    temperature_ratio=float(temperature_cgs_K[cell] / floor),
+                    skip=bool(skip[cell]),
+                )
+        state["active"] = np.asarray(state["active"], dtype=bool) & ~skip
         # Apply this mask before the source energy/temperature floor. These
         # cells retain their hydro state and do not enter thermo-chemistry.
     if state["thermal_coupling"]:
@@ -1272,25 +1275,25 @@ def _record_coupled_implicit_failure(
     failed_cells = []
     if determinant is not None:
         singular = active & (np.abs(determinant) <= 1.0e-30)  # noqa: PLR2004
-        for cell in np.where(singular)[0]:
-            failed_cells.append(
-                {
-                    "cell": int(cell),
-                    "temperature_cgs_K": float(np.asarray(state["temperature_cgs_K"])[cell]),
-                    "specific_energy_cgs_erg_g": float(energy_old[cell]),
-                    "xHI": float(x_old[cell]),
-                    "residual_energy": float(residual_energy[cell]),
-                    "residual_xHI": float(residual_x[cell]),
-                    "jacobian_determinant": float(determinant[cell]),
-                    "alpha_B_cgs_cm3_s": float(np.asarray(alpha_rate)[cell]),
-                    "heating_cgs_erg_cm3_s": float(np.asarray(heating_rate)[cell]),
-                    "cooling_cgs_erg_cm3_s": float(np.asarray(cooling_rate)[cell]),
-                    "nH_cgs_cm3": float(np.asarray(n_hydrogen)[cell]),
-                    "ne_cgs_cm3": float(np.asarray(electron_density)[cell]),
-                    "compton_heating_cgs_erg_cm3_s": float(np.asarray(compton_rate)[cell]),
-                    "photoheating_cgs_erg_cm3_s": float(np.asarray(photoheating_rate)[cell]),
-                },
-            )
+        failed_cells.extend(
+            {
+                "cell": int(cell),
+                "temperature_cgs_K": float(np.asarray(state["temperature_cgs_K"])[cell]),
+                "specific_energy_cgs_erg_g": float(energy_old[cell]),
+                "xHI": float(x_old[cell]),
+                "residual_energy": float(residual_energy[cell]),
+                "residual_xHI": float(residual_x[cell]),
+                "jacobian_determinant": float(determinant[cell]),
+                "alpha_B_cgs_cm3_s": float(np.asarray(alpha_rate)[cell]),
+                "heating_cgs_erg_cm3_s": float(np.asarray(heating_rate)[cell]),
+                "cooling_cgs_erg_cm3_s": float(np.asarray(cooling_rate)[cell]),
+                "nH_cgs_cm3": float(np.asarray(n_hydrogen)[cell]),
+                "ne_cgs_cm3": float(np.asarray(electron_density)[cell]),
+                "compton_heating_cgs_erg_cm3_s": float(np.asarray(compton_rate)[cell]),
+                "photoheating_cgs_erg_cm3_s": float(np.asarray(photoheating_rate)[cell]),
+            }
+            for cell in np.where(singular)[0]
+        )
     if not np.any(active):
         state["_implicit_failure"] = {
             "reason": reason,

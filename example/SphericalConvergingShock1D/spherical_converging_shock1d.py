@@ -137,10 +137,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     final_mass, final_energy = profiles[-1][4:6]
     temperature_proper_code = profiles[0][3]
     final_temperature_proper_code = profiles[-1][3]
-    thermal_energy = []
-    for profile in profiles:
-        thermal_energy.append(profile[6])
-    thermal_energy = np.asarray(thermal_energy)
+    thermal_energy = np.asarray([profile[6] for profile in profiles])
     if not thermal_energy[-1] > thermal_energy[0]:
         raise RuntimeError("converging flow did not increase thermal energy")
     if not np.max(final_temperature_proper_code) > 5.0 * np.max(temperature_proper_code):

@@ -94,9 +94,12 @@ def check_conserved_energy_admissibility(
     # conservative variable.  Their Energy field may therefore contain only
     # kinetic energy (or zero), while pressure is reconstructed from T and mu;
     # the adiabatic E >= K invariant is not applicable here.
-    if getattr(getattr(sim, "fluid", None), "eos", None) is not None:
-        if getattr(sim.fluid.eos, "is_isothermal", False):
-            return
+    if getattr(getattr(sim, "fluid", None), "eos", None) is not None and getattr(
+        sim.fluid.eos,
+        "is_isothermal",
+        False,
+    ):
+        return
     if not all(hasattr(sim.fluid, name) for name in ("Mass_code", "Mom_code", "Energy_code")):
         # Source-only/unit-test states may not have been initialized with
         # hydrodynamic conserved fields.
@@ -327,14 +330,16 @@ def _temperature_jump_diagnostic(
         ),
         "neighborhood: idx radius T_before[K] T_after[K] rho vel pressure cs mass energy",
     ]
-    for neighbor in range(max(first, index - 2), min(last, index + 3)):
-        lines.append(
+    lines.extend(
+        [
             f"{neighbor} {radius[neighbor]} "
             f"{before[neighbor] if before.shape == temperature_after.shape else np.nan} "
             f"{temperature_after[neighbor]} {density[neighbor]} {velocity[neighbor]} "
             f"{pressure[neighbor]} {sound_speed[neighbor]} {mass[neighbor]} "
-            f"{energy[neighbor]}",
-        )
+            f"{energy[neighbor]}"
+            for neighbor in range(max(first, index - 2), min(last, index + 3))
+        ],
+    )
     if source_result:
         lines.append(
             "source solver: {} relative_change={} source_steps={}".format(

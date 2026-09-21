@@ -69,11 +69,12 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     sim.Run(mode="hydro")
 
-    output_files = [
-        Path(par["output"]["directory"]) / name
-        for name in sorted(os.listdir(par["output"]["directory"]))
-        if name.startswith(par["output"]["filename_prefix"] + "_") and name.endswith(".hdf5")
-    ]
+    output_files = sorted(
+        path
+        for path in Path(par["output"]["directory"]).iterdir()
+        if path.name.startswith(par["output"]["filename_prefix"] + "_")
+        and path.name.endswith(".hdf5")
+    )
     figure_filename = Path(par["output"]["directory"]) / "NFWVirialShock1D.jpg"
     et.plot_snapshots(output_files, config, figure_filename)
     rh_rows = et.rankine_hugoniot_diagnostics(

@@ -5,7 +5,7 @@
 import matplotlib as mpl
 
 mpl.use("Agg")
-import glob
+from pathlib import Path
 
 import hydrogen_recombination_analytic as hra
 import matplotlib.pyplot as plt
@@ -95,8 +95,7 @@ def load_history_from_outputs(outputfiles, config):
 
 
 def output_files(output_directory, output_filename_prefix):
-    pattern = output_directory + "/" + output_filename_prefix + "_*.hdf5"
-    return glob.glob(pattern)
+    return list(Path(output_directory).glob(f"{output_filename_prefix}_*.hdf5"))
 
 
 def run_hydrogen_recombination(sim, target_neutral_fraction, outputtime=0):

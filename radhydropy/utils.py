@@ -199,7 +199,6 @@ def GetFQ(rho, vel, pre, gamma):  # noqa: N802
     Fmass = rho * vel
     qmass = rho
     Fmom = rho * vel * vel
-    # Fmom  = rho * vel**2
     Fmom[np.logical_or(vel == 0.0, np.isnan(vel))] = 0.0 * rho[0] * vel[0] ** 2
     Fmom += pre
     qmom = rho * vel
@@ -229,9 +228,6 @@ def ApplyFluxLimiter(q, flux_1, flux_0, limiter="minmod"):  # noqa: N802
     rlim = np.ones(len(q)) * 1000.0
     nonzero = bottom != 0.0
     rlim[nonzero] = np.asarray(top[nonzero] / bottom[nonzero])
-    # if bottom is zero, we just assign a very large number
     rlim[np.isnan(rlim)] = 0.0
-    # rlim[np.logical_or(bottom==0,np.isnan(bottom))] = 0.0
     philim = CalFluxLimiter(rlim, limiter=limiter)
-    # print('philim',philim)
     return flux_0 - philim * (flux_0 - flux_1), philim

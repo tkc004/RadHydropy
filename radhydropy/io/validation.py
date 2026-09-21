@@ -56,12 +56,15 @@ def _validate_cosmology(par, header):
     if expected_cosmology is None:
         expected_model = getattr(par, "cosmology", None)
         expected_cosmology = getattr(expected_model, "type_name", None)
-    if header_cosmology is not None and expected_cosmology is not None:
-        if str(header_cosmology) != str(expected_cosmology):
-            raise SnapshotConfigurationError(
-                f"snapshot cosmology {header_cosmology!r} does not match "
-                f"runtime cosmology {expected_cosmology!r}",
-            )
+    if (
+        header_cosmology is not None
+        and expected_cosmology is not None
+        and str(header_cosmology) != str(expected_cosmology)
+    ):
+        raise SnapshotConfigurationError(
+            f"snapshot cosmology {header_cosmology!r} does not match "
+            f"runtime cosmology {expected_cosmology!r}",
+        )
 
 
 def validate_snapshot_configuration(par, header, header_code_units):

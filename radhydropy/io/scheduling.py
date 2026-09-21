@@ -28,11 +28,9 @@ def load_output_time_list(filename: str | None) -> Any:
             tokens = line.split()
             if unit is None:
                 unit = tokens[0]
-                for token in tokens[1:]:
-                    output_times.append(float(token))
+                output_times.extend(float(token) for token in tokens[1:])
                 continue
-            for token in tokens:
-                output_times.append(float(token))
+            output_times.extend(float(token) for token in tokens)
 
     if unit is None:
         raise ValueError(f"Output-time file is empty: {outputtimepath}")

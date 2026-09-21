@@ -180,7 +180,7 @@ def _write_summary(histories, config, filename):
         initial["hydrogen_number_density"],
         example["alpha_B_coefficient"],
     ).to_value(unyt.kpc)
-    with open(filename, "w", newline="") as stream:
+    with Path(filename).open("w", newline="") as stream:
         writer = csv.writer(stream)
         writer.writerow(
             [

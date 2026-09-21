@@ -104,10 +104,7 @@ def run_case(base_config, case_name, final_time):
 def main(config_filename=DEFAULT_CONFIG, cases=None, final_time=1.0):
     base_config = _load_config(config_filename)
     selected = list(CASES) if cases is None else list(cases)
-    outputs = []
-    for case_name in selected:
-        outputs.append(run_case(base_config, case_name, final_time))
-    return outputs
+    return [run_case(base_config, case_name, final_time) for case_name in selected]
 
 
 if __name__ == "__main__":

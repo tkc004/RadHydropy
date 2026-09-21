@@ -65,7 +65,6 @@ def get_Cc(nu, w, g, wa, b):  # noqa: N802
     b is power law index for the analytic blastwave solution
     """
     Cc = np.zeros(7)
-    # Cc[0] = 2.0 * (nu - 1.0) * np.pi + (nu - 2.0) * (nu - 3.0)
     Cc[0] = (
         2.0**nu * np.pi ** (0.5 * (nu - 1.0)) * special.gamma(0.5 * (nu + 1.0)) / special.gamma(nu)
     )

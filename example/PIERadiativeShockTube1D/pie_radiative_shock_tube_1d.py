@@ -302,7 +302,7 @@ def main(config_filename=DEFAULT_CONFIG):
             result["metallicity"] = 0.0
         results.append(_shock_diagnostics(result, table, config))
     report = EXAMPLE_DIR / "PIERadiativeShockTube1D_ShockReport.txt"
-    with open(report, "w", encoding="utf-8") as handle:
+    with report.open("w", encoding="utf-8") as handle:
         handle.write(
             "case metallicity shock_position_kpc upstream_velocity_km_s "
             "compression expected_compression post_temperature_cgs_K "

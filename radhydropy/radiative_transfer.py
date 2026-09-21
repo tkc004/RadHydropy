@@ -489,12 +489,11 @@ def trace_long_characteristics(
         source_photon_rate,
     )
     ngroup = edge_ngroup or inferred_ngroup or 1
-    if edge_ngroup is not None and inferred_ngroup is not None:
-        if edge_ngroup != inferred_ngroup:
-            raise ValueError(
-                "radiation_group_edges_eV and group rate arrays disagree "
-                f"({edge_ngroup} != {inferred_ngroup})",
-            )
+    if edge_ngroup is not None and inferred_ngroup is not None and edge_ngroup != inferred_ngroup:
+        raise ValueError(
+            "radiation_group_edges_eV and group rate arrays disagree "
+            f"({edge_ngroup} != {inferred_ngroup})",
+        )
 
     boundary_flux = _normalize_group_values(
         boundary_flux,

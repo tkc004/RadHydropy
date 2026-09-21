@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Utilities for the dynamic photoheated Stromgren sphere example."""
 
-import os
 from pathlib import Path
 
 import matplotlib as mpl
@@ -339,7 +338,7 @@ def shifted_spitzer_radius(time_proper_code, config, ci):
 
 
 def load_reference_profile(filename, radius_unit, *, log_value=False):
-    if filename is None or not os.path.exists(filename):
+    if filename is None or not Path(filename).exists():
         return None
     data = np.loadtxt(filename, delimiter=",")
     if data.ndim == 1:

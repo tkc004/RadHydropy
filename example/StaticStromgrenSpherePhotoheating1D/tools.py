@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Helper utilities for the photoheated static Stromgren sphere example."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -28,11 +27,9 @@ from radhydropy.units import (
     quantity_to_value,
 )
 
-static_stromgren_dir = os.path.abspath(
-    Path(os.path.dirname(__file__)) / ".." / "StaticStromgrenSphere1D",
-)
-if static_stromgren_dir not in sys.path:
-    sys.path.append(static_stromgren_dir)
+static_stromgren_dir = (Path(__file__).parent / ".." / "StaticStromgrenSphere1D").resolve()
+if str(static_stromgren_dir) not in sys.path:
+    sys.path.append(str(static_stromgren_dir))
 
 import stromgren_analytic as sa
 
@@ -303,7 +300,7 @@ def normalize_static_history(history):
 
 
 def load_log_reference_profile(filename, radius_unit):
-    if filename is None or not os.path.exists(filename):
+    if filename is None or not Path(filename).exists():
         return None
     data = np.loadtxt(filename, delimiter=",")
     if data.ndim == 1:

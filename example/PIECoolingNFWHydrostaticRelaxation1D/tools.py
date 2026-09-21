@@ -5,6 +5,8 @@
 import matplotlib as mpl
 
 mpl.use("Agg")
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -157,7 +159,7 @@ def analyze_snapshot(filename, config, halo, temperature_virial_unyt):
 
 
 def write_report(results, filename, temperature_floor):
-    with open(filename, "w", encoding="utf-8") as report:
+    with Path(filename).open("w", encoding="utf-8") as report:
         report.write(
             "time_proper_Myr central_rho_proper_cgs_g_cm3 central_temperature_proper_cgs_K "
             "minimum_temperature_proper_cgs_K atmosphere_mass_proper_Msun "
