@@ -586,6 +586,54 @@ def splashback_radius(
     return float(radii[local])
 
 
+def _find_virial_shock_radius(
+    proper,
+    rho_comoving_code,
+    entropy_proxy,
+    velocity_phys,
+    finite_entropy,
+    rvir,
+    rtarget,
+):
+    if np.count_nonzero(finite_entropy) < 7:  # noqa: PLR2004
+        return np.nan
+    lower_radius = proper[0]
+    if np.isfinite(rvir) and rvir > proper[0]:
+        lower_radius = max(lower_radius, 0.5 * rvir)
+    elif np.isfinite(rtarget):
+        lower_radius = max(lower_radius, 0.3 * rtarget)
+    upper_index = max(3, proper.size - 8)
+    upper_radius = proper[upper_index]
+    if np.isfinite(rvir) and rvir > proper[0]:
+        upper_radius = min(upper_radius, 3.0 * rvir)
+    candidates = np.flatnonzero((proper > lower_radius) & (proper < upper_radius))
+    resolved = []
+    entropy_jumps = []
+    for local in candidates:
+        inner = max(0, int(local) - 2)
+        outer = min(proper.size - 1, int(local) + 2)
+        compression = rho_comoving_code[inner] / max(rho_comoving_code[outer], 1.0e-300)
+        entropy_jump = entropy_proxy[inner] - entropy_proxy[outer]
+        decelerated = (
+            velocity_phys[outer] < 0.0
+            and velocity_phys[inner] > velocity_phys[outer]
+            and abs(velocity_phys[inner]) < abs(velocity_phys[outer])
+        )
+        if (
+            finite_entropy[inner]
+            and finite_entropy[outer]
+            and np.isfinite(entropy_jump)
+            and compression >= 1.2  # noqa: PLR2004
+            and entropy_jump > 0.0
+            and decelerated
+        ):
+            resolved.append(int(local))
+            entropy_jumps.append(float(entropy_jump))
+    if not resolved:
+        return np.nan
+    return float(proper[resolved[int(np.argmax(entropy_jumps))]])
+
+
 def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
     """Measure virial, shock, disc radii and enclosed total masses."""
     initial_condition = config["initial_condition"]
@@ -689,68 +737,16 @@ def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
         & np.isfinite(rho_comoving_code)
         & (rho_comoving_code > 0.0)
     )
+    rshock = _find_virial_shock_radius(
+        proper,
+        rho_comoving_code,
+        entropy_proxy,
+        velocity_phys,
+        finite_entropy,
+        rvir,
+        rtarget,
+    )
     shock_cell_index = -1
-    if np.count_nonzero(finite_entropy) >= 7:  # noqa: PLR2004
-        lower_radius = proper[0]
-        if np.isfinite(rvir) and rvir > proper[0]:
-            # The virial shock is an outer-halo feature.  Exclude inner
-            # cooling/centrifugal transitions from the shock diagnostic.
-            lower_radius = max(lower_radius, 0.5 * rvir)
-        elif np.isfinite(rtarget):
-            # The virial shock is an outer-halo feature.  Do not let an
-            # unresolved inner cooling/adiabatic feature become r_shock
-            # merely because it has a larger cell-to-cell gradient.
-            lower_radius = max(lower_radius, 0.3 * rtarget)
-        # A percentage-of-radius cut removes too few cells on this logarithmic
-        # mesh.  Leave a fixed buffer outside the candidate and its five-cell
-        # smoothing stencil so the explicitly reset EdS reservoir cannot be
-        # reported as a virial shock.
-        outer_buffer_cells = 8
-        upper_index = max(3, proper.size - outer_buffer_cells)
-        upper_radius = proper[upper_index]
-        if np.isfinite(rvir) and rvir > proper[0]:
-            upper_radius = min(upper_radius, 3.0 * rvir)
-        valid = (proper > lower_radius) & (proper < upper_radius)
-        candidate = np.flatnonzero(valid)
-        if candidate.size:
-            # Use the strongest resolved inward entropy increase directly;
-            # do not let a floor cell inside the smoothing stencil veto it.
-            shock_candidates = candidate
-            resolved = []
-            resolved_entropy_jumps = []
-            for local in shock_candidates:
-                inner = max(0, int(local) - 2)
-                outer = min(proper.size - 1, int(local) + 2)
-                compression = rho_comoving_code[inner] / max(rho_comoving_code[outer], 1.0e-300)
-                entropy_jump = entropy_proxy[inner] - entropy_proxy[outer]
-                upstream_velocity = velocity_phys[outer]
-                downstream_velocity = velocity_phys[inner]
-                decelerated = (
-                    upstream_velocity < 0.0
-                    and downstream_velocity > upstream_velocity
-                    and abs(downstream_velocity) < abs(upstream_velocity)
-                )
-                if (
-                    finite_entropy[inner]
-                    and finite_entropy[outer]
-                    and np.isfinite(entropy_jump)
-                    and compression >= 1.2  # noqa: PLR2004
-                    and entropy_jump > 0.0
-                    and decelerated
-                ):
-                    resolved.append(int(local))
-                    resolved_entropy_jumps.append(float(entropy_jump))
-            if resolved:
-                resolved = np.asarray(resolved, dtype=int)
-                local = int(resolved[np.argmax(resolved_entropy_jumps)])
-                rshock = float(proper[local])
-            else:
-                rshock = np.nan
-        else:
-            rshock = np.nan
-    else:
-        rshock = np.nan
-        shock_cell_index = -1
 
     if np.isfinite(rshock):
         shock_cell_index = int(np.argmin(np.abs(proper - rshock)))

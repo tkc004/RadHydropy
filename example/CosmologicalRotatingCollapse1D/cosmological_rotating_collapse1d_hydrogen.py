@@ -17,11 +17,11 @@ PROJECT_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
-from example import example_utils as eu
 from cosmological_initial_condition import build_initial_condition
 from cosmological_rotating_collapse1d import DEFAULT_CONFIG, spherical_centers
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value
 

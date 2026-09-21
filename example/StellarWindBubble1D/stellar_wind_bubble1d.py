@@ -24,9 +24,9 @@ os.environ.setdefault(
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 
+from example import example_utils as eu
 from example.StellarWindBubble1D import tools as et
 
 DEFAULT_CONFIG = (

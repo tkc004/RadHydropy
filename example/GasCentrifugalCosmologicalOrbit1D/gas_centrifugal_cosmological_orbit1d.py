@@ -16,12 +16,12 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.arrays import as_named_array
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.cosmology.variables import (
@@ -259,15 +259,7 @@ def main(config_filename=CONFIG):
     if not np.all(np.isfinite(saved_j[saved_active])):
         raise RuntimeError("cosmological Rsim produced invalid specific angular momentum")
 
-    def rhs(tau, state):
-        radius_comoving_code, vel_supercomoving_code = state
-        radius_safe_comoving_code = max(radius_comoving_code, np.finfo(float).tiny)
-        scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
-        return (
-            vel_supercomoving_code,
-            -scale_factor * central_mass / radius_safe_comoving_code**2
-            + j**2 / radius_safe_comoving_code**3,
-        )
+    rhs = lambda tau, state: _orbit_rhs(tau, state, cosmology, central_mass, j)  # noqa: E731
 
     reference = solve_ivp(
         rhs,
@@ -279,15 +271,7 @@ def main(config_filename=CONFIG):
     )
     dt = float(example_config["timestep"].to_value("dimensionless"))
     times = np.arange(0.0, final_tau + 0.5 * dt, dt)
-    numerical = np.empty((2, len(times)))
-    numerical[:, 0] = (x0_comoving_code, v0_supercomoving_code)
-    for index in range(len(times) - 1):
-        state = numerical[:, index]
-        k1 = np.asarray(rhs(times[index], state))
-        k2 = np.asarray(rhs(times[index] + 0.5 * dt, state + 0.5 * dt * k1))
-        k3 = np.asarray(rhs(times[index] + 0.5 * dt, state + 0.5 * dt * k2))
-        k4 = np.asarray(rhs(times[index] + dt, state + dt * k3))
-        numerical[:, index + 1] = state + dt * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
+    numerical = _integrate_rk4(rhs, times, dt, x0_comoving_code, v0_supercomoving_code)
     reference_state = reference.sol(times)
     radius_error = np.max(np.abs(numerical[0] - reference_state[0]))
     velocity_error = np.max(np.abs(numerical[1] - reference_state[1]))
@@ -307,7 +291,6 @@ def main(config_filename=CONFIG):
         raise RuntimeError("cosmological orbit disagrees with analytic ODE")
     if not np.allclose(reconstructed_j, j, rtol=1.0e-12, atol=1.0e-12):
         raise RuntimeError("specific angular momentum changed under conversion")
-
     fig, axes = plt.subplots(2, 2, figsize=(10, 7))
     axes[0, 0].plot(times, numerical[0], label="RK4")
     axes[0, 0].plot(times, reference_state[0], "--", label="analytic ODE")
@@ -460,6 +443,30 @@ def main(config_filename=CONFIG):
     sim_fig.tight_layout()
     sim_fig.savefig(simulation_figure, dpi=180)
     plt.close(sim_fig)
+
+
+def _integrate_rk4(rhs, times, dt, radius_initial, velocity_initial):
+    numerical = np.empty((2, len(times)))
+    numerical[:, 0] = (radius_initial, velocity_initial)
+    for index in range(len(times) - 1):
+        state = numerical[:, index]
+        k1 = np.asarray(rhs(times[index], state))
+        k2 = np.asarray(rhs(times[index] + 0.5 * dt, state + 0.5 * dt * k1))
+        k3 = np.asarray(rhs(times[index] + 0.5 * dt, state + 0.5 * dt * k2))
+        k4 = np.asarray(rhs(times[index] + dt, state + dt * k3))
+        numerical[:, index + 1] = state + dt * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
+    return numerical
+
+
+def _orbit_rhs(tau, state, cosmology, central_mass, angular_momentum):
+    radius_comoving_code, velocity_supercomoving_code = state
+    radius_safe_comoving_code = max(radius_comoving_code, np.finfo(float).tiny)
+    scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
+    return (
+        velocity_supercomoving_code,
+        -scale_factor * central_mass / radius_safe_comoving_code**2
+        + angular_momentum**2 / radius_safe_comoving_code**3,
+    )
 
 
 if __name__ == "__main__":

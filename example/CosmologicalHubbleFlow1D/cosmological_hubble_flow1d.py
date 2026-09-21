@@ -20,7 +20,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from example import example_utils as eu
 from cosmological_density_evolution1d import (
     CODE_LENGTH_CM,
     CODE_TIME_S,
@@ -33,6 +32,7 @@ from cosmology import EinsteinDeSitter as PhysicalEdS
 from cosmology import LambdaCDM as PhysicalLambdaCDM
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.units import CodeUnits

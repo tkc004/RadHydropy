@@ -144,80 +144,25 @@ def run_with_output_times(
     time_tol = max(abs(float(np.asarray(final_time, dtype=float))) * 1.0e-12, 1.0e-30)
     from radhydropy.io import load_output_time_list  # noqa: PLC0415
 
-    output_times = load_output_time_list(getattr(sim.par, "outputtimefilename", None))
-    if output_times is None:
-        output_times = []
-    else:
-        if hasattr(final_time, "units"):
-            target_unit = final_time.units
-            sorted_values = np.unique(
-                np.asarray(output_times.to_value(target_unit), dtype=float),
-            )
-        else:
-            code_units = getattr(sim.par, "CodeUnits", None)
-            if code_units is None:
-                code_units = getattr(
-                    getattr(sim.par, "units", None),
-                    "CodeUnits",
-                    None,
-                )
-            sorted_values = np.unique(
-                np.asarray(output_times.to_value(unyt.s), dtype=float)
-                / code_unit_scales(code_units)["time_s"],
-            )
-        output_times = [
-            value * final_time.units if hasattr(final_time, "units") else value
-            for value in sorted_values
-            if (
-                (value * final_time.units if hasattr(final_time, "units") else value) > current_time
-                and (value * final_time.units if hasattr(final_time, "units") else value)
-                <= final_time
-            )
-        ]
+    output_times = _normalized_output_times(sim, final_time, current_time)
 
     from radhydropy.rsim.evolution import _advance_until  # noqa: PLC0415
 
-    outindex = 1
-    for target_time in output_times:
-        if stop_condition is not None and stop_condition(sim):
-            break
-        target_time_value = float(np.asarray(target_time, dtype=float))
-        _advance_until(
-            sim,
-            final_time=target_time,
-            mode=mode,
-            advect_chemistry=advect_chemistry,
-            stop_condition=stop_condition,
-            step_backend=step_backend,
-            step_backend_kwargs=step_backend_kwargs,
-            before_step_callback=before_step_callback,
-            history_callback=history_callback,
-            emit_initial_history=False,
-        )
-        if stop_condition is not None and stop_condition(sim):
-            break
-        # Euler/source steps can cross a target by a roundoff- or CFL-sized
-        # amount.  Treat the first state at or beyond the target as the
-        # requested snapshot instead of silently dropping the output.
-        if (
-            float(
-                np.asarray(
-                    getattr(sim.fluid, runtime_fields(sim.par).time),
-                    dtype=float,
-                ),
-            )
-            >= target_time_value - time_tol
-        ):
-            snapshot_filename = output_writer(sim, outindex)
-            if snapshot_callback is not None:
-                snapshot_callback(sim, snapshot_filename, outindex)
-            last_output_time_s = float(
-                np.asarray(
-                    getattr(sim.fluid, runtime_fields(sim.par).time),
-                    dtype=float,
-                ),
-            )
-            outindex += 1
+    outindex, last_output_time_s = _write_requested_outputs(
+        sim,
+        output_times,
+        time_tol,
+        mode,
+        advect_chemistry,
+        stop_condition,
+        step_backend,
+        step_backend_kwargs,
+        before_step_callback,
+        history_callback,
+        output_writer,
+        snapshot_callback,
+        last_output_time_s,
+    )
 
     _advance_until(
         sim,
@@ -247,3 +192,78 @@ def run_with_output_times(
         snapshot_filename = output_writer(sim, outindex)
         if snapshot_callback is not None:
             snapshot_callback(sim, snapshot_filename, outindex)
+
+
+def _normalized_output_times(sim, final_time, current_time):
+    from radhydropy.io import load_output_time_list  # noqa: PLC0415
+
+    output_times = load_output_time_list(getattr(sim.par, "outputtimefilename", None))
+    if output_times is None:
+        return []
+    if hasattr(final_time, "units"):
+        sorted_values = np.unique(np.asarray(output_times.to_value(final_time.units), dtype=float))
+    else:
+        code_units = getattr(sim.par, "CodeUnits", None)
+        if code_units is None:
+            code_units = getattr(getattr(sim.par, "units", None), "CodeUnits", None)
+        sorted_values = np.unique(
+            np.asarray(output_times.to_value(unyt.s), dtype=float)
+            / code_unit_scales(code_units)["time_s"],
+        )
+    return [
+        value * final_time.units if hasattr(final_time, "units") else value
+        for value in sorted_values
+        if (
+            (value * final_time.units if hasattr(final_time, "units") else value) > current_time
+            and (value * final_time.units if hasattr(final_time, "units") else value) <= final_time
+        )
+    ]
+
+
+def _write_requested_outputs(
+    sim,
+    output_times,
+    time_tol,
+    mode,
+    advect_chemistry,
+    stop_condition,
+    step_backend,
+    step_backend_kwargs,
+    before_step_callback,
+    history_callback,
+    output_writer,
+    snapshot_callback,
+    last_output_time_s,
+):
+    from radhydropy.rsim.evolution import _advance_until  # noqa: PLC0415
+
+    outindex = 1
+    for target_time in output_times:
+        if stop_condition is not None and stop_condition(sim):
+            break
+        target_time_value = float(np.asarray(target_time, dtype=float))
+        _advance_until(
+            sim,
+            final_time=target_time,
+            mode=mode,
+            advect_chemistry=advect_chemistry,
+            stop_condition=stop_condition,
+            step_backend=step_backend,
+            step_backend_kwargs=step_backend_kwargs,
+            before_step_callback=before_step_callback,
+            history_callback=history_callback,
+            emit_initial_history=False,
+        )
+        if stop_condition is not None and stop_condition(sim):
+            break
+        current_time = float(
+            np.asarray(getattr(sim.fluid, runtime_fields(sim.par).time), dtype=float),
+        )
+        if current_time < target_time_value - time_tol:
+            continue
+        snapshot_filename = output_writer(sim, outindex)
+        if snapshot_callback is not None:
+            snapshot_callback(sim, snapshot_filename, outindex)
+        last_output_time_s = current_time
+        outindex += 1
+    return outindex, last_output_time_s

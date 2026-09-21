@@ -20,12 +20,12 @@ os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydr
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import unyt
 from bertschinger_gas import solve_bertschinger_gas
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.gravity import Gravity

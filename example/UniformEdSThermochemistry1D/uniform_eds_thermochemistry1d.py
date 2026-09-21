@@ -19,15 +19,14 @@ sys.path.insert(0, str(EXAMPLE_ROOT.parent))
 
 import copy
 
-from example import example_utils as eu
-
 import radhydropy.io as rio
-from radhydropy.cosmology import EinsteinDeSitter
-from radhydropy.units import CodeUnits, quantity_to_value
+from example import example_utils as eu
 from example.UniformEdSThermochemistry1D.tools import (
     analytic_compton_temperature,
     build_initial_condition,
 )
+from radhydropy.cosmology import EinsteinDeSitter
+from radhydropy.units import CodeUnits, quantity_to_value
 
 CONFIG = EXAMPLE_ROOT / "uniform_eds_thermochemistry1d.yaml"
 

@@ -483,21 +483,11 @@ def trace_long_characteristics(
     if not absorber_densities:
         raise ValueError("at least one absorber density is required")
 
-    inferred_ngroup = None
-    for sigma in cross_sections_cgs_cm2.values():
-        sigma_array = _as_cgs_array(sigma, CGS_AREA_UNIT)
-        if sigma_array.ndim > 0:
-            inferred_ngroup = sigma_array.size
-            break
-    if inferred_ngroup is None:
-        for value, unit in (
-            (boundary_flux, PHOTON_FLUX_UNIT),
-            (source_photon_rate, PHOTON_RATE_UNIT),
-        ):
-            value_array = _as_cgs_array(value, unit)
-            if value_array.ndim > 0:
-                inferred_ngroup = value_array.size
-                break
+    inferred_ngroup = _infer_transport_ngroup(
+        cross_sections_cgs_cm2,
+        boundary_flux,
+        source_photon_rate,
+    )
     ngroup = edge_ngroup or inferred_ngroup or 1
     if edge_ngroup is not None and inferred_ngroup is not None:
         if edge_ngroup != inferred_ngroup:
@@ -525,6 +515,43 @@ def trace_long_characteristics(
         ngroup,
     )
 
+    return _stack_group_results(
+        _trace_transport_groups(
+            geometry,
+            coordsys,
+            optical_depth,
+            boundary_flux,
+            source_photon_rate,
+            direction,
+            ngroup,
+        ),
+    )
+
+
+def _infer_transport_ngroup(cross_sections, boundary_flux, source_photon_rate):
+    for sigma in cross_sections.values():
+        sigma_array = _as_cgs_array(sigma, CGS_AREA_UNIT)
+        if sigma_array.ndim > 0:
+            return sigma_array.size
+    for value, unit in (
+        (boundary_flux, PHOTON_FLUX_UNIT),
+        (source_photon_rate, PHOTON_RATE_UNIT),
+    ):
+        value_array = _as_cgs_array(value, unit)
+        if value_array.ndim > 0:
+            return value_array.size
+    return None
+
+
+def _trace_transport_groups(
+    geometry,
+    coordsys,
+    optical_depth,
+    boundary_flux,
+    source_photon_rate,
+    direction,
+    ngroup,
+):
     group_results = []
     for group in range(ngroup):
         if coordsys == "cartesian":
@@ -543,7 +570,7 @@ def trace_long_characteristics(
                 direction,
             )
         group_results.append(result)
-    return _stack_group_results(group_results)
+    return group_results
 
 
 def _state_mesh_for_radiative_transfer(state, par):
@@ -577,93 +604,15 @@ def trace_photon_density(state, par):
     xHI_dimensionless = np.asarray(state["xHI"], dtype=float)
     group_edges_eV = getattr(par, "radiation_group_edges_eV", None)
     if group_edges_eV is not None:
-        sigma_groups = getattr(par, "radiation_group_sigma_gamma", None)
-        if sigma_groups is None:
-            sigma_groups = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
-        boundary_groups = getattr(
+        return _trace_grouped_photon_density(
+            state,
             par,
-            "radiative_transfer_boundary_flux_groups",
-            _parameter_value(par, "radiative_transfer_boundary_flux", 0.0),
-        )
-        source_groups = getattr(
-            par,
-            "source_photon_rate_groups",
-            _parameter_value(par, "source_photon_rate", 0.0),
-        )
-        if hasattr(sigma_groups, "to_value"):
-            sigma_groups = sigma_groups.to_value(CGS_AREA_UNIT)
-        elif code is not None:
-            sigma_groups = code_quantity_to_cgs(
-                sigma_groups,
-                code,
-                "area_cgs_cm2",
-            )
-        if hasattr(boundary_groups, "to_value"):
-            boundary_groups = boundary_groups.to_value(PHOTON_FLUX_UNIT)
-        elif code is not None:
-            boundary_groups = code_quantity_to_cgs(
-                boundary_groups,
-                code,
-                "photon_flux_per_cgs_cm2_s",
-            )
-        if hasattr(source_groups, "to_value"):
-            source_groups = source_groups.to_value(PHOTON_RATE_UNIT)
-        elif code is not None:
-            source_groups = code_quantity_to_cgs(
-                source_groups,
-                code,
-                "photon_rate_per_s",
-            )
-        if hasattr(state, "get") and "xHeI" in state:
-            nH = (
-                getattr(par, "hydrogen_mass_fraction", 0.7) * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
-            )
-            nHe = (
-                getattr(par, "helium_mass_fraction", 0.28)
-                * rho_proper_cgs_g_cm3
-                / (4.0 * PROTON_MASS_CGS)
-            )
-            absorbers = {
-                "HI": nH * xHI_dimensionless,
-                "HeI": nHe * state["xHeI"],
-                "HeII": nHe * state["xHeII"],
-            }
-            cross_sections = {
-                "HI": sigma_groups,
-                "HeI": getattr(par, "radiation_group_sigma_gamma_HeI", sigma_groups),
-                "HeII": getattr(par, "radiation_group_sigma_gamma_HeII", sigma_groups),
-            }
-            return np.asarray(
-                trace_long_characteristics(
-                    mesh,
-                    absorber_densities=absorbers,
-                    cross_sections_cgs_cm2=cross_sections,
-                    boundary_flux=boundary_groups,
-                    source_photon_rate=source_groups,
-                    direction=_parameter_value(par, "radiative_transfer_direction", 1),
-                    coordsys=getattr(par, "coordsys", "spherical"),
-                    group_edges_eV=group_edges_eV,
-                ).cell_photon_density,
-                dtype=float,
-            )
-        result = trace_long_characteristics(
+            code,
             mesh,
-            absorber_densities={
-                "HI": (
-                    getattr(par, "hydrogen_mass_fraction", 1.0)
-                    * rho_proper_cgs_g_cm3
-                    / PROTON_MASS_CGS
-                    * np.clip(xHI_dimensionless, 0.0, 1.0)
-                ),
-            },
-            cross_sections_cgs_cm2={"HI": sigma_groups},
-            boundary_flux=boundary_groups,
-            source_photon_rate=source_groups,
-            direction=_parameter_value(par, "radiative_transfer_direction", 1),
-            coordsys=getattr(par, "coordsys", "spherical"),
-            group_edges_eV=group_edges_eV,
+            rho_proper_cgs_g_cm3,
+            xHI_dimensionless,
+            group_edges_eV,
         )
-        return np.asarray(result.cell_photon_density, dtype=float)
     sigma_gamma_cgs_cm2 = _quantity_or_code_to_cgs(
         getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2),
         code,
@@ -699,3 +648,84 @@ def trace_photon_density(state, par):
         coordsys=getattr(par, "coordsys", "spherical"),
     )
     return np.asarray(result.cell_photon_density, dtype=float)
+
+
+def _trace_grouped_photon_density(
+    state,
+    par,
+    code,
+    mesh,
+    rho_proper_cgs_g_cm3,
+    xHI_dimensionless,
+    group_edges_eV,
+):
+    sigma_groups = getattr(par, "radiation_group_sigma_gamma", None)
+    if sigma_groups is None:
+        sigma_groups = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
+    boundary_groups = getattr(
+        par,
+        "radiative_transfer_boundary_flux_groups",
+        _parameter_value(par, "radiative_transfer_boundary_flux", 0.0),
+    )
+    source_groups = getattr(
+        par,
+        "source_photon_rate_groups",
+        _parameter_value(par, "source_photon_rate", 0.0),
+    )
+    sigma_groups = _group_cgs_value(sigma_groups, code, CGS_AREA_UNIT, "area_cgs_cm2")
+    boundary_groups = _group_cgs_value(
+        boundary_groups,
+        code,
+        PHOTON_FLUX_UNIT,
+        "photon_flux_per_cgs_cm2_s",
+    )
+    source_groups = _group_cgs_value(
+        source_groups,
+        code,
+        PHOTON_RATE_UNIT,
+        "photon_rate_per_s",
+    )
+    if hasattr(state, "get") and "xHeI" in state:
+        nH = getattr(par, "hydrogen_mass_fraction", 0.7) * rho_proper_cgs_g_cm3 / PROTON_MASS_CGS
+        nHe = (
+            getattr(par, "helium_mass_fraction", 0.28)
+            * rho_proper_cgs_g_cm3
+            / (4.0 * PROTON_MASS_CGS)
+        )
+        absorbers = {
+            "HI": nH * xHI_dimensionless,
+            "HeI": nHe * state["xHeI"],
+            "HeII": nHe * state["xHeII"],
+        }
+        cross_sections = {
+            "HI": sigma_groups,
+            "HeI": getattr(par, "radiation_group_sigma_gamma_HeI", sigma_groups),
+            "HeII": getattr(par, "radiation_group_sigma_gamma_HeII", sigma_groups),
+        }
+    else:
+        absorbers = {
+            "HI": getattr(par, "hydrogen_mass_fraction", 1.0)
+            * rho_proper_cgs_g_cm3
+            / PROTON_MASS_CGS
+            * np.clip(xHI_dimensionless, 0.0, 1.0),
+        }
+        cross_sections = {"HI": sigma_groups}
+    result = trace_long_characteristics(
+        mesh,
+        absorber_densities=absorbers,
+        cross_sections_cgs_cm2=cross_sections,
+        boundary_flux=boundary_groups,
+        source_photon_rate=source_groups,
+        direction=_parameter_value(par, "radiative_transfer_direction", 1),
+        coordsys=getattr(par, "coordsys", "spherical"),
+        group_edges_eV=group_edges_eV,
+    )
+    return np.asarray(result.cell_photon_density, dtype=float)
+
+
+def _group_cgs_value(value, code, target_unit, scale_key):
+    if hasattr(value, "to_value"):
+        return value.to_value(target_unit)
+    if code is not None:
+        return code_quantity_to_cgs(value, code, scale_key)
+    return value

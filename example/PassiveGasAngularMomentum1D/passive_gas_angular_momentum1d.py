@@ -22,9 +22,8 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from example import example_utils as eu
-
 import radhydropy.io as rio
+from example import example_utils as eu
 from example.PassiveGasAngularMomentum1D import tools as et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits
@@ -105,8 +104,6 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError("HDF5 restart changed J/M")
 
     radius_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
-    figure = Path(config["par"]["output"]["directory"]) / "PassiveGasAngularMomentum1D.jpg"
-    figure.parent.mkdir(parents=True, exist_ok=True)
     final_snapshot = rio.loadhdf5(config, str(outputs[-1]))
     final_density_proper_code = np.asarray(
         final_snapshot.fluid.rho_radarray.value[interior],
@@ -121,42 +118,6 @@ def main(config_filename=DEFAULT_CONFIG):
         dtype=float,
     )
     conserved_j = np.asarray(sim.fluid.AngularMomentum_code[interior], dtype=float)
-
-    fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
-    hydro_plots = (
-        (axes[0, 0], rho_proper_code, final_density_proper_code, "density [proper code]"),
-        (axes[0, 1], vel_proper_code, final_velocity_proper_code, "velocity [proper code]"),
-        (
-            axes[1, 0],
-            temperature_proper_code,
-            final_temperature_proper_code,
-            "temperature [proper code]",
-        ),
-    )
-    for axis, initial_values, final_values, ylabel in hydro_plots:
-        axis.plot(radius_proper_code, initial_values, "--", label="initial")
-        axis.plot(radius_proper_code, final_values, "o", ms=3, label="final")
-        axis.set_ylabel(ylabel)
-        axis.grid(alpha=0.25)
-
-    axes[1, 1].plot(radius_proper_code, initial_j, "--", label="initial j")
-    axes[1, 1].plot(radius_proper_code, final_j, "o", ms=3, label="final j = J/M")
-    axes[1, 1].set_ylabel("angular momentum [code units]")
-    axes[1, 1].grid(alpha=0.25)
-    j_axis = axes[1, 1].twinx()
-    j_axis.plot(radius_proper_code, conserved_j, ":", lw=1.2, color="tab:red", label="stored J")
-    j_axis.set_ylabel("extensive J [code mass·length$^2$/code time]", color="tab:red")
-    j_axis.tick_params(axis="y", labelcolor="tab:red")
-    for axis in axes[1, :]:
-        axis.set_xlabel("cell coordinate [code length]")
-    axes[0, 0].legend()
-    handles, labels = axes[1, 1].get_legend_handles_labels()
-    j_handles, j_labels = j_axis.get_legend_handles_labels()
-    axes[1, 1].legend(handles + j_handles, labels + j_labels, fontsize="small")
-    fig.suptitle("Passive gas angular-momentum storage check")
-    fig.tight_layout()
-    fig.savefig(figure, dpi=180)
-    plt.close(fig)
 
     snapshot_times = []
     snapshot_total_j = []
@@ -184,9 +145,81 @@ def main(config_filename=DEFAULT_CONFIG):
         abs(initial_total_j),
         np.finfo(float).tiny,
     )
-    conservation_figure = (
-        Path(config["par"]["output"]["directory"]) / "PassiveGasAngularMomentum1D_conservation.jpg"
+    _write_diagnostic_plots(
+        config,
+        radius_proper_code,
+        rho_proper_code,
+        final_density_proper_code,
+        vel_proper_code,
+        final_velocity_proper_code,
+        temperature_proper_code,
+        final_temperature_proper_code,
+        initial_j,
+        final_j,
+        conserved_j,
+        snapshot_times,
+        snapshot_total_j,
+        initial_total_j,
+        relative_conservation_error,
     )
+
+
+def _write_diagnostic_plots(
+    config,
+    radius_proper_code,
+    rho_proper_code,
+    final_density_proper_code,
+    vel_proper_code,
+    final_velocity_proper_code,
+    temperature_proper_code,
+    final_temperature_proper_code,
+    initial_j,
+    final_j,
+    conserved_j,
+    snapshot_times,
+    snapshot_total_j,
+    initial_total_j,
+    relative_conservation_error,
+):
+    output_directory = Path(config["par"]["output"]["directory"])
+    output_directory.mkdir(parents=True, exist_ok=True)
+    figure = output_directory / "PassiveGasAngularMomentum1D.jpg"
+    fig, axes = plt.subplots(2, 2, figsize=(10, 7), sharex=True)
+    hydro_plots = (
+        (axes[0, 0], rho_proper_code, final_density_proper_code, "density [proper code]"),
+        (axes[0, 1], vel_proper_code, final_velocity_proper_code, "velocity [proper code]"),
+        (
+            axes[1, 0],
+            temperature_proper_code,
+            final_temperature_proper_code,
+            "temperature [proper code]",
+        ),
+    )
+    for axis, initial_values, final_values, ylabel in hydro_plots:
+        axis.plot(radius_proper_code, initial_values, "--", label="initial")
+        axis.plot(radius_proper_code, final_values, "o", ms=3, label="final")
+        axis.set_ylabel(ylabel)
+        axis.grid(alpha=0.25)
+    axes[1, 1].plot(radius_proper_code, initial_j, "--", label="initial j")
+    axes[1, 1].plot(radius_proper_code, final_j, "o", ms=3, label="final j = J/M")
+    axes[1, 1].set_ylabel("angular momentum [code units]")
+    axes[1, 1].grid(alpha=0.25)
+    j_axis = axes[1, 1].twinx()
+    j_axis.plot(radius_proper_code, conserved_j, ":", lw=1.2, color="tab:red", label="stored J")
+    j_axis.set_ylabel("extensive J [code mass·length$^2$/code time]", color="tab:red")
+    j_axis.tick_params(axis="y", labelcolor="tab:red")
+    for axis in axes[1, :]:
+        axis.set_xlabel("cell coordinate [code length]")
+    axes[0, 0].legend()
+    handles, labels = axes[1, 1].get_legend_handles_labels()
+    j_handles, j_labels = j_axis.get_legend_handles_labels()
+    axes[1, 1].legend(handles + j_handles, labels + j_labels, fontsize="small")
+    fig.suptitle("Passive gas angular-momentum storage check")
+    fig.tight_layout()
+    fig.savefig(figure, dpi=180)
+    plt.close(fig)
+
+    conservation_figure = output_directory / "PassiveGasAngularMomentum1D_conservation.jpg"
     conservation_fig, conservation_axes = plt.subplots(1, 2, figsize=(10, 4))
     conservation_axes[0].plot(snapshot_times, snapshot_total_j, "o-")
     conservation_axes[0].axhline(initial_total_j, color="k", ls="--", lw=1.0)

@@ -429,42 +429,53 @@ def test_diagnostic_keys_and_physical_parameters_use_representation_names():
     for filename in _python_files():
         source = filename.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(filename))
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Dict):
-                for key in _dict_key_strings(node):
-                    if key in AMBIGUOUS_PHYSICAL_NAMES:
-                        failures.append(
-                            f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: "
-                            f"ambiguous diagnostic/mapping key: {key}",
-                        )
-
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                arguments = [*node.args.args, *node.args.kwonlyargs]
-                for argument in arguments:
-                    if argument.arg in GENERIC_PHYSICAL_NAMES | AMBIGUOUS_PHYSICAL_NAMES:
-                        failures.append(
-                            f"{filename.relative_to(REPO_ROOT)}:{argument.lineno}: "
-                            f"ambiguous physical parameter: {argument.arg}",
-                        )
-
-            if isinstance(node, ast.Call):
-                callee_name = (
-                    node.func.id
-                    if isinstance(node.func, ast.Name)
-                    else node.func.attr
-                    if isinstance(node.func, ast.Attribute)
-                    else ""
-                )
-                allowed = INTENTIONAL_KEYWORD_EXCEPTIONS.get(callee_name, set())
-                for keyword in node.keywords:
-                    if keyword.arg in GENERIC_PHYSICAL_NAMES and keyword.arg not in allowed:
-                        failures.append(
-                            f"{filename.relative_to(REPO_ROOT)}:{keyword.lineno}: "
-                            f"ambiguous physical keyword: {keyword.arg}",
-                        )
-
+        failures.extend(_ambiguous_representation_failures(filename, tree))
     assert not failures, "\n".join(failures)
+
+
+def _ambiguous_representation_failures(filename, tree):
+    failures = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Dict):
+            failures.extend(_ambiguous_mapping_failures(filename, node))
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            failures.extend(_ambiguous_argument_failures(filename, node))
+        elif isinstance(node, ast.Call):
+            failures.extend(_ambiguous_keyword_failures(filename, node))
+    return failures
+
+
+def _ambiguous_mapping_failures(filename, node):
+    return [
+        f"{filename.relative_to(REPO_ROOT)}:{node.lineno}: ambiguous diagnostic/mapping key: {key}"
+        for key in _dict_key_strings(node)
+        if key in AMBIGUOUS_PHYSICAL_NAMES
+    ]
+
+
+def _ambiguous_argument_failures(filename, node):
+    arguments = [*node.args.args, *node.args.kwonlyargs]
+    return [
+        f"{filename.relative_to(REPO_ROOT)}:{argument.lineno}: ambiguous physical parameter: {argument.arg}"
+        for argument in arguments
+        if argument.arg in GENERIC_PHYSICAL_NAMES | AMBIGUOUS_PHYSICAL_NAMES
+    ]
+
+
+def _ambiguous_keyword_failures(filename, node):
+    callee_name = (
+        node.func.id
+        if isinstance(node.func, ast.Name)
+        else node.func.attr
+        if isinstance(node.func, ast.Attribute)
+        else ""
+    )
+    allowed = INTENTIONAL_KEYWORD_EXCEPTIONS.get(callee_name, set())
+    return [
+        f"{filename.relative_to(REPO_ROOT)}:{keyword.lineno}: ambiguous physical keyword: {keyword.arg}"
+        for keyword in node.keywords
+        if keyword.arg in GENERIC_PHYSICAL_NAMES and keyword.arg not in allowed
+    ]
 
 
 def test_generated_example_configs_do_not_use_legacy_quantity_names():

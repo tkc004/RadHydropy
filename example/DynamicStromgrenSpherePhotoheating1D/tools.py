@@ -11,9 +11,9 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from example.basic_hydro_utils import make_initial_condition
 
 import radhydropy.io as rio
+from example.basic_hydro_utils import make_initial_condition
 from radhydropy.runtime_fields import (
     PROPER_RUNTIME_FIELDS,
     FluidRuntimeState,

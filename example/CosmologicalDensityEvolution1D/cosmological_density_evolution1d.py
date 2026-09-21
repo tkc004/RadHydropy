@@ -16,12 +16,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(TOOLS_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from example import example_utils as eu
 from cosmological_initial_condition import build_initial_condition
 from cosmology import EinsteinDeSitter as PhysicalEdS
 from cosmology import LambdaCDM as PhysicalLambdaCDM
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.cosmology import EinsteinDeSitter as CodeEdS
 from radhydropy.cosmology import LambdaCDM as CodeLambdaCDM
 from radhydropy.units import CodeUnits

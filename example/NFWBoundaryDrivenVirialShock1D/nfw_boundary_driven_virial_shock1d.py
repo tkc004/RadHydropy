@@ -19,11 +19,11 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 os.environ.setdefault("XDG_CACHE_HOME", str(Path(tempfile.gettempdir()) / "radhydropy-cache"))
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
 
-from example import example_utils as eu
 import numpy as np
 import unyt
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from example.NFWBoundaryDrivenVirialShock1D.tools import (
     boundary_inflow_state,
     build_initial_condition,

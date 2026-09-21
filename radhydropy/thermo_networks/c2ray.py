@@ -54,39 +54,7 @@ def _group_parameters(par):
     edges = getattr(par, "radiation_group_edges_eV", None)
     if edges is None:
         edges = getattr(radiation, "group_edges_eV", None)
-    if edges is None:
-        ngroup = 1
-        sigma_value = getattr(par, "hydrogen_sigma_gamma", None)
-        if sigma_value is None:
-            sigma_value = getattr(radiation, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
-        epsilon_value = getattr(par, "hydrogen_epsilon_gamma", None)
-        if epsilon_value is None:
-            epsilon_value = getattr(
-                radiation,
-                "hydrogen_epsilon_gamma",
-                DEFAULT_EPSILON_GAMMA_CGS_ERG,
-            )
-    else:
-        edges = np.asarray(edges, dtype=float)
-        ngroup = edges.size - 1
-        sigma_value = getattr(par, "radiation_group_sigma_gamma", None)
-        if sigma_value is None:
-            sigma_value = getattr(radiation, "group_sigma_gamma", None)
-        if sigma_value is None:
-            sigma_value = getattr(par, "hydrogen_sigma_gamma", None)
-        if sigma_value is None:
-            sigma_value = getattr(radiation, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
-        epsilon_value = getattr(par, "radiation_group_epsilon_gamma", None)
-        if epsilon_value is None:
-            epsilon_value = getattr(radiation, "group_epsilon_gamma", None)
-        if epsilon_value is None:
-            epsilon_value = getattr(par, "hydrogen_epsilon_gamma", None)
-        if epsilon_value is None:
-            epsilon_value = getattr(
-                radiation,
-                "hydrogen_epsilon_gamma",
-                DEFAULT_EPSILON_GAMMA_CGS_ERG,
-            )
+    ngroup, sigma_value, epsilon_value = _group_species_parameters(par, radiation, edges)
 
     code = _code_units(par)
     sigma = quantity_or_code_to_cgs(sigma_value, code, CGS_AREA_UNIT, "area_cgs_cm2")
@@ -101,24 +69,7 @@ def _group_parameters(par):
     if sigma.shape != (ngroup,) or epsilon.shape != (ngroup,):
         raise ValueError("C2-Ray hydrogen group arrays must match the number of groups")
 
-    boundary_flux = getattr(
-        par,
-        "radiative_transfer_boundary_flux_groups",
-        None,
-    )
-    if boundary_flux is None:
-        boundary_flux = getattr(par, "radiative_transfer_boundary_flux", None)
-    if boundary_flux is None:
-        boundary_flux = getattr(radiation, "boundary_flux", 0.0)
-    source_rate = getattr(
-        par,
-        "source_photon_rate_groups",
-        None,
-    )
-    if source_rate is None:
-        source_rate = getattr(par, "source_photon_rate", None)
-    if source_rate is None:
-        source_rate = getattr(radiation, "source_photon_rate", 0.0)
+    boundary_flux, source_rate = _group_flux_parameters(par, radiation)
     boundary_flux = quantity_or_code_to_cgs(
         boundary_flux,
         code,
@@ -142,6 +93,57 @@ def _group_parameters(par):
     if boundary_flux.shape != (ngroup,) or source_rate.shape != (ngroup,):
         raise ValueError("C2-Ray source arrays must match the number of groups")
     return sigma, epsilon, boundary_flux, source_rate
+
+
+def _group_species_parameters(par, radiation, edges):
+    if edges is None:
+        return (
+            1,
+            _first_configured(
+                getattr(par, "hydrogen_sigma_gamma", None),
+                getattr(radiation, "hydrogen_sigma_gamma", None),
+                DEFAULT_SIGMA_GAMMA_CGS_CM2,
+            ),
+            _first_configured(
+                getattr(par, "hydrogen_epsilon_gamma", None),
+                getattr(radiation, "hydrogen_epsilon_gamma", None),
+                DEFAULT_EPSILON_GAMMA_CGS_ERG,
+            ),
+        )
+    edges = np.asarray(edges, dtype=float)
+    sigma = _first_configured(
+        getattr(par, "radiation_group_sigma_gamma", None),
+        getattr(radiation, "group_sigma_gamma", None),
+        getattr(par, "hydrogen_sigma_gamma", None),
+        getattr(radiation, "hydrogen_sigma_gamma", None),
+        DEFAULT_SIGMA_GAMMA_CGS_CM2,
+    )
+    epsilon = _first_configured(
+        getattr(par, "radiation_group_epsilon_gamma", None),
+        getattr(radiation, "group_epsilon_gamma", None),
+        getattr(par, "hydrogen_epsilon_gamma", None),
+        getattr(radiation, "hydrogen_epsilon_gamma", None),
+        DEFAULT_EPSILON_GAMMA_CGS_ERG,
+    )
+    return edges.size - 1, sigma, epsilon
+
+
+def _group_flux_parameters(par, radiation):
+    boundary_flux = _first_configured(
+        getattr(par, "radiative_transfer_boundary_flux_groups", None),
+        getattr(par, "radiative_transfer_boundary_flux", None),
+        getattr(radiation, "boundary_flux", 0.0),
+    )
+    source_rate = _first_configured(
+        getattr(par, "source_photon_rate_groups", None),
+        getattr(par, "source_photon_rate", None),
+        getattr(radiation, "source_photon_rate", 0.0),
+    )
+    return boundary_flux, source_rate
+
+
+def _first_configured(*values):
+    return next(value for value in values if value is not None)
 
 
 def _state_geometry(state, par):
@@ -366,56 +368,26 @@ def _advance(state, par, dt_s, update_chemistry):
     )
 
     for cell in _cell_order(ncell, direction):
-        incoming_cell = incoming
-        x0 = x_initial[cell]
-        xmean = x0
-        cell_converged = not update_chemistry or dt_s == 0.0
-        tau = np.zeros(ngroup, dtype=float)
-        xfinal = x0
-        cell_transport = None
-
-        iteration_range = range(1, max_iterations + 1) if update_chemistry else range(1)
-        for iteration in iteration_range:
-            tau = np.maximum(sigma * nH[cell] * xmean * width[cell], 0.0)
-            cell_transport = rrt.propagate_causal_cell(
-                geometry,
-                incoming_cell,
-                tau,
-                cell,
-                direction,
-            )
-            photon_rate = np.sum(cell_transport.absorbed_rate) / max(
-                nH[cell] * xmean * volume[cell],
-                1.0e-99,
-            )
-            if not update_chemistry or dt_s == 0.0:
-                xfinal = x0
-                xnew_mean = x0
-                break
-            alpha = alpha_values[cell]
-            beta = beta_values[cell]
-            electron_density = nH[cell] * (1.0 - xmean)
-            recombination_rate = electron_density * alpha if recombination else 0.0
-            collisional_rate = electron_density * beta if collisional else 0.0
-            total_rate = photon_rate + recombination_rate + collisional_rate
-            if total_rate > 0.0:
-                equilibrium = recombination_rate / total_rate
-                exponent = total_rate * dt_s
-                decay = np.exp(-exponent)
-                xfinal = equilibrium + (x0 - equilibrium) * decay
-                if exponent > 1.0e-12:  # noqa: PLR2004
-                    xnew_mean = equilibrium + (x0 - equilibrium) * (-np.expm1(-exponent)) / exponent
-                else:
-                    xnew_mean = x0
-            else:
-                xfinal = x0
-                xnew_mean = x0
-            xnew_mean = float(np.clip(xnew_mean, 1.0e-12, 1.0 - 1.0e-12))
-            if abs(xnew_mean - xmean) <= tolerance:
-                cell_converged = True
-            xmean = (1.0 - relaxation) * xmean + relaxation * xnew_mean
-            if cell_converged:
-                break
+        xmean, xfinal, cell_converged, iteration, cell_transport = _advance_hydrogen_cell(
+            geometry,
+            incoming,
+            cell,
+            direction,
+            nH[cell],
+            x_initial[cell],
+            width[cell],
+            volume[cell],
+            sigma,
+            alpha_values[cell],
+            beta_values[cell],
+            recombination,
+            collisional,
+            dt_s,
+            update_chemistry,
+            max_iterations,
+            tolerance,
+            relaxation,
+        )
 
         if update_chemistry and not cell_converged:
             converged[cell] = False
@@ -440,41 +412,18 @@ def _advance(state, par, dt_s, update_chemistry):
         state["xHI"] = final_fraction
     state["ngamma_cgs_cm3"] = photon_density[0] if ngroup == 1 else photon_density
     if update_chemistry and dt_s > 0.0:
-        thermal_rate = hydrogen.cgs_source_thermal_rate(
-            state["rho_cgs_g_cm3"],
+        _update_hydrogen_thermal_state(
+            state,
+            par,
             temperature,
             mean_fraction,
-            hydrogen_mass_fraction=state.get(
-                "hydrogen_mass_fraction",
-                getattr(par, "hydrogen_mass_fraction", 1.0),
-            ),
-            recombination=recombination,
-            collisional_ionization=collisional,
-            ngamma_cgs_cm3=photon_density,
-            sigma_gamma_cgs_cm2=sigma,
-            epsilon_gamma_cgs_erg=epsilon,
-            compton_cmb_enabled=state.get("compton_cmb_enabled", False),
-            compton_cmb_redshift=state.get("compton_cmb_redshift", 0.0),
-            cmb_temperature_0_cgs_K=state.get("cmb_temperature_0_cgs_K", 2.7255),
+            photon_density,
+            sigma,
+            epsilon,
+            recombination,
+            collisional,
+            dt_s,
         )
-        if state.get("thermal_coupling", False):
-            rho = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
-            active = np.asarray(state.get("active", rho > 0.0), dtype=bool)
-            rho_safe = np.where(active, rho, 1.0)
-            energy_update = np.zeros_like(rho, dtype=float)
-            energy_update[active] = np.asarray(thermal_rate)[active] / rho_safe[active] * dt_s
-            if "specific_total_energy_cgs_erg_g" in state:
-                state["specific_total_energy_cgs_erg_g"] = np.maximum(
-                    state["specific_total_energy_cgs_erg_g"] + energy_update,
-                    state.get("specific_kinetic_energy_cgs_erg_g", 0.0),
-                )
-                hydrogen.fast_update_temperature_from_energy(state)
-            else:
-                state["specific_energy_cgs_erg_g"] = np.maximum(
-                    state["specific_energy_cgs_erg_g"] + energy_update,
-                    1.0e6,
-                )
-                hydrogen.update_temperature_from_energy(state)
 
     return C2RayResult(
         photon_density=photon_density,
@@ -484,6 +433,115 @@ def _advance(state, par, dt_s, update_chemistry):
         converged=converged,
         iterations=iterations,
     )
+
+
+def _advance_hydrogen_cell(
+    geometry,
+    incoming,
+    cell,
+    direction,
+    hydrogen_density,
+    initial_fraction,
+    width,
+    volume,
+    sigma,
+    alpha,
+    beta,
+    recombination,
+    collisional,
+    dt_s,
+    update_chemistry,
+    max_iterations,
+    tolerance,
+    relaxation,
+):
+    xmean = initial_fraction
+    xfinal = initial_fraction
+    cell_converged = not update_chemistry or dt_s == 0.0
+    cell_transport = None
+    iteration_range = range(1, max_iterations + 1) if update_chemistry else range(1)
+    for iteration in iteration_range:
+        tau = np.maximum(sigma * hydrogen_density * xmean * width, 0.0)
+        cell_transport = rrt.propagate_causal_cell(geometry, incoming, tau, cell, direction)
+        photon_rate = np.sum(cell_transport.absorbed_rate) / max(
+            hydrogen_density * xmean * volume,
+            1.0e-99,
+        )
+        if not update_chemistry or dt_s == 0.0:
+            break
+        electron_density = hydrogen_density * (1.0 - xmean)
+        recombination_rate = electron_density * alpha if recombination else 0.0
+        collisional_rate = electron_density * beta if collisional else 0.0
+        total_rate = photon_rate + recombination_rate + collisional_rate
+        if total_rate > 0.0:
+            equilibrium = recombination_rate / total_rate
+            exponent = total_rate * dt_s
+            decay = np.exp(-exponent)
+            xfinal = equilibrium + (initial_fraction - equilibrium) * decay
+            xnew_mean = (
+                equilibrium + (initial_fraction - equilibrium) * (-np.expm1(-exponent)) / exponent
+                if exponent > 1.0e-12
+                else initial_fraction
+            )
+        else:
+            xnew_mean = initial_fraction
+        xnew_mean = float(np.clip(xnew_mean, 1.0e-12, 1.0 - 1.0e-12))
+        if abs(xnew_mean - xmean) <= tolerance:
+            cell_converged = True
+        xmean = (1.0 - relaxation) * xmean + relaxation * xnew_mean
+        if cell_converged:
+            break
+    return xmean, xfinal, cell_converged, iteration, cell_transport
+
+
+def _update_hydrogen_thermal_state(
+    state,
+    par,
+    temperature,
+    mean_fraction,
+    photon_density,
+    sigma,
+    epsilon,
+    recombination,
+    collisional,
+    dt_s,
+):
+    thermal_rate = hydrogen.cgs_source_thermal_rate(
+        state["rho_cgs_g_cm3"],
+        temperature,
+        mean_fraction,
+        hydrogen_mass_fraction=state.get(
+            "hydrogen_mass_fraction",
+            getattr(par, "hydrogen_mass_fraction", 1.0),
+        ),
+        recombination=recombination,
+        collisional_ionization=collisional,
+        ngamma_cgs_cm3=photon_density,
+        sigma_gamma_cgs_cm2=sigma,
+        epsilon_gamma_cgs_erg=epsilon,
+        compton_cmb_enabled=state.get("compton_cmb_enabled", False),
+        compton_cmb_redshift=state.get("compton_cmb_redshift", 0.0),
+        cmb_temperature_0_cgs_K=state.get("cmb_temperature_0_cgs_K", 2.7255),
+    )
+    if not state.get("thermal_coupling", False):
+        return
+    rho = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
+    active = np.asarray(state.get("active", rho > 0.0), dtype=bool)
+    rho_safe = np.where(active, rho, 1.0)
+    energy_update = np.zeros_like(rho, dtype=float)
+    energy_update[active] = np.asarray(thermal_rate)[active] / rho_safe[active] * dt_s
+    if "specific_total_energy_cgs_erg_g" in state:
+        state["specific_total_energy_cgs_erg_g"] = np.maximum(
+            state["specific_total_energy_cgs_erg_g"] + energy_update,
+            state.get("specific_kinetic_energy_cgs_erg_g", 0.0),
+        )
+        hydrogen.fast_update_temperature_from_energy(state)
+    else:
+        state["specific_energy_cgs_erg_g"] = np.maximum(
+            state["specific_energy_cgs_erg_g"] + energy_update,
+            1.0e6,
+        )
+        hydrogen.update_temperature_from_energy(state)
 
 
 def _hhe_cell_state(state, cell):
@@ -584,59 +642,62 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
         if np.max(np.abs(residual) / scales) <= residual_tolerance:
             return trial, True
 
-        jacobian = np.empty((4, 4), dtype=float)
-        for column in range(4):
-            perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e-8)
-            if column == 3:  # noqa: PLR2004
-                perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e3)
-            # Neutral fractions and He III can start on a physical boundary.
-            # Use a one-sided finite difference there; projecting a positive
-            # perturbation back onto the same boundary would otherwise create
-            # a zero Jacobian column and make Newton appear singular.
-            direction = 1.0
-            if (column == 0 and trial[column] >= 1.0 - 2.0e-12) or (
-                column == 1 and trial[column] >= 1.0 - 2.0e-12
-            ):
-                direction = -1.0
-            elif column == 2 and trial[column] <= 2.0e-12:  # noqa: PLR2004
-                direction = 1.0
-            perturbed = trial.copy()
-            perturbed[column] += direction * perturbation
-            if column == 2 and trial[column] <= 2.0e-12 and trial[1] >= 1.0 - 2.0e-12:  # noqa: PLR2004
-                # At initially neutral helium, He III can only appear after
-                # He I is converted into He II. Perturb both coordinates so
-                # the finite-difference state enters the simplex rather than
-                # being projected back to x_HeIII = 0.
-                perturbed[1] -= perturbation
-            perturbed = _hhe_project(perturbed)
-            _hhe_set_trial(local, perturbed)
-            derivative_perturbed = _hhe_derivative(local, photon_density)
-            residual_perturbed = perturbed - old - dt_s * derivative_perturbed
-            jacobian[:, column] = (residual_perturbed - residual) / (direction * perturbation)
-
+        jacobian = _hhe_finite_difference_jacobian(
+            local, photon_density, trial, old, residual, dt_s
+        )
+        if jacobian is None:
+            return trial, False
         try:
             correction = np.linalg.solve(jacobian, -residual)
         except np.linalg.LinAlgError:
             return trial, False
-
-        accepted = False
-        residual_norm = np.max(np.abs(residual) / scales)
-        damping = 1.0
-        for _ in range(12):
-            candidate = _hhe_project(trial + damping * correction)
-            _hhe_set_trial(local, candidate)
-            candidate_residual = candidate - old - dt_s * _hhe_derivative(local, photon_density)
-            candidate_norm = np.max(np.abs(candidate_residual) / scales)
-            if np.isfinite(candidate_norm) and candidate_norm < residual_norm:
-                trial = candidate
-                accepted = True
-                break
-            damping *= 0.5
+        trial, accepted = _hhe_damped_newton_step(
+            local,
+            photon_density,
+            trial,
+            old,
+            residual,
+            scales,
+            correction,
+            dt_s,
+        )
         if not accepted:
             return trial, False
 
     trial = _hhe_project(trial)
     _hhe_set_trial(local, trial)
+    return trial, False
+
+
+def _hhe_finite_difference_jacobian(local, photon_density, trial, old, residual, dt_s):
+    jacobian = np.empty((4, 4), dtype=float)
+    for column in range(4):
+        perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e-8)
+        if column == 3:  # noqa: PLR2004
+            perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e3)
+        direction = -1.0 if column in (0, 1) and trial[column] >= 1.0 - 2.0e-12 else 1.0
+        perturbed = trial.copy()
+        perturbed[column] += direction * perturbation
+        if column == 2 and trial[column] <= 2.0e-12 and trial[1] >= 1.0 - 2.0e-12:  # noqa: PLR2004
+            perturbed[1] -= perturbation
+        perturbed = _hhe_project(perturbed)
+        _hhe_set_trial(local, perturbed)
+        residual_perturbed = perturbed - old - dt_s * _hhe_derivative(local, photon_density)
+        jacobian[:, column] = (residual_perturbed - residual) / (direction * perturbation)
+    return jacobian
+
+
+def _hhe_damped_newton_step(local, photon_density, trial, old, residual, scales, correction, dt_s):
+    residual_norm = np.max(np.abs(residual) / scales)
+    damping = 1.0
+    for _ in range(12):
+        candidate = _hhe_project(trial + damping * correction)
+        _hhe_set_trial(local, candidate)
+        candidate_residual = candidate - old - dt_s * _hhe_derivative(local, photon_density)
+        candidate_norm = np.max(np.abs(candidate_residual) / scales)
+        if np.isfinite(candidate_norm) and candidate_norm < residual_norm:
+            return candidate, True
+        damping *= 0.5
     return trial, False
 
 

@@ -236,71 +236,22 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
     energy_problematic = physical & (thermal_fraction <= margin)
     factors[energy_problematic | np.roll(energy_problematic, -1)] = 0.0
 
-    def valid_cell(index, value, energy_value):
-        if not physical[index] or mass_new[index] <= 0.0:
-            return True
-        candidate = value / mass_new[index]
-        tolerance = 1.0e-12 * max(1.0, abs(lower[index]), abs(upper[index]))
-        angular_ok = (
-            np.isfinite(candidate)
-            and candidate >= lower[index] - tolerance
-            and candidate <= upper[index] + tolerance
-        )
-        kinetic_new = 0.5 * mom_new[index] ** 2 / mass_new[index]
-        radius_value = abs(float(coordinate[index]))
-        rotational_new = (
-            0.5 * value**2 / (mass_new[index] * radius_value**2) if radius_value > 0.0 else 0.0
-        )
-        energy_ok = energy_value >= kinetic_new + rotational_new
-        return angular_ok and energy_ok
-
-    # Start from the donor update and recover as much MUSCL correction
-    # as each face can support.  Each accepted face changes only its two
-    # neighboring cells, so the limiter remains local.
-    for face in range(len(factors)):
-        if scheme == "donor":
-            continue
-        if factors[face] == 0.0:
-            continue
-        left = (face - 1) % len(mass)
-        right = face
-        if not (physical[left] or physical[right]):
-            continue
-        increment = dt * correction_area[face]
-
-        def trial_valid(alpha):
-            return valid_cell(
-                left,
-                trial_angular[left] - alpha * increment,
-                trial_energy[left] - alpha * dt * rotational_correction_area[face],
-            ) and valid_cell(
-                right,
-                trial_angular[right] + alpha * increment,
-                trial_energy[right] + alpha * dt * rotational_correction_area[face],
-            )
-
-        if trial_valid(1.0):
-            factors[face] = 1.0
-            trial_angular[left] -= increment
-            trial_angular[right] += increment
-            trial_energy[left] -= dt * rotational_correction_area[face]
-            trial_energy[right] += dt * rotational_correction_area[face]
-            continue
-        if not trial_valid(0.0):
-            factors[face] = 0.0
-            continue
-        lo, hi = 0.0, 1.0
-        for _ in range(48):
-            middle = 0.5 * (lo + hi)
-            if trial_valid(middle):
-                lo = middle
-            else:
-                hi = middle
-        factors[face] = lo
-        trial_angular[left] -= lo * increment
-        trial_angular[right] += lo * increment
-        trial_energy[left] -= lo * dt * rotational_correction_area[face]
-        trial_energy[right] += lo * dt * rotational_correction_area[face]
+    factors, trial_angular, trial_energy = _limit_face_corrections(
+        scheme,
+        factors,
+        physical,
+        mass,
+        mass_new,
+        mom_new,
+        coordinate,
+        lower,
+        upper,
+        dt,
+        correction_area,
+        rotational_correction_area,
+        trial_angular,
+        trial_energy,
+    )
 
     limited = low + factors * correction
     fluid.AngularMomentum_code.flux = as_named_array(limited)
@@ -322,6 +273,84 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
             dtype=float,
         )
         fluid.rotational_energy_flux = as_named_array(new_rotational)
+
+
+def _limit_face_corrections(
+    scheme,
+    factors,
+    physical,
+    mass,
+    mass_new,
+    mom_new,
+    coordinate,
+    lower,
+    upper,
+    dt,
+    correction_area,
+    rotational_correction_area,
+    trial_angular,
+    trial_energy,
+):
+    """Recover the largest admissible correction independently per face."""
+
+    def valid_cell(index, value, energy_value):
+        if not physical[index] or mass_new[index] <= 0.0:
+            return True
+        candidate = value / mass_new[index]
+        tolerance = 1.0e-12 * max(1.0, abs(lower[index]), abs(upper[index]))
+        angular_ok = (
+            np.isfinite(candidate)
+            and candidate >= lower[index] - tolerance
+            and candidate <= upper[index] + tolerance
+        )
+        kinetic_new = 0.5 * mom_new[index] ** 2 / mass_new[index]
+        radius_value = abs(float(coordinate[index]))
+        rotational_new = (
+            0.5 * value**2 / (mass_new[index] * radius_value**2)
+            if radius_value > 0.0
+            else 0.0
+        )
+        return angular_ok and energy_value >= kinetic_new + rotational_new
+
+    for face in range(len(factors)):
+        if scheme == "donor" or factors[face] == 0.0:
+            continue
+        left = (face - 1) % len(mass)
+        right = face
+        if not (physical[left] or physical[right]):
+            continue
+        increment = dt * correction_area[face]
+
+        trial_valid = lambda alpha: valid_cell(  # noqa: E731
+            left,
+            trial_angular[left] - alpha * increment,
+            trial_energy[left] - alpha * dt * rotational_correction_area[face],
+        ) and valid_cell(
+            right,
+            trial_angular[right] + alpha * increment,
+            trial_energy[right] + alpha * dt * rotational_correction_area[face],
+        )
+
+        if trial_valid(1.0):
+            factor = 1.0
+        elif not trial_valid(0.0):
+            factors[face] = 0.0
+            continue
+        else:
+            lo, hi = 0.0, 1.0
+            for _ in range(48):
+                middle = 0.5 * (lo + hi)
+                if trial_valid(middle):
+                    lo = middle
+                else:
+                    hi = middle
+            factor = lo
+        factors[face] = factor
+        trial_angular[left] -= factor * increment
+        trial_angular[right] += factor * increment
+        trial_energy[left] -= factor * dt * rotational_correction_area[face]
+        trial_energy[right] += factor * dt * rotational_correction_area[face]
+    return factors, trial_angular, trial_energy
 
 
 def _set_rotational_energy_flux(solver, mesh, fluid, par, j_face=None):

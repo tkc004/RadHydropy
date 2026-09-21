@@ -20,10 +20,10 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from example import example_utils as eu
 import power_law_hii_region_analytic as analytic
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.arrays import as_named_array
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value

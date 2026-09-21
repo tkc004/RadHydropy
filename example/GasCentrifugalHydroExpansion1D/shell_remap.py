@@ -76,114 +76,41 @@ def conservative_shell_remap(
     interpolated.  The method is conservative for all shells whose slabs
     overlap the target domain.
     """
-    radius_proper_code = np.asarray(shell_radius_proper_code, dtype=float)
-    vel_proper_code = np.asarray(shell_vel_proper_code, dtype=float)
-    specific_angular_momentum_code = np.asarray(
+    (
+        radius_proper_code,
+        vel_proper_code,
+        specific_angular_momentum_code,
+        mass_proper_code,
+        target_boundary_proper_code,
+        specific_energy_proper_code,
+        shell_edge_proper_code,
+    ) = _normalize_remap_inputs(
+        shell_radius_proper_code,
+        shell_vel_proper_code,
         shell_specific_angular_momentum_code,
-        dtype=float,
+        shell_mass_proper_code,
+        target_boundary_proper_code,
+        shell_specific_energy_proper_code,
+        shell_edge_proper_code,
     )
-    mass_proper_code = np.asarray(shell_mass_proper_code, dtype=float)
-    target_boundary_proper_code = np.asarray(target_boundary_proper_code, dtype=float)
-    if not (
-        radius_proper_code.ndim
-        == vel_proper_code.ndim
-        == specific_angular_momentum_code.ndim
-        == mass_proper_code.ndim
-        == 1
-    ):
-        raise ValueError("shell fields must be one-dimensional")
-    if not (
-        len(radius_proper_code)
-        == len(vel_proper_code)
-        == len(specific_angular_momentum_code)
-        == len(mass_proper_code)
-    ):
-        raise ValueError("shell fields must have equal lengths")
-    if len(radius_proper_code) == 0 or len(target_boundary_proper_code) < 2:  # noqa: PLR2004
-        raise ValueError("shell and target grids must be non-empty")
-    if not np.all(np.isfinite(radius_proper_code)) or np.any(radius_proper_code <= 0.0):
-        raise ValueError("shell radii must be finite and positive")
-    if not np.all(np.isfinite(mass_proper_code)) or np.any(mass_proper_code < 0.0):
-        raise ValueError("shell masses must be finite and non-negative")
-    if np.any(np.diff(target_boundary_proper_code) <= 0.0):
-        raise ValueError("target boundary must be strictly increasing")
-
-    if shell_edge_proper_code is None:
-        order = np.argsort(radius_proper_code)
-        radius_proper_code = radius_proper_code[order]
-        vel_proper_code = vel_proper_code[order]
-        specific_angular_momentum_code = specific_angular_momentum_code[order]
-        mass_proper_code = mass_proper_code[order]
-    else:
-        order = slice(None)
-        shell_edge_proper_code = np.asarray(shell_edge_proper_code, dtype=float)
-        if len(shell_edge_proper_code) != len(radius_proper_code) + 1:
-            raise ValueError("shell_edge must have one more entry than shells")
-        if np.any(np.diff(shell_edge_proper_code) <= 0.0):
-            raise ValueError("shell edges must be strictly increasing")
-        if np.any(radius_proper_code <= shell_edge_proper_code[:-1]) or np.any(
-            radius_proper_code >= shell_edge_proper_code[1:],
-        ):
-            raise ValueError("shell centers must lie inside shell edges")
-    if shell_specific_energy_proper_code is None:
-        specific_energy_proper_code = 0.5 * vel_proper_code**2
-    else:
-        specific_energy_proper_code = np.asarray(
-            shell_specific_energy_proper_code,
-            dtype=float,
-        )[order]
-    if not np.all(np.isfinite(vel_proper_code)) or not np.all(
-        np.isfinite(specific_angular_momentum_code),
-    ):
-        raise ValueError("shell velocity and angular momentum must be finite")
-    if not np.all(np.isfinite(specific_energy_proper_code)):
-        raise ValueError("shell specific energy must be finite")
-
-    if shell_edge_proper_code is None:
-        shell_edge_proper_code = np.empty(len(radius_proper_code) + 1, dtype=float)
-        if len(radius_proper_code) == 1:
-            half_width_proper_code = max(0.5 * radius_proper_code[0], np.finfo(float).tiny)
-            shell_edge_proper_code[:] = (
-                radius_proper_code[0] - half_width_proper_code,
-                radius_proper_code[0] + half_width_proper_code,
-            )
-        else:
-            shell_edge_proper_code[1:-1] = 0.5 * (radius_proper_code[:-1] + radius_proper_code[1:])
-            shell_edge_proper_code[0] = max(
-                0.0,
-                radius_proper_code[0] - 0.5 * (radius_proper_code[1] - radius_proper_code[0]),
-            )
-            shell_edge_proper_code[-1] = radius_proper_code[-1] + 0.5 * (
-                radius_proper_code[-1] - radius_proper_code[-2]
-            )
 
     cell_count = len(target_boundary_proper_code) - 1
     remapped_mass = np.zeros(cell_count, dtype=float)
     remapped_momentum = np.zeros(cell_count, dtype=float)
     remapped_angular = np.zeros(cell_count, dtype=float)
     remapped_energy = np.zeros(cell_count, dtype=float)
-    for index in range(len(radius_proper_code)):
-        slab_width = shell_edge_proper_code[index + 1] - shell_edge_proper_code[index]
-        if slab_width <= 0.0 or mass_proper_code[index] == 0.0:
-            continue
-        left = max(shell_edge_proper_code[index], target_boundary_proper_code[0])
-        right = min(shell_edge_proper_code[index + 1], target_boundary_proper_code[-1])
-        if right <= left:
-            continue
-        first = max(0, np.searchsorted(target_boundary_proper_code, left, side="right") - 1)
-        last = min(cell_count - 1, np.searchsorted(target_boundary_proper_code, right, side="left"))
-        for cell in range(first, last + 1):
-            overlap = max(
-                0.0,
-                min(right, target_boundary_proper_code[cell + 1])
-                - max(left, target_boundary_proper_code[cell]),
-            )
-            fraction = overlap / slab_width
-            deposited = mass_proper_code[index] * fraction
-            remapped_mass[cell] += deposited
-            remapped_momentum[cell] += deposited * vel_proper_code[index]
-            remapped_angular[cell] += deposited * specific_angular_momentum_code[index]
-            remapped_energy[cell] += deposited * specific_energy_proper_code[index]
+    _deposit_shell_overlaps(
+        shell_edge_proper_code,
+        mass_proper_code,
+        vel_proper_code,
+        specific_angular_momentum_code,
+        specific_energy_proper_code,
+        target_boundary_proper_code,
+        remapped_mass,
+        remapped_momentum,
+        remapped_angular,
+        remapped_energy,
+    )
 
     valid = remapped_mass > 0.0
     remapped_velocity = np.zeros(cell_count, dtype=float)
@@ -211,6 +138,157 @@ def conservative_shell_remap(
         ),
         "volume_proper_code": volume_proper_code,
     }
+
+
+def _normalize_remap_inputs(
+    shell_radius,
+    shell_velocity,
+    shell_angular_momentum,
+    shell_mass,
+    target_boundary,
+    shell_energy,
+    shell_edges,
+):
+    radius = np.asarray(shell_radius, dtype=float)
+    velocity = np.asarray(shell_velocity, dtype=float)
+    angular = np.asarray(shell_angular_momentum, dtype=float)
+    mass = np.asarray(shell_mass, dtype=float)
+    target = np.asarray(target_boundary, dtype=float)
+    _validate_remap_arrays(radius, velocity, angular, mass, target)
+    radius, velocity, angular, mass, shell_edges, order = _normalize_shell_order(
+        radius,
+        velocity,
+        angular,
+        mass,
+        shell_edges,
+    )
+    energy = (
+        0.5 * velocity**2 if shell_energy is None else np.asarray(shell_energy, dtype=float)[order]
+    )
+    if not np.all(np.isfinite(velocity)) or not np.all(np.isfinite(angular)):
+        raise ValueError("shell velocity and angular momentum must be finite")
+    if not np.all(np.isfinite(energy)):
+        raise ValueError("shell specific energy must be finite")
+    if shell_edges is None:
+        shell_edges = np.empty(len(radius) + 1, dtype=float)
+        if len(radius) == 1:
+            half_width = max(0.5 * radius[0], np.finfo(float).tiny)
+            shell_edges[:] = (radius[0] - half_width, radius[0] + half_width)
+        else:
+            shell_edges[1:-1] = 0.5 * (radius[:-1] + radius[1:])
+            shell_edges[0] = max(0.0, radius[0] - 0.5 * (radius[1] - radius[0]))
+            shell_edges[-1] = radius[-1] + 0.5 * (radius[-1] - radius[-2])
+    return radius, velocity, angular, mass, target, energy, shell_edges
+
+
+def _validate_remap_arrays(
+    radius_proper_code,
+    velocity_proper_code,
+    angular_momentum_code,
+    mass_proper_code,
+    target_boundary_proper_code,
+):
+    if not (
+        radius_proper_code.ndim
+        == velocity_proper_code.ndim
+        == angular_momentum_code.ndim
+        == mass_proper_code.ndim
+        == 1
+    ):
+        raise ValueError("shell fields must be one-dimensional")
+    if not (
+        len(radius_proper_code)
+        == len(velocity_proper_code)
+        == len(angular_momentum_code)
+        == len(mass_proper_code)
+    ):
+        raise ValueError("shell fields must have equal lengths")
+    if len(radius_proper_code) == 0 or len(target_boundary_proper_code) < 2:  # noqa: PLR2004
+        raise ValueError("shell and target grids must be non-empty")
+    if not np.all(np.isfinite(radius_proper_code)) or np.any(radius_proper_code <= 0.0):
+        raise ValueError("shell radii must be finite and positive")
+    if not np.all(np.isfinite(mass_proper_code)) or np.any(mass_proper_code < 0.0):
+        raise ValueError("shell masses must be finite and non-negative")
+    if np.any(np.diff(target_boundary_proper_code) <= 0.0):
+        raise ValueError("target boundary must be strictly increasing")
+
+
+def _normalize_shell_order(
+    radius_proper_code,
+    velocity_proper_code,
+    angular_momentum_code,
+    mass_proper_code,
+    shell_edges,
+):
+    if shell_edges is None:
+        order = np.argsort(radius_proper_code)
+        return (
+            *[
+                values[order]
+                for values in (
+                    radius_proper_code,
+                    velocity_proper_code,
+                    angular_momentum_code,
+                    mass_proper_code,
+                )
+            ],
+            None,
+            order,
+        )
+    order = slice(None)
+    shell_edges = np.asarray(shell_edges, dtype=float)
+    if len(shell_edges) != len(radius_proper_code) + 1:
+        raise ValueError("shell_edge must have one more entry than shells")
+    if np.any(np.diff(shell_edges) <= 0.0):
+        raise ValueError("shell edges must be strictly increasing")
+    if np.any(radius_proper_code <= shell_edges[:-1]) or np.any(
+        radius_proper_code >= shell_edges[1:],
+    ):
+        raise ValueError("shell centers must lie inside shell edges")
+    return (
+        radius_proper_code,
+        velocity_proper_code,
+        angular_momentum_code,
+        mass_proper_code,
+        shell_edges,
+        order,
+    )
+
+
+def _deposit_shell_overlaps(
+    shell_edge_proper_code,
+    mass_proper_code,
+    vel_proper_code,
+    specific_angular_momentum_code,
+    specific_energy_proper_code,
+    target_boundary_proper_code,
+    remapped_mass,
+    remapped_momentum,
+    remapped_angular,
+    remapped_energy,
+):
+    cell_count = len(target_boundary_proper_code) - 1
+    for index in range(len(mass_proper_code)):
+        slab_width = shell_edge_proper_code[index + 1] - shell_edge_proper_code[index]
+        if slab_width <= 0.0 or mass_proper_code[index] == 0.0:
+            continue
+        left = max(shell_edge_proper_code[index], target_boundary_proper_code[0])
+        right = min(shell_edge_proper_code[index + 1], target_boundary_proper_code[-1])
+        if right <= left:
+            continue
+        first = max(0, np.searchsorted(target_boundary_proper_code, left, side="right") - 1)
+        last = min(cell_count - 1, np.searchsorted(target_boundary_proper_code, right, side="left"))
+        for cell in range(first, last + 1):
+            overlap = max(
+                0.0,
+                min(right, target_boundary_proper_code[cell + 1])
+                - max(left, target_boundary_proper_code[cell]),
+            )
+            deposited = mass_proper_code[index] * overlap / slab_width
+            remapped_mass[cell] += deposited
+            remapped_momentum[cell] += deposited * vel_proper_code[index]
+            remapped_angular[cell] += deposited * specific_angular_momentum_code[index]
+            remapped_energy[cell] += deposited * specific_energy_proper_code[index]
 
 
 def centrifugal_shell_reference(

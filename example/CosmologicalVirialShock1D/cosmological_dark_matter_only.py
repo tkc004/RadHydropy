@@ -19,8 +19,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import virial_shock_tools as et
-from example.example_utils import load_nested_example_config
 
+from example.example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
 
@@ -197,87 +197,16 @@ def run_live_shell_density_profiles(config):
     final_tau = float(cosmology.supercomoving_time(final))
     target_tau = np.asarray(cosmology.supercomoving_time(target_times), dtype=float)
     timestep = float(example.get("dm_only_supercomoving_timestep", 0.0005))
-    profiles = []
-    virial_radii = []
-    next_snapshot = 0
-
-    def save_profile(time_cosmic_code):
-        a = float(cosmology.scale_factor(time_cosmic_code))
-        order = np.argsort(shells.radius)
-        radius_comoving_code = a * np.asarray(shells.radius[order], dtype=float)
-        mass_comoving_code = np.asarray(shells.mass[order], dtype=float)
-        # Cold shell collapse can carry shells through the coordinate origin
-        # after crossing.  They remain part of the enclosed mass; represent
-        # crossed/central material at a small positive radius for logarithmic
-        # density binning instead of silently dropping it from the profile.
-        radius_comoving_code = np.abs(
-            np.nan_to_num(radius_comoving_code, nan=0.0, posinf=0.0, neginf=0.0),
-        )
-        radius_comoving_code = np.maximum(radius_comoving_code, 1.0e-8)
-        core_mass = float(getattr(shells, "central_core_mass", 0.0))
-        core_radius_comoving_code = a * float(getattr(shells, "central_core_radius", 0.0))
-        profiles.append(
-            (
-                float(time_cosmic_code),
-                radius_comoving_code,
-                mass_comoving_code,
-                core_mass,
-                core_radius_comoving_code,
-            ),
-        )
-        # Include the absorbed unresolved-core mass when locating r200.  The
-        # profile bins already include this same mass, so the overdensity
-        # marker must use the identical enclosed-mass definition.
-        cumulative_mass = core_mass + np.cumsum(mass_comoving_code)
-        mean_density = cumulative_mass / (
-            4.0 * np.pi / 3.0 * np.maximum(radius_comoving_code, 1.0e-30) ** 3
-        )
-        threshold = 200.0 * float(cosmology.background_density(time_cosmic_code))
-        candidates = np.flatnonzero(mean_density >= threshold)
-        if candidates.size:
-            index = int(candidates[-1])
-            virial_radii.append(float(radius_comoving_code[index]))
-        else:
-            virial_radii.append(float("nan"))
-
-    while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
-        save_profile(target_times[next_snapshot])
-        next_snapshot += 1
-
-    while tau < final_tau - 1.0e-12:
-        dt = min(timestep, final_tau - tau)
-        cosmic_start = float(cosmology.cosmic_time_from_supercomoving(tau))
-        cosmic_end = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
-        a_start = float(cosmology.scale_factor(cosmic_start))
-        a_end = float(cosmology.scale_factor(cosmic_end))
-        rho_comoving = float(cosmology.background_density(cosmic_start)) * a_start**3
-
-        def background(radius_comoving_code, rho_comoving_code=rho_comoving):
-            return (
-                4.0
-                * np.pi
-                / 3.0
-                * rho_comoving_code
-                * np.asarray(radius_comoving_code, dtype=float) ** 3
-            )
-
-        shells.step(
-            dt,
-            crossing_safety_factor=float(
-                example.get("dark_matter_crossing_safety_factor", 0.5),
-            ),
-            background_enclosed_mass=background,
-            scale_factor=a_start,
-            scale_factor_end=a_end,
-            cosmological=True,
-            # The softened core is an additional enclosed mass; it must not
-            # replace the self-gravity of the live shells outside it.
-            include_shell_mass_with_fixed=True,
-        )
-        tau += dt
-        while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
-            save_profile(target_times[next_snapshot])
-            next_snapshot += 1
+    profiles, virial_radii = _evolve_eds_live_shells(
+        shells,
+        cosmology,
+        target_times,
+        target_tau,
+        tau,
+        final_tau,
+        timestep,
+        float(example.get("dark_matter_crossing_safety_factor", 0.5)),
+    )
 
     times = np.asarray([item[0] for item in profiles])
     shell_radii = [item[1] for item in profiles]
@@ -430,13 +359,7 @@ def run_live_shell_density_profiles(config):
     radius_figure = output_dir / "CosmologicalDarkMatterOnlyVirialRadii.jpg"
     plt.figure(figsize=(7.0, 5.0))
     finite = np.isfinite(virial_radii) & (virial_radii > 0.0)
-    plt.plot(
-        times[finite],
-        virial_radii[finite],
-        "o-",
-        color="tab:blue",
-        label=r"simulation $r_{200}$",
-    )
+    plt.plot(times[finite], virial_radii[finite], "o-", color="tab:blue")
     plt.plot(
         times,
         analytic_rvir,
@@ -452,6 +375,81 @@ def run_live_shell_density_profiles(config):
     plt.tight_layout()
     plt.savefig(radius_figure, dpi=200)
     plt.close()
+
+
+def _save_eds_live_profile(time_cosmic_code, shells, cosmology, profiles, virial_radii):
+    a = float(cosmology.scale_factor(time_cosmic_code))
+    order = np.argsort(shells.radius)
+    radius_comoving_code = np.maximum(
+        np.abs(np.nan_to_num(a * np.asarray(shells.radius[order], dtype=float))),
+        1.0e-8,
+    )
+    mass_comoving_code = np.asarray(shells.mass[order], dtype=float)
+    core_mass = float(getattr(shells, "central_core_mass", 0.0))
+    core_radius_comoving_code = a * float(getattr(shells, "central_core_radius", 0.0))
+    profiles.append(
+        (
+            float(time_cosmic_code),
+            radius_comoving_code,
+            mass_comoving_code,
+            core_mass,
+            core_radius_comoving_code,
+        ),
+    )
+    cumulative_mass = core_mass + np.cumsum(mass_comoving_code)
+    mean_density = cumulative_mass / (
+        4.0 * np.pi / 3.0 * np.maximum(radius_comoving_code, 1.0e-30) ** 3
+    )
+    threshold = 200.0 * float(cosmology.background_density(time_cosmic_code))
+    candidates = np.flatnonzero(mean_density >= threshold)
+    virial_radii.append(
+        float(radius_comoving_code[candidates[-1]]) if candidates.size else float("nan"),
+    )
+
+
+def _evolve_eds_live_shells(
+    shells,
+    cosmology,
+    target_times,
+    target_tau,
+    tau,
+    final_tau,
+    timestep,
+    crossing_safety_factor,
+):
+    profiles = []
+    virial_radii = []
+    next_snapshot = 0
+    while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
+        _save_eds_live_profile(
+            target_times[next_snapshot], shells, cosmology, profiles, virial_radii
+        )
+        next_snapshot += 1
+    while tau < final_tau - 1.0e-12:
+        dt = min(timestep, final_tau - tau)
+        cosmic_start = float(cosmology.cosmic_time_from_supercomoving(tau))
+        cosmic_end = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
+        a_start = float(cosmology.scale_factor(cosmic_start))
+        a_end = float(cosmology.scale_factor(cosmic_end))
+        rho_comoving = float(cosmology.background_density(cosmic_start)) * a_start**3
+        shells.step(
+            dt,
+            crossing_safety_factor=crossing_safety_factor,
+            background_enclosed_mass=lambda radius: (
+                4.0 * np.pi / 3.0 * rho_comoving * np.asarray(radius, dtype=float) ** 3
+            ),
+            scale_factor=a_start,
+            scale_factor_end=a_end,
+            cosmological=True,
+            include_shell_mass_with_fixed=True,
+        )
+        tau += dt
+        while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
+            _save_eds_live_profile(
+                target_times[next_snapshot], shells, cosmology, profiles, virial_radii
+            )
+            next_snapshot += 1
+    return profiles, virial_radii
 
 
 def main(config_filename=DEFAULT_CONFIG, final_time_override=None):

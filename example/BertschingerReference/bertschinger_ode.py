@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.interpolate import PchipInterpolator
 from scipy.optimize import brentq
 
 
@@ -33,6 +34,139 @@ class BertschingerShellSolution:
     lam: np.ndarray
     lam_prime: np.ndarray
     mass_dimensionless: np.ndarray
+
+
+def _branch_roots(branches, radius_dimensionless):
+    return [
+        float(branch["time_of_radius"](radius_dimensionless))
+        for branch in branches
+        if branch["minimum"] <= radius_dimensionless <= branch["maximum"]
+    ]
+
+
+def _phase_space_rhs(
+    similarity_exponent,
+    turnaround_mass_normalization,
+    branches,
+    centre_match_lambda,
+):
+    def rhs(similarity_time_dimensionless, state):
+        radius_dimensionless, radial_velocity_dimensionless = state
+        radius_dimensionless = max(float(radius_dimensionless), centre_match_lambda)
+        roots = _branch_roots(branches, radius_dimensionless)
+        roots.append(float(similarity_time_dimensionless))
+        roots.sort()
+        enclosed_mass_dimensionless = turnaround_mass_normalization * sum(
+            (-1.0) ** index * np.exp(-2.0 * similarity_exponent * root / 3.0)
+            for index, root in enumerate(roots)
+        )
+        return [
+            radial_velocity_dimensionless,
+            -7.0 / 9.0 * radial_velocity_dimensionless
+            + 8.0 / 81.0 * radius_dimensionless
+            - 2.0 / 9.0 * enclosed_mass_dimensionless / radius_dimensionless**2,
+        ]
+
+    return rhs
+
+
+def _save_branch(branches, solution):
+    order = np.argsort(solution.y[0])
+    radius_dimensionless = solution.y[0][order]
+    similarity_time_dimensionless = solution.t[order]
+    unique = np.concatenate(([True], np.diff(radius_dimensionless) > 1.0e-12))  # noqa: PLR2004
+    if np.count_nonzero(unique) < 2:  # noqa: PLR2004
+        return
+    branches.append(
+        {
+            "minimum": float(radius_dimensionless[unique][0]),
+            "maximum": float(radius_dimensionless[unique][-1]),
+            "time_of_radius": PchipInterpolator(
+                radius_dimensionless[unique],
+                similarity_time_dimensionless[unique],
+                extrapolate=False,
+            ),
+        },
+    )
+
+
+def _integrate_branches(
+    xi_end,
+    max_step,
+    rhs,
+    centre_match_lambda,
+    centre_matching_velocity,
+    branches,
+):
+    def centre_event(_time, state):
+        return state[0] - centre_match_lambda
+
+    centre_event.terminal = True
+    centre_event.direction = -1
+
+    def apocentre_event(_time, state):
+        return state[1]
+
+    apocentre_event.terminal = True
+    apocentre_event.direction = -1
+
+    output_similarity_time_dimensionless = []
+    output_state = []
+    similarity_time_dimensionless = 0.0
+    state = np.array([1.0, -8.0 / 9.0])
+    outbound = False
+    while similarity_time_dimensionless < xi_end - 1.0e-12:
+        event = apocentre_event if outbound else centre_event
+        solution = solve_ivp(
+            rhs,
+            (similarity_time_dimensionless, float(xi_end)),
+            state,
+            events=event,
+            rtol=2.0e-10,
+            atol=1.0e-12,
+            max_step=max_step,
+            method="RK45",
+        )
+        if solution.t.size == 0:
+            raise RuntimeError("empty Bertschinger phase-space branch")
+        output_similarity_time_dimensionless.extend(solution.t.tolist())
+        output_state.extend(solution.y.T.tolist())
+        _save_branch(branches, solution)
+        similarity_time_dimensionless = float(solution.t[-1])
+        state = solution.y[:, -1].copy()
+        if similarity_time_dimensionless >= xi_end - 1.0e-12:
+            break
+        if not solution.t_events[0].size:
+            raise RuntimeError("Bertschinger branch did not reach its event")
+        if outbound:
+            state[1] = -1.0e-8
+            outbound = False
+        else:
+            state[0] = centre_match_lambda
+            state[1] = float(centre_matching_velocity)
+            outbound = True
+    return np.asarray(output_similarity_time_dimensionless), np.asarray(output_state)
+
+
+def _sample_solution(xi_end, points, branches, similarity_exponent, output_time, output_state):
+    unique = np.concatenate(
+        ([True], np.diff(output_time) > 1.0e-12),  # noqa: PLR2004
+    )
+    output_time = output_time[unique]
+    output_state = output_state[unique]
+    sample_time = np.linspace(0.0, float(xi_end), int(points))
+    output_lam = np.interp(sample_time, output_time, output_state[:, 0])
+    output_velocity = np.interp(sample_time, output_time, output_state[:, 1])
+    turnaround_mass_normalization = 9.0 * np.pi**2 / 16.0
+    output_mass = np.empty_like(sample_time)
+    for index, radius_dimensionless in enumerate(output_lam):
+        roots = _branch_roots(branches, float(radius_dimensionless))
+        roots.sort()
+        output_mass[index] = turnaround_mass_normalization * sum(
+            (-1.0) ** root_index * np.exp(-2.0 * similarity_exponent * root / 3.0)
+            for root_index, root in enumerate(roots)
+        )
+    return BertschingerShellSolution(sample_time, output_lam, output_velocity, output_mass)
 
 
 def first_post_centre_apocentre(solution):
@@ -134,13 +268,11 @@ def solve_eq41_self_similar(
     The matching parameters are recorded by the example driver and should be
     kept fixed when comparing resolutions.
     """
-    if (
-        xi_end <= 0.0
-        or points < 2  # noqa: PLR2004
-        or similarity_exponent <= 0.0
-        or not 0.0 < centre_match_lambda < 1.0
-        or centre_matching_velocity <= 0.0
-    ):
+    if xi_end <= 0.0 or points < 2:  # noqa: PLR2004
+        raise ValueError("invalid self-similar ODE parameters")
+    if similarity_exponent <= 0.0 or not 0.0 < centre_match_lambda < 1.0:
+        raise ValueError("invalid self-similar ODE parameters")
+    if centre_matching_velocity <= 0.0:
         raise ValueError("invalid self-similar ODE parameters")
 
     # M is normalized by the EdS background mass inside r_ta.  The mass of a
@@ -150,135 +282,25 @@ def solve_eq41_self_similar(
     branches = []
     max_step = float(xi_end) / max(1000, 2 * int(points))
 
-    def branch_roots(radius_dimensionless):
-        roots = []
-        for branch in branches:
-            if branch["minimum"] <= radius_dimensionless <= branch["maximum"]:
-                roots.append(float(branch["time_of_radius"](radius_dimensionless)))
-        return roots
-
-    def rhs(similarity_time_dimensionless, state):
-        radius_dimensionless, radial_velocity_dimensionless = state
-        radius_dimensionless = max(float(radius_dimensionless), centre_match_lambda)
-        roots = branch_roots(radius_dimensionless)
-        roots.append(float(similarity_time_dimensionless))
-        roots.sort()
-        enclosed_mass_dimensionless = turnaround_mass_normalization * sum(
-            (-1.0) ** index * np.exp(-2.0 * similarity_exponent * root / 3.0)
-            for index, root in enumerate(roots)
-        )
-        return [
-            radial_velocity_dimensionless,
-            -7.0 / 9.0 * radial_velocity_dimensionless
-            + 8.0 / 81.0 * radius_dimensionless
-            - 2.0 / 9.0 * enclosed_mass_dimensionless / radius_dimensionless**2,
-        ]
-
-    def centre_event(time_cosmic_code, state):
-        return state[0] - centre_match_lambda
-
-    centre_event.terminal = True
-    centre_event.direction = -1
-
-    def apocentre_event(time_cosmic_code, state):
-        return state[1]
-
-    apocentre_event.terminal = True
-    apocentre_event.direction = -1
-
-    def save_branch(solution):
-        # Every branch is monotonic in radius.  PCHIP avoids spurious extrema
-        # when a crossing time is requested by a neighbouring branch.
-        from scipy.interpolate import PchipInterpolator  # noqa: PLC0415
-
-        order = np.argsort(solution.y[0])
-        radius_dimensionless = solution.y[0][order]
-        similarity_time_dimensionless = solution.t[order]
-        unique = np.concatenate(([True], np.diff(radius_dimensionless) > 1.0e-12))  # noqa: PLR2004
-        if np.count_nonzero(unique) < 2:  # noqa: PLR2004
-            # At the resolution cutoff, a rapidly shrinking late branch can
-            # be represented by a single solver point.  It carries no new
-            # radial interval and is safely omitted from the closure.
-            return
-        branch = {
-            "minimum": float(radius_dimensionless[unique][0]),
-            "maximum": float(radius_dimensionless[unique][-1]),
-            "time_of_radius": PchipInterpolator(
-                radius_dimensionless[unique],
-                similarity_time_dimensionless[unique],
-                extrapolate=False,
-            ),
-        }
-        branches.append(branch)
-
-    output_similarity_time_dimensionless = []
-    output_state = []
-    similarity_time_dimensionless = 0.0
-    state = np.array([1.0, -8.0 / 9.0])
-    outbound = False
-    while similarity_time_dimensionless < xi_end - 1.0e-12:
-        event = apocentre_event if outbound else centre_event
-        solution = solve_ivp(
-            rhs,
-            (similarity_time_dimensionless, float(xi_end)),
-            state,
-            events=event,
-            rtol=2.0e-10,
-            atol=1.0e-12,
-            max_step=max_step,
-            method="RK45",
-        )
-        if solution.t.size == 0:
-            raise RuntimeError("empty Bertschinger phase-space branch")
-        output_similarity_time_dimensionless.extend(solution.t.tolist())
-        output_state.extend(solution.y.T.tolist())
-        save_branch(solution)
-        similarity_time_dimensionless = float(solution.t[-1])
-        state = solution.y[:, -1].copy()
-        if similarity_time_dimensionless >= xi_end - 1.0e-12:
-            break
-        if not solution.t_events[0].size:
-            raise RuntimeError("Bertschinger branch did not reach its event")
-        if outbound:
-            # Start the next inward branch just past apocentre.
-            state[1] = -1.0e-8
-            outbound = False
-        else:
-            # The divergent finite-cutoff velocity is discarded here.  The
-            # matched outgoing branch has a finite phase-space launch speed.
-            state[0] = centre_match_lambda
-            state[1] = float(centre_matching_velocity)
-            outbound = True
-
-    output_similarity_time_dimensionless = np.asarray(
-        output_similarity_time_dimensionless,
+    rhs = _phase_space_rhs(
+        similarity_exponent,
+        turnaround_mass_normalization,
+        branches,
+        centre_match_lambda,
     )
-    output_state = np.asarray(output_state)
-    unique = np.concatenate(
-        (
-            [True],
-            np.diff(output_similarity_time_dimensionless) > 1.0e-12,  # noqa: PLR2004
-        ),
+    output_time, output_state = _integrate_branches(
+        float(xi_end),
+        max_step,
+        rhs,
+        centre_match_lambda,
+        centre_matching_velocity,
+        branches,
     )
-    output_similarity_time_dimensionless = output_similarity_time_dimensionless[unique]
-    output_state = output_state[unique]
-    sample_time = np.linspace(0.0, float(xi_end), int(points))
-    output_lam = np.interp(
-        sample_time,
-        output_similarity_time_dimensionless,
-        output_state[:, 0],
+    return _sample_solution(
+        xi_end,
+        points,
+        branches,
+        similarity_exponent,
+        output_time,
+        output_state,
     )
-    output_velocity = np.interp(
-        sample_time,
-        output_similarity_time_dimensionless,
-        output_state[:, 1],
-    )
-    output_mass = np.empty_like(sample_time)
-    for index, radius_dimensionless in enumerate(output_lam):
-        roots = branch_roots(float(radius_dimensionless))
-        roots.sort()
-        output_mass[index] = turnaround_mass_normalization * sum(
-            (-1.0) ** root_index * np.exp(-2.0 * similarity_exponent * root / 3.0)
-            for root_index, root in enumerate(roots)
-        )
-    return BertschingerShellSolution(sample_time, output_lam, output_velocity, output_mass)

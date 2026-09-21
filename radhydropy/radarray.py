@@ -252,96 +252,16 @@ class RadArray(unyt.unyt_array):
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         rad_inputs = [value for value in inputs if isinstance(value, RadArray)]
-        if len(rad_inputs) > 1:
-            first = rad_inputs[0]
-            for other in rad_inputs[1:]:
-                if first.representation != other.representation:
-                    raise RepresentationMismatchError(
-                        "RadArray arithmetic requires matching representations",
-                    )
-                if first.cosmology != other.cosmology:
-                    raise ValueError(
-                        "RadArray arithmetic requires matching cosmology contexts",
-                    )
+        _validate_radarray_operands(rad_inputs)
 
         # Perform arithmetic on the stored code values.  Delegating directly
         # to unyt would first convert the operands to cgs, which is correct for
         # ordinary unyt arrays but would change the numerical code values that
         # RadArray promises to preserve.
         if method == "__call__" and rad_inputs and "out" not in kwargs:
-            if ufunc in (np.add, np.subtract) and len(rad_inputs) == 2:  # noqa: PLR2004
-                left, right = inputs
-                result_value = getattr(np, ufunc.__name__)(
-                    left.value,
-                    right.value,
-                )
-                return RadArray(
-                    result_value,
-                    code_units=rad_inputs[0].code_units,
-                    field_spec=rad_inputs[0].field_spec,
-                    cosmology=rad_inputs[0].cosmology,
-                )
-            if ufunc in (np.multiply, np.true_divide, np.divide) and len(rad_inputs) == 2:  # noqa: PLR2004
-                left, right = inputs
-                if ufunc is np.multiply:
-                    result_value = left.value * right.value
-                    result_units = left.units * right.units
-
-                    def dimension_operation(a, b):
-                        return a + b
-                else:
-                    result_value = left.value / right.value
-                    result_units = left.units / right.units
-
-                    def dimension_operation(a, b):
-                        return a - b
-
-                first, second = rad_inputs
-                dimensions = tuple(
-                    dimension_operation(a, b)
-                    for a, b in zip(
-                        first.field_spec.dimensions,
-                        second.field_spec.dimensions,
-                        strict=False,
-                    )
-                )
-                result_spec = FieldSpec(
-                    quantity=f"derived_{ufunc.__name__}",
-                    dimensions=dimensions,
-                    representation=first.representation,
-                    coordinate_frame=first.field_spec.coordinate_frame,
-                    code_unit_cgs=float(
-                        unyt.unyt_quantity(1.0, result_units).in_cgs().value,
-                    ),
-                    physical_relation="derived from RadArray arithmetic",
-                    cosmology=first.cosmology.cosmology,
-                    scale_factor=first.cosmology.scale_factor,
-                    hubble_parameter_km_s_Mpc=(first.cosmology.hubble_parameter_km_s_Mpc),
-                )
-                result = RadArray(
-                    result_value,
-                    code_units=first.code_units,
-                    field_spec=result_spec,
-                    cosmology=first.cosmology,
-                )
-                result.units = result_units
-                return result
-            if ufunc in (np.multiply, np.true_divide, np.divide) and len(rad_inputs) == 1:
-                first = rad_inputs[0]
-                other = inputs[1] if inputs[0] is first else inputs[0]
-                result_value = (
-                    first.value * other
-                    if ufunc is np.multiply
-                    else first.value / other
-                    if inputs[0] is first
-                    else other / first.value
-                )
-                return RadArray(
-                    result_value,
-                    code_units=first.code_units,
-                    field_spec=first.field_spec,
-                    cosmology=first.cosmology,
-                )
+            fast_result = _fast_radarray_operation(ufunc, inputs, rad_inputs)
+            if fast_result is not None:
+                return fast_result
 
         result = super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
         if not isinstance(result, unyt.unyt_array) or not rad_inputs:
@@ -350,42 +270,9 @@ class RadArray(unyt.unyt_array):
             return result
 
         first = rad_inputs[0]
-        if len(rad_inputs) == 1 or ufunc in (np.add, np.subtract):
-            result_spec = first.field_spec
-        else:
-            if ufunc is np.multiply:
-                dimensions = tuple(
-                    left + right
-                    for left, right in zip(
-                        rad_inputs[0].field_spec.dimensions,
-                        rad_inputs[1].field_spec.dimensions,
-                        strict=False,
-                    )
-                )
-            elif ufunc in (np.true_divide, np.divide, np.floor_divide):
-                dimensions = tuple(
-                    left - right
-                    for left, right in zip(
-                        rad_inputs[0].field_spec.dimensions,
-                        rad_inputs[1].field_spec.dimensions,
-                        strict=False,
-                    )
-                )
-            else:
-                return result
-            result_spec = FieldSpec(
-                quantity=f"derived_{ufunc.__name__}",
-                dimensions=dimensions,
-                representation=first.representation,
-                coordinate_frame=first.field_spec.coordinate_frame,
-                code_unit_cgs=float(
-                    unyt.unyt_quantity(1.0, result.units).in_cgs().value,
-                ),
-                physical_relation="derived from RadArray arithmetic",
-                cosmology=first.cosmology.cosmology,
-                scale_factor=first.cosmology.scale_factor,
-                hubble_parameter_km_s_Mpc=(first.cosmology.hubble_parameter_km_s_Mpc),
-            )
+        result_spec = _result_field_spec(ufunc, rad_inputs, result.units)
+        if result_spec is None:
+            return result
         wrapped = RadArray(
             result.value,
             code_units=first.code_units,
@@ -394,6 +281,88 @@ class RadArray(unyt.unyt_array):
         )
         wrapped.units = result.units
         return wrapped
+
+
+def _validate_radarray_operands(rad_inputs):
+    if len(rad_inputs) <= 1:
+        return
+    first = rad_inputs[0]
+    for other in rad_inputs[1:]:
+        if first.representation != other.representation:
+            raise RepresentationMismatchError(
+                "RadArray arithmetic requires matching representations"
+            )
+        if first.cosmology != other.cosmology:
+            raise ValueError("RadArray arithmetic requires matching cosmology contexts")
+
+
+def _result_field_spec(ufunc, rad_inputs, result_units):
+    first = rad_inputs[0]
+    if len(rad_inputs) == 1 or ufunc in (np.add, np.subtract):
+        return first.field_spec
+    if ufunc is np.multiply:
+        operation = lambda left, right: left + right
+    elif ufunc in (np.true_divide, np.divide, np.floor_divide):
+        operation = lambda left, right: left - right
+    else:
+        return None
+    dimensions = tuple(
+        operation(left, right)
+        for left, right in zip(
+            rad_inputs[0].field_spec.dimensions,
+            rad_inputs[1].field_spec.dimensions,
+            strict=False,
+        )
+    )
+    return FieldSpec(
+        quantity=f"derived_{ufunc.__name__}",
+        dimensions=dimensions,
+        representation=first.representation,
+        coordinate_frame=first.field_spec.coordinate_frame,
+        code_unit_cgs=float(unyt.unyt_quantity(1.0, result_units).in_cgs().value),
+        physical_relation="derived from RadArray arithmetic",
+        cosmology=first.cosmology.cosmology,
+        scale_factor=first.cosmology.scale_factor,
+        hubble_parameter_km_s_Mpc=first.cosmology.hubble_parameter_km_s_Mpc,
+    )
+
+
+def _fast_radarray_operation(ufunc, inputs, rad_inputs):
+    if ufunc in (np.add, np.subtract) and len(rad_inputs) == 2:
+        left, right = inputs
+        return RadArray(
+            getattr(np, ufunc.__name__)(left.value, right.value),
+            code_units=rad_inputs[0].code_units,
+            field_spec=rad_inputs[0].field_spec,
+            cosmology=rad_inputs[0].cosmology,
+        )
+    if ufunc not in (np.multiply, np.true_divide, np.divide):
+        return None
+    first = rad_inputs[0]
+    if len(rad_inputs) == 1:
+        other = inputs[1] if inputs[0] is first else inputs[0]
+        result_value = (
+            first.value * other
+            if ufunc is np.multiply
+            else (first.value / other if inputs[0] is first else other / first.value)
+        )
+        return RadArray(
+            result_value,
+            code_units=first.code_units,
+            field_spec=first.field_spec,
+            cosmology=first.cosmology,
+        )
+    left, right = inputs
+    result_value = left.value * right.value if ufunc is np.multiply else left.value / right.value
+    result_units = left.units * right.units if ufunc is np.multiply else left.units / right.units
+    result = RadArray(
+        result_value,
+        code_units=first.code_units,
+        field_spec=_result_field_spec(ufunc, rad_inputs, result_units),
+        cosmology=first.cosmology,
+    )
+    result.units = result_units
+    return result
 
 
 class RadQuantity(unyt.unyt_quantity):

@@ -149,23 +149,21 @@ def output_files(output_directory, output_filename_prefix):
     return sorted(glob.glob(output_directory + "/" + output_filename_prefix + "_*.hdf5"))
 
 
+def _as_time_quantity(value, unit):
+    if hasattr(value, "to"):
+        return value
+    value_array = np.asarray(value, dtype=float)
+    magnitude = float(value_array) if value_array.shape == () else float(value_array.reshape(-1)[0])
+    return magnitude * unit
+
+
 def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputtime=0):  # noqa: N802
     """Run the optically thin photoheating example with source switching."""
     rio.write_numbered_hdf5(sim, 0)
 
     time_unit = sim.par.units.CodeUnits.time_unit
 
-    def _as_time_quantity(value, unit=time_unit):
-        if hasattr(value, "to"):
-            return value
-        value_array = np.asarray(value, dtype=float)
-        if value_array.shape == ():
-            magnitude = float(value_array)
-        else:
-            magnitude = float(value_array.reshape(-1)[0])
-        return magnitude * unit
-
-    final_time = _as_time_quantity(sim.par.simulation.final_time)
+    final_time = _as_time_quantity(sim.par.simulation.final_time, time_unit)
     source_switch_time = _as_time_quantity(source_switch_time, final_time.units)
     sim.fluid.time_proper_code = float(sim.fluid.time_proper_code)
     output_times = rio.load_output_time_list(
@@ -221,26 +219,47 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
         if getattr(sim.par, "verbose", 0) >= 1:
             pass
 
-        if output_times is not None:
-            while (
-                next_output_index < len(output_times)
-                and sim.fluid.time_proper_code * time_unit >= output_times[next_output_index]
-            ):
-                rio.write_numbered_hdf5(sim, outindex)
-                last_output_time = sim.fluid.time_proper_code * time_unit
-                outindex += 1
-                next_output_index += 1
-        elif (
-            next_output_time is not None
-            and sim.fluid.time_proper_code * time_unit >= next_output_time
-        ):
-            rio.write_numbered_hdf5(sim, outindex)
-            last_output_time = sim.fluid.time_proper_code * time_unit
-            outindex += 1
-            next_output_time += output_interval
+        outindex, last_output_time, next_output_index, next_output_time = _write_due_photo_outputs(
+            sim,
+            time_unit,
+            output_times,
+            next_output_index,
+            next_output_time,
+            output_interval,
+            outindex,
+            last_output_time,
+        )
 
     if sim.fluid.time_proper_code * time_unit != last_output_time:
         rio.write_numbered_hdf5(sim, outindex)
+
+
+def _write_due_photo_outputs(
+    sim,
+    time_unit,
+    output_times,
+    next_output_index,
+    next_output_time,
+    output_interval,
+    outindex,
+    last_output_time,
+):
+    current_time = sim.fluid.time_proper_code * time_unit
+    if output_times is not None:
+        while (
+            next_output_index < len(output_times)
+            and current_time >= output_times[next_output_index]
+        ):
+            rio.write_numbered_hdf5(sim, outindex)
+            last_output_time = current_time
+            outindex += 1
+            next_output_index += 1
+    elif next_output_time is not None and current_time >= next_output_time:
+        rio.write_numbered_hdf5(sim, outindex)
+        last_output_time = current_time
+        outindex += 1
+        next_output_time += output_interval
+    return outindex, last_output_time, next_output_index, next_output_time
 
 
 def save_history_plot(history, filename, reference):

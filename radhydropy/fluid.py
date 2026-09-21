@@ -28,6 +28,91 @@ from radhydropy.units import (
 # set up fluid properties
 
 
+def _pad_proper_fluid_fields(fluid, par, code_units):
+    """Add ghost cells and optional proper-code radiation fields."""
+    noghost = int(par.mesh.ghost_cells)
+    defaults = (
+        ("rho_proper_code", 1.0),
+        ("vel_proper_code", 0.0),
+        ("temp_proper_code", 0.0),
+        ("mu", 1.0),
+        ("xHI", getattr(par, "hydrogen_xHI_initial", 1.0)),
+        ("xHeI", getattr(par, "hydrogen_helium_xHeI_initial", 1.0)),
+        ("xHeII", getattr(par, "hydrogen_helium_xHeII_initial", 0.0)),
+        ("xHeIII", getattr(par, "hydrogen_helium_xHeIII_initial", 0.0)),
+    )
+    for attr, default in defaults:
+        if hasattr(fluid, attr):
+            values = np.asarray(getattr(fluid, attr), dtype=float)
+            ghost = np.full(noghost, default, dtype=float)
+            setattr(fluid, attr, as_named_array(np.concatenate((ghost, values, ghost))))
+    if hasattr(fluid, "specific_angular_momentum_code"):
+        values = np.asarray(fluid.specific_angular_momentum_code, dtype=float)
+        fluid.specific_angular_momentum_code = as_named_array(
+            np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
+        )
+    if (
+        getattr(par, "hydrogen_radiation_field", False)
+        or getattr(par, "radiative_transfer", False)
+    ) and not hasattr(fluid, "ngamma_code"):
+        initial = _proper_photon_density(par, code_units)
+        fluid.ngamma_code = as_named_array(
+            np.full(np.shape(fluid.rho_proper_code), initial),
+        )
+    if hasattr(fluid, "ngamma_code"):
+        _pad_photon_density(fluid, par, code_units, noghost)
+    if getattr(par, "gravity_potential_energy", False) and not hasattr(
+        fluid,
+        "GravitationalPotentialEnergy_code",
+    ):
+        fluid.GravitationalPotentialEnergy_code = as_named_array(
+            np.zeros(np.shape(fluid.rho_proper_code), dtype=float),
+        )
+    if hasattr(fluid, "GravitationalPotentialEnergy_code"):
+        values = np.asarray(fluid.GravitationalPotentialEnergy_code, dtype=float)
+        fluid.GravitationalPotentialEnergy_code = as_named_array(
+            np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
+        )
+
+
+def _proper_photon_density(par, code_units):
+    return float(
+        np.asarray(
+            quantity_to_value(
+                photon_number_density(getattr(par, "hydrogen_ngamma_initial", 0.0)),
+                code_units.number_density_unit,
+            ),
+        ),
+    )
+
+
+def _pad_photon_density(fluid, par, code_units, noghost):
+    values = np.asarray(fluid.ngamma_code, dtype=float)
+    initial = _proper_photon_density(par, code_units)
+    if values.ndim == 2:  # noqa: PLR2004
+        ghost = np.full((values.shape[0], noghost), initial, dtype=float)
+        fluid.ngamma_code = as_named_array(np.concatenate((ghost, values, ghost), axis=1))
+    else:
+        ghost = np.full(noghost, initial)
+        fluid.ngamma_code = as_named_array(np.concatenate((ghost, values, ghost)))
+
+
+def _prepare_helium_fractions(fluid, par):
+    """Create or normalize helium ion fractions for the helium network."""
+    if getattr(par, "thermochemistry_network", "hydrogen") != "hydrogen_helium":
+        return
+    for attr, default in (
+        ("xHeI", getattr(par, "hydrogen_helium_xHeI_initial", 1.0)),
+        ("xHeII", getattr(par, "hydrogen_helium_xHeII_initial", 0.0)),
+        ("xHeIII", getattr(par, "hydrogen_helium_xHeIII_initial", 0.0)),
+    ):
+        if not hasattr(fluid, attr):
+            value = np.full(np.shape(fluid.rho_proper_code), default)
+        else:
+            value = np.asarray(getattr(fluid, attr), dtype=float)
+        setattr(fluid, attr, as_named_array(value))
+
+
 class Fluid:
     """Store primitive and conserved fluid quantities.
 
@@ -411,116 +496,9 @@ class Fluid:
                 as_named_array(np.asarray(self.xHI, dtype=float)),
             )
 
-        if getattr(par, "thermochemistry_network", "hydrogen") == "hydrogen_helium":
-            for attr, default in (
-                ("xHeI", getattr(par, "hydrogen_helium_xHeI_initial", 1.0)),
-                ("xHeII", getattr(par, "hydrogen_helium_xHeII_initial", 0.0)),
-                ("xHeIII", getattr(par, "hydrogen_helium_xHeIII_initial", 0.0)),
-            ):
-                if not hasattr(self, attr):
-                    setattr(
-                        self,
-                        attr,
-                        as_named_array(np.full(np.shape(self.rho_proper_code), default)),
-                    )
-                else:
-                    setattr(
-                        self,
-                        attr,
-                        as_named_array(np.asarray(getattr(self, attr), dtype=float)),
-                    )
+        _prepare_helium_fractions(self, par)
 
-        noghost = int(par.mesh.ghost_cells)
-        for attr, default in (
-            ("rho_proper_code", 1.0),
-            ("vel_proper_code", 0.0),
-            ("temp_proper_code", 0.0),
-            ("mu", 1.0),
-            ("xHI", getattr(par, "hydrogen_xHI_initial", 1.0)),
-            ("xHeI", getattr(par, "hydrogen_helium_xHeI_initial", 1.0)),
-            ("xHeII", getattr(par, "hydrogen_helium_xHeII_initial", 0.0)),
-            ("xHeIII", getattr(par, "hydrogen_helium_xHeIII_initial", 0.0)),
-        ):
-            if hasattr(self, attr):
-                values = np.asarray(getattr(self, attr), dtype=float)
-                setattr(
-                    self,
-                    attr,
-                    as_named_array(
-                        np.concatenate(
-                            (
-                                np.full(noghost, default, dtype=float),
-                                values,
-                                np.full(noghost, default, dtype=float),
-                            ),
-                        ),
-                    ),
-                )
-        if hasattr(self, "specific_angular_momentum_code"):
-            values = np.asarray(self.specific_angular_momentum_code, dtype=float)
-            self.specific_angular_momentum_code = as_named_array(
-                np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
-            )
-
-        if (
-            getattr(par, "hydrogen_radiation_field", False)
-            or getattr(par, "radiative_transfer", False)
-        ) and not hasattr(self, "ngamma_code"):
-            self.ngamma_code = as_named_array(
-                np.full(
-                    np.shape(self.rho_proper_code),
-                    quantity_to_value(
-                        photon_number_density(
-                            getattr(par, "hydrogen_ngamma_initial", 0.0),
-                        ),
-                        code_units.number_density_unit,
-                    ),
-                ),
-            )
-        if hasattr(self, "ngamma_code"):
-            values = np.asarray(self.ngamma_code, dtype=float)
-            initial = float(
-                np.asarray(
-                    quantity_to_value(
-                        photon_number_density(
-                            getattr(par, "hydrogen_ngamma_initial", 0.0),
-                        ),
-                        code_units.number_density_unit,
-                    ),
-                ),
-            )
-            if values.ndim == 2:  # noqa: PLR2004
-                ghost = np.full(
-                    (values.shape[0], noghost),
-                    initial,
-                    dtype=float,
-                )
-                self.ngamma_code = as_named_array(
-                    np.concatenate((ghost, values, ghost), axis=1),
-                )
-            else:
-                self.ngamma_code = as_named_array(
-                    np.concatenate(
-                        (
-                            np.full(noghost, initial),
-                            values,
-                            np.full(noghost, initial),
-                        ),
-                    ),
-                )
-
-        if getattr(par, "gravity_potential_energy", False) and not hasattr(
-            self,
-            "GravitationalPotentialEnergy_code",
-        ):
-            self.GravitationalPotentialEnergy_code = as_named_array(
-                np.zeros(np.shape(self.rho_proper_code), dtype=float),
-            )
-        if hasattr(self, "GravitationalPotentialEnergy_code"):
-            values = np.asarray(self.GravitationalPotentialEnergy_code, dtype=float)
-            self.GravitationalPotentialEnergy_code = as_named_array(
-                np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
-            )
+        _pad_proper_fluid_fields(self, par, code_units)
 
         if getattr(par, "hydrogen_chemistry", False) and getattr(par, "hydrogen_update_mu", False):
             if getattr(par, "thermochemistry_network", "hydrogen") == "hydrogen_helium":

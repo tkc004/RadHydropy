@@ -16,12 +16,12 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 from shell_remap import centrifugal_shell_reference
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.arrays import as_named_array
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value

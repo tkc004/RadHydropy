@@ -115,6 +115,73 @@ def enclosed_gas_mass(mesh, rho, radius, par):
     return EnclosedGasMassProfile(mesh, rho, par)(radius)
 
 
+def _configure_dark_matter_shell_options(
+    shell_state,
+    angular_momentum,
+    softening,
+    fixed_enclosed_mass,
+    central_core_radius,
+    core_absorption_velocity,
+    core_absorption_energy,
+    length,
+    velocity_unit,
+    mass_unit,
+):
+    if angular_momentum is None:
+        angular_momentum = np.zeros_like(shell_state.radius)
+    shell_state.angular_momentum = np.asarray(
+        quantity_to_value(angular_momentum, length * velocity_unit),
+        dtype=float,
+    ).copy()
+    shell_state.softening = float(quantity_to_value(softening, length))
+    shell_state.central_core_radius = float(quantity_to_value(central_core_radius, length))
+    shell_state.core_absorption_velocity = float(
+        quantity_to_value(core_absorption_velocity, velocity_unit),
+    )
+    if shell_state.central_core_radius < 0.0:
+        raise ValueError("central core radius must be non-negative")
+    if shell_state.core_absorption_velocity < 0.0:
+        raise ValueError("core absorption velocity must be non-negative")
+    shell_state.core_absorption_energy = float(
+        quantity_to_value(core_absorption_energy, velocity_unit**2),
+    )
+    if callable(fixed_enclosed_mass):
+        shell_state.fixed_enclosed_mass = fixed_enclosed_mass
+    elif fixed_enclosed_mass is None:
+        shell_state.fixed_enclosed_mass = None
+    else:
+        shell_state.fixed_enclosed_mass = float(
+            quantity_to_value(fixed_enclosed_mass, mass_unit),
+        )
+    shell_state.central_core_mass = (
+        0.0
+        if shell_state.fixed_enclosed_mass is None or callable(shell_state.fixed_enclosed_mass)
+        else float(shell_state.fixed_enclosed_mass)
+    )
+
+
+def _validate_dark_matter_shell_arrays(shell_state):
+    if not (
+        shell_state.radius.ndim
+        == shell_state.velocity.ndim
+        == shell_state.mass.ndim
+        == shell_state.angular_momentum.ndim
+        == 1
+    ):
+        raise ValueError("dark-matter shell state must be one-dimensional")
+    if not (
+        shell_state.radius.size
+        == shell_state.velocity.size
+        == shell_state.mass.size
+        == shell_state.angular_momentum.size
+    ):
+        raise ValueError("dark-matter shell arrays must have equal lengths")
+    if np.any(shell_state.radius <= 0.0):
+        raise ValueError("dark-matter shell radii must be positive")
+    if np.any(shell_state.mass <= 0.0):
+        raise ValueError("dark-matter shell masses must be positive")
+
+
 class DarkMatterShells:
     """Evolve infinitesimally thin spherical dark-matter shells.
 
@@ -154,34 +221,17 @@ class DarkMatterShells:
                 raise ValueError("shell_id values must be unique")
         else:
             self.shell_id = None
-        if angular_momentum is None:
-            angular_momentum = np.zeros_like(self.radius)
-        self.angular_momentum = np.asarray(
-            quantity_to_value(angular_momentum, length * velocity_unit),
-            dtype=float,
-        ).copy()
-        self.softening = float(quantity_to_value(softening, length))
-        self.central_core_radius = float(quantity_to_value(central_core_radius, length))
-        self.core_absorption_velocity = float(
-            quantity_to_value(core_absorption_velocity, velocity_unit),
-        )
-        if self.central_core_radius < 0.0:
-            raise ValueError("central core radius must be non-negative")
-        if self.core_absorption_velocity < 0.0:
-            raise ValueError("core absorption velocity must be non-negative")
-        self.core_absorption_energy = float(
-            quantity_to_value(core_absorption_energy, velocity_unit**2),
-        )
-        if callable(fixed_enclosed_mass):
-            self.fixed_enclosed_mass = fixed_enclosed_mass
-        elif fixed_enclosed_mass is None:
-            self.fixed_enclosed_mass = None
-        else:
-            self.fixed_enclosed_mass = float(quantity_to_value(fixed_enclosed_mass, mass_unit))
-        self.central_core_mass = (
-            0.0
-            if self.fixed_enclosed_mass is None or callable(self.fixed_enclosed_mass)
-            else float(self.fixed_enclosed_mass)
+        _configure_dark_matter_shell_options(
+            self,
+            angular_momentum,
+            softening,
+            fixed_enclosed_mass,
+            central_core_radius,
+            core_absorption_velocity,
+            core_absorption_energy,
+            length,
+            velocity_unit,
+            mass_unit,
         )
         self._mass_prefix_cache = None
         self._enclosed_mass_cache = None
@@ -191,22 +241,7 @@ class DarkMatterShells:
         self.total_crossing_event_count = 0
         self.last_origin_reflection_count = 0
         self.total_origin_reflection_count = 0
-        if not (
-            self.radius.ndim
-            == self.velocity.ndim
-            == self.mass.ndim
-            == self.angular_momentum.ndim
-            == 1
-        ):
-            raise ValueError("dark-matter shell state must be one-dimensional")
-        if not (
-            self.radius.size == self.velocity.size == self.mass.size == self.angular_momentum.size
-        ):
-            raise ValueError("dark-matter shell arrays must have equal lengths")
-        if np.any(self.radius <= 0.0):
-            raise ValueError("dark-matter shell radii must be positive")
-        if np.any(self.mass <= 0.0):
-            raise ValueError("dark-matter shell masses must be positive")
+        _validate_dark_matter_shell_arrays(self)
         self.sort_by_radius()
 
     @property
@@ -567,6 +602,83 @@ class DarkMatterShells:
         self._enclosed_mass_cache = None
         return absorbed_mass
 
+    def _advance_substep(
+        self,
+        substep,
+        elapsed,
+        dt,
+        scale_factor,
+        scale_factor_end,
+        event_pairs,
+        batched_crossing,
+        gas_enclosed_mass,
+        background_enclosed_mass,
+        cosmological,
+        include_shell_mass_with_fixed,
+        state_callback,
+    ):
+        fraction_start = elapsed / dt
+        fraction_end = (elapsed + substep) / dt
+        a_start = float(scale_factor) + fraction_start * (
+            float(scale_factor_end) - float(scale_factor)
+        )
+        a_end = float(scale_factor) + fraction_end * (float(scale_factor_end) - float(scale_factor))
+        acceleration = self.acceleration(
+            gas_enclosed_mass=gas_enclosed_mass,
+            background_enclosed_mass=background_enclosed_mass,
+            scale_factor=a_start,
+            cosmological=cosmological,
+            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+        )
+        velocity_half = self.velocity + 0.5 * substep * acceleration
+        self.radius = self.radius + substep * velocity_half
+        self.velocity = velocity_half
+        crossing_event_count = 0
+        if event_pairs.size:
+            crossing_event_count = event_pairs.size
+            crossing_radius = 0.5 * (self.radius[event_pairs] + self.radius[event_pairs + 1])
+            disjoint = event_pairs.size == 1 or np.all(np.diff(event_pairs) > 1)
+            if disjoint:
+                self.radius[event_pairs] = crossing_radius
+                self.radius[event_pairs + 1] = crossing_radius
+            else:
+                for index, radius in zip(event_pairs, crossing_radius, strict=False):
+                    self.radius[index : index + 2] = radius
+            self._exchange_shell_states(event_pairs)
+        self._absorb_into_core(
+            self.radius,
+            self.velocity,
+            scale_factor=0.5 * (a_start + a_end),
+            gas_enclosed_mass=gas_enclosed_mass,
+            background_enclosed_mass=background_enclosed_mass,
+            cosmological=cosmological,
+            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+        )
+        self._reflect_at_origin()
+        if not batched_crossing:
+            self.sort_by_radius()
+        acceleration_new = self.acceleration(
+            gas_enclosed_mass=gas_enclosed_mass,
+            background_enclosed_mass=background_enclosed_mass,
+            scale_factor=a_end,
+            cosmological=cosmological,
+            include_shell_mass_with_fixed=include_shell_mass_with_fixed,
+            allow_unsorted=batched_crossing,
+        )
+        self.velocity += 0.5 * substep * acceleration_new
+        if batched_crossing:
+            self.sort_by_radius()
+        if state_callback is not None:
+            state_callback(
+                float(elapsed + substep),
+                float(a_end),
+                self.radius.copy(),
+                self.velocity.copy(),
+                self.mass.copy(),
+                None if self.shell_id is None else self.shell_id.copy(),
+            )
+        return crossing_event_count
+
     def step(
         self,
         dt,
@@ -633,72 +745,21 @@ class DarkMatterShells:
             if substep <= minimum_step:
                 substep = min(remaining, max(minimum_step, 1.0e-12 * dt))
 
-            fraction_start = elapsed / dt
-            fraction_end = (elapsed + substep) / dt
-            a_start = float(scale_factor) + fraction_start * (
-                float(scale_factor_end) - float(scale_factor)
+            crossing_event_count += self._advance_substep(
+                substep,
+                elapsed,
+                dt,
+                scale_factor,
+                scale_factor_end,
+                event_pairs,
+                batched_crossing,
+                gas_enclosed_mass,
+                background_enclosed_mass,
+                cosmological,
+                include_shell_mass_with_fixed,
+                state_callback,
             )
-            a_end = float(scale_factor) + fraction_end * (
-                float(scale_factor_end) - float(scale_factor)
-            )
-            acceleration = self.acceleration(
-                gas_enclosed_mass=gas_enclosed_mass,
-                background_enclosed_mass=background_enclosed_mass,
-                scale_factor=a_start,
-                cosmological=cosmological,
-                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
-            )
-            velocity_half = self.velocity + 0.5 * substep * acceleration
-            self.radius = self.radius + substep * velocity_half
-            self.velocity = velocity_half
-            if event_pairs.size:
-                crossing_event_count += event_pairs.size
-                # Roundoff can leave a tiny residual separation after the
-                # exact event step.  Place each event pair at the common
-                # crossing radius before exchanging states so the next loop
-                # iteration cannot generate a zero-progress crossing event.
-                crossing_radius = 0.5 * (self.radius[event_pairs] + self.radius[event_pairs + 1])
-                disjoint = event_pairs.size == 1 or np.all(np.diff(event_pairs) > 1)
-                if disjoint:
-                    self.radius[event_pairs] = crossing_radius
-                    self.radius[event_pairs + 1] = crossing_radius
-                else:
-                    for index, radius in zip(event_pairs, crossing_radius, strict=False):
-                        self.radius[index : index + 2] = radius
-                self._exchange_shell_states(event_pairs)
-            self._absorb_into_core(
-                self.radius,
-                self.velocity,
-                scale_factor=0.5 * (a_start + a_end),
-                gas_enclosed_mass=gas_enclosed_mass,
-                background_enclosed_mass=background_enclosed_mass,
-                cosmological=cosmological,
-                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
-            )
-            self._reflect_at_origin()
-            if not batched_crossing:
-                self.sort_by_radius()
-            acceleration_new = self.acceleration(
-                gas_enclosed_mass=gas_enclosed_mass,
-                background_enclosed_mass=background_enclosed_mass,
-                scale_factor=a_end,
-                cosmological=cosmological,
-                include_shell_mass_with_fixed=include_shell_mass_with_fixed,
-                allow_unsorted=batched_crossing,
-            )
-            self.velocity += 0.5 * substep * acceleration_new
-            if batched_crossing:
-                self.sort_by_radius()
             elapsed += substep
-            if state_callback is not None:
-                state_callback(
-                    float(elapsed),
-                    float(a_end),
-                    self.radius.copy(),
-                    self.velocity.copy(),
-                    self.mass.copy(),
-                    None if self.shell_id is None else self.shell_id.copy(),
-                )
             remaining = dt - elapsed
             substep_count += 1
 

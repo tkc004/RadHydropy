@@ -63,6 +63,51 @@ def load_correlation_table(config_filename, config):
     return load_lcdm_correlation_table(filename)
 
 
+def _validate_correlation_initial_state(initial, dm, baryon_fraction):
+    gas_mass = float(np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code))
+    dm_mass = float(np.sum(dm.mass))
+    measured_fraction = gas_mass / max(gas_mass + dm_mass, 1.0e-30)
+    if not np.isclose(measured_fraction, baryon_fraction, rtol=0.02):
+        raise RuntimeError("initial gas/total mass fraction does not match baryon_fraction")
+    return measured_fraction
+
+
+def _validate_cmb_temperature(initial, cosmology, initial_time, cmb_temperature_0):
+    scale_factor = float(cosmology.scale_factor(initial_time))
+    temperature_proper_cgs_K = (
+        float(np.median(initial.fluid.temp_supercomoving_code)) / scale_factor**2
+    )
+    expected = cmb_temperature_0 / scale_factor
+    if not np.isclose(temperature_proper_cgs_K, expected, rtol=1.0e-8):
+        raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
+    return temperature_proper_cgs_K
+
+
+def _correlation_temperature_options(configured_minimum, example, thermo, cosmology):
+    minimum = configured_minimum
+    if minimum is not None:
+        minimum = float(minimum.to_value("K")) if hasattr(minimum, "to_value") else float(minimum)
+    transition = example.get(
+        "thermochemistry_transition_redshift",
+        thermo.get("thermochemistry_transition_redshift"),
+    )
+    if transition is not None:
+        transition = float(transition)
+        transition_time = cosmology.cosmic_time_from_scale_factor(1.0 / (1.0 + transition))
+        cosmology.supercomoving_time(float(transition_time))
+    return minimum, transition
+
+
+def _configure_initial_angular_momentum(initial, hydro):
+    if not bool(hydro.get("gas_angular_momentum", False)):
+        return
+    initial.par.gas_angular_momentum = True
+    initial.fluid.specific_angular_momentum_code = np.full(
+        initial.par.mesh.grid_cells,
+        float(hydro.get("gas_specific_angular_momentum", 0.0)),
+    )
+
+
 def run(
     config_filename=DEFAULT_CONFIG,
     final_time_override=None,
@@ -147,12 +192,7 @@ def run(
 
     initial_writer = et.build_initial_condition(config)
     initial = initial_writer.simulation
-    if bool(hydro.get("gas_angular_momentum", False)):
-        initial.par.gas_angular_momentum = True
-        initial.fluid.specific_angular_momentum_code = np.full(
-            initial.par.mesh.grid_cells,
-            float(hydro.get("gas_specific_angular_momentum", 0.0)),
-        )
+    _configure_initial_angular_momentum(initial, hydro)
     config["_dark_matter_softening"] = config["par"]["dark_matter"]["softening"]
     dm = et.make_dark_matter(config)
     # Serialize the live shell state with the IC so RunAll can restore both
@@ -161,54 +201,28 @@ def run(
     initial_writer.write(ic_filename)
 
     baryon_fraction = float(initial_condition["baryon_fraction"])
-    gas_mass_comoving_code = float(
-        np.sum(initial.fluid.rho_comoving_code * initial.mesh.volume_comoving_code),
+    measured_fraction = _validate_correlation_initial_state(
+        initial,
+        dm,
+        baryon_fraction,
     )
-    dm_mass_comoving_code = float(np.sum(dm.mass))
-    measured_fraction = gas_mass_comoving_code / max(
-        gas_mass_comoving_code + dm_mass_comoving_code,
-        1.0e-30,
-    )
-    if not np.isclose(measured_fraction, baryon_fraction, rtol=0.02):
-        raise RuntimeError(
-            "initial gas/total mass fraction does not match baryon_fraction",
-        )
     initial_time = quantity_to_value(initial_condition["time_cosmic"], units.time_unit)
-    temperature_proper_cgs_K = (
-        float(np.median(initial.fluid.temp_supercomoving_code))
-        / float(
-            cosmology.scale_factor(initial_time),
-        )
-        ** 2
-    )
     cmb_temperature_0_cgs_K = float(
         initial_condition["cmb_temperature_0"].to_value(unyt.K),
     )
-    expected_temperature = cmb_temperature_0_cgs_K * (
-        1.0 / float(cosmology.scale_factor(initial_time))
+    temperature_proper_cgs_K = _validate_cmb_temperature(
+        initial,
+        cosmology,
+        initial_time,
+        cmb_temperature_0_cgs_K,
     )
-    if not np.isclose(temperature_proper_cgs_K, expected_temperature, rtol=1.0e-8):
-        raise RuntimeError("initial gas temperature is not the z=100 CMB temperature")
-
     initial_a = float(cosmology.scale_factor(initial_time))
-    minimum_temperature = configured_minimum_temperature
-    if minimum_temperature is not None:
-        if hasattr(minimum_temperature, "to_value"):
-            minimum_temperature = float(minimum_temperature.to_value("K"))
-        else:
-            minimum_temperature = float(minimum_temperature)
-
-    transition_redshift = example.get(
-        "thermochemistry_transition_redshift",
-        thermo.get("thermochemistry_transition_redshift"),
+    minimum_temperature, transition_redshift = _correlation_temperature_options(
+        configured_minimum_temperature,
+        example,
+        thermo,
+        cosmology,
     )
-    if transition_redshift is not None:
-        transition_redshift = float(transition_redshift)
-        transition_scale_factor = 1.0 / (1.0 + transition_redshift)
-        transition_time = float(
-            cosmology.cosmic_time_from_scale_factor(transition_scale_factor),
-        )
-        float(cosmology.supercomoving_time(transition_time))
 
     final_time = (
         float(final_time_override)

@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Utilities for the early isothermal H II region expansion example."""
 
-import glob
 from pathlib import Path
 
 import matplotlib as mpl
@@ -11,10 +10,10 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
-from example.basic_hydro_utils import make_initial_condition
 
 import radhydropy.io as rio
 import radhydropy.thermo_networks.hydrogen as rth
+from example.basic_hydro_utils import make_initial_condition
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, code_quantity_to_cgs
 

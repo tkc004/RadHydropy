@@ -402,20 +402,7 @@ class CosmologicalVirialShockDiagnostics:
         plot_density = rho_comoving_code[:, :plot_cell_count]
         plot_temperature = temperature_proper_cgs_K[:, :plot_cell_count]
         plot_velocity = vel_supercomoving_code[:, :plot_cell_count]
-        plot_gas_profiles = []
-        for profile in gas_profiles:
-            trimmed = dict(profile)
-            for key in (
-                "radius_proper_kpc",
-                "rho_proper_code",
-                "temperature_proper_cgs_K",
-                "velocity_proper_km_s",
-                "radial_velocity_proper_km_s",
-                "specific_angular_momentum_comoving_code",
-            ):
-                if key in trimmed:
-                    trimmed[key] = np.asarray(trimmed[key])[:plot_cell_count]
-            plot_gas_profiles.append(trimmed)
+        plot_gas_profiles = _trim_gas_profiles(gas_profiles, plot_cell_count)
         virial_radius = np.asarray([item["rvir_kpc"] for item in radius_history])
         splashback_radius = np.asarray(
             [item["rsplashback_kpc"] for item in radius_history],
@@ -779,3 +766,22 @@ def _pad_profile_history(profiles, key):
     for row, array in enumerate(arrays):
         result[row, : array.size] = array
     return result
+
+
+def _trim_gas_profiles(gas_profiles, plot_cell_count):
+    keys = (
+        "radius_proper_kpc",
+        "rho_proper_code",
+        "temperature_proper_cgs_K",
+        "velocity_proper_km_s",
+        "radial_velocity_proper_km_s",
+        "specific_angular_momentum_comoving_code",
+    )
+    trimmed_profiles = []
+    for profile in gas_profiles:
+        trimmed = dict(profile)
+        for key in keys:
+            if key in trimmed:
+                trimmed[key] = np.asarray(trimmed[key])[:plot_cell_count]
+        trimmed_profiles.append(trimmed)
+    return trimmed_profiles

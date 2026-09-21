@@ -12,7 +12,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "example"))
 
 from example import example_utils as eu
-
 from radhydropy.cosmology.context import CosmologyContext
 from radhydropy.field_metadata import field_spec
 from radhydropy.radarray import RadArray, RepresentationMismatchError

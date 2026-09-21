@@ -13,7 +13,6 @@ if str(ROOT) not in sys.path:
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 from gas_centrifugal_hydro_expansion1d import (
@@ -23,6 +22,7 @@ from gas_centrifugal_hydro_expansion1d import (
 )
 from shell_remap import centrifugal_shell_reference
 
+from example import example_utils as eu
 from radhydropy.units import CodeUnits, quantity_to_value
 
 

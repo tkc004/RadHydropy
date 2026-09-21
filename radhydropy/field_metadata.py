@@ -307,87 +307,74 @@ class FieldSpec:
     hubble_parameter_km_s_Mpc: float | None = None
 
     def __post_init__(self):
-        if not isinstance(self.quantity, str) or not self.quantity:
-            raise ValueError("FieldSpec.quantity must be a non-empty string")
-        if self.dimension_basis != FIELD_DIMENSION_BASIS_NAME:
-            raise ValueError(
-                f"FieldSpec.dimension_basis must be {FIELD_DIMENSION_BASIS_NAME!r}",
-            )
-        if self.storage_unit not in {"code", "cgs"}:
-            raise ValueError(
-                "FieldSpec.storage_unit must be either 'code' or 'cgs'",
-            )
-        try:
-            dimensions = tuple(self.dimensions)
-        except TypeError as exc:
-            raise TypeError("FieldSpec.dimensions must be a five-item sequence") from exc
-        if len(dimensions) != len(FIELD_DIMENSION_BASIS):
-            raise ValueError(
-                "FieldSpec.dimensions must contain five exponents ordered as "
-                "(mass, length, velocity, current, temperature)",
-            )
-        if any(isinstance(value, bool) or not isinstance(value, Real) for value in dimensions):
-            raise TypeError("FieldSpec.dimensions must contain numeric exponents")
-        if any(float(value) != int(value) for value in dimensions):
-            raise ValueError("FieldSpec.dimensions must contain integer exponents")
-        dimensions = tuple(int(value) for value in dimensions)
-        object.__setattr__(self, "dimensions", dimensions)
+        _validate_field_spec_identity(self)
+        _validate_field_spec_dimensions(self)
+        _validate_field_spec_numeric_values(self)
 
-        if not isinstance(self.representation, str) or not self.representation:
-            raise ValueError("FieldSpec.representation must be a non-empty string")
-        if not isinstance(self.coordinate_frame, str) or not self.coordinate_frame:
-            raise ValueError("FieldSpec.coordinate_frame must be a non-empty string")
-        if not isinstance(self.physical_relation, str) or not self.physical_relation:
-            raise ValueError("FieldSpec.physical_relation must be a non-empty string")
-        if self.cosmology is not None and (
-            not isinstance(self.cosmology, str) or not self.cosmology
-        ):
-            raise ValueError("FieldSpec.cosmology must be a non-empty string or None")
-        if isinstance(self.scale_factor, bool) or not isinstance(self.scale_factor, Real):
-            raise TypeError("FieldSpec.scale_factor must be a positive real number")
-        scale_factor = float(self.scale_factor)
-        if not math.isfinite(scale_factor) or scale_factor <= 0.0:
-            raise ValueError("FieldSpec.scale_factor must be finite and positive")
-        object.__setattr__(self, "scale_factor", scale_factor)
-        if isinstance(self.scale_factor_power, bool) or not isinstance(
-            self.scale_factor_power,
-            Real,
-        ):
-            raise TypeError("FieldSpec.scale_factor_power must be a real number")
-        scale_factor_power = float(self.scale_factor_power)
-        if not math.isfinite(scale_factor_power):
-            raise ValueError("FieldSpec.scale_factor_power must be finite")
-        object.__setattr__(self, "scale_factor_power", scale_factor_power)
-        if isinstance(self.conversion_factor, bool) or not isinstance(self.conversion_factor, Real):
-            raise TypeError("FieldSpec.conversion_factor must be a positive real number")
-        conversion_factor = float(self.conversion_factor)
-        if not math.isfinite(conversion_factor) or conversion_factor <= 0.0:
-            raise ValueError("FieldSpec.conversion_factor must be finite and positive")
-        object.__setattr__(self, "conversion_factor", conversion_factor)
-        if self.hubble_parameter_km_s_Mpc is not None:
-            if isinstance(self.hubble_parameter_km_s_Mpc, bool) or not isinstance(
-                self.hubble_parameter_km_s_Mpc,
-                Real,
-            ):
-                raise TypeError(
-                    "FieldSpec.hubble_parameter_km_s_Mpc must be real or None",
-                )
-            hubble_parameter_km_s_Mpc = float(self.hubble_parameter_km_s_Mpc)
-            if not math.isfinite(hubble_parameter_km_s_Mpc):
-                raise ValueError(
-                    "FieldSpec.hubble_parameter_km_s_Mpc must be finite",
-                )
-            object.__setattr__(
-                self,
-                "hubble_parameter_km_s_Mpc",
-                hubble_parameter_km_s_Mpc,
-            )
-        if isinstance(self.code_unit_cgs, bool) or not isinstance(self.code_unit_cgs, Real):
-            raise TypeError("FieldSpec.code_unit_cgs must be a positive real number")
-        code_unit_cgs = float(self.code_unit_cgs)
-        if not math.isfinite(code_unit_cgs) or code_unit_cgs <= 0.0:
-            raise ValueError("FieldSpec.code_unit_cgs must be finite and positive")
-        object.__setattr__(self, "code_unit_cgs", code_unit_cgs)
+
+def _validate_field_spec_identity(field_spec):
+    if not isinstance(field_spec.quantity, str) or not field_spec.quantity:
+        raise ValueError("FieldSpec.quantity must be a non-empty string")
+    if field_spec.dimension_basis != FIELD_DIMENSION_BASIS_NAME:
+        raise ValueError(
+            f"FieldSpec.dimension_basis must be {FIELD_DIMENSION_BASIS_NAME!r}",
+        )
+    if field_spec.storage_unit not in {"code", "cgs"}:
+        raise ValueError("FieldSpec.storage_unit must be either 'code' or 'cgs'")
+    for name in ("representation", "coordinate_frame", "physical_relation"):
+        if not isinstance(getattr(field_spec, name), str) or not getattr(field_spec, name):
+            raise ValueError(f"FieldSpec.{name} must be a non-empty string")
+    if field_spec.cosmology is not None and (
+        not isinstance(field_spec.cosmology, str) or not field_spec.cosmology
+    ):
+        raise ValueError("FieldSpec.cosmology must be a non-empty string or None")
+
+
+def _validate_field_spec_dimensions(field_spec):
+    try:
+        dimensions = tuple(field_spec.dimensions)
+    except TypeError as exc:
+        raise TypeError("FieldSpec.dimensions must be a five-item sequence") from exc
+    if len(dimensions) != len(FIELD_DIMENSION_BASIS):
+        raise ValueError(
+            "FieldSpec.dimensions must contain five exponents ordered as "
+            "(mass, length, velocity, current, temperature)",
+        )
+    if any(isinstance(value, bool) or not isinstance(value, Real) for value in dimensions):
+        raise TypeError("FieldSpec.dimensions must contain numeric exponents")
+    if any(float(value) != int(value) for value in dimensions):
+        raise ValueError("FieldSpec.dimensions must contain integer exponents")
+    object.__setattr__(field_spec, "dimensions", tuple(int(value) for value in dimensions))
+
+
+def _validate_field_spec_numeric_values(field_spec):
+    for name in ("scale_factor", "scale_factor_power", "conversion_factor", "code_unit_cgs"):
+        _validate_field_spec_scalar(field_spec, name)
+    _validate_field_spec_hubble(field_spec)
+
+
+def _validate_field_spec_scalar(field_spec, name):
+    value = getattr(field_spec, name)
+    positive = name != "scale_factor_power"
+    if isinstance(value, bool) or not isinstance(value, Real):
+        qualifier = "positive " if positive else ""
+        raise TypeError(f"FieldSpec.{name} must be a {qualifier}real number")
+    value = float(value)
+    if not math.isfinite(value) or (positive and value <= 0.0):
+        qualifier = "finite and positive" if positive else "finite"
+        raise ValueError(f"FieldSpec.{name} must be {qualifier}")
+    object.__setattr__(field_spec, name, value)
+
+
+def _validate_field_spec_hubble(field_spec):
+    if field_spec.hubble_parameter_km_s_Mpc is not None:
+        value = field_spec.hubble_parameter_km_s_Mpc
+        if isinstance(value, bool) or not isinstance(value, Real):
+            raise TypeError("FieldSpec.hubble_parameter_km_s_Mpc must be real or None")
+        value = float(value)
+        if not math.isfinite(value):
+            raise ValueError("FieldSpec.hubble_parameter_km_s_Mpc must be finite")
+        object.__setattr__(field_spec, "hubble_parameter_km_s_Mpc", value)
 
     def to_metadata(self):
         """Return HDF5-attribute-compatible metadata for this field."""
@@ -439,3 +426,55 @@ class FieldSpec:
             conversion_factor=metadata.get("conversion_factor", 1.0),
             hubble_parameter_km_s_Mpc=metadata.get("hubble_parameter_km_s_Mpc"),
         )
+
+
+def _field_spec_to_metadata(field_spec):
+    return {
+        "quantity": field_spec.quantity,
+        "dimension_basis": field_spec.dimension_basis,
+        "storage_unit": field_spec.storage_unit,
+        "dimensions": field_spec.dimensions,
+        "representation": field_spec.representation,
+        "coordinate_frame": field_spec.coordinate_frame,
+        "code_unit_cgs": field_spec.code_unit_cgs,
+        "physical_relation": field_spec.physical_relation,
+        "cosmology": field_spec.cosmology,
+        "scale_factor": field_spec.scale_factor,
+        "scale_factor_power": field_spec.scale_factor_power,
+        "conversion_factor": field_spec.conversion_factor,
+        "hubble_parameter_km_s_Mpc": field_spec.hubble_parameter_km_s_Mpc,
+    }
+
+
+def _field_spec_from_metadata(cls, metadata):
+    required = {
+        "quantity",
+        "dimensions",
+        "representation",
+        "coordinate_frame",
+        "code_unit_cgs",
+        "storage_unit",
+        "physical_relation",
+    }
+    missing = required.difference(metadata)
+    if missing:
+        raise ValueError("FieldSpec metadata is missing: " + ", ".join(sorted(missing)))
+    return cls(
+        quantity=metadata["quantity"],
+        dimension_basis=metadata.get("dimension_basis", FIELD_DIMENSION_BASIS_NAME),
+        storage_unit=metadata["storage_unit"],
+        dimensions=metadata["dimensions"],
+        representation=metadata["representation"],
+        coordinate_frame=metadata["coordinate_frame"],
+        code_unit_cgs=metadata["code_unit_cgs"],
+        physical_relation=metadata["physical_relation"],
+        cosmology=metadata.get("cosmology"),
+        scale_factor=metadata.get("scale_factor", 1.0),
+        scale_factor_power=metadata.get("scale_factor_power", 0.0),
+        conversion_factor=metadata.get("conversion_factor", 1.0),
+        hubble_parameter_km_s_Mpc=metadata.get("hubble_parameter_km_s_Mpc"),
+    )
+
+
+FieldSpec.to_metadata = _field_spec_to_metadata
+FieldSpec.from_metadata = classmethod(_field_spec_from_metadata)

@@ -19,9 +19,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import virial_shock_tools as et
-from example.example_utils import load_nested_example_config
 
 import radhydropy.io as rio
+from example.example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value
 

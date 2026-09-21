@@ -69,6 +69,300 @@ _GENERIC_PRIMITIVE_DATASETS = frozenset(
 _validate_snapshot_configuration = validate_snapshot_configuration
 
 
+def _write_runtime_header_attributes(header, ric, cosmological_schema):
+    """Write scalar runtime parameters while excluding nested configuration groups."""
+    excluded = {
+        "dark_matter",
+        "dark_matter_snapshot",
+        "cosmology",
+        "hydrodynamics",
+        "boundary",
+        "timestep",
+        "thermochemistry",
+        "gravity",
+        "output",
+        "simulation",
+        "diagnostics",
+        "mesh",
+        "chemistry",
+        "angular_momentum",
+        "dark_matter_config",
+        "dark_matter_radarrays",
+        "dual_energy_config",
+        "positivity",
+        "radiation",
+        "units",
+    }
+    for key, value in sorted(vars(ric.par).items()):
+        if key.startswith("_") or key in excluded:
+            continue
+        if key in {"time_code", "box_size_code"}:
+            continue
+        if not cosmological_schema and key in {"tau_supercomoving_code", "time_cosmic_code"}:
+            continue
+        header.attrs[key] = _header_attr_value(value)
+
+
+def _write_dark_matter_snapshot(fic, ric, code_units, output_time, cosmological_schema):
+    dark_matter = getattr(ric.par, "dark_matter", None)
+    if dark_matter is None:
+        dark_matter = getattr(getattr(ric.par, "gravity", None), "dark_matter", None)
+    if dark_matter is None:
+        return
+    dmdata = fic.create_group("DarkMatter")
+    dm_radius_name = "radius_comoving_code" if cosmological_schema else "radius_proper_code"
+    dm_velocity_name = "vel_supercomoving_code" if cosmological_schema else "vel_proper_code"
+    dm_angular_name = (
+        "specific_angular_momentum_supercomoving_code"
+        if cosmological_schema
+        else "specific_angular_momentum_proper_code"
+    )
+    fields = (
+        ("Radius", dark_matter.radius, "length_cgs_cm", unyt.cm, dm_radius_name),
+        (
+            "RadialVelocity",
+            dark_matter.velocity,
+            "velocity_cgs_cm_s",
+            unyt.cm / unyt.s,
+            dm_velocity_name,
+        ),
+        ("Mass", dark_matter.mass, "mass_g", unyt.g, "dark_matter_mass_code"),
+        (
+            "SpecificAngularMomentum",
+            dark_matter.angular_momentum,
+            "specific_angular_momentum",
+            unyt.cm**2 / unyt.s,
+            dm_angular_name,
+        ),
+    )
+    for name, values, scale_key, default_unit, field_name in fields:
+        _write_quantity(
+            dmdata,
+            name,
+            values,
+            code_units=code_units,
+            scale_key=scale_key,
+            default_unit=default_unit,
+            field_spec_obj=_runtime_field_spec(field_name, ric.par, code_units, output_time),
+        )
+    dmdata.attrs["Softening"] = _header_attr_value(dark_matter.softening * code_units.length_unit)
+
+
+def _write_primary_fluid_snapshot_data(
+    gdata,
+    ric,
+    code_units,
+    output_time,
+    cosmological_schema,
+    boundary_runtime_code,
+    density_runtime_code,
+    velocity_runtime_code,
+    temperature_runtime_code,
+):
+    """Write the mesh coordinates and primary fluid runtime fields."""
+    boundary_name = "boundary_comoving_code" if cosmological_schema else "boundary_proper_code"
+    density_name = "rho_comoving_code" if cosmological_schema else "rho_proper_code"
+    velocity_name = "vel_supercomoving_code" if cosmological_schema else "vel_proper_code"
+    temperature_name = "temp_supercomoving_code" if cosmological_schema else "temp_proper_code"
+    scale_factor = getattr(ric.par, "supercomoving_coordinates", False)
+    representation = "comoving" if cosmological_schema else "proper"
+    coordinate_frame = "comoving" if cosmological_schema else "physical"
+
+    _write_quantity(
+        gdata,
+        boundary_name,
+        boundary_runtime_code,
+        code_units=code_units,
+        scale_key="length_cgs_cm",
+        default_unit=unyt.cm,
+        metadata={
+            "quantity": "radius",
+            "coordinate_frame": coordinate_frame,
+            "representation": representation,
+            "physical_relation": "physical = a * stored" if scale_factor else "physical = stored",
+        },
+        field_spec_obj=_runtime_field_spec(
+            boundary_name,
+            ric.par,
+            code_units,
+            output_time,
+        ),
+    )
+    _write_quantity(
+        gdata,
+        density_name,
+        density_runtime_code,
+        code_units=code_units,
+        scale_key="density_cgs_g_cm3",
+        default_unit=unyt.g / unyt.cm**3,
+        metadata={
+            "quantity": "mass_density",
+            "representation": representation,
+            "scale_factor_power": 3.0 if scale_factor else 0.0,
+            "physical_relation": (
+                "physical = stored / a**3" if scale_factor else "physical = stored"
+            ),
+        },
+        field_spec_obj=_runtime_field_spec(
+            density_name,
+            ric.par,
+            code_units,
+            output_time,
+        ),
+    )
+    _write_quantity(
+        gdata,
+        velocity_name,
+        velocity_runtime_code,
+        code_units=code_units,
+        scale_key="velocity_cgs_cm_s",
+        default_unit=unyt.cm / unyt.s,
+        metadata={
+            "quantity": "velocity",
+            "representation": "supercomoving" if cosmological_schema else "proper",
+            "physical_relation": (
+                "physical = H*a*x + stored/a" if scale_factor else "physical = stored"
+            ),
+        },
+        field_spec_obj=_runtime_field_spec(
+            velocity_name,
+            ric.par,
+            code_units,
+            output_time,
+        ),
+    )
+    _write_quantity(
+        gdata,
+        temperature_name,
+        temperature_runtime_code,
+        code_units=code_units,
+        scale_key="temperature_cgs_K",
+        default_unit=unyt.K,
+        metadata={
+            "quantity": "temperature",
+            "representation": "supercomoving" if cosmological_schema else "proper",
+            "scale_factor_power": (
+                3.0 * (ric.par.hydrodynamics.gamma - 1.0) if scale_factor else 0.0
+            ),
+        },
+        field_spec_obj=_runtime_field_spec(
+            temperature_name,
+            ric.par,
+            code_units,
+            output_time,
+        ),
+    )
+
+
+def _write_optional_conserved_fluid_data(gdata, ric, code_units):
+    """Write optional conserved fluid fields."""
+    if hasattr(ric.fluid, "specific_angular_momentum_code"):
+        _write_quantity(
+            gdata,
+            "specific_angular_momentum_code",
+            ric.fluid.specific_angular_momentum_code,
+            code_units=code_units,
+            scale_key="specific_angular_momentum",
+            default_unit=unyt.cm**2 / unyt.s,
+        )
+    for attr, dataset_name in (
+        ("Mass_code", "Mass_code"),
+        ("Energy_code", "Energy_code"),
+        ("InternalEnergy_code", "InternalEnergy_code"),
+        ("AngularMomentum_code", "AngularMomentum_code"),
+        ("GravitationalPotentialEnergy_code", "GravitationalPotentialEnergy_code"),
+    ):
+        if not hasattr(ric.fluid, attr):
+            continue
+        scale_key = {
+            "Mass_code": "mass_g",
+            "AngularMomentum_code": "angular_momentum",
+        }.get(attr, "energy_cgs_erg")
+        default_unit = {
+            "Mass_code": unyt.g,
+            "AngularMomentum_code": unyt.g * unyt.cm**2 / unyt.s,
+        }.get(attr, unyt.erg)
+        _write_quantity(
+            gdata,
+            dataset_name,
+            getattr(ric.fluid, attr),
+            code_units=code_units,
+            scale_key=scale_key,
+            default_unit=default_unit,
+        )
+
+
+def _write_fluid_composition_data(gdata, ric, code_units):
+    """Write composition and radiation fields attached to the fluid state."""
+    gdata.create_dataset("mu", data=np.asarray(ric.fluid.mu))
+    if hasattr(ric.fluid, "xHI"):
+        gdata.create_dataset("xHI", data=np.asarray(ric.fluid.xHI))
+    for attr in ("xHeI", "xHeII", "xHeIII"):
+        if hasattr(ric.fluid, attr):
+            gdata.create_dataset(attr, data=np.asarray(getattr(ric.fluid, attr)))
+    if hasattr(ric.fluid, "ngamma_code"):
+        ngamma_cgs_cm3 = ric.fluid.ngamma_code
+        if hasattr(ngamma_cgs_cm3, "to_value") and code_units is not None:
+            ngamma_cgs_cm3 = np.asarray(
+                ngamma_cgs_cm3.to_value(code_units.number_density_unit),
+            )
+        _write_quantity(
+            gdata,
+            "ngamma_code",
+            ngamma_cgs_cm3,
+            code_units=code_units,
+            scale_key="number_density_cgs_cm3",
+            default_unit=1.0 / unyt.cm**3,
+        )
+
+
+def _mark_physical_fluid_datasets(gdata):
+    """Mark optional datasets as physical in cosmological snapshots."""
+    excluded = {
+        "boundary_comoving_code",
+        "rho_comoving_code",
+        "vel_supercomoving_code",
+        "temp_supercomoving_code",
+    }
+    for dataset_name, dataset in gdata.items():
+        if isinstance(dataset, h5py.Dataset) and dataset_name not in excluded:
+            dataset.attrs["representation"] = "physical"
+
+
+def _write_optional_fluid_snapshot_data(gdata, ric, code_units):
+    """Write optional conserved, composition, radiation, and metadata fields."""
+    _write_optional_conserved_fluid_data(gdata, ric, code_units)
+    _write_fluid_composition_data(gdata, ric, code_units)
+    if getattr(ric.par, "cosmological_expansion", False):
+        _mark_physical_fluid_datasets(gdata)
+
+
+def _write_fluid_snapshot_data(
+    gdata,
+    ric,
+    code_units,
+    output_time,
+    cosmological_schema,
+    boundary_runtime_code,
+    density_runtime_code,
+    velocity_runtime_code,
+    temperature_runtime_code,
+):
+    """Write all mesh and fluid datasets in a snapshot."""
+    _write_primary_fluid_snapshot_data(
+        gdata,
+        ric,
+        code_units,
+        output_time,
+        cosmological_schema,
+        boundary_runtime_code,
+        density_runtime_code,
+        velocity_runtime_code,
+        temperature_runtime_code,
+    )
+    _write_optional_fluid_snapshot_data(gdata, ric, code_units)
+
+
 def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
     """Write an already-prepared runtime state to an HDF5 snapshot.
 
@@ -105,38 +399,7 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
         # saving initial condition
         # first, save header:
         header = fic.create_group("Header")
-        for key, value in sorted(vars(ric.par).items()):
-            if key.startswith("_") or key in {
-                "dark_matter",
-                "dark_matter_snapshot",
-                "cosmology",
-                "hydrodynamics",
-                "boundary",
-                "timestep",
-                "thermochemistry",
-                "gravity",
-                "output",
-                "simulation",
-                "diagnostics",
-                "mesh",
-                "chemistry",
-                "angular_momentum",
-                "dark_matter_config",
-                "dark_matter_radarrays",
-                "dual_energy_config",
-                "positivity",
-                "radiation",
-                "units",
-            }:
-                continue
-            if key in {"time_code", "box_size_code"}:
-                continue
-            if cosmological_schema is False and key in {
-                "tau_supercomoving_code",
-                "time_cosmic_code",
-            }:
-                continue
-            header.attrs[key] = _header_attr_value(value)
+        _write_runtime_header_attributes(header, ric, cosmological_schema)
         if code_units is not None:
             header.attrs["CodeUnits"] = _header_attr_value(code_units)
         gamma = getattr(getattr(ric.par, "hydrodynamics", None), "gamma", None)
@@ -200,248 +463,24 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
 
         # second, save mesh and fluid data:
         gdata = fic.create_group("Data")
-        _write_quantity(
+        _write_fluid_snapshot_data(
             gdata,
-            "boundary_comoving_code" if cosmological_schema else "boundary_proper_code",
+            ric,
+            code_units,
+            output_time,
+            cosmological_schema,
             boundary_runtime_code,
-            code_units=code_units,
-            scale_key="length_cgs_cm",
-            default_unit=unyt.cm,
-            metadata={
-                "quantity": "radius",
-                "coordinate_frame": ("comoving" if cosmological_schema else "physical"),
-                "representation": ("comoving" if cosmological_schema else "proper"),
-                "physical_relation": (
-                    "physical = a * stored"
-                    if getattr(ric.par, "supercomoving_coordinates", False)
-                    else "physical = stored"
-                ),
-            },
-            field_spec_obj=_runtime_field_spec(
-                "boundary_comoving_code" if cosmological_schema else "boundary_proper_code",
-                ric.par,
-                code_units,
-                output_time,
-            ),
-        )
-        _write_quantity(
-            gdata,
-            "rho_comoving_code" if cosmological_schema else "rho_proper_code",
             density_runtime_code,
-            code_units=code_units,
-            scale_key="density_cgs_g_cm3",
-            default_unit=unyt.g / unyt.cm**3,
-            metadata={
-                "quantity": "mass_density",
-                "representation": ("comoving" if cosmological_schema else "proper"),
-                "scale_factor_power": 3.0
-                if getattr(ric.par, "supercomoving_coordinates", False)
-                else 0.0,
-                "physical_relation": (
-                    "physical = stored / a**3"
-                    if getattr(ric.par, "supercomoving_coordinates", False)
-                    else "physical = stored"
-                ),
-            },
-            field_spec_obj=_runtime_field_spec(
-                "rho_comoving_code" if cosmological_schema else "rho_proper_code",
-                ric.par,
-                code_units,
-                output_time,
-            ),
-        )
-        _write_quantity(
-            gdata,
-            "vel_supercomoving_code" if cosmological_schema else "vel_proper_code",
             velocity_runtime_code,
-            code_units=code_units,
-            scale_key="velocity_cgs_cm_s",
-            default_unit=unyt.cm / unyt.s,
-            metadata={
-                "quantity": "velocity",
-                "representation": ("supercomoving" if cosmological_schema else "proper"),
-                "physical_relation": (
-                    "physical = H*a*x + stored/a"
-                    if getattr(ric.par, "supercomoving_coordinates", False)
-                    else "physical = stored"
-                ),
-            },
-            field_spec_obj=_runtime_field_spec(
-                "vel_supercomoving_code" if cosmological_schema else "vel_proper_code",
-                ric.par,
-                code_units,
-                output_time,
-            ),
-        )
-        _write_quantity(
-            gdata,
-            "temp_supercomoving_code" if cosmological_schema else "temp_proper_code",
             temperature_runtime_code,
-            code_units=code_units,
-            scale_key="temperature_cgs_K",
-            default_unit=unyt.K,
-            metadata={
-                "quantity": "temperature",
-                "representation": ("supercomoving" if cosmological_schema else "proper"),
-                "scale_factor_power": (
-                    3.0 * (ric.par.hydrodynamics.gamma - 1.0)
-                    if getattr(ric.par, "supercomoving_coordinates", False)
-                    else 0.0
-                ),
-            },
-            field_spec_obj=_runtime_field_spec(
-                "temp_supercomoving_code" if cosmological_schema else "temp_proper_code",
-                ric.par,
-                code_units,
-                output_time,
-            ),
         )
-        if hasattr(ric.fluid, "specific_angular_momentum_code"):
-            _write_quantity(
-                gdata,
-                "specific_angular_momentum_code",
-                ric.fluid.specific_angular_momentum_code,
-                code_units=code_units,
-                scale_key="specific_angular_momentum",
-                default_unit=unyt.cm**2 / unyt.s,
-            )
-        for attr, dataset_name in (
-            ("Mass_code", "Mass_code"),
-            ("Energy_code", "Energy_code"),
-            ("InternalEnergy_code", "InternalEnergy_code"),
-            ("AngularMomentum_code", "AngularMomentum_code"),
-            ("GravitationalPotentialEnergy_code", "GravitationalPotentialEnergy_code"),
-        ):
-            if hasattr(ric.fluid, attr):
-                scale_key = (
-                    "mass_g"
-                    if attr == "Mass_code"
-                    else "angular_momentum"
-                    if attr == "AngularMomentum_code"
-                    else "energy_cgs_erg"
-                )
-                _write_quantity(
-                    gdata,
-                    dataset_name,
-                    getattr(ric.fluid, attr),
-                    code_units=code_units,
-                    scale_key=scale_key,
-                    default_unit=(
-                        unyt.g
-                        if attr == "Mass_code"
-                        else unyt.g * unyt.cm**2 / unyt.s
-                        if attr == "AngularMomentum_code"
-                        else unyt.erg
-                    ),
-                )
-        gdata.create_dataset("mu", data=np.asarray(ric.fluid.mu))
-        if hasattr(ric.fluid, "xHI"):
-            gdata.create_dataset("xHI", data=np.asarray(ric.fluid.xHI))
-        for attr, dataset in (("xHeI", "xHeI"), ("xHeII", "xHeII"), ("xHeIII", "xHeIII")):
-            if hasattr(ric.fluid, attr):
-                gdata.create_dataset(dataset, data=np.asarray(getattr(ric.fluid, attr)))
-        if hasattr(ric.fluid, "ngamma_code"):
-            ngamma_cgs_cm3 = ric.fluid.ngamma_code
-            # Runtime fluid fields are stored as code-unit arrays.  Some
-            # chemistry paths may temporarily attach units to ngamma_cgs_cm3; strip
-            # those units in the configured code system before the generic
-            # serializer converts the field to cgs for HDF5.
-            if hasattr(ngamma_cgs_cm3, "to_value") and code_units is not None:
-                ngamma_cgs_cm3 = np.asarray(ngamma_cgs_cm3.to_value(code_units.number_density_unit))
-            _write_quantity(
-                gdata,
-                "ngamma_code",
-                ngamma_cgs_cm3,
-                code_units=code_units,
-                scale_key="number_density_cgs_cm3",
-                default_unit=1.0 / unyt.cm**3,
-            )
-        if getattr(ric.par, "cosmological_expansion", False):
-            for dataset_name, dataset in gdata.items():
-                if not isinstance(dataset, h5py.Dataset):
-                    continue
-                if dataset_name in {
-                    "boundary_comoving_code",
-                    "rho_comoving_code",
-                    "vel_supercomoving_code",
-                    "temp_supercomoving_code",
-                }:
-                    continue
-                dataset.attrs["representation"] = "physical"
-        dark_matter = getattr(ric.par, "dark_matter", None)
-        if dark_matter is None:
-            gravity = getattr(ric.par, "gravity", None)
-            dark_matter = getattr(gravity, "dark_matter", None)
-        if dark_matter is not None:
-            dmdata = fic.create_group("DarkMatter")
-            dm_radius_name = "radius_comoving_code" if cosmological_schema else "radius_proper_code"
-            dm_velocity_name = (
-                "vel_supercomoving_code" if cosmological_schema else "vel_proper_code"
-            )
-            dm_angular_momentum_name = (
-                "specific_angular_momentum_supercomoving_code"
-                if cosmological_schema
-                else "specific_angular_momentum_proper_code"
-            )
-            _write_quantity(
-                dmdata,
-                "Radius",
-                dark_matter.radius,
-                code_units=code_units,
-                scale_key="length_cgs_cm",
-                default_unit=unyt.cm,
-                field_spec_obj=_runtime_field_spec(
-                    dm_radius_name,
-                    ric.par,
-                    code_units,
-                    output_time,
-                ),
-            )
-            _write_quantity(
-                dmdata,
-                "RadialVelocity",
-                dark_matter.velocity,
-                code_units=code_units,
-                scale_key="velocity_cgs_cm_s",
-                default_unit=unyt.cm / unyt.s,
-                field_spec_obj=_runtime_field_spec(
-                    dm_velocity_name,
-                    ric.par,
-                    code_units,
-                    output_time,
-                ),
-            )
-            _write_quantity(
-                dmdata,
-                "Mass",
-                dark_matter.mass,
-                code_units=code_units,
-                scale_key="mass_g",
-                default_unit=unyt.g,
-                field_spec_obj=_runtime_field_spec(
-                    "dark_matter_mass_code",
-                    ric.par,
-                    code_units,
-                    output_time,
-                ),
-            )
-            _write_quantity(
-                dmdata,
-                "SpecificAngularMomentum",
-                dark_matter.angular_momentum,
-                code_units=code_units,
-                scale_key="specific_angular_momentum",
-                default_unit=unyt.cm**2 / unyt.s,
-                field_spec_obj=_runtime_field_spec(
-                    dm_angular_momentum_name,
-                    ric.par,
-                    code_units,
-                    output_time,
-                ),
-            )
-            dmdata.attrs["Softening"] = _header_attr_value(
-                dark_matter.softening * code_units.length_unit,
-            )
+        _write_dark_matter_snapshot(
+            fic,
+            ric,
+            code_units,
+            output_time,
+            cosmological_schema,
+        )
 
     if not hasattr(ric, "solver") and Path(ICfilename).stem.lower() == "initialcondition":
         update_used_parameters_yaml(

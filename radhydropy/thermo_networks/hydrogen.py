@@ -592,69 +592,21 @@ def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, *, verbose=False):
     dtmin_s = state["dtmin_s"]
     candidates = []
     debug_lines = []
-    ionization_limiter_enabled = (
-        state["recombination"] or state["collisional_ionization"] or ngamma_cgs_cm3 is not None
-    )
-    if ionization_limiter_enabled:
-        neutral_rate = ionization_fraction_rate(state, ngamma_cgs_cm3)
-        scale = np.where(neutral_rate < 0.0, state["xHI"], 1.0 - state["xHI"])
-        valid = (np.abs(neutral_rate) > 0.0) & (scale > 0.0)
-        if np.any(valid):
-            valid_cells = np.where(valid)[0]
-            with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
-                neutral_times = scale[valid] / np.abs(neutral_rate[valid])
-            neutral_mask = np.isfinite(neutral_times) & (neutral_times > 0.0)
-            neutral_times = neutral_times[neutral_mask]
-            neutral_cells = valid_cells[neutral_mask]
-            if len(neutral_times) > 0:
-                neutral_min_index = int(np.argmin(neutral_times))
-                neutral_dt = source_CFL * neutral_times[neutral_min_index]
-                neutral_cell = int(neutral_cells[neutral_min_index])
-                candidates.append(neutral_dt)
-                if verbose:
-                    debug_lines.append(
-                        "[source dt] neutral limiter cell=%d rate=%s scale=%s candidate=%s"
-                        % (
-                            neutral_cell,
-                            neutral_rate[neutral_cell],
-                            scale[neutral_cell],
-                            neutral_dt,
-                        ),
-                    )
-
     source_thermal_rate = None
+    ionization_result = _ionization_timestep(state, ngamma_cgs_cm3, source_CFL, verbose)
+    if ionization_result is not None:
+        neutral_dt, neutral_detail = ionization_result
+        candidates.append(neutral_dt)
+        if neutral_detail is not None:
+            debug_lines.append(neutral_detail)
     if state["thermal_coupling"]:
         source_thermal_rate = thermal_rate(state, ngamma_cgs_cm3)
-        active = np.asarray(
-            state.get("active", np.asarray(state["rho_cgs_g_cm3"]) > 0.0),
-            dtype=bool,
-        )
-        rho = np.where(active, state["rho_cgs_g_cm3"], 1.0)
-        dudt = np.zeros_like(source_thermal_rate, dtype=float)
-        dudt[active] = np.asarray(source_thermal_rate)[active] / rho[active]
-        valid = active & (np.abs(dudt) > 0.0) & (state["specific_energy_cgs_erg_g"] > 0.0)
-        if np.any(valid):
-            valid_cells = np.where(valid)[0]
-            with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
-                thermal_times = state["specific_energy_cgs_erg_g"][valid] / np.abs(dudt[valid])
-            thermal_mask = np.isfinite(thermal_times) & (thermal_times > 0.0)
-            thermal_times = thermal_times[thermal_mask]
-            thermal_cells = valid_cells[thermal_mask]
-            if len(thermal_times) > 0:
-                thermal_min_index = int(np.argmin(thermal_times))
-                thermal_dt = source_CFL * thermal_times[thermal_min_index]
-                thermal_cell = int(thermal_cells[thermal_min_index])
-                candidates.append(thermal_dt)
-                if verbose:
-                    debug_lines.append(
-                        "[source dt] thermal limiter cell=%d dudt=%s energy=%s candidate=%s"
-                        % (
-                            thermal_cell,
-                            dudt[thermal_cell],
-                            state["specific_energy_cgs_erg_g"][thermal_cell],
-                            thermal_dt,
-                        ),
-                    )
+        thermal_result = _thermal_timestep(state, source_thermal_rate, source_CFL, verbose)
+        if thermal_result is not None:
+            thermal_dt, thermal_detail = thermal_result
+            candidates.append(thermal_dt)
+            if thermal_detail is not None:
+                debug_lines.append(thermal_detail)
 
     if len(candidates) == 0:
         dt = float(min(dtmax_s, remaining_s))
@@ -676,6 +628,70 @@ def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, *, verbose=False):
             limiter_details=debug_lines,
         )
     return dt, source_thermal_rate
+
+
+def _ionization_timestep(state, ngamma_cgs_cm3, source_CFL, verbose):
+    enabled = (
+        state["recombination"] or state["collisional_ionization"] or ngamma_cgs_cm3 is not None
+    )
+    if not enabled:
+        return None
+    neutral_rate = ionization_fraction_rate(state, ngamma_cgs_cm3)
+    scale = np.where(neutral_rate < 0.0, state["xHI"], 1.0 - state["xHI"])
+    valid = (np.abs(neutral_rate) > 0.0) & (scale > 0.0)
+    if not np.any(valid):
+        return None
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        neutral_times = scale[valid] / np.abs(neutral_rate[valid])
+    neutral_mask = np.isfinite(neutral_times) & (neutral_times > 0.0)
+    if not np.any(neutral_mask):
+        return None
+    valid_cells = np.where(valid)[0][neutral_mask]
+    neutral_times = neutral_times[neutral_mask]
+    index = int(np.argmin(neutral_times))
+    neutral_cell = int(valid_cells[index])
+    neutral_dt = source_CFL * neutral_times[index]
+    detail = None
+    if verbose:
+        detail = "[source dt] neutral limiter cell=%d rate=%s scale=%s candidate=%s" % (
+            neutral_cell,
+            neutral_rate[neutral_cell],
+            scale[neutral_cell],
+            neutral_dt,
+        )
+    return neutral_dt, detail
+
+
+def _thermal_timestep(state, source_thermal_rate, source_CFL, verbose):
+    active = np.asarray(
+        state.get("active", np.asarray(state["rho_cgs_g_cm3"]) > 0.0),
+        dtype=bool,
+    )
+    rho = np.where(active, state["rho_cgs_g_cm3"], 1.0)
+    dudt = np.zeros_like(source_thermal_rate, dtype=float)
+    dudt[active] = np.asarray(source_thermal_rate)[active] / rho[active]
+    valid = active & (np.abs(dudt) > 0.0) & (state["specific_energy_cgs_erg_g"] > 0.0)
+    if not np.any(valid):
+        return None
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        thermal_times = state["specific_energy_cgs_erg_g"][valid] / np.abs(dudt[valid])
+    thermal_mask = np.isfinite(thermal_times) & (thermal_times > 0.0)
+    if not np.any(thermal_mask):
+        return None
+    thermal_cells = np.where(valid)[0][thermal_mask]
+    thermal_times = thermal_times[thermal_mask]
+    index = int(np.argmin(thermal_times))
+    thermal_cell = int(thermal_cells[index])
+    thermal_dt = source_CFL * thermal_times[index]
+    detail = None
+    if verbose:
+        detail = "[source dt] thermal limiter cell=%d dudt=%s energy=%s candidate=%s" % (
+            thermal_cell,
+            dudt[thermal_cell],
+            state["specific_energy_cgs_erg_g"][thermal_cell],
+            thermal_dt,
+        )
+    return thermal_dt, detail
 
 
 def update_temperature_from_energy(state):
@@ -1859,128 +1875,105 @@ def _split_implicit_source_state_update(state, dt_s, par):
         _fast_update_temperature_from_energy(state)
     while remaining_s > 0.0:
         candidate_dt_s = min(trial_dt_s, remaining_s)
-        while True:
-            before = _copy_fast_source_state(state)
-            # Normalize the comparison state before taking the trial.  A
-            # preceding chemistry update may have changed xHI (and hence mu)
-            # while leaving the conserved thermal energy unchanged.  Applying
-            # the temperature floor with the new mu then changes the stored
-            # energy once, but that normalization is not source evolution and
-            # must not be counted against the 10% trial limiter.
-            if before["hydrogen_update_mu"]:
-                before["mu"] = rh.mean_molecular_weight_mu(
-                    before["xHI"],
-                    hydrogen_mass_fraction=before["hydrogen_mass_fraction"],
-                )
-            if before["thermal_coupling"]:
-                _fast_update_temperature_from_energy(before)
-            trial = _copy_fast_source_state(before)
-            thermal_rate_value = None
-            if trial["thermal_coupling"]:
-                thermal_rate_value = thermal_rate(
-                    trial,
-                    trial.get("ngamma_cgs_cm3"),
-                )
-                _fast_apply_thermal_source(
-                    trial,
-                    thermal_rate_value,
-                    candidate_dt_s,
-                )
-            if trial["recombination"] or trial["collisional_ionization"]:
-                ionization_fraction_implicit_update(
-                    trial,
-                    trial.get("ngamma_cgs_cm3"),
-                    candidate_dt_s,
-                )
-            if trial["hydrogen_update_mu"]:
-                trial["mu"] = rh.mean_molecular_weight_mu(
-                    trial["xHI"],
-                    hydrogen_mass_fraction=trial["hydrogen_mass_fraction"],
-                )
-            if trial["thermal_coupling"]:
-                _fast_update_temperature_from_energy(trial)
-
-            old_energy = np.asarray(
-                before.get("specific_energy_cgs_erg_g", before["specific_total_energy_cgs_erg_g"]),
-                dtype=float,
+        before, trial, candidate_dt_s = _split_implicit_trial(
+            state,
+            candidate_dt_s,
+            active,
+        )
+        _set_fast_source_state(state, trial)
+        check_source_temperature(
+            state,
+            par,
+            before["temperature_cgs_K"],
+            stage="hydrogen split-implicit source",
+            source_step=source_steps + 1,
+        )
+        remaining_s -= candidate_dt_s
+        source_steps += 1
+        if (
+            getattr(par, "radiative_transfer", False)
+            and getattr(par, "radiative_transfer_temporal_scheme", "c2ray") != "c2ray"
+        ):
+            state["ngamma_cgs_cm3"] = rrt.trace_photon_density(state, par)
+        if source_steps > max_subcycles:
+            raise RuntimeError(
+                "split-implicit hydrogen source update exceeded "
+                f"{max_subcycles} subcycles "
+                f"(remaining_s={remaining_s:.6e}, "
+                f"candidate_dt_s={candidate_dt_s:.6e})",
             )
-            new_energy = np.asarray(
-                trial.get("specific_energy_cgs_erg_g", trial["specific_total_energy_cgs_erg_g"]),
-                dtype=float,
-            )
-            # Ionization changes mu.  If that change would put a cell below
-            # the configured temperature floor, the post-chemistry
-            # synchronization injects the minimum floor energy.  That one-time
-            # EOS/floor normalization is not thermal source evolution and
-            # must not be rejected as a >10% source step.
-            limiter_baseline_energy = old_energy.copy()
-            temperature_floor = float(
-                trial.get("temperature_floor_cgs_K", 0.0) or 0.0,
-            )
-            if trial["thermal_coupling"] and temperature_floor > 0.0:
-                floor_energy = (
-                    BOLTZMANN_CONSTANT_CGS
-                    * temperature_floor
-                    / ((trial["gamma"] - 1.0) * np.maximum(trial["mu"], 1.0e-99) * PROTON_MASS_CGS)
-                )
-                limiter_baseline_energy = np.maximum(
-                    limiter_baseline_energy,
-                    floor_energy,
-                )
-            with np.errstate(divide="ignore", invalid="ignore"):
-                relative_energy_change = np.abs(
-                    new_energy - limiter_baseline_energy,
-                ) / np.maximum(
-                    np.abs(limiter_baseline_energy),
-                    1.0e-30,
-                )
-            max_energy_change = float(
-                np.max(relative_energy_change[active]) if np.any(active) else 0.0,
-            )
-            if max_energy_change <= 0.1:  # noqa: PLR2004
-                _set_fast_source_state(state, trial)
-                check_source_temperature(
-                    state,
-                    par,
-                    before["temperature_cgs_K"],
-                    stage="hydrogen split-implicit source",
-                    source_step=source_steps + 1,
-                )
-                remaining_s -= candidate_dt_s
-                source_steps += 1
-                if (
-                    getattr(par, "radiative_transfer", False)
-                    and getattr(
-                        par,
-                        "radiative_transfer_temporal_scheme",
-                        "c2ray",
-                    )
-                    != "c2ray"
-                ):
-                    # Reuse the shared transport conversion/path rather than
-                    # rebuilding photon-density units and boundary rates here.
-                    state["ngamma_cgs_cm3"] = rrt.trace_photon_density(
-                        state,
-                        par,
-                    )
-                if source_steps > max_subcycles:
-                    raise RuntimeError(
-                        "split-implicit hydrogen source update exceeded "
-                        f"{max_subcycles} subcycles "
-                        f"(remaining_s={remaining_s:.6e}, "
-                        f"candidate_dt_s={candidate_dt_s:.6e})",
-                    )
-                trial_dt_s = min(2.0 * candidate_dt_s, remaining_s)
-                break
-
-            candidate_dt_s *= 0.5
-            if candidate_dt_s <= 0.0:
-                raise RuntimeError(
-                    "split-implicit hydrogen source update cannot satisfy "
-                    "the 10% internal-energy change limit",
-                )
+        trial_dt_s = min(2.0 * candidate_dt_s, remaining_s)
         # The next interval starts from the accepted state and may grow again.
     return source_steps
+
+
+def _split_implicit_trial(state, candidate_dt_s, active):
+    while True:
+        before = _copy_fast_source_state(state)
+        if before["hydrogen_update_mu"]:
+            before["mu"] = rh.mean_molecular_weight_mu(
+                before["xHI"],
+                hydrogen_mass_fraction=before["hydrogen_mass_fraction"],
+            )
+        if before["thermal_coupling"]:
+            _fast_update_temperature_from_energy(before)
+        trial = _copy_fast_source_state(before)
+        if trial["thermal_coupling"]:
+            _fast_apply_thermal_source(
+                trial,
+                thermal_rate(trial, trial.get("ngamma_cgs_cm3")),
+                candidate_dt_s,
+            )
+        if trial["recombination"] or trial["collisional_ionization"]:
+            ionization_fraction_implicit_update(
+                trial,
+                trial.get("ngamma_cgs_cm3"),
+                candidate_dt_s,
+            )
+        if trial["hydrogen_update_mu"]:
+            trial["mu"] = rh.mean_molecular_weight_mu(
+                trial["xHI"],
+                hydrogen_mass_fraction=trial["hydrogen_mass_fraction"],
+            )
+        if trial["thermal_coupling"]:
+            _fast_update_temperature_from_energy(trial)
+        old_energy = np.asarray(
+            before.get("specific_energy_cgs_erg_g", before["specific_total_energy_cgs_erg_g"]),
+            dtype=float,
+        )
+        new_energy = np.asarray(
+            trial.get("specific_energy_cgs_erg_g", trial["specific_total_energy_cgs_erg_g"]),
+            dtype=float,
+        )
+        limiter_baseline_energy = _split_energy_baseline(trial, old_energy)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            relative_energy_change = np.abs(new_energy - limiter_baseline_energy) / np.maximum(
+                np.abs(limiter_baseline_energy),
+                1.0e-30,
+            )
+        max_energy_change = float(
+            np.max(relative_energy_change[active]) if np.any(active) else 0.0,
+        )
+        if max_energy_change <= 0.1:  # noqa: PLR2004
+            return before, trial, candidate_dt_s
+        candidate_dt_s *= 0.5
+        if candidate_dt_s <= 0.0:
+            raise RuntimeError(
+                "split-implicit hydrogen source update cannot satisfy "
+                "the 10% internal-energy change limit",
+            )
+
+
+def _split_energy_baseline(trial, old_energy):
+    temperature_floor = float(trial.get("temperature_floor_cgs_K", 0.0) or 0.0)
+    if not trial["thermal_coupling"] or temperature_floor <= 0.0:
+        return old_energy.copy()
+    floor_energy = (
+        BOLTZMANN_CONSTANT_CGS
+        * temperature_floor
+        / ((trial["gamma"] - 1.0) * np.maximum(trial["mu"], 1.0e-99) * PROTON_MASS_CGS)
+    )
+    return np.maximum(old_energy, floor_energy)
 
 
 def _source_relative_change(before, after):
@@ -2029,6 +2022,66 @@ def _set_fast_source_state(target, source):
     target.update(copy.deepcopy(source))
 
 
+def _adaptive_trial(
+    state,
+    candidate_dt_s,
+    ngamma_cgs_cm3,
+    tolerance,
+    convergence_tolerance,
+    max_iterations,
+    max_refinements,
+    trust_region,
+    absolute_temperature_tolerance,
+    absolute_xhi_tolerance,
+):
+    last_failure = None
+    for _refinement in range(int(max_refinements) + 1):
+        coarse = _copy_fast_source_state(state)
+        fine = _copy_fast_source_state(state)
+        coarse_ok = _coupled_implicit_source_update(
+            coarse,
+            candidate_dt_s,
+            ngamma_cgs_cm3=ngamma_cgs_cm3,
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+            trust_region=trust_region,
+            absolute_temperature_tolerance=absolute_temperature_tolerance,
+            absolute_xhi_tolerance=absolute_xhi_tolerance,
+        )
+        if not coarse_ok:
+            last_failure = dict(coarse.get("_implicit_failure", {}))
+        half_dt_s = 0.5 * candidate_dt_s
+        fine_ok = _coupled_implicit_source_update(
+            fine,
+            half_dt_s,
+            ngamma_cgs_cm3=ngamma_cgs_cm3,
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+            trust_region=trust_region,
+            absolute_temperature_tolerance=absolute_temperature_tolerance,
+            absolute_xhi_tolerance=absolute_xhi_tolerance,
+        )
+        if not fine_ok:
+            last_failure = dict(fine.get("_implicit_failure", {}))
+        if fine_ok:
+            fine_ok = _coupled_implicit_source_update(
+                fine,
+                half_dt_s,
+                ngamma_cgs_cm3=ngamma_cgs_cm3,
+                tolerance=tolerance,
+                max_iterations=max_iterations,
+                trust_region=trust_region,
+                absolute_temperature_tolerance=absolute_temperature_tolerance,
+                absolute_xhi_tolerance=absolute_xhi_tolerance,
+            )
+        difference = _implicit_state_difference(coarse, fine) if coarse_ok and fine_ok else np.inf
+        if coarse_ok and fine_ok and difference <= convergence_tolerance:
+            _set_fast_source_state(state, fine)
+            return True, candidate_dt_s, 2, last_failure
+        candidate_dt_s *= 0.5
+    return False, candidate_dt_s, 0, last_failure
+
+
 def _adaptive_coupled_implicit_source_update_group(
     state,
     dt_s,
@@ -2062,67 +2115,27 @@ def _adaptive_coupled_implicit_source_update_group(
     zero_time_s = 0.0
     last_failure = None
     while remaining_s > zero_time_s:
-        accepted = False
         candidate_dt_s = min(trial_dt_s, remaining_s)
-        for _refinement in range(int(max_refinements) + 1):
-            coarse = _copy_fast_source_state(state)
-            fine = _copy_fast_source_state(state)
-            coarse_ok = _coupled_implicit_source_update(
-                coarse,
-                candidate_dt_s,
-                ngamma_cgs_cm3=ngamma_cgs_cm3,
-                tolerance=tolerance,
-                max_iterations=max_iterations,
-                trust_region=trust_region,
-                absolute_temperature_tolerance=absolute_temperature_tolerance,
-                absolute_xhi_tolerance=absolute_xhi_tolerance,
-            )
-            if not coarse_ok:
-                last_failure = dict(coarse.get("_implicit_failure", {}))
-            half_dt_s = 0.5 * candidate_dt_s
-            fine_ok = _coupled_implicit_source_update(
-                fine,
-                half_dt_s,
-                ngamma_cgs_cm3=ngamma_cgs_cm3,
-                tolerance=tolerance,
-                max_iterations=max_iterations,
-                trust_region=trust_region,
-                absolute_temperature_tolerance=absolute_temperature_tolerance,
-                absolute_xhi_tolerance=absolute_xhi_tolerance,
-            )
-            if not fine_ok:
-                last_failure = dict(fine.get("_implicit_failure", {}))
-            if fine_ok:
-                fine_ok = _coupled_implicit_source_update(
-                    fine,
-                    half_dt_s,
-                    ngamma_cgs_cm3=ngamma_cgs_cm3,
-                    tolerance=tolerance,
-                    max_iterations=max_iterations,
-                    trust_region=trust_region,
-                    absolute_temperature_tolerance=absolute_temperature_tolerance,
-                    absolute_xhi_tolerance=absolute_xhi_tolerance,
-                )
-            difference = (
-                _implicit_state_difference(coarse, fine) if coarse_ok and fine_ok else np.inf
-            )
-            if coarse_ok and fine_ok and difference <= convergence_tolerance:
-                _set_fast_source_state(state, fine)
-                remaining_s -= candidate_dt_s
-                total_source_steps += 2
-                # Recover from a short interval used to resolve a stiff
-                # transient.  Keeping the first accepted size for the whole
-                # hydro step can turn one refinement into millions of source
-                # solves even after the state has relaxed.
-                trial_dt_s = min(2.0 * candidate_dt_s, remaining_s)
-                accepted = True
-                break
-            candidate_dt_s *= 0.5
+        accepted, accepted_dt_s, steps, last_failure = _adaptive_trial(
+            state,
+            candidate_dt_s,
+            ngamma_cgs_cm3,
+            tolerance,
+            convergence_tolerance,
+            max_iterations,
+            max_refinements,
+            trust_region,
+            absolute_temperature_tolerance,
+            absolute_xhi_tolerance,
+        )
 
         if not accepted:
             if last_failure is not None:
                 state["_implicit_failure"] = last_failure
             return False, total_source_steps
+        remaining_s -= accepted_dt_s
+        total_source_steps += steps
+        trial_dt_s = min(2.0 * accepted_dt_s, remaining_s)
     return True, total_source_steps
 
 
@@ -2296,55 +2309,7 @@ def _fast_sync_state_to_fluid(state, fluid, par):
     else:
         fluid.temp_proper_code[interior] = temperature_runtime_code
     if state.get("thermal_coupling", False):
-        # The source state stores specific energies in physical cgs units
-        # (erg/g), while Fluid pressure and Energy use the code velocity
-        # unit.  Convert the specific energy terms before writing them back;
-        # omitting this conversion injects velocity_unit_cgs**2 into the
-        # conserved energy (1e10 for the standard 1 km/s code unit).
-        specific_energy_code_factor = (
-            float(
-                code.unit_conversion["velocity_cgs_cm_s"],
-            )
-            ** 2
-        )
-        specific_internal_energy_physical = (
-            state["specific_total_energy_cgs_erg_g"] - state["specific_kinetic_energy_cgs_erg_g"]
-        )
-        specific_internal_energy = specific_internal_energy_physical * state.get(
-            "source_temperature_factor",
-            1.0,
-        )
-        specific_internal_energy_code = specific_internal_energy / specific_energy_code_factor
-        specific_kinetic_energy_code = (
-            state.get("specific_kinetic_energy_supercomoving_cgs_erg_g", 0.0)
-            / specific_energy_code_factor
-        )
-        rotational_specific_code = np.asarray(
-            state.get(
-                "specific_rotational_energy_code",
-                np.zeros_like(specific_internal_energy_code),
-            ),
-            dtype=float,
-        )
-        specific_total_energy = (
-            specific_internal_energy_code + specific_kinetic_energy_code + rotational_specific_code
-        )
-        rho_runtime_code, _, pre_runtime_code, _, _ = _canonical_fluid_primitive_arrays(fluid, par)
-        pressure = (
-            specific_internal_energy_code
-            * np.asarray(rho_runtime_code[interior], dtype=float)
-            * (fluid.eos.gamma - 1.0)
-        )
-        pre = np.asarray(pre_runtime_code[interior], dtype=float).copy()
-        pre[active] = pressure[active]
-        if getattr(par, "supercomoving_coordinates", False):
-            fluid.pre_supercomoving_code[interior] = pre
-        else:
-            fluid.pre_proper_code[interior] = pre
-        energy = specific_total_energy * np.asarray(fluid.Mass_code[interior], dtype=float)
-        conserved_energy = np.asarray(fluid.Energy_code[interior], dtype=float).copy()
-        conserved_energy[active] = energy[active]
-        fluid.Energy_code[interior] = conserved_energy
+        _fast_sync_thermal_state(state, fluid, par, code, interior, active)
     if (
         state.get("hydrogen_update_mu", False)
         and hasattr(fluid, "xHI")
@@ -2355,6 +2320,50 @@ def _fast_sync_state_to_fluid(state, fluid, par):
         )
         if state.get("thermal_coupling", False):
             fluid.SetPressure()
+
+
+def _fast_sync_thermal_state(state, fluid, par, code, interior, active):
+    # The source state stores specific energies in physical cgs units (erg/g),
+    # while Fluid pressure and Energy use the code velocity unit.
+    specific_energy_code_factor = float(code.unit_conversion["velocity_cgs_cm_s"]) ** 2
+    specific_internal_energy_physical = (
+        state["specific_total_energy_cgs_erg_g"] - state["specific_kinetic_energy_cgs_erg_g"]
+    )
+    specific_internal_energy = specific_internal_energy_physical * state.get(
+        "source_temperature_factor",
+        1.0,
+    )
+    specific_internal_energy_code = specific_internal_energy / specific_energy_code_factor
+    specific_kinetic_energy_code = (
+        state.get("specific_kinetic_energy_supercomoving_cgs_erg_g", 0.0)
+        / specific_energy_code_factor
+    )
+    rotational_specific_code = np.asarray(
+        state.get(
+            "specific_rotational_energy_code",
+            np.zeros_like(specific_internal_energy_code),
+        ),
+        dtype=float,
+    )
+    specific_total_energy = (
+        specific_internal_energy_code + specific_kinetic_energy_code + rotational_specific_code
+    )
+    rho_runtime_code, _, pre_runtime_code, _, _ = _canonical_fluid_primitive_arrays(fluid, par)
+    pressure = (
+        specific_internal_energy_code
+        * np.asarray(rho_runtime_code[interior], dtype=float)
+        * (fluid.eos.gamma - 1.0)
+    )
+    pre = np.asarray(pre_runtime_code[interior], dtype=float).copy()
+    pre[active] = pressure[active]
+    if getattr(par, "supercomoving_coordinates", False):
+        fluid.pre_supercomoving_code[interior] = pre
+    else:
+        fluid.pre_proper_code[interior] = pre
+    energy = specific_total_energy * np.asarray(fluid.Mass_code[interior], dtype=float)
+    conserved_energy = np.asarray(fluid.Energy_code[interior], dtype=float).copy()
+    conserved_energy[active] = energy[active]
+    fluid.Energy_code[interior] = conserved_energy
 
 
 def c2ray_source_state(mesh, fluid, par):

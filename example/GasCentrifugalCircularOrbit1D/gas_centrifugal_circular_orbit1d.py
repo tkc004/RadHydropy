@@ -17,12 +17,12 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.arrays import as_named_array
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.rsim import Rsim
@@ -239,106 +239,39 @@ def main(config_filename=CONFIG):
         velocity_history.append(fluid.Mom_code[0] / fluid.Mass_code[0])
         energy_error.append(np.max(np.abs(fluid.Energy_code - initial_energy)))
 
-    if not np.allclose(fluid.Mom_code, momentum, rtol=0.0, atol=1.0e-13):
-        raise RuntimeError("circular force balance generated radial momentum")
-    if not np.allclose(fluid.Energy_code, initial_energy, rtol=0.0, atol=1.0e-2):
-        raise RuntimeError("circular force balance changed total energy")
-    expected_rotational = rotational_energy
-    if not np.allclose(
-        expected_rotational,
-        0.5 * fluid.AngularMomentum_code**2 / (fluid.Mass_code * radius_proper_code**2),
-    ):
-        raise RuntimeError("rotational energy bookkeeping is inconsistent")
-
-    # Compare the saved Rsim state with the circular analytic solution.
+    _validate_circular_solution(
+        fluid,
+        momentum,
+        initial_energy,
+        rotational_energy,
+        radius_proper_code,
+        saved_mesh,
+        saved_fluid,
+        active,
+        central_mass,
+        simulation_initial_mass,
+        simulation_initial_energy,
+    )
     saved_velocity = np.asarray(saved_fluid.vel_proper_code[active], dtype=float)
-    saved_j = np.asarray(saved_fluid.specific_angular_momentum_code[active], dtype=float)
-    saved_boundary = np.asarray(saved_mesh.boundary_proper_code, dtype=float)
-    saved_radius = (
-        0.75
-        * (saved_boundary[1:] ** 4 - saved_boundary[:-1] ** 4)
-        / (saved_boundary[1:] ** 3 - saved_boundary[:-1] ** 3)
-    )
-    saved_radius = saved_radius[active]
-    saved_mass = np.asarray(saved_fluid.Mass_code[active], dtype=float)
-    saved_momentum = np.asarray(
-        saved_fluid.Mass_code[active] * saved_fluid.vel_proper_code[active],
-        dtype=float,
-    )
-    saved_energy = np.asarray(saved_fluid.Energy_code[active], dtype=float)
-    if np.max(np.abs(saved_velocity)) > 5.0e-5:  # noqa: PLR2004
-        raise RuntimeError("Rsim circular solution developed radial velocity")
-    if not np.allclose(saved_j, np.sqrt(central_mass * saved_radius), atol=1.0e-10):
-        raise RuntimeError("Rsim changed circular specific angular momentum")
-    if np.max(np.abs(saved_momentum)) > 5.0e-5:  # noqa: PLR2004
-        raise RuntimeError("Rsim circular solution developed radial momentum")
-    if not np.allclose(saved_mass, simulation_initial_mass[active], rtol=1.0e-10):
-        raise RuntimeError("Rsim changed circular mass")
-    if not np.allclose(
-        saved_energy,
-        simulation_initial_energy[active],
-        rtol=1.0e-5,
-        atol=1.0e-10,
-    ):
-        raise RuntimeError("Rsim circular solution changed total energy")
 
     # The Eulerian mesh has fixed radii, so use the corresponding Lagrangian
     # source equations as the analytic trajectory regression for the next
     # moving-shell stage.  Choose j below the circular value to obtain an
     # eccentric radial orbit.
     eccentric_j = 0.7 * specific_j
-    eccentric_time = quantity_to_value(initial_condition["timestep"], units.time_unit) * int(
-        initial_condition["nsteps"],
-    )
-
-    def orbit_rhs(time_proper_code, state):
-        orbit_radius, orbit_velocity = state
-        radius_safe = max(orbit_radius, np.finfo(float).tiny)
-        return (
-            orbit_velocity,
-            eccentric_j**2 / radius_safe**3 - central_mass / radius_safe**2,
-        )
-
-    reference = solve_ivp(
-        orbit_rhs,
-        (0.0, eccentric_time),
-        (radius_proper_code, 0.0),
-        rtol=1.0e-11,
-        atol=1.0e-13,
-        dense_output=True,
-    )
-    eccentric_dt = quantity_to_value(initial_condition["timestep"], units.time_unit)
-    eccentric_times = np.arange(
-        0.0,
-        eccentric_time + 0.5 * eccentric_dt,
+    (
+        eccentric_times,
+        eccentric_state,
+        reference_eccentric,
+        eccentric_energy,
         eccentric_dt,
+    ) = _compute_eccentric_orbit(
+        radius_proper_code,
+        central_mass,
+        eccentric_j,
+        quantity_to_value(initial_condition["timestep"], units.time_unit),
+        int(initial_condition["nsteps"]),
     )
-    eccentric_state = np.empty((2, len(eccentric_times)))
-    eccentric_state[:, 0] = (radius_proper_code, 0.0)
-    for index in range(len(eccentric_times) - 1):
-        state = eccentric_state[:, index]
-        h = eccentric_dt
-        k1 = np.asarray(orbit_rhs(0.0, state))
-        k2 = np.asarray(orbit_rhs(0.0, state + 0.5 * h * k1))
-        k3 = np.asarray(orbit_rhs(0.0, state + 0.5 * h * k2))
-        k4 = np.asarray(orbit_rhs(0.0, state + h * k3))
-        eccentric_state[:, index + 1] = state + h * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
-    reference_eccentric = reference.sol(eccentric_times)
-    eccentric_radius_error = np.max(
-        np.abs(eccentric_state[0] - reference_eccentric[0]),
-    )
-    eccentric_velocity_error = np.max(
-        np.abs(eccentric_state[1] - reference_eccentric[1]),
-    )
-    eccentric_energy = (
-        0.5 * eccentric_state[1] ** 2
-        + 0.5 * eccentric_j**2 / eccentric_state[0] ** 2
-        - central_mass / eccentric_state[0]
-    )
-    if eccentric_radius_error > 1.0e-8 or eccentric_velocity_error > 1.0e-8:  # noqa: PLR2004
-        raise RuntimeError("eccentric orbit disagrees with analytic ODE")
-    if np.max(np.abs(eccentric_energy - eccentric_energy[0])) > 1.0e-10:  # noqa: PLR2004
-        raise RuntimeError("eccentric orbit failed specific-energy conservation")
 
     # Drive a moving one-shell Rsim state with the actual centrifugal source.
     shell_sim = Rsim(config["par"])
@@ -451,6 +384,121 @@ def main(config_filename=CONFIG):
     figure = directory / "GasCentrifugalCircularOrbit1D.jpg"
     fig.savefig(figure, dpi=180)
     plt.close(fig)
+
+
+def _validate_circular_solution(
+    analytic_fluid,
+    expected_momentum,
+    initial_energy,
+    expected_rotational_energy,
+    radius_proper_code,
+    saved_mesh,
+    saved_fluid,
+    active,
+    central_mass,
+    simulation_initial_mass,
+    simulation_initial_energy,
+):
+    """Validate source balance and the saved fixed-mesh circular state."""
+    if not np.allclose(analytic_fluid.Mom_code, expected_momentum, rtol=0.0, atol=1.0e-13):
+        raise RuntimeError("circular force balance generated radial momentum")
+    if not np.allclose(analytic_fluid.Energy_code, initial_energy, rtol=0.0, atol=1.0e-2):
+        raise RuntimeError("circular force balance changed total energy")
+    if not np.allclose(
+        expected_rotational_energy,
+        0.5
+        * analytic_fluid.AngularMomentum_code**2
+        / (analytic_fluid.Mass_code * radius_proper_code**2),
+    ):
+        raise RuntimeError("rotational energy bookkeeping is inconsistent")
+
+    saved_velocity = np.asarray(saved_fluid.vel_proper_code[active], dtype=float)
+    saved_j = np.asarray(saved_fluid.specific_angular_momentum_code[active], dtype=float)
+    saved_boundary = np.asarray(saved_mesh.boundary_proper_code, dtype=float)
+    saved_radius = (
+        0.75
+        * (saved_boundary[1:] ** 4 - saved_boundary[:-1] ** 4)
+        / (saved_boundary[1:] ** 3 - saved_boundary[:-1] ** 3)
+    )[active]
+    saved_mass = np.asarray(saved_fluid.Mass_code[active], dtype=float)
+    saved_momentum = np.asarray(
+        saved_fluid.Mass_code[active] * saved_fluid.vel_proper_code[active],
+        dtype=float,
+    )
+    saved_energy = np.asarray(saved_fluid.Energy_code[active], dtype=float)
+    if np.max(np.abs(saved_velocity)) > 5.0e-5:  # noqa: PLR2004
+        raise RuntimeError("Rsim circular solution developed radial velocity")
+    if not np.allclose(saved_j, np.sqrt(central_mass * saved_radius), atol=1.0e-10):
+        raise RuntimeError("Rsim changed circular specific angular momentum")
+    if np.max(np.abs(saved_momentum)) > 5.0e-5:  # noqa: PLR2004
+        raise RuntimeError("Rsim circular solution developed radial momentum")
+    if not np.allclose(saved_mass, simulation_initial_mass[active], rtol=1.0e-10):
+        raise RuntimeError("Rsim changed circular mass")
+    if not np.allclose(
+        saved_energy,
+        simulation_initial_energy[active],
+        rtol=1.0e-5,
+        atol=1.0e-10,
+    ):
+        raise RuntimeError("Rsim circular solution changed total energy")
+
+
+def _compute_eccentric_orbit(
+    initial_radius_proper_code,
+    central_mass,
+    specific_angular_momentum,
+    timestep,
+    nsteps,
+):
+    """Return the RK4 trajectory and high-accuracy ODE reference."""
+    eccentric_time = timestep * nsteps
+
+    def orbit_rhs(_time_proper_code, state):
+        orbit_radius, orbit_velocity = state
+        radius_safe = max(orbit_radius, np.finfo(float).tiny)
+        return (
+            orbit_velocity,
+            specific_angular_momentum**2 / radius_safe**3
+            - central_mass / radius_safe**2,
+        )
+
+    reference = solve_ivp(
+        orbit_rhs,
+        (0.0, eccentric_time),
+        (initial_radius_proper_code, 0.0),
+        rtol=1.0e-11,
+        atol=1.0e-13,
+        dense_output=True,
+    )
+    eccentric_times = np.arange(
+        0.0,
+        eccentric_time + 0.5 * timestep,
+        timestep,
+    )
+    eccentric_state = np.empty((2, len(eccentric_times)))
+    eccentric_state[:, 0] = (initial_radius_proper_code, 0.0)
+    for index in range(len(eccentric_times) - 1):
+        state = eccentric_state[:, index]
+        k1 = np.asarray(orbit_rhs(0.0, state))
+        k2 = np.asarray(orbit_rhs(0.0, state + 0.5 * timestep * k1))
+        k3 = np.asarray(orbit_rhs(0.0, state + 0.5 * timestep * k2))
+        k4 = np.asarray(orbit_rhs(0.0, state + timestep * k3))
+        eccentric_state[:, index + 1] = state + timestep * (
+            k1 + 2.0 * k2 + 2.0 * k3 + k4
+        ) / 6.0
+    reference_eccentric = reference.sol(eccentric_times)
+    if np.max(np.abs(eccentric_state[0] - reference_eccentric[0])) > 1.0e-8:  # noqa: PLR2004
+        raise RuntimeError("eccentric orbit disagrees with analytic ODE")
+    if np.max(np.abs(eccentric_state[1] - reference_eccentric[1])) > 1.0e-8:  # noqa: PLR2004
+        raise RuntimeError("eccentric orbit disagrees with analytic ODE")
+    eccentric_energy = (
+        0.5 * eccentric_state[1] ** 2
+        + 0.5 * specific_angular_momentum**2 / eccentric_state[0] ** 2
+        - central_mass / eccentric_state[0]
+    )
+    if np.max(np.abs(eccentric_energy - eccentric_energy[0])) > 1.0e-10:  # noqa: PLR2004
+        raise RuntimeError("eccentric orbit failed specific-energy conservation")
+    return eccentric_times, eccentric_state, reference_eccentric, eccentric_energy, timestep
 
 
 if __name__ == "__main__":

@@ -29,8 +29,6 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
 os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
-from example import example_utils as eu
-from example.example_utils import load_nested_example_config
 from multifrequency_tools import (
     active_radarray,
     build_initial_condition,
@@ -39,6 +37,8 @@ from multifrequency_tools import (
 )
 
 import radhydropy.io as rio
+from example import example_utils as eu
+from example.example_utils import load_nested_example_config
 from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = Path(__file__).with_name(

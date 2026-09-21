@@ -21,14 +21,14 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path("/tmp/radhydropy-matplotlib")))
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 
 import radhydropy.io as rio
+from example import example_utils as eu
+from example.PIEUVBGCoolingUniformSph1D.tools import build_initial_condition
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-from example.PIEUVBGCoolingUniformSph1D.tools import build_initial_condition
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_uvbg_cooling_uniform_sph1d.yaml"
 CASES = {"diffuse": 1.0, "self_shielded": 100.0}

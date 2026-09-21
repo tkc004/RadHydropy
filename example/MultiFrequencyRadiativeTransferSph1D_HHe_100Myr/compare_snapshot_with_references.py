@@ -19,8 +19,9 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, SOURCE_EXAMPLE):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from example import example_utils as eu
 from multifrequency_tools import active_radarray, load_snapshot
+
+from example import example_utils as eu
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOT = HERE / "Output_000.hdf5"

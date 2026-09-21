@@ -21,11 +21,11 @@ sys.path.insert(0, str(HERE.parent))
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.eos import EOS
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.rsim import Rsim
@@ -134,39 +134,10 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
     all_profiles = {}
 
     for resolution in resolutions:
-        resolution_config = copy.deepcopy(config)
-        initial_condition = resolution_config["initial_condition"]
-        output = root / f"resolution_{resolution}"
-        output.mkdir(parents=True, exist_ok=True)
-        resolution_config["par"]["output"]["directory"] = str(output)
-        resolution_config["par"]["simulation"]["initial_condition_filename"] = str(
-            output / "InitialCondition.hdf5",
-        )
-        initial_condition["grid_cells"] = resolution
-        resolution_config["par"]["mesh"]["grid_cells"] = resolution
-        initial = make_initial_condition(resolution_config)
-        initial.write(
-            resolution_config["par"]["simulation"]["initial_condition_filename"],
-            validate=True,
-        )
-
-        sim = Rsim(resolution_config["par"])
-        sim.RunAll(outputtime=0)
-        snapshots = sorted(output.glob("Output_*.hdf5"))
-        if len(snapshots) < 2:  # noqa: PLR2004
-            raise RuntimeError(f"Noh resolution {resolution} produced too few outputs")
-        profiles = [read_profile(filename, resolution_config) for filename in snapshots]
+        profiles = _run_resolution(config, root, resolution)
         all_profiles[resolution] = profiles
         initial_profile, final_profile = profiles[0], profiles[-1]
-        if (
-            not final_profile["thermal_energy_proper_code"]
-            > initial_profile["thermal_energy_proper_code"]
-        ):
-            raise RuntimeError(f"Noh resolution {resolution} did not heat")
-        if not np.max(final_profile["temp_proper_code"]) > 10.0 * np.max(
-            initial_profile["temp_proper_code"],
-        ):
-            raise RuntimeError(f"Noh resolution {resolution} did not form a hot central shock")
+        _validate_resolution_profiles(resolution, initial_profile, final_profile)
 
     selected = sorted(all_profiles)
     final = {resolution: all_profiles[resolution][-1] for resolution in selected}
@@ -231,9 +202,39 @@ def run(config_filename=DEFAULT_CONFIG, dual_energy=None):
         convergence_figure = root / "NohSphericalImplosion1D_Convergence.jpg"
         fig.savefig(convergence_figure, dpi=200)
         plt.close(fig)
-    else:
-        convergence_figure = None
     return figure
+
+
+def _run_resolution(config, root, resolution):
+    resolution_config = copy.deepcopy(config)
+    initial_condition = resolution_config["initial_condition"]
+    output = root / f"resolution_{resolution}"
+    output.mkdir(parents=True, exist_ok=True)
+    resolution_config["par"]["output"]["directory"] = str(output)
+    resolution_config["par"]["simulation"]["initial_condition_filename"] = str(
+        output / "InitialCondition.hdf5",
+    )
+    initial_condition["grid_cells"] = resolution
+    resolution_config["par"]["mesh"]["grid_cells"] = resolution
+    initial = make_initial_condition(resolution_config)
+    initial.write(
+        resolution_config["par"]["simulation"]["initial_condition_filename"],
+        validate=True,
+    )
+    Rsim(resolution_config["par"]).RunAll(outputtime=0)
+    snapshots = sorted(output.glob("Output_*.hdf5"))
+    if len(snapshots) < 2:  # noqa: PLR2004
+        raise RuntimeError(f"Noh resolution {resolution} produced too few outputs")
+    return [read_profile(filename, resolution_config) for filename in snapshots]
+
+
+def _validate_resolution_profiles(resolution, initial_profile, final_profile):
+    if final_profile["thermal_energy_proper_code"] <= initial_profile["thermal_energy_proper_code"]:
+        raise RuntimeError(f"Noh resolution {resolution} did not heat")
+    if np.max(final_profile["temp_proper_code"]) <= 10.0 * np.max(
+        initial_profile["temp_proper_code"],
+    ):
+        raise RuntimeError(f"Noh resolution {resolution} did not form a hot central shock")
 
 
 if __name__ == "__main__":

@@ -21,6 +21,34 @@ from radhydropy.example_config import _load_yaml_value, _resolve_path
 from radhydropy.rsim import Rsim
 
 
+def _resolve_nested_config_paths(config, config_filename):
+    par = config["par"]
+    initial_condition = config["initial_condition"]
+    if "mesh" in par and "grid_cells" not in par["mesh"] and "grid_cells" in initial_condition:
+        par["mesh"]["grid_cells"] = initial_condition["grid_cells"]
+    if "simulation" in par and "initial_condition_filename" in par["simulation"]:
+        par["simulation"]["initial_condition_filename"] = _resolve_path(
+            par["simulation"]["initial_condition_filename"],
+            config_filename.parent,
+        )
+    for values in (par, config["example"]):
+        for key in ("output_directory", "directory"):
+            if key in values:
+                values[key] = _resolve_path(values[key], config_filename.parent)
+    thermochemistry = par.get("thermochemistry")
+    if thermochemistry is not None:
+        filename = thermochemistry.get("metal_pie_table_filename")
+        if filename:
+            thermochemistry["metal_pie_table_filename"] = _resolve_path(
+                filename,
+                config_filename.parent,
+            )
+        output = par.get("output", {})
+        for key in ("directory", "time_list_filename"):
+            if key in output:
+                output[key] = _resolve_path(output[key], config_filename.parent)
+
+
 def load_nested_example_config(config_filename):
     """Load a nested example YAML configuration with unit-aware values.
 
@@ -38,35 +66,11 @@ def load_nested_example_config(config_filename):
             "nested example configuration requires 'par', "
             "'initial_condition', and 'example' sections",
         )
-    par = config["par"]
-    initial_condition = config["initial_condition"]
-    example = config["example"]
-    if "mesh" in par and "grid_cells" not in par["mesh"] and "grid_cells" in initial_condition:
-        par["mesh"]["grid_cells"] = initial_condition["grid_cells"]
-    if "simulation" in par and "initial_condition_filename" in par["simulation"]:
-        par["simulation"]["initial_condition_filename"] = _resolve_path(
-            par["simulation"]["initial_condition_filename"],
-            config_filename.parent,
-        )
-    for values in (par, example):
-        for key in ("output_directory", "directory"):
-            if key in values:
-                values[key] = _resolve_path(values[key], config_filename.parent)
-    if "thermochemistry" in par:
-        filename = par["thermochemistry"].get("metal_pie_table_filename")
-        if filename:
-            par["thermochemistry"]["metal_pie_table_filename"] = _resolve_path(
-                filename,
-                config_filename.parent,
-            )
-        output = par.get("output", {})
-        for key in ("directory", "time_list_filename"):
-            if key in output:
-                output[key] = _resolve_path(output[key], config_filename.parent)
+    _resolve_nested_config_paths(config, config_filename)
     return {
-        "par": par,
-        "initial_condition": initial_condition,
-        "example": example,
+        "par": config["par"],
+        "initial_condition": config["initial_condition"],
+        "example": config["example"],
     }
 
 

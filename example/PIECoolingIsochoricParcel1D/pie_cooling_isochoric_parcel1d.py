@@ -21,13 +21,12 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from example import example_utils as eu
-
 import radhydropy.io as rio
+from example import example_utils as eu
+from example.PIECoolingIsochoricParcel1D.tools import build_initial_condition
 from radhydropy.rsim import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits
-from example.PIECoolingIsochoricParcel1D.tools import build_initial_condition
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_cooling_isochoric_parcel1d.yaml"
 CASES = (

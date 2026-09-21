@@ -19,8 +19,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import virial_shock_tools_lambda_cdm as et
-from example.example_utils import load_nested_example_config
 
+from example.example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
 
@@ -83,47 +83,36 @@ def run_lagrangian_top_hat(config):
     previous_time = initial
     previous_radius = a_initial * radius_comoving_code
 
-    is_lcdm = getattr(cosmology, "type_name", "") == "lambda_cdm"
-    if is_lcdm:
-        collapse_time = turnaround_time = analytic_rta = analytic_rvir = None
-    else:
-        collapse_time = initial * (1.686 / delta_i) ** 1.5
-        turnaround_time = 0.5 * collapse_time
-        rho_ta = float(cosmology.background_density(turnaround_time))
-        rho_vir = float(cosmology.background_density(collapse_time))
-        analytic_rta = (target_mass / ((4.0 * np.pi / 3.0) * (9.0 * np.pi**2 / 16.0) * rho_ta)) ** (
-            1.0 / 3.0
-        )
-        analytic_rvir = (target_mass / ((4.0 * np.pi / 3.0) * (18.0 * np.pi**2) * rho_vir)) ** (
-            1.0 / 3.0
-        )
+    turnaround_time, analytic_rta, analytic_rvir = _top_hat_analytic_targets(
+        cosmology,
+        initial,
+        delta_i,
+        target_mass,
+    )
 
     while tau < final_tau and (analytic_rvir is None or virial_crossing is None):
-        dt = min(timestep, final_tau - tau)
-        cosmic_start = float(cosmology.cosmic_time_from_supercomoving(tau))
-        a_start = float(cosmology.scale_factor(cosmic_start))
-        tau_end = tau + dt
-        cosmic_end = float(cosmology.cosmic_time_from_supercomoving(tau_end))
-        a_end = float(cosmology.scale_factor(cosmic_end))
-
-        def acceleration(r, a):
-            background_mass = 4.0 * np.pi / 3.0 * rho_comoving * r**3
-            gravity = -g_code * a * (target_mass - background_mass) / max(r**2, 1.0e-30)
-            centrifugal = angular_momentum**2 / max(r**3, 1.0e-30)
-            return gravity + centrifugal
-
-        velocity_half = vel_supercomoving_code + 0.5 * dt * acceleration(
+        (
+            tau,
+            cosmic_end,
             radius_comoving_code,
-            a_start,
+            vel_supercomoving_code,
+        ) = _advance_top_hat_step(
+            cosmology,
+            tau,
+            final_tau,
+            timestep,
+            radius_comoving_code,
+            vel_supercomoving_code,
+            rho_comoving,
+            target_mass,
+            angular_momentum,
+            g_code,
         )
-        radius_new = radius_comoving_code + dt * velocity_half
-        vel_supercomoving_code = velocity_half + 0.5 * dt * acceleration(radius_new, a_end)
-        radius_comoving_code = radius_new
+        a_end = float(cosmology.scale_factor(cosmic_end))
         if radius_comoving_code <= 0.0:
             raise RuntimeError(
                 "top-hat boundary reached the pressureless singularity before virial crossing",
             )
-        tau = tau_end
         physical_velocity = float(
             cosmology.hubble(cosmic_end) * a_end * radius_comoving_code
             + vel_supercomoving_code / a_end,
@@ -162,6 +151,7 @@ def run_lagrangian_top_hat(config):
     plt.tight_layout()
     plt.savefig(figure, dpi=200)
     plt.close()
+
     if analytic_rta is not None:
         pass
     if turnaround is None:
@@ -170,6 +160,68 @@ def run_lagrangian_top_hat(config):
         raise RuntimeError("Lagrangian top-hat did not reach the analytic virial radius")
     if virial_crossing is not None:
         pass
+
+
+def _top_hat_analytic_targets(cosmology, initial, delta_i, target_mass):
+    if getattr(cosmology, "type_name", "") == "lambda_cdm":
+        return None, None, None
+    collapse_time = initial * (1.686 / delta_i) ** 1.5
+    turnaround_time = 0.5 * collapse_time
+    rho_ta = float(cosmology.background_density(turnaround_time))
+    rho_vir = float(cosmology.background_density(collapse_time))
+    analytic_rta = (target_mass / ((4.0 * np.pi / 3.0) * (9.0 * np.pi**2 / 16.0) * rho_ta)) ** (
+        1.0 / 3.0
+    )
+    analytic_rvir = (target_mass / ((4.0 * np.pi / 3.0) * (18.0 * np.pi**2) * rho_vir)) ** (
+        1.0 / 3.0
+    )
+    return turnaround_time, analytic_rta, analytic_rvir
+
+
+def _advance_top_hat_step(
+    cosmology,
+    tau,
+    final_tau,
+    timestep,
+    radius_comoving_code,
+    velocity_supercomoving_code,
+    rho_comoving,
+    target_mass,
+    angular_momentum,
+    g_code,
+):
+    dt = min(timestep, final_tau - tau)
+    cosmic_start = float(cosmology.cosmic_time_from_supercomoving(tau))
+    a_start = float(cosmology.scale_factor(cosmic_start))
+    tau_end = tau + dt
+    cosmic_end = float(cosmology.cosmic_time_from_supercomoving(tau_end))
+    a_end = float(cosmology.scale_factor(cosmic_end))
+
+    def acceleration(radius_comoving_code, scale_factor):
+        background_mass = 4.0 * np.pi / 3.0 * rho_comoving * radius_comoving_code**3
+        gravity = (
+            -g_code
+            * scale_factor
+            * (target_mass - background_mass)
+            / max(
+                radius_comoving_code**2,
+                1.0e-30,
+            )
+        )
+        centrifugal = angular_momentum**2 / max(radius_comoving_code**3, 1.0e-30)
+        return gravity + centrifugal
+
+    velocity_half = velocity_supercomoving_code + 0.5 * dt * acceleration(
+        radius_comoving_code,
+        a_start,
+    )
+    radius_new = radius_comoving_code + dt * velocity_half
+    velocity_new = velocity_half + 0.5 * dt * acceleration(radius_new, a_end)
+    if radius_new <= 0.0:
+        raise RuntimeError(
+            "top-hat boundary reached the pressureless singularity before virial crossing"
+        )
+    return tau_end, cosmic_end, radius_new, velocity_new
 
 
 def run_live_shell_density_profiles(config):
@@ -222,62 +274,12 @@ def run_live_shell_density_profiles(config):
     virial_radii = []
     next_snapshot = 0
 
-    def virial_threshold(time_cosmic_code):
-        """Return the LCDM spherical-collapse virial density threshold."""
-        if getattr(cosmology, "type_name", "") != "lambda_cdm":
-            return 200.0 * float(cosmology.background_density(time_cosmic_code))
-        scale_factor = float(cosmology.scale_factor(time_cosmic_code))
-        hubble = float(cosmology.hubble(time_cosmic_code))
-        hubble_ref = float(cosmology.hubble(cosmology.t_ref))
-        omega_m_z = (
-            cosmology.omega_m * (cosmology.a_ref / scale_factor) ** 3 / (hubble / hubble_ref) ** 2
-        )
-        x = omega_m_z - 1.0
-        delta_vir = 18.0 * np.pi**2 + 82.0 * x - 39.0 * x**2
-        critical_density = 3.0 * hubble**2 / (8.0 * np.pi * cosmology.gravitational_constant)
-        return delta_vir * critical_density
-
-    def save_profile(time_cosmic_code):
-        a = float(cosmology.scale_factor(time_cosmic_code))
-        order = np.argsort(shells.radius)
-        radius_comoving_code = a * np.asarray(shells.radius[order], dtype=float)
-        mass_comoving_code = np.asarray(shells.mass[order], dtype=float)
-        # Cold shell collapse can carry shells through the coordinate origin
-        # after crossing.  They remain part of the enclosed mass; represent
-        # crossed/central material at a small positive radius for logarithmic
-        # density binning instead of silently dropping it from the profile.
-        radius_comoving_code = np.abs(
-            np.nan_to_num(radius_comoving_code, nan=0.0, posinf=0.0, neginf=0.0),
-        )
-        radius_comoving_code = np.maximum(radius_comoving_code, 1.0e-8)
-        core_mass = float(getattr(shells, "central_core_mass", 0.0))
-        core_radius_comoving_code = a * float(getattr(shells, "central_core_radius", 0.0))
-        profiles.append(
-            (
-                float(time_cosmic_code),
-                radius_comoving_code,
-                mass_comoving_code,
-                core_mass,
-                core_radius_comoving_code,
-            ),
-        )
-        # Include the absorbed unresolved-core mass when locating r200.  The
-        # profile bins already include this same mass, so the overdensity
-        # marker must use the identical enclosed-mass definition.
-        cumulative_mass = core_mass + np.cumsum(mass_comoving_code)
-        mean_density = cumulative_mass / (
-            4.0 * np.pi / 3.0 * np.maximum(radius_comoving_code, 1.0e-30) ** 3
-        )
-        threshold = virial_threshold(time_cosmic_code)
-        candidates = np.flatnonzero(mean_density >= threshold)
-        if candidates.size:
-            index = int(candidates[-1])
-            virial_radii.append(float(radius_comoving_code[index]))
-        else:
-            virial_radii.append(float("nan"))
+    virial_threshold = lambda time: _virial_threshold(cosmology, time)
 
     while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
-        save_profile(target_times[next_snapshot])
+        _save_live_profile(
+            target_times[next_snapshot], shells, cosmology, profiles, virial_radii, virial_threshold
+        )
         next_snapshot += 1
 
     while tau < final_tau - 1.0e-12:
@@ -312,7 +314,14 @@ def run_live_shell_density_profiles(config):
         )
         tau += dt
         while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
-            save_profile(target_times[next_snapshot])
+            _save_live_profile(
+                target_times[next_snapshot],
+                shells,
+                cosmology,
+                profiles,
+                virial_radii,
+                virial_threshold,
+            )
             next_snapshot += 1
 
     times = np.asarray([item[0] for item in profiles])
@@ -410,17 +419,10 @@ def run_live_shell_density_profiles(config):
     plt.tight_layout()
     plt.savefig(figure, dpi=200)
     plt.close()
-
     radius_figure = output_dir / "CosmologicalDarkMatterOnlyVirialRadii.jpg"
     plt.figure(figsize=(7.0, 5.0))
     finite = np.isfinite(virial_radii) & (virial_radii > 0.0)
-    plt.plot(
-        times[finite],
-        virial_radii[finite],
-        "o-",
-        color="tab:blue",
-        label=r"simulation $r_{\rm vir}$ (LCDM $\Delta_{\rm vir}$)",
-    )
+    plt.plot(times[finite], virial_radii[finite], "o-", color="tab:blue")
     plt.plot(
         times[finite],
         analytic_rvir[finite],
@@ -436,6 +438,58 @@ def run_live_shell_density_profiles(config):
     plt.tight_layout()
     plt.savefig(radius_figure, dpi=200)
     plt.close()
+
+
+def _virial_threshold(cosmology, time_cosmic_code):
+    """Return the spherical-collapse virial density threshold."""
+    if getattr(cosmology, "type_name", "") != "lambda_cdm":
+        return 200.0 * float(cosmology.background_density(time_cosmic_code))
+    scale_factor = float(cosmology.scale_factor(time_cosmic_code))
+    hubble = float(cosmology.hubble(time_cosmic_code))
+    hubble_ref = float(cosmology.hubble(cosmology.t_ref))
+    omega_m_z = (
+        cosmology.omega_m * (cosmology.a_ref / scale_factor) ** 3 / (hubble / hubble_ref) ** 2
+    )
+    x = omega_m_z - 1.0
+    delta_vir = 18.0 * np.pi**2 + 82.0 * x - 39.0 * x**2
+    critical_density = 3.0 * hubble**2 / (8.0 * np.pi * cosmology.gravitational_constant)
+    return delta_vir * critical_density
+
+
+def _save_live_profile(
+    time_cosmic_code,
+    shells,
+    cosmology,
+    profiles,
+    virial_radii,
+    threshold_func,
+):
+    a = float(cosmology.scale_factor(time_cosmic_code))
+    order = np.argsort(shells.radius)
+    radius_comoving_code = np.maximum(
+        np.abs(np.nan_to_num(a * np.asarray(shells.radius[order], dtype=float))),
+        1.0e-8,
+    )
+    mass_comoving_code = np.asarray(shells.mass[order], dtype=float)
+    core_mass = float(getattr(shells, "central_core_mass", 0.0))
+    core_radius_comoving_code = a * float(getattr(shells, "central_core_radius", 0.0))
+    profiles.append(
+        (
+            float(time_cosmic_code),
+            radius_comoving_code,
+            mass_comoving_code,
+            core_mass,
+            core_radius_comoving_code,
+        ),
+    )
+    cumulative_mass = core_mass + np.cumsum(mass_comoving_code)
+    mean_density = cumulative_mass / (
+        4.0 * np.pi / 3.0 * np.maximum(radius_comoving_code, 1.0e-30) ** 3
+    )
+    candidates = np.flatnonzero(mean_density >= threshold_func(time_cosmic_code))
+    virial_radii.append(
+        float(radius_comoving_code[candidates[-1]]) if candidates.size else float("nan"),
+    )
 
 
 def main(config_filename=DEFAULT_CONFIG):

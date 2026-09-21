@@ -26,7 +26,6 @@ if str(_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(_PACKAGE_DIR))
 
 from example.example_utils import load_nested_example_config
-
 from radhydropy.units import CodeUnits
 
 HERE = Path(__file__).resolve().parent

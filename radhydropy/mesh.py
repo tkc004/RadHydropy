@@ -88,68 +88,7 @@ class Mesh:
         self.coordinate_inverse_comoving_code = as_named_array(
             1.0 / self.width_comoving_code,
         )
-        if self.coordsys == "cartesian":
-            if not hasattr(par.mesh, "area_proper"):
-                raise AttributeError("par.mesh.area_proper is required for a cartesian mesh")
-            # coordinate is the midpoint of boundary
-            self.x_comoving_code = as_named_array(
-                0.5 * (self.boundary_comoving_code[1:] + self.boundary_comoving_code[:-1]),
-            )
-            area_value = quantity_to_value(
-                par.mesh.area_proper,
-                code_units.area_unit,
-            )
-            self.area_comoving_code = as_named_array(
-                np.ones(nogrid + noghost * 2, dtype=float) * np.asarray(area_value, dtype=float),
-            )
-            self.volume_comoving_code = as_named_array(
-                self.width_comoving_code * self.area_comoving_code,
-            )
-        elif self.coordsys == "spherical":
-            # check if any value is <0:
-            # if len(self.boundary[self.boundary<0.0]) > 0:
-            #    raise Exception("Radial coordinate cannot be negative")
-            # coordinate is the centroid of the volume (center of gravity?):
-            # see Mignone+14
-            # area to the left
-            self.area_comoving_code = as_named_array(
-                self.boundary_comoving_code[:-1] ** 2 * 4.0 * np.pi,
-            )
-            # cell volume
-            self.volume_comoving_code = as_named_array(
-                np.abs(
-                    self.boundary_comoving_code[1:] ** 3 - self.boundary_comoving_code[:-1] ** 3,
-                )
-                * 4.0
-                * np.pi
-                / 3.0,
-            )
-            vol_denom = self.boundary_comoving_code[1:] ** 3 - self.boundary_comoving_code[:-1] ** 3
-            self.x_comoving_code = as_named_array(
-                0.5 * (self.boundary_comoving_code[1:] + self.boundary_comoving_code[:-1]),
-            )
-            nonzero_vol_denom = vol_denom != 0.0
-            self.x_comoving_code[nonzero_vol_denom] = (
-                0.75
-                * (
-                    self.boundary_comoving_code[1:][nonzero_vol_denom] ** 4
-                    - self.boundary_comoving_code[:-1][nonzero_vol_denom] ** 4
-                )
-                / vol_denom[nonzero_vol_denom]
-            )
-            for ig in range(len(self.volume_comoving_code)):
-                # This is the inner sphere
-                if (self.boundary_comoving_code[ig] < 0.0) and (
-                    self.boundary_comoving_code[ig + 1] > 0.0
-                ):
-                    self.volume_comoving_code[ig] = (
-                        (self.boundary_comoving_code[ig + 1] ** 3) * 4.0 * np.pi / 3.0
-                    )
-                    self.x_comoving_code[ig] = 0.75 * self.boundary_comoving_code[ig + 1]
-                    self.area_comoving_code[ig] = 0.0
-
-        else:
-            raise ValueError(f"coordinate system unknown: {self.coordsys}")
+        self._set_up_supercomoving_geometry(par, code_units, nogrid, noghost)
 
         self.geometry_state = MeshGeometryState.from_arrays(
             self.runtime_fields,
@@ -164,6 +103,42 @@ class Mesh:
 
         if np.any(self.volume_comoving_code == 0.0) or np.any(np.isnan(self.volume_comoving_code)):
             raise ValueError("volume vanished")
+
+    def _set_up_supercomoving_geometry(self, par, code_units, nogrid, noghost):
+        if self.coordsys == "cartesian":
+            if not hasattr(par.mesh, "area_proper"):
+                raise AttributeError("par.mesh.area_proper is required for a cartesian mesh")
+            self.x_comoving_code = as_named_array(
+                0.5 * (self.boundary_comoving_code[1:] + self.boundary_comoving_code[:-1]),
+            )
+            area_value = quantity_to_value(par.mesh.area_proper, code_units.area_unit)
+            self.area_comoving_code = as_named_array(
+                np.ones(nogrid + noghost * 2, dtype=float) * np.asarray(area_value, dtype=float),
+            )
+            self.volume_comoving_code = as_named_array(
+                self.width_comoving_code * self.area_comoving_code,
+            )
+            return
+        if self.coordsys != "spherical":
+            raise ValueError(f"coordinate system unknown: {self.coordsys}")
+        boundary = self.boundary_comoving_code
+        self.area_comoving_code = as_named_array(boundary[:-1] ** 2 * 4.0 * np.pi)
+        self.volume_comoving_code = as_named_array(
+            np.abs(boundary[1:] ** 3 - boundary[:-1] ** 3) * 4.0 * np.pi / 3.0,
+        )
+        volume_denominator = boundary[1:] ** 3 - boundary[:-1] ** 3
+        self.x_comoving_code = as_named_array(0.5 * (boundary[1:] + boundary[:-1]))
+        nonzero = volume_denominator != 0.0
+        self.x_comoving_code[nonzero] = (
+            0.75
+            * (boundary[1:][nonzero] ** 4 - boundary[:-1][nonzero] ** 4)
+            / volume_denominator[nonzero]
+        )
+        for index in range(len(self.volume_comoving_code)):
+            if boundary[index] < 0.0 < boundary[index + 1]:
+                self.volume_comoving_code[index] = boundary[index + 1] ** 3 * 4.0 * np.pi / 3.0
+                self.x_comoving_code[index] = 0.75 * boundary[index + 1]
+                self.area_comoving_code[index] = 0.0
 
     def _set_up_proper_mesh(self, par):
         """Initialize a proper-code mesh from explicit proper fields."""
@@ -205,6 +180,29 @@ class Mesh:
         self.boundary_proper_code = boundary_proper_code
         self.width_proper_code = width_proper_code
         self.coordinate_inverse_proper_code = as_named_array(1.0 / width_proper_code)
+        self._set_up_proper_geometry(
+            par,
+            code_units,
+            boundary_proper_code,
+            width_proper_code,
+        )
+        self.runtime_fields = runtime_fields(par)
+        self.geometry_state = MeshGeometryState.from_arrays(
+            self.runtime_fields,
+            **{
+                self.runtime_fields.coordinate: self.x_proper_code,
+                self.runtime_fields.boundary: self.boundary_proper_code,
+                self.runtime_fields.width: self.width_proper_code,
+                self.runtime_fields.area: self.area_proper_code,
+                self.runtime_fields.volume: self.volume_proper_code,
+            },
+        )
+        if np.any(self.volume_proper_code == 0.0) or np.any(
+            np.isnan(self.volume_proper_code),
+        ):
+            raise ValueError("volume vanished")
+
+    def _set_up_proper_geometry(self, par, code_units, boundary_proper_code, width_proper_code):
         if par.simulation.coordinate_system == "cartesian":
             if not hasattr(par.mesh, "area_proper"):
                 raise AttributeError("par.mesh.area_proper is required for a cartesian mesh")
@@ -251,18 +249,3 @@ class Mesh:
             raise ValueError(
                 f"coordinate system unknown: {par.simulation.coordinate_system}",
             )
-        self.runtime_fields = runtime_fields(par)
-        self.geometry_state = MeshGeometryState.from_arrays(
-            self.runtime_fields,
-            **{
-                self.runtime_fields.coordinate: self.x_proper_code,
-                self.runtime_fields.boundary: self.boundary_proper_code,
-                self.runtime_fields.width: self.width_proper_code,
-                self.runtime_fields.area: self.area_proper_code,
-                self.runtime_fields.volume: self.volume_proper_code,
-            },
-        )
-        if np.any(self.volume_proper_code == 0.0) or np.any(
-            np.isnan(self.volume_proper_code),
-        ):
-            raise ValueError("volume vanished")

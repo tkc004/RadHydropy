@@ -5,6 +5,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
+
 from example.DynamicStromgrenSpherePhotoheating1D import tools as base_tools
 from example.DynamicStromgrenSpherePhotoheating1D.tools import (
     _to_km_s,

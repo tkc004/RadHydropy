@@ -21,12 +21,8 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-from example import example_utils as eu
-
 import radhydropy.io as rio
-from radhydropy.rsim import Rsim
-from radhydropy.thermo_networks.pie import MetalPIETable
-from radhydropy.units import CodeUnits
+from example import example_utils as eu
 from example.PIERadiativeShockTube1D.tools import (
     PROTON_MASS_G,
     build_initial_condition,
@@ -34,6 +30,9 @@ from example.PIERadiativeShockTube1D.tools import (
     load_output_state,
     strong_shock_expectation,
 )
+from radhydropy.rsim import Rsim
+from radhydropy.thermo_networks.pie import MetalPIETable
+from radhydropy.units import CodeUnits
 
 DEFAULT_CONFIG = EXAMPLE_DIR / "pie_radiative_shock_tube_1d.yaml"
 SECONDS_PER_MYR = (1.0 * unyt.Myr).to_value(unyt.s)

@@ -5,6 +5,57 @@
 import numpy as np
 
 
+def _crossing_event(previous_time, current_time, r_old, v_old, r_now, v_now):
+    event_time = float(current_time)
+    event_radius = float(r_now)
+    if v_old * v_now < 0.0:
+        fraction = -v_old / (v_now - v_old)
+        event_time = float(previous_time + fraction * (current_time - previous_time))
+        event_radius = float(r_old + fraction * (r_now - r_old))
+    return event_time, event_radius
+
+
+def _record_orbit_event(event, v_old, v_now, event_time, event_radius):
+    if v_old >= 0.0 and v_now < 0.0:
+        if event["turnaround"] is None:
+            event["turnaround"] = (event_time, event_radius)
+        elif event["pericentre"] is not None and event["apocentre"] is None:
+            event["apocentre"] = (event_time, event_radius)
+    elif (
+        v_old <= 0.0
+        and v_now > 0.0
+        and event["turnaround"] is not None
+        and event["pericentre"] is None
+    ):
+        event["pericentre"] = (event_time, event_radius)
+
+
+def _record_accretion_event(
+    event,
+    previous_time,
+    current_time,
+    previous_r200m,
+    r200m,
+    r_old,
+    r_now,
+    v_now,
+):
+    if (
+        event["accretion"] is not None
+        or previous_r200m is None
+        or r200m is None
+        or v_now >= 0.0
+        or r_old < previous_r200m
+        or r_now >= r200m
+    ):
+        return
+    fraction = (previous_r200m - r_old) / ((r_now - r_old) - (r200m - previous_r200m))
+    event["accretion"] = (
+        float(previous_time + fraction * (current_time - previous_time)),
+        float(r_old + fraction * (r_now - r_old)),
+    )
+
+
 class ShellOrbitTracker:
     """Track first turnaround, pericentre, apocentre, and accretion events."""
 
@@ -76,38 +127,26 @@ class ShellOrbitTracker:
                 if shell_index not in previous:
                     continue
                 r_old, v_old = previous[shell_index]
-                event_time = float(time_cosmic_code)
-                event_radius = float(r_now)
-                if v_old * v_now < 0.0:
-                    fraction = -v_old / (v_now - v_old)
-                    event_time = float(
-                        previous_time + fraction * (time_cosmic_code - previous_time),
-                    )
-                    event_radius = float(r_old + fraction * (r_now - r_old))
                 event = self.events[shell_index]
-                if v_old >= 0.0 and v_now < 0.0:
-                    if event["turnaround"] is None:
-                        event["turnaround"] = (event_time, event_radius)
-                    elif event["pericentre"] is not None and event["apocentre"] is None:
-                        event["apocentre"] = (event_time, event_radius)
-                elif v_old <= 0.0 and v_now > 0.0:
-                    if event["turnaround"] is not None and event["pericentre"] is None:
-                        event["pericentre"] = (event_time, event_radius)
-                if (
-                    event["accretion"] is None
-                    and previous_r200m is not None
-                    and r200m is not None
-                    and v_now < 0.0
-                    and r_old >= previous_r200m
-                    and r_now < r200m
-                ):
-                    fraction = (previous_r200m - r_old) / (
-                        (r_now - r_old) - (r200m - previous_r200m)
-                    )
-                    event["accretion"] = (
-                        float(previous_time + fraction * (time_cosmic_code - previous_time)),
-                        float(r_old + fraction * (r_now - r_old)),
-                    )
+                event_time, event_radius = _crossing_event(
+                    previous_time,
+                    time_cosmic_code,
+                    r_old,
+                    v_old,
+                    r_now,
+                    v_now,
+                )
+                _record_orbit_event(event, v_old, v_now, event_time, event_radius)
+                _record_accretion_event(
+                    event,
+                    previous_time,
+                    time_cosmic_code,
+                    previous_r200m,
+                    r200m,
+                    r_old,
+                    r_now,
+                    v_now,
+                )
         self.previous = (float(time_cosmic_code), current, r200m)
         self.latest_time = float(time_cosmic_code)
         return r200m

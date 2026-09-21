@@ -25,7 +25,6 @@ os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
 os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
 from example import example_utils as eu
-
 from example.DynamicStromgrenSpherePhotoheating1D import tools as et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits

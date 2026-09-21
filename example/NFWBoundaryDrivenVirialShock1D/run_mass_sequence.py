@@ -19,14 +19,12 @@ os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydr
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
+from example import example_utils as eu
 from example.NFWBoundaryDrivenVirialShock1D import nfw_boundary_driven_virial_shock1d as RUNNER
-from radhydropy.io import load_output_time_list
-from radhydropy.thermo_networks.pie import MetalPIETable
 from example.NFWBoundaryDrivenVirialShock1D.tools import (
     GAMMA_CRITICAL,
     load_output_state,
@@ -34,6 +32,8 @@ from example.NFWBoundaryDrivenVirialShock1D.tools import (
     nfw_halo_parameters,
     pie_stability_diagnostics,
 )
+from radhydropy.io import load_output_time_list
+from radhydropy.thermo_networks.pie import MetalPIETable
 
 CONFIGS = (
     EXAMPLE_DIR / "nfw_boundary_driven_virial_shock1d.yaml",

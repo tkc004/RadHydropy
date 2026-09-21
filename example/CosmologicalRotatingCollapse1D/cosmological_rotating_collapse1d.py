@@ -22,13 +22,13 @@ sys.path.insert(0, str(PROJECT_ROOT / "example"))
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 from cosmological_initial_condition import build_initial_condition
 from scipy.integrate import solve_ivp
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, quantity_to_value
 
@@ -140,18 +140,55 @@ def integrate_shell_density_reference(initial, config, scale_factors):
     )
     requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float) ** 1.5
     cosmic_times = np.unique(requested_times)
-    physical_edges = np.empty((len(cosmic_times), len(boundary_comoving_code)), dtype=float)
+    physical_edges = _integrate_density_reference_edges(
+        cosmology,
+        cosmic_times,
+        edge_mass,
+        edge_j,
+        initial_physical_boundary,
+        initial_physical_velocity,
+    )
+
+    reference_unique = _deposit_reference_density(
+        cosmology,
+        cosmic_times,
+        physical_edges,
+        boundary_comoving_code,
+        volume_comoving_code,
+        shell_mass,
+    )
+    if len(cosmic_times) == len(requested_times):
+        return reference_unique
+    reference = np.empty((len(requested_times), len(volume_comoving_code)), dtype=float)
+    for cell in range(len(volume_comoving_code)):
+        reference[:, cell] = np.interp(
+            requested_times,
+            cosmic_times,
+            reference_unique[:, cell],
+        )
+    return reference
+
+
+def _integrate_density_reference_edges(
+    cosmology,
+    cosmic_times,
+    edge_mass,
+    edge_j,
+    initial_physical_boundary,
+    initial_physical_velocity,
+):
+    physical_edges = np.empty((len(cosmic_times), len(edge_mass)), dtype=float)
     for edge, enclosed_mass in enumerate(edge_mass):
 
         def rhs(time_cosmic_code, state):
             radius_shell_proper_code, velocity_shell_proper_code = state
             if radius_shell_proper_code <= 0.0 or enclosed_mass <= 0.0:
                 return velocity_shell_proper_code, 0.0
-            acceleration = (
+            return (
+                velocity_shell_proper_code,
                 -cosmology.gravitational_constant * enclosed_mass / radius_shell_proper_code**2
-                + edge_j[edge] ** 2 / radius_shell_proper_code**3
+                + edge_j[edge] ** 2 / radius_shell_proper_code**3,
             )
-            return velocity_shell_proper_code, acceleration
 
         solution = solve_ivp(
             rhs,
@@ -167,7 +204,17 @@ def integrate_shell_density_reference(initial, config, scale_factors):
                 "density shell ODE failed at edge %d: %s" % (edge, solution.message),
             )
         physical_edges[:, edge] = solution.y[0]
+    return physical_edges
 
+
+def _deposit_reference_density(
+    cosmology,
+    cosmic_times,
+    physical_edges,
+    boundary_comoving_code,
+    volume_comoving_code,
+    shell_mass,
+):
     reference_unique = np.empty((len(cosmic_times), len(volume_comoving_code)), dtype=float)
     for time_index, time_cosmic_code in enumerate(cosmic_times):
         current_scale = float(cosmology.scale_factor(time_cosmic_code))
@@ -175,28 +222,17 @@ def integrate_shell_density_reference(initial, config, scale_factors):
         if np.any(np.diff(comoving_edges) <= 0.0):
             raise RuntimeError("pressureless reference shells crossed")
         shell_volume = 4.0 * np.pi / 3.0 * (comoving_edges[1:] ** 3 - comoving_edges[:-1] ** 3)
-        target_volume = volume_comoving_code
         deposited_mass = np.zeros(len(volume_comoving_code), dtype=float)
         for shell in range(len(shell_mass)):
             shell_inner, shell_outer = comoving_edges[shell : shell + 2]
-            shell_volume_value = shell_volume[shell]
             for cell in range(len(volume_comoving_code)):
                 overlap_inner = max(shell_inner, boundary_comoving_code[cell])
                 overlap_outer = min(shell_outer, boundary_comoving_code[cell + 1])
                 if overlap_outer > overlap_inner:
                     overlap_volume = 4.0 * np.pi / 3.0 * (overlap_outer**3 - overlap_inner**3)
-                    deposited_mass[cell] += shell_mass[shell] * overlap_volume / shell_volume_value
-        reference_unique[time_index] = deposited_mass / target_volume
-    if len(cosmic_times) == len(requested_times):
-        return reference_unique
-    reference = np.empty((len(requested_times), len(volume_comoving_code)), dtype=float)
-    for cell in range(len(volume_comoving_code)):
-        reference[:, cell] = np.interp(
-            requested_times,
-            cosmic_times,
-            reference_unique[:, cell],
-        )
-    return reference
+                    deposited_mass[cell] += shell_mass[shell] * overlap_volume / shell_volume[shell]
+        reference_unique[time_index] = deposited_mass / volume_comoving_code
+    return reference_unique
 
 
 def enclosed_radii(boundary_comoving_code, mass_density, volume_comoving_code, target_mass):
@@ -415,31 +451,14 @@ def main(
 ):
     config = eu.load_nested_example_config(config_filename)
 
-    config = copy.deepcopy(config)
-    initial_condition = config["initial_condition"]
-    if nogrid_override is not None:
-        config["par"]["mesh"] = {**config["par"]["mesh"], "grid_cells": int(nogrid_override)}
-    if output_root_override is not None:
-        config["par"]["output"] = {
-            **config["par"]["output"],
-            "directory": str(output_root_override),
-        }
-    if cfl_override is not None:
-        config["par"]["hydrodynamics"] = {
-            **config["par"]["hydrodynamics"],
-            "CFL": float(cfl_override),
-        }
-    if positivity_override is not None:
-        config["par"]["hydrodynamics"] = {
-            **config["par"]["hydrodynamics"],
-            "positivity_preserving": bool(positivity_override),
-        }
-    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    cosmology = EinsteinDeSitter.from_code_units(
-        units,
-        t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], units.time_unit),
-        a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
+    config, units, cosmology = _prepare_rotating_config(
+        config,
+        nogrid_override,
+        output_root_override,
+        cfl_override,
+        positivity_override,
     )
+    initial_condition = config["initial_condition"]
     cases = [
         ("nonrotating", 0.0),
         ("moderate", float(initial_condition["moderate_rotation_factor"])),
@@ -449,20 +468,7 @@ def main(
     config["_code_cosmology"] = cosmology
     results = [run_case(config, label, factor) for label, factor in cases]
     by_label = {label: (sim, history, directory) for label, sim, history, directory in results}
-    final_density = {
-        label: history["maximum_density"][-1] for label, (_, history, _) in by_label.items()
-    }
-    final_support = {label: history["support"][-1] for label, (_, history, _) in by_label.items()}
-    if not (final_density["nonrotating"] >= final_density["moderate"] >= final_density["high"]):
-        raise RuntimeError("rotation did not monotonically suppress collapse")
-    if not (final_support["nonrotating"] <= final_support["moderate"] <= final_support["high"]):
-        raise RuntimeError("centrifugal support is not ordered by rotation")
-
-    for label, (_, history, _) in by_label.items():
-        total_j = np.asarray(history["total_j"], dtype=float)
-        scale = max(1.0, abs(total_j[0]))
-        if np.max(np.abs(total_j - total_j[0])) / scale > 1.0e-10:  # noqa: PLR2004
-            raise RuntimeError(f"total angular momentum is not conserved for {label}")
+    _validate_rotating_results(by_label)
 
     saved_histories = {
         label: np.load(directory / "history.npz") for label, (_, _, directory) in by_label.items()
@@ -684,6 +690,59 @@ def main(
     plt.close(fig)
     for label in ("nonrotating", "moderate", "high"):
         pass
+
+
+def _validate_rotating_results(by_label):
+    final_density = {
+        label: history["maximum_density"][-1] for label, (_, history, _) in by_label.items()
+    }
+    final_support = {label: history["support"][-1] for label, (_, history, _) in by_label.items()}
+    if not (final_density["nonrotating"] >= final_density["moderate"] >= final_density["high"]):
+        raise RuntimeError("rotation did not monotonically suppress collapse")
+    if not (final_support["nonrotating"] <= final_support["moderate"] <= final_support["high"]):
+        raise RuntimeError("centrifugal support is not ordered by rotation")
+    for label, (_, history, _) in by_label.items():
+        total_j = np.asarray(history["total_j"], dtype=float)
+        scale = max(1.0, abs(total_j[0]))
+        if np.max(np.abs(total_j - total_j[0])) / scale > 1.0e-10:  # noqa: PLR2004
+            raise RuntimeError(f"total angular momentum is not conserved for {label}")
+
+
+def _prepare_rotating_config(
+    config,
+    nogrid_override,
+    output_root_override,
+    cfl_override,
+    positivity_override,
+):
+    config = copy.deepcopy(config)
+    if nogrid_override is not None:
+        config["par"]["mesh"] = {**config["par"]["mesh"], "grid_cells": int(nogrid_override)}
+    if output_root_override is not None:
+        config["par"]["output"] = {
+            **config["par"]["output"],
+            "directory": str(output_root_override),
+        }
+    if cfl_override is not None:
+        config["par"]["hydrodynamics"] = {
+            **config["par"]["hydrodynamics"],
+            "CFL": float(cfl_override),
+        }
+    if positivity_override is not None:
+        config["par"]["hydrodynamics"] = {
+            **config["par"]["hydrodynamics"],
+            "positivity_preserving": bool(positivity_override),
+        }
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+    cosmology = EinsteinDeSitter.from_code_units(
+        units,
+        t_ref=quantity_to_value(
+            config["par"]["cosmology"]["cosmology_t_ref"],
+            units.time_unit,
+        ),
+        a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
+    )
+    return config, units, cosmology
 
 
 if __name__ == "__main__":

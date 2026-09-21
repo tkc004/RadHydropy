@@ -15,9 +15,8 @@ EXAMPLE_ROOT = HERE.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-from example import example_utils as eu
-
 import radhydropy.io as rio
+from example import example_utils as eu
 from example.HighMachAdvection1D import tools as et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, quantity_to_value

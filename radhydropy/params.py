@@ -1309,6 +1309,16 @@ class Par:
         for key, value in spectrum.items():
             setattr(self, key, value)
             self.par_config[key] = value
+        self._apply_radiation_spectrum_units()
+        rates, energies = self._spectrum_rates_and_energies()
+        rates = self._rescale_spectrum_rates(rates, energies)
+        self.source_photon_rate_groups = (rates[1:] / energies).to(1.0 / unyt.s)
+        self.radiative_transfer_boundary_flux_groups = np.zeros(
+            self.number_of_radiation_groups,
+        ) / (unyt.cm**2 * unyt.s)
+        self._sync_radiation_parameters()
+
+    def _apply_radiation_spectrum_units(self):
         if self.radiation_group_sigma_gamma is not None:
             self.radiation_group_sigma_gamma = self.radiation_group_sigma_gamma * unyt.cm**2
         if self.radiation_group_epsilon_gamma is not None:
@@ -1320,33 +1330,34 @@ class Par:
                 setattr(self, sigma_name, getattr(self, sigma_name) * unyt.cm**2)
             if getattr(self, epsilon_name, None) is not None:
                 setattr(self, epsilon_name, getattr(self, epsilon_name) * unyt.erg)
+
+    def _spectrum_rates_and_energies(self):
         power_unit = self.units.CodeUnits.energy_unit / self.units.CodeUnits.time_unit
         rates = np.asarray(self.star_emission_rates, dtype=float) * power_unit
         energies = np.asarray(self.ionizing_photon_energy_cgs_erg, dtype=float) * unyt.erg
+        return rates, energies
+
+    def _rescale_spectrum_rates(self, rates, energies):
         total_rate = getattr(self, "spectrum_total_photon_rate", None)
-        if total_rate is not None:
-            if hasattr(total_rate, "to_value"):
-                target_rate_s = float(total_rate.to_value(1.0 / unyt.s))
-            else:
-                target_rate_s = code_quantity_to_cgs(
-                    total_rate,
-                    self.units.CodeUnits,
-                    "photon_rate_per_s",
-                )
-            current_rate_s = float(
-                np.sum((rates[1:] / energies).to_value(1.0 / unyt.s)),
+        if total_rate is None:
+            return rates
+        target_rate_s = (
+            float(total_rate.to_value(1.0 / unyt.s))
+            if hasattr(total_rate, "to_value")
+            else code_quantity_to_cgs(
+                total_rate,
+                self.units.CodeUnits,
+                "photon_rate_per_s",
             )
-            if current_rate_s <= 0.0:
-                raise ValueError("radiation spectrum has no ionizing injection rate")
-            self.star_emission_rates = np.array(self.star_emission_rates, dtype=float)
-            self.star_emission_rates[1:] *= target_rate_s / current_rate_s
-            self.par_config["star_emission_rates"] = self.star_emission_rates
-            rates = self.star_emission_rates * power_unit
-        self.source_photon_rate_groups = (rates[1:] / energies).to(1.0 / unyt.s)
-        self.radiative_transfer_boundary_flux_groups = np.zeros(
-            self.number_of_radiation_groups,
-        ) / (unyt.cm**2 * unyt.s)
-        self._sync_radiation_parameters()
+        )
+        current_rate_s = float(np.sum((rates[1:] / energies).to_value(1.0 / unyt.s)))
+        if current_rate_s <= 0.0:
+            raise ValueError("radiation spectrum has no ionizing injection rate")
+        self.star_emission_rates = np.array(self.star_emission_rates, dtype=float)
+        self.star_emission_rates[1:] *= target_rate_s / current_rate_s
+        self.par_config["star_emission_rates"] = self.star_emission_rates
+        power_unit = self.units.CodeUnits.energy_unit / self.units.CodeUnits.time_unit
+        return self.star_emission_rates * power_unit
 
     def load_metal_pie_table(self, base_directory=None):
         filename = resolve_spectrum_filename(

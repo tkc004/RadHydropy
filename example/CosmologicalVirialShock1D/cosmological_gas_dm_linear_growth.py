@@ -31,9 +31,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import virial_shock_tools as et
-from example.example_utils import load_nested_example_config
 
 import radhydropy.io as rio
+from example.example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells, prepare_enclosed_gas_mass
 from radhydropy.gravity import Gravity
@@ -585,18 +585,11 @@ def run(
     par = config["par"]
     initial_condition = config["initial_condition"]
     example = config["example"]
-    if resolution_override is not None:
-        resolution = int(resolution_override)
-        if resolution < 8 or resolution > 1024:  # noqa: PLR2004
-            raise ValueError("resolution must be between 8 and 1024")
-        initial_condition = dict(initial_condition)
-        par = copy.deepcopy(par)
-        par["mesh"]["grid_cells"] = resolution
-        initial_condition["dark_matter_shells"] = resolution
-    if int(initial_condition["dark_matter_shells"]) > 1024 or int(par["mesh"]["grid_cells"]) > 1024:  # noqa: PLR2004
-        raise ValueError("linear-growth test is limited to at most 1024 gas cells and shells")
-    if int(initial_condition["dark_matter_shells"]) != int(par["mesh"]["grid_cells"]):
-        raise ValueError("linear-growth quadrature requires one DM shell per gas cell")
+    par, initial_condition = _configure_linear_resolution(
+        par,
+        initial_condition,
+        resolution_override,
+    )
 
     units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     cosmology_config = par["cosmology"]
@@ -722,69 +715,21 @@ def run(
     sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
     sim.solver.SetConserved(sim.mesh, sim.fluid)
 
-    history = [
-        _snapshot(
-            sim,
-            dm,
-            initial_time,
-            config,
-            initial_scale_factor,
-            diagnostic_radius_inner_comoving_code,
-            diagnostic_radius_outer_comoving_code,
-        ),
-    ]
-    steps = 0
-    for target_tau in snapshot_taus[1:]:
-        while float(sim.fluid.tau_supercomoving_code) < target_tau - 1.0e-13:
-            time_cosmic_code = float(
-                cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code)),
-            )
-            _set_background_state(
-                sim,
-                config,
-                time_cosmic_code,
-                baryon_fraction,
-                temperature_proper_code,
-                float(initial_condition["mu"]),
-            )
-            sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
-            sim.solver.SetConserved(sim.mesh, sim.fluid)
-            dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.tau_supercomoving_code))
-            crossing_dt = float(dm.crossing_timestep(safety_factor=1.0))
-            if np.isfinite(crossing_dt) and crossing_dt <= dt * (1.0 + 1.0e-12):
-                raise RuntimeError(
-                    "predicted dark-matter shell crossing before requested endpoint "
-                    f"at cosmic time {time_cosmic_code:.8g}",
-                )
-            sim.Step(dt=dt, mode="hydro")
-            steps += 1
-            if not np.array_equal(dm.mass, initial_shell_mass_order):
-                raise RuntimeError("dark-matter shell crossing occurred during linear test")
-            if np.any(np.diff(dm.radius) <= 0.0):
-                raise RuntimeError("dark-matter shell radii ceased to be strictly ordered")
-
-        time_cosmic_code = float(
-            cosmology.cosmic_time_from_supercomoving(float(sim.fluid.tau_supercomoving_code)),
-        )
-        _set_background_state(
-            sim,
-            config,
-            time_cosmic_code,
-            baryon_fraction,
-            temperature_proper_code,
-            float(initial_condition["mu"]),
-        )
-        history.append(
-            _snapshot(
-                sim,
-                dm,
-                time_cosmic_code,
-                config,
-                initial_scale_factor,
-                diagnostic_radius_inner_comoving_code,
-                diagnostic_radius_outer_comoving_code,
-            ),
-        )
+    history = _evolve_linear_growth(
+        sim,
+        dm,
+        config,
+        cosmology,
+        snapshot_taus,
+        initial_time,
+        initial_scale_factor,
+        baryon_fraction,
+        temperature_proper_code,
+        float(initial_condition["mu"]),
+        diagnostic_radius_inner_comoving_code,
+        diagnostic_radius_outer_comoving_code,
+        initial_shell_mass_order,
+    )
 
     force_mode = "volume_linear" if smooth_force else "raw_step"
     data, _figure, _report = _save_outputs(
@@ -797,6 +742,106 @@ def run(
     )
     history[-1]
     return data
+
+
+def _configure_linear_resolution(par, initial_condition, resolution_override):
+    if resolution_override is not None:
+        resolution = int(resolution_override)
+        if resolution < 8 or resolution > 1024:  # noqa: PLR2004
+            raise ValueError("resolution must be between 8 and 1024")
+        initial_condition = dict(initial_condition)
+        par = copy.deepcopy(par)
+        par["mesh"]["grid_cells"] = resolution
+        initial_condition["dark_matter_shells"] = resolution
+    shell_count = int(initial_condition["dark_matter_shells"])
+    cell_count = int(par["mesh"]["grid_cells"])
+    if shell_count > 1024 or cell_count > 1024:  # noqa: PLR2004
+        raise ValueError("linear-growth test is limited to at most 1024 gas cells and shells")
+    if shell_count != cell_count:
+        raise ValueError("linear-growth quadrature requires one DM shell per gas cell")
+    return par, initial_condition
+
+
+def _evolve_linear_growth(
+    sim,
+    dm,
+    config,
+    cosmology,
+    snapshot_taus,
+    initial_time,
+    initial_scale_factor,
+    baryon_fraction,
+    temperature_proper_code,
+    mean_molecular_weight,
+    diagnostic_radius_inner_comoving_code,
+    diagnostic_radius_outer_comoving_code,
+    initial_shell_mass_order,
+):
+    history = [
+        _snapshot(
+            sim,
+            dm,
+            initial_time,
+            config,
+            initial_scale_factor,
+            diagnostic_radius_inner_comoving_code,
+            diagnostic_radius_outer_comoving_code,
+        ),
+    ]
+    for target_tau in snapshot_taus[1:]:
+        while float(sim.fluid.tau_supercomoving_code) < target_tau - 1.0e-13:
+            time_cosmic_code = float(
+                cosmology.cosmic_time_from_supercomoving(
+                    float(sim.fluid.tau_supercomoving_code),
+                ),
+            )
+            _set_background_state(
+                sim,
+                config,
+                time_cosmic_code,
+                baryon_fraction,
+                temperature_proper_code,
+                mean_molecular_weight,
+            )
+            sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
+            sim.solver.SetConserved(sim.mesh, sim.fluid)
+            dt = min(float(sim.GetStepTime()), target_tau - float(sim.fluid.tau_supercomoving_code))
+            crossing_dt = float(dm.crossing_timestep(safety_factor=1.0))
+            if np.isfinite(crossing_dt) and crossing_dt <= dt * (1.0 + 1.0e-12):
+                raise RuntimeError(
+                    "predicted dark-matter shell crossing before requested endpoint "
+                    f"at cosmic time {time_cosmic_code:.8g}",
+                )
+            sim.Step(dt=dt, mode="hydro")
+            if not np.array_equal(dm.mass, initial_shell_mass_order):
+                raise RuntimeError("dark-matter shell crossing occurred during linear test")
+            if np.any(np.diff(dm.radius) <= 0.0):
+                raise RuntimeError("dark-matter shell radii ceased to be strictly ordered")
+        time_cosmic_code = float(
+            cosmology.cosmic_time_from_supercomoving(
+                float(sim.fluid.tau_supercomoving_code),
+            ),
+        )
+        _set_background_state(
+            sim,
+            config,
+            time_cosmic_code,
+            baryon_fraction,
+            temperature_proper_code,
+            mean_molecular_weight,
+        )
+        history.append(
+            _snapshot(
+                sim,
+                dm,
+                time_cosmic_code,
+                config,
+                initial_scale_factor,
+                diagnostic_radius_inner_comoving_code,
+                diagnostic_radius_outer_comoving_code,
+            ),
+        )
+    return history
 
 
 if __name__ == "__main__":

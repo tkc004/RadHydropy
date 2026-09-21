@@ -263,44 +263,6 @@ def _require_unitless_runtime_parameters(sim):
     leaked = []
     visited = set()
 
-    def visit(value, path):
-        if value is None or id(value) in visited:
-            return
-        if hasattr(value, "to_value"):
-            leaked.append(path)
-            return
-        if isinstance(value, (str, bytes, int, float, bool, np.number)):
-            return
-        visited.add(id(value))
-        if isinstance(value, Mapping):
-            for name, child in value.items():
-                if name in {"CodeUnits", "unit_system"}:
-                    continue
-                visit(child, f"{path}.{name}")
-        elif is_dataclass(value):
-            for field in fields(value):
-                if field.name in {"CodeUnits", "unit_system", "model"}:
-                    continue
-                visit(getattr(value, field.name), f"{path}.{field.name}")
-        elif isinstance(value, (list, tuple, set)):
-            for index, child in enumerate(value):
-                visit(child, f"{path}[{index}]")
-        elif isinstance(value, np.ndarray) and value.dtype == object:
-            for index, child in np.ndenumerate(value):
-                visit(child, f"{path}{index}")
-        elif hasattr(value, "__dict__"):
-            for name, child in vars(value).items():
-                if name.startswith("_") or name in {
-                    "par_config",
-                    "nested_par_config",
-                    "units",
-                    "unit_system",
-                    "CodeUnits",
-                    "model",
-                }:
-                    continue
-                visit(child, f"{path}.{name}")
-
     for name, value in vars(sim.par).items():
         if name in {
             "par_config",
@@ -314,7 +276,7 @@ def _require_unitless_runtime_parameters(sim):
             "dark_matter_radarrays",
         }:
             continue
-        visit(value, f"par.{name}")
+        _visit_runtime_value(value, f"par.{name}", visited, leaked)
 
     if leaked:
         names = ", ".join(leaked[:20])
@@ -324,6 +286,69 @@ def _require_unitless_runtime_parameters(sim):
             "runtime parameters must be unitless code values after startup "
             f"conversion; unitful value(s) found in: {names}",
         )
+
+
+def _visit_runtime_value(value, path, visited, leaked):
+    """Collect paths containing unit-bearing values in a runtime object."""
+    if value is None or id(value) in visited:
+        return
+    if hasattr(value, "to_value"):
+        leaked.append(path)
+        return
+    if isinstance(value, (str, bytes, int, float, bool, np.number)):
+        return
+    visited.add(id(value))
+    if isinstance(value, Mapping):
+        _visit_runtime_mapping(value, path, visited, leaked)
+    elif is_dataclass(value):
+        _visit_runtime_dataclass(value, path, visited, leaked)
+    elif isinstance(value, (list, tuple, set)):
+        _visit_runtime_sequence(value, path, visited, leaked)
+    elif isinstance(value, np.ndarray) and value.dtype == object:
+        _visit_runtime_array(value, path, visited, leaked)
+    elif hasattr(value, "__dict__"):
+        _visit_runtime_object(value, path, visited, leaked)
+
+
+def _visit_runtime_mapping(value, path, visited, leaked):
+    for name, child in value.items():
+        if name not in {"CodeUnits", "unit_system"}:
+            _visit_runtime_value(child, f"{path}.{name}", visited, leaked)
+
+
+def _visit_runtime_dataclass(value, path, visited, leaked):
+    for field in fields(value):
+        if field.name not in {"CodeUnits", "unit_system", "model"}:
+            _visit_runtime_value(
+                getattr(value, field.name),
+                f"{path}.{field.name}",
+                visited,
+                leaked,
+            )
+
+
+def _visit_runtime_sequence(value, path, visited, leaked):
+    for index, child in enumerate(value):
+        _visit_runtime_value(child, f"{path}[{index}]", visited, leaked)
+
+
+def _visit_runtime_array(value, path, visited, leaked):
+    for index, child in np.ndenumerate(value):
+        _visit_runtime_value(child, f"{path}{index}", visited, leaked)
+
+
+def _visit_runtime_object(value, path, visited, leaked):
+    excluded = {
+        "par_config",
+        "nested_par_config",
+        "units",
+        "unit_system",
+        "CodeUnits",
+        "model",
+    }
+    for name, child in vars(value).items():
+        if not name.startswith("_") and name not in excluded:
+            _visit_runtime_value(child, f"{path}.{name}", visited, leaked)
 
 
 def _require_code_units(sim):

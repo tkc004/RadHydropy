@@ -18,44 +18,16 @@ def _validate_active_proper_state(sim, first, last, *, allow_vacuum=False):
     mu_dimensionless = np.asarray(sim.fluid.mu[first:last], dtype=float)
     volume_proper_code = np.asarray(sim.mesh.volume_proper_code[first:last], dtype=float)
 
-    for field_name, field_values in (
-        ("rho_proper_code", rho_proper_code),
-        ("vel_proper_code", vel_proper_code),
-        ("pre_proper_code", pre_proper_code),
-        ("temp_proper_code", temp_proper_code),
-        ("mu_dimensionless", mu_dimensionless),
-        ("volume_proper_code", volume_proper_code),
-    ):
-        if not np.all(np.isfinite(field_values)):
-            raise ValueError(f"active {field_name} contains non-finite values")
-
-    if allow_vacuum:
-        if np.any(rho_proper_code < 0.0):
-            raise ValueError("active rho_proper_code must be non-negative")
-    elif np.any(rho_proper_code <= 0.0):
-        raise ValueError("active rho_proper_code must be strictly positive")
-    if np.any(temp_proper_code < 0.0):
-        raise ValueError("active temp_proper_code must be non-negative")
-    if np.any(pre_proper_code < 0.0):
-        raise ValueError("active pre_proper_code must be non-negative")
-    if np.any(volume_proper_code <= 0.0):
-        raise ValueError("active volume_proper_code must be strictly positive")
-
-    expected_pre_proper_code = np.asarray(
-        sim.fluid.eos.pressure(
-            rho_proper_code,
-            temp_proper_code,
-            mu_dimensionless,
-        ),
-        dtype=float,
-    )
-    if not np.allclose(
+    _validate_primitives(
+        sim,
+        rho_proper_code,
+        vel_proper_code,
         pre_proper_code,
-        expected_pre_proper_code,
-        rtol=1.0e-10,
-        atol=1.0e-14,
-    ):
-        raise ValueError("active proper-code pressure is inconsistent with rho/temp/mu")
+        temp_proper_code,
+        mu_dimensionless,
+        volume_proper_code,
+        allow_vacuum,
+    )
 
     expected_mass_code = rho_proper_code * volume_proper_code
     expected_mom_code = expected_mass_code * vel_proper_code
@@ -70,26 +42,99 @@ def _validate_active_proper_state(sim, first, last, *, allow_vacuum=False):
     mass_code = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
     mom_code = np.asarray(sim.fluid.Mom_code[first:last], dtype=float)
     energy_code = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
-    for field_name, field_values in (
-        ("Mass_code", mass_code),
-        ("Mom_code", mom_code),
-        ("Energy_code", energy_code),
-    ):
+    _validate_conserved(
+        mass_code,
+        mom_code,
+        energy_code,
+        expected_mass_code,
+        expected_mom_code,
+        expected_energy_code,
+    )
+
+
+def _validate_finite(fields):
+    for field_name, field_values in fields:
         if not np.all(np.isfinite(field_values)):
             raise ValueError(f"active {field_name} contains non-finite values")
-    if not np.allclose(mass_code, expected_mass_code, rtol=1.0e-10, atol=1.0e-14):
-        raise ValueError("active Mass_code is inconsistent with rho/volume")
-    if not np.allclose(mom_code, expected_mom_code, rtol=1.0e-10, atol=1.0e-14):
-        raise ValueError("active Mom_code is inconsistent with rho/vel/volume")
+
+
+def _validate_primitives(
+    sim,
+    rho_proper_code,
+    vel_proper_code,
+    pre_proper_code,
+    temp_proper_code,
+    mu_dimensionless,
+    volume_proper_code,
+    allow_vacuum,
+):
+    _validate_finite(
+        (
+            ("rho_proper_code", rho_proper_code),
+            ("vel_proper_code", vel_proper_code),
+            ("pre_proper_code", pre_proper_code),
+            ("temp_proper_code", temp_proper_code),
+            ("mu_dimensionless", mu_dimensionless),
+            ("volume_proper_code", volume_proper_code),
+        ),
+    )
+    density_limit = rho_proper_code < 0.0 if allow_vacuum else rho_proper_code <= 0.0
+    density_message = (
+        "active rho_proper_code must be non-negative"
+        if allow_vacuum
+        else "active rho_proper_code must be strictly positive"
+    )
+    for values, limit, message in (
+        (rho_proper_code, density_limit, density_message),
+        (temp_proper_code, temp_proper_code < 0.0, "active temp_proper_code must be non-negative"),
+        (pre_proper_code, pre_proper_code < 0.0, "active pre_proper_code must be non-negative"),
+        (
+            volume_proper_code,
+            volume_proper_code <= 0.0,
+            "active volume_proper_code must be strictly positive",
+        ),
+    ):
+        if np.any(limit):
+            raise ValueError(message)
+    expected_pre_proper_code = np.asarray(
+        sim.fluid.eos.pressure(rho_proper_code, temp_proper_code, mu_dimensionless),
+        dtype=float,
+    )
     if not np.allclose(
-        energy_code,
-        expected_energy_code,
+        pre_proper_code,
+        expected_pre_proper_code,
         rtol=1.0e-10,
         atol=1.0e-14,
     ):
-        raise ValueError(
+        raise ValueError("active proper-code pressure is inconsistent with rho/temp/mu")
+
+
+def _validate_conserved(
+    mass_code,
+    momentum_code,
+    energy_code,
+    expected_mass_code,
+    expected_momentum_code,
+    expected_energy_code,
+):
+    _validate_finite(
+        (("Mass_code", mass_code), ("Mom_code", momentum_code), ("Energy_code", energy_code)),
+    )
+    for actual, expected, message in (
+        (mass_code, expected_mass_code, "active Mass_code is inconsistent with rho/volume"),
+        (
+            momentum_code,
+            expected_momentum_code,
+            "active Mom_code is inconsistent with rho/vel/volume",
+        ),
+        (
+            energy_code,
+            expected_energy_code,
             "active Energy_code is inconsistent with rho/vel/pre/volume",
-        )
+        ),
+    ):
+        if not np.allclose(actual, expected, rtol=1.0e-10, atol=1.0e-14):
+            raise ValueError(message)
 
 
 def make_initial_condition(

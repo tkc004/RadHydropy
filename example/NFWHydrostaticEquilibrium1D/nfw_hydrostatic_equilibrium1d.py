@@ -24,9 +24,8 @@ os.makedirs(mplconfig_dir, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
 os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
-from example import example_utils as eu
-
 import radhydropy.io as rio
+from example import example_utils as eu
 from example.NFWHydrostaticEquilibrium1D import tools as et
 from radhydropy.gravity import Gravity, nfw_potential
 from radhydropy.units import CodeUnits

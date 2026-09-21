@@ -191,27 +191,15 @@ def ApplyGravity(solver, dt, mesh, fluid, par):  # noqa: N802
             f"Gravity acceleration shape {np.shape(acceleration)} does not match fluid state shape {np.shape(density_field)}",
         )
     gravity_acceleration = acceleration.copy()
-    rotational_acceleration = np.zeros_like(current_rho)
-    if rotational_support:
-        angular_momentum = np.asarray(fluid.AngularMomentum_code, dtype=float)
-        specific = np.zeros_like(current_rho)
-        np.divide(
-            angular_momentum,
-            mass,
-            out=specific,
-            where=mass > 0.0,
-        )
-        radius = np.abs(
-            np.asarray(
-                solver.geometry_state(mesh, par).coordinate_runtime_code,
-                dtype=float,
-            ),
-        )
-        valid_radius = (radius > 0.0) & np.isfinite(radius) & np.isfinite(specific) & (mass > 0.0)
-        rotational_acceleration[valid_radius] = (
-            specific[valid_radius] ** 2 / radius[valid_radius] ** 3
-        )
-        rotational_acceleration[~valid_radius] = 0.0
+    rotational_acceleration = _rotational_acceleration(
+        rotational_support,
+        solver,
+        mesh,
+        par,
+        fluid,
+        mass,
+        current_rho,
+    )
 
     # Apply gravity and centrifugal momentum sources sequentially. Gravity
     # work updates the gas energy. Centrifugal acceleration is an internal
@@ -225,54 +213,17 @@ def ApplyGravity(solver, dt, mesh, fluid, par):  # noqa: N802
     new_energy = np.asarray(fluid.Energy_code, dtype=float) + gravity_work
 
     source_increment = mass * rotational_acceleration * dt_value
-    source_factors = np.ones_like(source_increment)
-    if rotational_support:
-        angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
-        radius = np.abs(
-            np.asarray(
-                solver.geometry_state(mesh, par).coordinate_runtime_code,
-                dtype=float,
-            ),
-        )
-        rotational_energy = np.zeros_like(mass)
-        valid_rotational = (
-            (mass > 0.0) & (radius > 0.0) & np.isfinite(angular) & np.isfinite(radius)
-        )
-        rotational_energy[valid_rotational] = (
-            0.5
-            * angular[valid_rotational] ** 2
-            / (mass[valid_rotational] * radius[valid_rotational] ** 2)
-        )
-        available_radial_energy = new_energy - rotational_energy
-        base_admissible = (
-            np.isfinite(mass)
-            & (mass > 0.0)
-            & np.isfinite(gravity_momentum)
-            & np.isfinite(available_radial_energy)
-            & (0.5 * gravity_momentum**2 / mass <= available_radial_energy)
-        )
-
-        def source_admissible(index, factor):
-            trial_momentum = gravity_momentum[index] + factor * source_increment[index]
-            trial_kinetic = 0.5 * trial_momentum**2 / mass[index] if mass[index] > 0.0 else 0.0
-            tolerance = 1.0e-12 * max(
-                abs(new_energy[index]),
-                abs(rotational_energy[index]),
-                np.finfo(float).tiny,
-            )
-            return trial_kinetic <= available_radial_energy[index] + tolerance
-
-        for index in np.flatnonzero(base_admissible & (source_increment != 0.0)):
-            if source_admissible(index, 1.0):
-                continue
-            low, high = 0.0, 1.0
-            for _ in range(48):
-                middle = 0.5 * (low + high)
-                if source_admissible(index, middle):
-                    low = middle
-                else:
-                    high = middle
-            source_factors[index] = low
+    source_factors = _limit_rotational_source(
+        rotational_support,
+        solver,
+        mesh,
+        par,
+        fluid,
+        mass,
+        new_energy,
+        gravity_momentum,
+        source_increment,
+    )
 
     new_momentum = gravity_momentum + source_factors * source_increment
     centrifugal_work = 0.5 * (gravity_momentum + new_momentum) * rotational_acceleration * dt_value
@@ -312,3 +263,87 @@ def ApplyGravity(solver, dt, mesh, fluid, par):  # noqa: N802
         getattr(getattr(gravity, "dark_matter", None), "last_substep_count", 0),
     )
     return 1
+
+
+def _rotational_acceleration(rotational_support, solver, mesh, par, fluid, mass, shape_like):
+    """Return centrifugal acceleration from the conserved angular momentum."""
+    acceleration = np.zeros_like(shape_like)
+    if not rotational_support:
+        return acceleration
+    angular_momentum = np.asarray(fluid.AngularMomentum_code, dtype=float)
+    specific = np.zeros_like(shape_like)
+    np.divide(angular_momentum, mass, out=specific, where=mass > 0.0)
+    radius = np.abs(
+        np.asarray(
+            solver.geometry_state(mesh, par).coordinate_runtime_code,
+            dtype=float,
+        ),
+    )
+    valid_radius = (radius > 0.0) & np.isfinite(radius) & np.isfinite(specific) & (mass > 0.0)
+    acceleration[valid_radius] = specific[valid_radius] ** 2 / radius[valid_radius] ** 3
+    return acceleration
+
+
+def _limit_rotational_source(
+    rotational_support,
+    solver,
+    mesh,
+    par,
+    fluid,
+    mass,
+    new_energy,
+    gravity_momentum,
+    source_increment,
+):
+    """Limit centrifugal momentum increments to the available energy."""
+    source_factors = np.ones_like(source_increment)
+    if not rotational_support:
+        return source_factors
+    angular = np.asarray(fluid.AngularMomentum_code, dtype=float)
+    radius = np.abs(
+        np.asarray(
+            solver.geometry_state(mesh, par).coordinate_runtime_code,
+            dtype=float,
+        ),
+    )
+    rotational_energy = np.zeros_like(mass)
+    valid_rotational = (
+        (mass > 0.0) & (radius > 0.0) & np.isfinite(angular) & np.isfinite(radius)
+    )
+    rotational_energy[valid_rotational] = (
+        0.5 * angular[valid_rotational] ** 2
+        / (mass[valid_rotational] * radius[valid_rotational] ** 2)
+    )
+    available_radial_energy = new_energy - rotational_energy
+    base_admissible = (
+        np.isfinite(mass)
+        & (mass > 0.0)
+        & np.isfinite(gravity_momentum)
+        & np.isfinite(available_radial_energy)
+        & (0.5 * gravity_momentum**2 / mass <= available_radial_energy)
+    )
+
+    def source_admissible(index, factor):
+        trial_momentum = gravity_momentum[index] + factor * source_increment[index]
+        trial_kinetic = (
+            0.5 * trial_momentum**2 / mass[index] if mass[index] > 0.0 else 0.0
+        )
+        tolerance = 1.0e-12 * max(
+            abs(new_energy[index]),
+            abs(rotational_energy[index]),
+            np.finfo(float).tiny,
+        )
+        return trial_kinetic <= available_radial_energy[index] + tolerance
+
+    for index in np.flatnonzero(base_admissible & (source_increment != 0.0)):
+        if source_admissible(index, 1.0):
+            continue
+        low, high = 0.0, 1.0
+        for _ in range(48):
+            middle = 0.5 * (low + high)
+            if source_admissible(index, middle):
+                low = middle
+            else:
+                high = middle
+        source_factors[index] = low
+    return source_factors

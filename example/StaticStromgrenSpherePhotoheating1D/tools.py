@@ -332,7 +332,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     snapshot = history.get("reference_snapshot", None)
     if snapshot is None:
         xHI = np.asarray(fluid.xHI[interior], dtype=float)
-        temperature_cgs_K = code_quantity_to_cgs(
+        temperature_proper_cgs_K = code_quantity_to_cgs(
             fluid.temp_proper_code[interior],
             code_units_obj,
             "temperature_cgs_K",
@@ -343,7 +343,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     else:
         radius_proper_cgs_kpc = snapshot["radius_proper_kpc"]
         xHI = snapshot["xHI"]
-        temperature_cgs_K = snapshot["temperature_cgs_K"]
+        temperature_proper_cgs_K = snapshot["temperature_cgs_K"]
         profile_time_proper_Myr = snapshot["time_proper_Myr"]
     xHII = 1.0 - xHI
     plot_radius_max = example.get("plot_radius_max", initial["box_size_proper"]).to_value(unyt.kpc)
@@ -383,6 +383,40 @@ def save_plot(mesh, fluid, history, config, figure_filename):
         radius_stromgren = None
         analytic_front = None
 
+    _plot_static_profiles(
+        history,
+        figure_filename,
+        radius_proper_cgs_kpc,
+        xHI,
+        xHII,
+        xHI_analytic,
+        xHII_analytic,
+        neutral_fraction_reference,
+        radius_stromgren,
+        plot_radius_max,
+        profile_time_proper_Myr,
+        temperature_proper_cgs_K,
+        temperature_reference,
+        analytic_front,
+    )
+
+
+def _plot_static_profiles(
+    history,
+    figure_filename,
+    radius_proper_cgs_kpc,
+    xHI,
+    xHII,
+    xHI_analytic,
+    xHII_analytic,
+    neutral_fraction_reference,
+    radius_stromgren,
+    plot_radius_max,
+    profile_time_proper_Myr,
+    temperature_proper_cgs_K,
+    temperature_reference,
+    analytic_front,
+):
     fig, (ax_frac, ax_temp, ax_front) = plt.subplots(
         3,
         1,
@@ -434,7 +468,7 @@ def save_plot(mesh, fluid, history, config, figure_filename):
     ax_frac.grid(visible=True, which="both", alpha=0.25)
     ax_frac.legend(frameon=False, loc="center right")
 
-    ax_temp.plot(radius_proper_cgs_kpc, temperature_cgs_K, color="tab:red", lw=1.8)
+    ax_temp.plot(radius_proper_cgs_kpc, temperature_proper_cgs_K, color="tab:red", lw=1.8)
     if temperature_reference is not None:
         ax_temp.scatter(
             temperature_reference["radius_proper_kpc"],

@@ -66,11 +66,7 @@ class InitialConditionWriter:
         provenance=None,
     ):
         if simulation is None:
-            if par_config is None:
-                raise TypeError(
-                    "InitialConditionWriter requires simulation or par_config",
-                )
-            simulation = Rsim(par_config)
+            simulation = self._simulation_from_config(par_config)
         self.simulation = simulation
         cosmology_parameters = getattr(simulation.par, "cosmology", None)
         cosmological = getattr(
@@ -178,6 +174,14 @@ class InitialConditionWriter:
                 "eos",
             },
         )
+
+    @staticmethod
+    def _simulation_from_config(par_config):
+        if par_config is None:
+            raise TypeError(
+                "InitialConditionWriter requires simulation or par_config",
+            )
+        return Rsim(par_config)
 
     @staticmethod
     def _cosmological_schema(simulation):
@@ -440,6 +444,38 @@ class InitialConditionWriter:
         self._fields[field_name] = value
         return self
 
+    def _resolve_field_value(self, field_name, container, radarray_field, source_field):
+        value = self._fields.get(field_name)
+        if value is None and field_name in ("ngamma_proper_code", "ngamma_comoving_code"):
+            value = getattr(container, "ngamma_code", None)
+            if (
+                value is not None
+                and hasattr(value, "units")
+                and not isinstance(
+                    value,
+                    (RadArray, RadQuantity),
+                )
+            ):
+                value = None
+        candidates = (
+            value,
+            getattr(container, field_name, None),
+            self._fields.get(radarray_field) if radarray_field is not None else None,
+            self._fields.get(source_field) if source_field is not None else None,
+            getattr(container, f"{field_name}_radarray", None),
+            getattr(container, radarray_field, None) if radarray_field is not None else None,
+            (
+                getattr(container, f"{source_field}_radarray", None)
+                if source_field is not None
+                else None
+            ),
+            getattr(container, field_name, None),
+            getattr(container, source_field, None) if source_field is not None else None,
+            getattr(getattr(container, "geometry_state", None), field_name, None),
+            getattr(getattr(container, "runtime_state", None), field_name, None),
+        )
+        return next((candidate for candidate in candidates if candidate is not None), None)
+
     def _field(self, field_name, container, *, required=True):
         radarray_field = {
             "boundary_comoving_code": "boundary_radarray",
@@ -463,49 +499,12 @@ class InitialConditionWriter:
             "pre_supercomoving_code": "pre_proper_code",
             "ngamma_comoving_code": "ngamma_proper_code",
         }.get(field_name)
-        value = self._fields.get(field_name)
-        if value is None and field_name in (
-            "ngamma_proper_code",
-            "ngamma_comoving_code",
-        ):
-            # ``ngamma_code`` is the mutable solver field.  The dimensional
-            # ``ngamma_radarray`` is an analysis view and may be stale after
-            # thermochemistry has updated the runtime state.
-            value = getattr(container, "ngamma_code", None)
-            if (
-                value is not None
-                and hasattr(value, "units")
-                and not isinstance(
-                    value,
-                    (RadArray, RadQuantity),
-                )
-            ):
-                value = None
-        # A prepared runtime simulation owns the canonical target field.  Use
-        # it before the analysis-oriented ``*_radarray`` view, which may carry
-        # stale or differently represented metadata after a restart.
-        if value is None:
-            value = getattr(container, field_name, None)
-        if value is None and radarray_field is not None:
-            value = self._fields.get(radarray_field)
-        if value is None and source_field is not None:
-            value = self._fields.get(source_field)
-        if value is None:
-            value = getattr(container, f"{field_name}_radarray", None)
-        if value is None and radarray_field is not None:
-            value = getattr(container, radarray_field, None)
-        if value is None and source_field is not None:
-            value = getattr(container, f"{source_field}_radarray", None)
-        if value is None:
-            value = getattr(container, field_name, None)
-        if value is None and source_field is not None:
-            value = getattr(container, source_field, None)
-        if value is None:
-            state = getattr(container, "geometry_state", None)
-            value = getattr(state, field_name, None)
-        if value is None:
-            state = getattr(container, "runtime_state", None)
-            value = getattr(state, field_name, None)
+        value = self._resolve_field_value(
+            field_name,
+            container,
+            radarray_field,
+            source_field,
+        )
         if value is None and required:
             raise ValueError(f"initial condition is missing {field_name}")
         return value
@@ -569,62 +568,41 @@ class InitialConditionWriter:
         return np.asarray(converted.value, dtype=float)
 
     @staticmethod
-    def _validate_active_proper_state(simulation, first, last):
-        """Validate the active proper-code primitive and conserved state.
-
-        This mirrors the active-state checks used by the hydro IC helpers, but
-        lives at the writer boundary so HDF5 input cannot bypass them.
-        """
-        fluid = simulation.fluid
-        mesh = simulation.mesh
-        rho_proper_code = np.asarray(
-            fluid.rho_proper_code[first:last],
-            dtype=float,
-        )
-        vel_proper_code = np.asarray(
-            fluid.vel_proper_code[first:last],
-            dtype=float,
-        )
-        pre_proper_code = np.asarray(
-            fluid.pre_proper_code[first:last],
-            dtype=float,
-        )
-        temp_proper_code = np.asarray(
-            fluid.temp_proper_code[first:last],
-            dtype=float,
-        )
-        mu_dimensionless = np.asarray(fluid.mu[first:last], dtype=float)
-        volume_proper_code = np.asarray(
-            mesh.volume_proper_code[first:last],
-            dtype=float,
-        )
-
-        for field_name, field_values in (
-            ("rho_proper_code", rho_proper_code),
-            ("vel_proper_code", vel_proper_code),
-            ("pre_proper_code", pre_proper_code),
-            ("temp_proper_code", temp_proper_code),
-            ("mu_dimensionless", mu_dimensionless),
-            ("volume_proper_code", volume_proper_code),
-        ):
+    def _validate_finite_fields(fields):
+        for field_name, field_values in fields:
             if not np.all(np.isfinite(field_values)):
                 raise ValueError(f"active {field_name} contains non-finite values")
 
-        if np.any(rho_proper_code <= 0.0):
-            raise ValueError("active rho_proper_code must be strictly positive")
-        if np.any(temp_proper_code < 0.0):
-            raise ValueError("active temp_proper_code must be non-negative")
-        if np.any(pre_proper_code < 0.0):
-            raise ValueError("active pre_proper_code must be non-negative")
-        if np.any(volume_proper_code <= 0.0):
-            raise ValueError("active volume_proper_code must be strictly positive")
-
-        expected_pre_proper_code = np.asarray(
-            fluid.eos.pressure(
-                rho_proper_code,
-                temp_proper_code,
-                mu_dimensionless,
+    @staticmethod
+    def _validate_active_primitive_state(
+        fluid,
+        rho_proper_code,
+        vel_proper_code,
+        pre_proper_code,
+        temp_proper_code,
+        mu_dimensionless,
+        volume_proper_code,
+    ):
+        InitialConditionWriter._validate_finite_fields(
+            (
+                ("rho_proper_code", rho_proper_code),
+                ("vel_proper_code", vel_proper_code),
+                ("pre_proper_code", pre_proper_code),
+                ("temp_proper_code", temp_proper_code),
+                ("mu_dimensionless", mu_dimensionless),
+                ("volume_proper_code", volume_proper_code),
             ),
+        )
+        for values, message in (
+            (rho_proper_code, "active rho_proper_code must be strictly positive"),
+            (temp_proper_code, "active temp_proper_code must be non-negative"),
+            (pre_proper_code, "active pre_proper_code must be non-negative"),
+            (volume_proper_code, "active volume_proper_code must be strictly positive"),
+        ):
+            if np.any(values <= 0.0 if "strictly" in message else values < 0.0):
+                raise ValueError(message)
+        expected_pre_proper_code = np.asarray(
+            fluid.eos.pressure(rho_proper_code, temp_proper_code, mu_dimensionless),
             dtype=float,
         )
         if not np.allclose(
@@ -633,53 +611,371 @@ class InitialConditionWriter:
             rtol=1.0e-10,
             atol=1.0e-14,
         ):
-            raise ValueError(
-                "active proper-code pressure is inconsistent with rho/temp/mu",
-            )
+            raise ValueError("active proper-code pressure is inconsistent with rho/temp/mu")
 
+    @staticmethod
+    def _validate_active_conserved_state(
+        fluid,
+        first,
+        last,
+        rho_proper_code,
+        vel_proper_code,
+        pre_proper_code,
+        volume_proper_code,
+    ):
         expected_mass_code = rho_proper_code * volume_proper_code
         expected_mom_code = expected_mass_code * vel_proper_code
-        expected_energy_code = (
-            fluid.eos.total_energy_density(
-                rho_proper_code,
-                vel_proper_code,
-                pre_proper_code,
-            )
-            * volume_proper_code
-        )
+        expected_energy_code = fluid.eos.total_energy_density(
+            rho_proper_code,
+            vel_proper_code,
+            pre_proper_code,
+        ) * volume_proper_code
         mass_code = np.asarray(fluid.Mass_code[first:last], dtype=float)
         mom_code = np.asarray(fluid.Mom_code[first:last], dtype=float)
         energy_code = np.asarray(fluid.Energy_code[first:last], dtype=float)
-        for field_name, field_values in (
-            ("Mass_code", mass_code),
-            ("Mom_code", mom_code),
-            ("Energy_code", energy_code),
-        ):
-            if not np.all(np.isfinite(field_values)):
-                raise ValueError(f"active {field_name} contains non-finite values")
-        if not np.allclose(
-            mass_code,
-            expected_mass_code,
-            rtol=1.0e-10,
-            atol=1.0e-14,
-        ):
-            raise ValueError("active Mass_code is inconsistent with rho/volume")
-        if not np.allclose(
-            mom_code,
-            expected_mom_code,
-            rtol=1.0e-10,
-            atol=1.0e-14,
-        ):
-            raise ValueError("active Mom_code is inconsistent with rho/vel/volume")
-        if not np.allclose(
-            energy_code,
-            expected_energy_code,
-            rtol=1.0e-10,
-            atol=1.0e-14,
-        ):
-            raise ValueError(
+        InitialConditionWriter._validate_finite_fields(
+            (("Mass_code", mass_code), ("Mom_code", mom_code), ("Energy_code", energy_code)),
+        )
+        for actual, expected, message in (
+            (mass_code, expected_mass_code, "active Mass_code is inconsistent with rho/volume"),
+            (mom_code, expected_mom_code, "active Mom_code is inconsistent with rho/vel/volume"),
+            (
+                energy_code,
+                expected_energy_code,
                 "active Energy_code is inconsistent with rho/vel/pre/volume",
+            ),
+        ):
+            if not np.allclose(actual, expected, rtol=1.0e-10, atol=1.0e-14):
+                raise ValueError(message)
+
+    @staticmethod
+    def _validate_active_proper_state(simulation, first, last):
+        """Validate the active proper-code primitive and conserved state."""
+        fluid = simulation.fluid
+        mesh = simulation.mesh
+        fields = {
+            name: np.asarray(getattr(fluid, name)[first:last], dtype=float)
+            for name in (
+                "rho_proper_code",
+                "vel_proper_code",
+                "pre_proper_code",
+                "temp_proper_code",
+                "mu",
             )
+        }
+        volume_proper_code = np.asarray(mesh.volume_proper_code[first:last], dtype=float)
+        InitialConditionWriter._validate_active_primitive_state(
+            fluid,
+            fields["rho_proper_code"],
+            fields["vel_proper_code"],
+            fields["pre_proper_code"],
+            fields["temp_proper_code"],
+            fields["mu"],
+            volume_proper_code,
+        )
+        InitialConditionWriter._validate_active_conserved_state(
+            fluid,
+            first,
+            last,
+            fields["rho_proper_code"],
+            fields["vel_proper_code"],
+            fields["pre_proper_code"],
+            volume_proper_code,
+        )
+
+    def _prepare_geometry(self, mesh, par, boundary_values, cosmological_schema):
+        width_values = np.diff(boundary_values)
+        x_values = 0.5 * (boundary_values[:-1] + boundary_values[1:])
+        geometry_state = getattr(mesh, "geometry_state", None)
+        if geometry_state is not None:
+            representation = "comoving" if cosmological_schema else "proper"
+            area_values = np.asarray(
+                getattr(geometry_state, f"area_{representation}_code"),
+                dtype=float,
+            )
+            volume_values = np.asarray(
+                getattr(geometry_state, f"volume_{representation}_code"),
+                dtype=float,
+            )
+            return x_values, width_values, area_values, volume_values
+        coordinate_system = getattr(
+            getattr(par, "simulation", None),
+            "coordinate_system",
+            "cartesian",
+        )
+        if cosmological_schema or coordinate_system == "cartesian":
+            area_values = np.ones_like(width_values)
+            area_config = getattr(getattr(par, "mesh", None), "area_proper", None)
+            if not cosmological_schema and area_config is not None:
+                area_values *= float(area_config.to_value(self.code_units.area_unit))
+            return x_values, width_values, area_values, width_values * area_values
+        if coordinate_system != "spherical":
+            raise ValueError(f"unsupported coordinate system {coordinate_system!r}")
+        inner_radius_values = boundary_values[:-1]
+        outer_radius_values = boundary_values[1:]
+        area_values = 4.0 * np.pi * inner_radius_values**2
+        volume_values = 4.0 * np.pi / 3.0 * (
+            outer_radius_values**3 - inner_radius_values**3
+        )
+        volume_denominator = outer_radius_values**3 - inner_radius_values**3
+        x_values = 0.5 * (inner_radius_values + outer_radius_values)
+        nonzero_volume = volume_denominator != 0.0
+        x_values[nonzero_volume] = (
+            0.75
+            * (
+                outer_radius_values[nonzero_volume] ** 4
+                - inner_radius_values[nonzero_volume] ** 4
+            )
+            / volume_denominator[nonzero_volume]
+        )
+        return x_values, width_values, area_values, volume_values
+
+    def _initialize_solver_state(
+        self,
+        simulation,
+        source_ngamma_values,
+        specific_angular_momentum_values,
+        source_pressure,
+        pressure_field,
+        density_field,
+        velocity_field,
+        temperature_field,
+        cosmological_schema,
+        active_count,
+        validate,
+    ):
+        par = simulation.par
+        mesh = simulation.mesh
+        fluid = simulation.fluid
+        original_grid_cells = int(par.mesh.grid_cells)
+        original_ghost_cells = int(par.mesh.ghost_cells)
+        par.mesh.grid_cells = active_count
+        par.mesh.ghost_cells = max(1, original_ghost_cells)
+        mesh.par = par
+        simulation.SetMesh()
+        fluid.SetUpFluid(par, mesh=mesh)
+        ghost_cells = int(par.mesh.ghost_cells)
+        if source_ngamma_values is not None:
+            photon_values = np.asarray(source_ngamma_values, dtype=float)
+            if photon_values.shape[-1] != active_count:
+                start = original_ghost_cells
+                photon_values = photon_values[..., start : start + active_count]
+            padding = (
+                ((0, 0), (ghost_cells, ghost_cells))
+                if photon_values.ndim == 2  # noqa: PLR2004
+                else (ghost_cells, ghost_cells)
+            )
+            fluid.ngamma_code = np.pad(photon_values, padding, mode="edge")
+        if specific_angular_momentum_values is not None:
+            fluid.specific_angular_momentum_code = np.pad(
+                specific_angular_momentum_values,
+                (ghost_cells, ghost_cells),
+                mode="edge",
+            )
+        simulation.solver.SetConserved(
+            mesh,
+            fluid,
+            verbose=getattr(par, "verbose", 0),
+        )
+        first = ghost_cells
+        last = first + active_count
+        if source_pressure is None:
+            pressure_values = np.asarray(getattr(fluid, pressure_field), dtype=float)[first:last]
+        else:
+            pressure_values = None
+        if validate and not cosmological_schema:
+            self._validate_active_proper_state(simulation, first, last)
+        representation = "comoving" if cosmological_schema else "proper"
+        mesh_fields = (
+            f"boundary_{representation}_code",
+            f"x_{representation}_code",
+            f"width_{representation}_code",
+            f"area_{representation}_code",
+            f"volume_{representation}_code",
+        )
+        for field_name in mesh_fields:
+            values = np.asarray(getattr(mesh, field_name), dtype=float)
+            start, stop = (first, last + 1) if field_name.startswith("boundary_") else (first, last)
+            setattr(mesh, field_name, values[start:stop])
+        self._trim_solver_fields(
+            fluid,
+            density_field,
+            velocity_field,
+            temperature_field,
+            pressure_field,
+            cosmological_schema,
+            active_count,
+            ghost_cells,
+            first,
+            last,
+        )
+        par.mesh.grid_cells = original_grid_cells
+        par.mesh.ghost_cells = original_ghost_cells
+        return pressure_values
+
+    @staticmethod
+    def _trim_solver_fields(
+        fluid,
+        density_field,
+        velocity_field,
+        temperature_field,
+        pressure_field,
+        cosmological_schema,
+        active_count,
+        ghost_cells,
+        first,
+        last,
+    ):
+        fluid_fields = {
+            density_field,
+            velocity_field,
+            temperature_field,
+            pressure_field,
+            "mu",
+            "Mass_code",
+            "Mom_code",
+            "Energy_code",
+            "InternalEnergy_code",
+            "AngularMomentum_code",
+            "specific_angular_momentum_code",
+            "GravitationalPotentialEnergy_code",
+            "xHI",
+            "xHeI",
+            "xHeII",
+            "xHeIII",
+            "ngamma_code",
+            "tau_supercomoving_code" if cosmological_schema else "time_proper_code",
+        }
+        full_size = active_count + 2 * ghost_cells
+        for field_name in fluid_fields:
+            if not hasattr(fluid, field_name):
+                continue
+            values = np.asarray(getattr(fluid, field_name))
+            if values.ndim == 1 and values.size == full_size:
+                setattr(fluid, field_name, values[first:last])
+            elif values.ndim == 2 and values.shape[-1] == full_size:  # noqa: PLR2004
+                setattr(fluid, field_name, values[..., first:last])
+
+    def _finalize_runtime_state(
+        self,
+        simulation,
+        cosmological_schema,
+        x_values,
+        boundary_values,
+        width_values,
+        area_values,
+        volume_values,
+        density_values,
+        velocity_values,
+        pressure_values,
+        temperature_values,
+    ):
+        par = simulation.par
+        mesh = simulation.mesh
+        fluid = simulation.fluid
+        if cosmological_schema:
+            fields = SUPERCOMOVING_RUNTIME_FIELDS
+            time_name = "tau_supercomoving_code"
+            if self.ic_config is not None and "time_cosmic" in self.ic_config:
+                cosmic_time = self._to_code_values(
+                    self.ic_config["time_cosmic"], self.code_units.time_unit
+                )
+                model = getattr(getattr(par, "cosmology", None), "model", None)
+                if model is None:
+                    raise ValueError("cosmological IC time conversion requires par.cosmology.model")
+                cosmic_time_value = float(np.asarray(cosmic_time).flat[0])
+                time_value = 0.0 if cosmic_time_value == 0.0 else model.supercomoving_time(cosmic_time_value)
+            else:
+                time_value = getattr(
+                    par,
+                    "tau_supercomoving_code",
+                    getattr(getattr(par, "simulation", None), time_name, getattr(fluid, time_name, 0.0)),
+                )
+            time_value = float(np.asarray(time_value).flat[0])
+            fluid.tau_supercomoving_code = time_value
+            par.tau_supercomoving_code = np.asarray([time_value], dtype=float)
+            par.simulation.tau_supercomoving_code = par.tau_supercomoving_code.copy()
+            mesh.geometry_state = MeshGeometryState.from_arrays(
+                fields,
+                x_comoving_code=x_values,
+                boundary_comoving_code=boundary_values,
+                width_comoving_code=width_values,
+                area_comoving_code=area_values,
+                volume_comoving_code=volume_values,
+            )
+            fluid.runtime_state = FluidRuntimeState.from_arrays(
+                fields,
+                rho_comoving_code=density_values,
+                vel_supercomoving_code=velocity_values,
+                pre_supercomoving_code=pressure_values,
+                temp_supercomoving_code=temperature_values,
+                tau_supercomoving_code=time_value,
+                mu_dimensionless=np.asarray(fluid.mu, dtype=float),
+            )
+            par.simulation.box_size_comoving_code = float(boundary_values[-1])
+            return
+        fields = PROPER_RUNTIME_FIELDS
+        if self.ic_config is not None and "time_proper" in self.ic_config:
+            time_value = self._to_code_values(self.ic_config["time_proper"], self.code_units.time_unit)
+        else:
+            time_value = getattr(fluid, "time_proper_code", getattr(getattr(fluid, "runtime_state", None), "time_proper_code", 0.0))
+        time_value = float(np.asarray(time_value).flat[0])
+        fluid.time_proper_code = time_value
+        mesh.geometry_state = MeshGeometryState.from_arrays(
+            fields,
+            x_proper_code=x_values,
+            boundary_proper_code=boundary_values,
+            width_proper_code=width_values,
+            area_proper_code=area_values,
+            volume_proper_code=volume_values,
+        )
+        fluid.runtime_state = FluidRuntimeState.from_arrays(
+            fields,
+            rho_proper_code=density_values,
+            vel_proper_code=velocity_values,
+            pre_proper_code=pressure_values,
+            temp_proper_code=temperature_values,
+            time_proper_code=time_value,
+            mu_dimensionless=np.asarray(fluid.mu, dtype=float),
+        )
+        par.simulation.box_size_proper_code = float(boundary_values[-1])
+
+    def _prepare_optional_fields(self, fluid, context, cosmological_schema, density_values):
+        ngamma_field = "ngamma_comoving_code" if cosmological_schema else "ngamma_proper_code"
+        source_ngamma = self._field(ngamma_field, fluid, required=False)
+        source_ngamma_values = None
+        if source_ngamma is not None:
+            source_ngamma_values = self._convert(source_ngamma, ngamma_field, context=context)
+            fluid.ngamma_code = source_ngamma_values.copy()
+        specific = getattr(fluid, "specific_angular_momentum_radarray", None)
+        if specific is None:
+            specific = self._fields.get("specific_angular_momentum_radarray")
+        if specific is None:
+            specific = getattr(fluid, "specific_angular_momentum_code", None)
+        if specific is not None:
+            specific = self._convert_angular_momentum(specific, context)
+            fluid.specific_angular_momentum_code = specific
+        mu = self._fields.get("mu")
+        if mu is not None:
+            fluid.mu = self._code_values(mu)
+        elif not hasattr(fluid, "mu"):
+            fluid.mu = np.ones_like(density_values)
+        xhi = self._fields.get("xHI")
+        if xhi is not None:
+            fluid.xHI = self._code_values(xhi)
+        specific_values = getattr(fluid, "specific_angular_momentum_code", None)
+        if specific_values is not None:
+            specific_values = np.asarray(specific_values, dtype=float).copy()
+        return source_ngamma_values, specific_values
+
+    def _convert_angular_momentum(self, value, context):
+        if hasattr(value, "units") and not isinstance(value, (RadArray, RadQuantity)):
+            code_unit = _code_unit_for_spec(
+                self.code_units,
+                field_spec("specific_angular_momentum_code", self.code_units),
+            )
+            return np.asarray(value.to_value(code_unit.units), dtype=float) / float(code_unit.value)
+        return self._convert(value, "specific_angular_momentum_code", context=context)
 
     def prepare(self, *, validate=False):
         """Convert fields and create canonical typed runtime state.
@@ -720,60 +1016,12 @@ class InitialConditionWriter:
                 raise ValueError(
                     "box_size does not match the assigned mesh boundary",
                 )
-        x_values = 0.5 * (boundary_values[:-1] + boundary_values[1:])
-        width_values = np.diff(boundary_values)
-
-        geometry_state = getattr(mesh, "geometry_state", None)
-        if geometry_state is not None:
-            area_values = np.asarray(
-                getattr(
-                    geometry_state,
-                    "area_proper_code" if not cosmological_schema else "area_comoving_code",
-                ),
-                dtype=float,
-            )
-            volume_values = np.asarray(
-                getattr(
-                    geometry_state,
-                    "volume_proper_code" if not cosmological_schema else "volume_comoving_code",
-                ),
-                dtype=float,
-            )
-        else:
-            coordinate_system = getattr(
-                getattr(par, "simulation", None),
-                "coordinate_system",
-                "cartesian",
-            )
-            if cosmological_schema or coordinate_system == "cartesian":
-                area_values = np.ones_like(width_values)
-                if not cosmological_schema:
-                    area_config = getattr(getattr(par, "mesh", None), "area_proper", None)
-                    if area_config is not None:
-                        area_values *= float(
-                            area_config.to_value(self.code_units.area_unit),
-                        )
-                volume_values = width_values * area_values
-            elif coordinate_system == "spherical":
-                inner_radius_values = boundary_values[:-1]
-                outer_radius_values = boundary_values[1:]
-                area_values = 4.0 * np.pi * inner_radius_values**2
-                volume_values = (
-                    4.0 * np.pi / 3.0 * (outer_radius_values**3 - inner_radius_values**3)
-                )
-                volume_denominator = outer_radius_values**3 - inner_radius_values**3
-                x_values = 0.5 * (inner_radius_values + outer_radius_values)
-                nonzero_volume = volume_denominator != 0.0
-                x_values[nonzero_volume] = (
-                    0.75
-                    * (
-                        outer_radius_values[nonzero_volume] ** 4
-                        - inner_radius_values[nonzero_volume] ** 4
-                    )
-                    / volume_denominator[nonzero_volume]
-                )
-            else:
-                raise ValueError(f"unsupported coordinate system {coordinate_system!r}")
+        x_values, width_values, area_values, volume_values = self._prepare_geometry(
+            mesh,
+            par,
+            boundary_values,
+            cosmological_schema,
+        )
 
         source_x = self._fields.get(
             "x_proper_code" if not cosmological_schema else "x_comoving_code",
@@ -823,291 +1071,47 @@ class InitialConditionWriter:
         setattr(fluid, velocity_field, velocity_values)
         setattr(fluid, temperature_field, temperature_values)
         setattr(fluid, pressure_field, pressure_values)
-        ngamma_field = "ngamma_comoving_code" if cosmological_schema else "ngamma_proper_code"
-        source_ngamma = self._field(ngamma_field, fluid, required=False)
-        source_ngamma_values = None
-        if source_ngamma is not None:
-            source_ngamma_values = self._convert(
-                source_ngamma,
-                ngamma_field,
-                context=context,
-            )
-            fluid.ngamma_code = source_ngamma_values.copy()
-        specific_angular_momentum = getattr(
+        source_ngamma_values, specific_angular_momentum_values = self._prepare_optional_fields(
             fluid,
-            "specific_angular_momentum_radarray",
-            None,
+            context,
+            cosmological_schema,
+            density_values,
         )
-        if specific_angular_momentum is None:
-            specific_angular_momentum = self._fields.get(
-                "specific_angular_momentum_radarray",
-            )
-        if specific_angular_momentum is None:
-            specific_angular_momentum = getattr(
-                fluid,
-                "specific_angular_momentum_code",
-                None,
-            )
-        if specific_angular_momentum is not None:
-            if hasattr(specific_angular_momentum, "units") and not isinstance(
-                specific_angular_momentum,
-                (RadArray, RadQuantity),
-            ):
-                code_unit = _code_unit_for_spec(
-                    self.code_units,
-                    field_spec("specific_angular_momentum_code", self.code_units),
-                )
-                specific_angular_momentum = np.asarray(
-                    specific_angular_momentum.to_value(code_unit.units),
-                    dtype=float,
-                ) / float(code_unit.value)
-            else:
-                specific_angular_momentum = self._convert(
-                    specific_angular_momentum,
-                    "specific_angular_momentum_code",
-                    context=context,
-                )
-            fluid.specific_angular_momentum_code = specific_angular_momentum
-        mu = self._fields.get("mu")
-        if mu is not None:
-            fluid.mu = self._code_values(mu)
-        elif not hasattr(fluid, "mu"):
-            fluid.mu = np.ones_like(density_values)
-        xhi = self._fields.get("xHI")
-        if xhi is not None:
-            fluid.xHI = self._code_values(xhi)
-        specific_angular_momentum_values = getattr(
-            fluid,
-            "specific_angular_momentum_code",
-            None,
-        )
-        if specific_angular_momentum_values is not None:
-            specific_angular_momentum_values = np.asarray(
-                specific_angular_momentum_values,
-                dtype=float,
-            ).copy()
 
         active_count = int(np.asarray(density_values).size)
         solver_ready = all(
             hasattr(simulation, attribute) for attribute in ("SetMesh", "fluid", "solver")
         ) and hasattr(simulation.solver, "SetConserved")
         if solver_ready:
-            # Complete the same solver-ready initialization used by the normal
-            # IC path.  The writer receives active-cell primitive values, so
-            # setup temporarily adds ghost cells, derives conserved fields,
-            # and then trims the state back to the canonical IC representation.
-            original_grid_cells = int(par.mesh.grid_cells)
-            original_ghost_cells = int(par.mesh.ghost_cells)
-            par.mesh.grid_cells = active_count
-            par.mesh.ghost_cells = max(1, original_ghost_cells)
-            mesh.par = par
-            simulation.SetMesh()
-            fluid.SetUpFluid(par, mesh=mesh)
-            if source_ngamma_values is not None:
-                # SetUpFluid initializes radiation fields for a fresh solver
-                # state.  Snapshot preparation must retain the caller's
-                # canonical photon density instead of replacing it with zeros.
-                photon_values = np.asarray(source_ngamma_values, dtype=float)
-                if photon_values.ndim == 1 and photon_values.size != active_count:
-                    photon_values = photon_values[
-                        original_ghost_cells : original_ghost_cells + active_count
-                    ]
-                elif photon_values.ndim == 2 and photon_values.shape[-1] != active_count:  # noqa: PLR2004
-                    photon_values = photon_values[
-                        ...,
-                        original_ghost_cells : original_ghost_cells + active_count,
-                    ]
-                fluid.ngamma_code = np.pad(
-                    photon_values,
-                    ((0, 0), (int(par.mesh.ghost_cells), int(par.mesh.ghost_cells)))
-                    if photon_values.ndim == 2  # noqa: PLR2004
-                    else (int(par.mesh.ghost_cells), int(par.mesh.ghost_cells)),
-                    mode="edge",
-                )
-            if specific_angular_momentum_values is not None:
-                fluid.specific_angular_momentum_code = np.pad(
-                    specific_angular_momentum_values,
-                    (int(par.mesh.ghost_cells), int(par.mesh.ghost_cells)),
-                    mode="edge",
-                )
-            simulation.solver.SetConserved(
-                mesh,
-                fluid,
-                verbose=getattr(par, "verbose", 0),
-            )
-            ghost_cells = int(par.mesh.ghost_cells)
-            first = ghost_cells
-            last = first + active_count
-            if source_pressure is None:
-                pressure_values = np.asarray(
-                    getattr(fluid, pressure_field),
-                    dtype=float,
-                )[first:last]
-            if validate and not cosmological_schema:
-                self._validate_active_proper_state(simulation, first, last)
-            mesh_attribute = (
-                "boundary_comoving_code" if cosmological_schema else "boundary_proper_code"
-            )
-            for field_name in (
-                mesh_attribute,
-                "x_comoving_code" if cosmological_schema else "x_proper_code",
-                "width_comoving_code" if cosmological_schema else "width_proper_code",
-                "area_comoving_code" if cosmological_schema else "area_proper_code",
-                "volume_comoving_code" if cosmological_schema else "volume_proper_code",
-            ):
-                values = getattr(mesh, field_name)
-                start, stop = (first, last + 1) if field_name == mesh_attribute else (first, last)
-                setattr(mesh, field_name, np.asarray(values, dtype=float)[start:stop])
-            fluid_attribute_names = {
+            computed_pressure_values = self._initialize_solver_state(
+                simulation,
+                source_ngamma_values,
+                specific_angular_momentum_values,
+                source_pressure,
+                pressure_field,
                 density_field,
                 velocity_field,
                 temperature_field,
-                pressure_field,
-                "mu",
-                "Mass_code",
-                "Mom_code",
-                "Energy_code",
-                "InternalEnergy_code",
-                "AngularMomentum_code",
-                "specific_angular_momentum_code",
-                "GravitationalPotentialEnergy_code",
-                "xHI",
-                "xHeI",
-                "xHeII",
-                "xHeIII",
-                "ngamma_code",
-            }
-            if cosmological_schema:
-                fluid_attribute_names.add("tau_supercomoving_code")
-            else:
-                fluid_attribute_names.add("time_proper_code")
-            for field_name in fluid_attribute_names:
-                if not hasattr(fluid, field_name):
-                    continue
-                values_array = np.asarray(getattr(fluid, field_name))
-                if values_array.ndim == 0:
-                    continue
-                if values_array.ndim == 1:
-                    if values_array.size != active_count + 2 * ghost_cells:
-                        continue
-                    trimmed_values = values_array[first:last]
-                elif (
-                    values_array.ndim == 2  # noqa: PLR2004
-                    and values_array.shape[-1] == active_count + 2 * ghost_cells
-                ):
-                    trimmed_values = values_array[..., first:last]
-                else:
-                    continue
-                setattr(fluid, field_name, trimmed_values)
-            par.mesh.grid_cells = original_grid_cells
-            par.mesh.ghost_cells = original_ghost_cells
+                cosmological_schema,
+                active_count,
+                validate,
+            )
+            if source_pressure is None:
+                pressure_values = computed_pressure_values
 
-        if cosmological_schema:
-            geometry_fields = SUPERCOMOVING_RUNTIME_FIELDS
-            fluid_fields = SUPERCOMOVING_RUNTIME_FIELDS
-            if self.ic_config is not None and "time_cosmic" in self.ic_config:
-                cosmic_time = self._to_code_values(
-                    self.ic_config["time_cosmic"],
-                    self.code_units.time_unit,
-                )
-                cosmology_model = getattr(
-                    getattr(par, "cosmology", None),
-                    "model",
-                    None,
-                )
-                if cosmology_model is None:
-                    raise ValueError(
-                        "cosmological IC time conversion requires par.cosmology.model",
-                    )
-                cosmic_time_value = float(np.asarray(cosmic_time).flat[0])
-                time_value = (
-                    0.0
-                    if cosmic_time_value == 0.0
-                    else cosmology_model.supercomoving_time(cosmic_time_value)
-                )
-            else:
-                time_value = getattr(
-                    par,
-                    "tau_supercomoving_code",
-                    getattr(
-                        getattr(par, "simulation", None),
-                        "tau_supercomoving_code",
-                        getattr(
-                            fluid,
-                            "tau_supercomoving_code",
-                            getattr(
-                                getattr(fluid, "runtime_state", None),
-                                "tau_supercomoving_code",
-                                0.0,
-                            ),
-                        ),
-                    ),
-                )
-            fluid.tau_supercomoving_code = float(np.asarray(time_value).flat[0])
-            par.tau_supercomoving_code = np.asarray(
-                [fluid.tau_supercomoving_code],
-                dtype=float,
-            )
-            par.simulation.tau_supercomoving_code = par.tau_supercomoving_code.copy()
-            mesh.geometry_state = MeshGeometryState.from_arrays(
-                geometry_fields,
-                x_comoving_code=x_values,
-                boundary_comoving_code=boundary_values,
-                width_comoving_code=width_values,
-                area_comoving_code=area_values,
-                volume_comoving_code=volume_values,
-            )
-            fluid.runtime_state = FluidRuntimeState.from_arrays(
-                fluid_fields,
-                rho_comoving_code=density_values,
-                vel_supercomoving_code=velocity_values,
-                pre_supercomoving_code=pressure_values,
-                temp_supercomoving_code=temperature_values,
-                tau_supercomoving_code=fluid.tau_supercomoving_code,
-                mu_dimensionless=np.asarray(fluid.mu, dtype=float),
-            )
-            par.simulation.box_size_comoving_code = float(boundary_values[-1])
-        else:
-            geometry_fields = PROPER_RUNTIME_FIELDS
-            fluid_fields = PROPER_RUNTIME_FIELDS
-            if self.ic_config is not None and "time_proper" in self.ic_config:
-                time_value = self._to_code_values(
-                    self.ic_config["time_proper"],
-                    self.code_units.time_unit,
-                )
-            else:
-                time_value = getattr(
-                    fluid,
-                    "time_proper_code",
-                    getattr(
-                        getattr(fluid, "runtime_state", None),
-                        "time_proper_code",
-                        getattr(
-                            getattr(par, "simulation", None),
-                            "time_proper_code",
-                            getattr(par, "time_proper_code", 0.0),
-                        ),
-                    ),
-                )
-            fluid.time_proper_code = float(np.asarray(time_value).flat[0])
-            mesh.geometry_state = MeshGeometryState.from_arrays(
-                geometry_fields,
-                x_proper_code=x_values,
-                boundary_proper_code=boundary_values,
-                width_proper_code=width_values,
-                area_proper_code=area_values,
-                volume_proper_code=volume_values,
-            )
-            fluid.runtime_state = FluidRuntimeState.from_arrays(
-                fluid_fields,
-                rho_proper_code=density_values,
-                vel_proper_code=velocity_values,
-                pre_proper_code=pressure_values,
-                temp_proper_code=temperature_values,
-                time_proper_code=fluid.time_proper_code,
-                mu_dimensionless=np.asarray(fluid.mu, dtype=float),
-            )
-            par.simulation.box_size_proper_code = float(boundary_values[-1])
+        self._finalize_runtime_state(
+            simulation,
+            cosmological_schema,
+            x_values,
+            boundary_values,
+            width_values,
+            area_values,
+            volume_values,
+            density_values,
+            velocity_values,
+            pressure_values,
+            temperature_values,
+        )
         return simulation
 
     def write(self, filename, *, validate=False):

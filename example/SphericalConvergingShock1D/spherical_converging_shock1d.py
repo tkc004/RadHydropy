@@ -24,9 +24,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from example import example_utils as eu
-
 import radhydropy.io as rio
+from example import example_utils as eu
 from example.SphericalConvergingShock1D import tools as et
 from radhydropy.eos import EOS
 from radhydropy.rsim import Rsim

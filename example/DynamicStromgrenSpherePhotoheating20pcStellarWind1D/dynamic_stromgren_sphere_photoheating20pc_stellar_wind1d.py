@@ -24,7 +24,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from example import example_utils as eu
-
 from example.DynamicStromgrenSpherePhotoheating20pcStellarWind1D import tools as et
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits

@@ -67,24 +67,11 @@ def plot_snapshot(filename, config, **kwargs):
         sim.mesh.boundary_radarray.to(units.length_unit).value,
         dtype=float,
     )
-    if boundary_values.size == count + 1:
-        boundary_proper_code = boundary_values
-    elif boundary_values.size == count + 2 * first + 1:
-        boundary_proper_code = boundary_values[first : first + count + 1]
-    else:
-        raise ValueError("unexpected Sedov spherical boundary RadArray shape")
+    boundary_proper_code = _active_boundary_values(boundary_values, count, first)
     coordinate_proper_code = 0.5 * (boundary_proper_code[:-1] + boundary_proper_code[1:])
 
-    def active_values(radarray, unit):
-        values = np.asarray(radarray.to(unit).value, dtype=float)
-        if values.size == count:
-            return values
-        if values.size == count + 2 * first:
-            return values[first : first + count]
-        raise ValueError("unexpected Sedov spherical fluid RadArray shape")
-
-    rho_proper_code = active_values(sim.fluid.rho_radarray, units.density_unit)
-    temp_proper_code = active_values(sim.fluid.temp_radarray, units.temperature_unit)
+    rho_proper_code = _active_values(sim.fluid.rho_radarray, units.density_unit, count, first)
+    temp_proper_code = _active_values(sim.fluid.temp_radarray, units.temperature_unit, count, first)
     mu_values = np.asarray(sim.fluid.mu, dtype=float)
     if mu_values.size != count:
         mu_values = mu_values[first : first + count]
@@ -102,7 +89,8 @@ def plot_snapshot(filename, config, **kwargs):
     coordinate_proper_cgs_cm = coordinate_proper_code * length_cgs_per_code
     pressure_proper_cgs_erg_cm3 = np.asarray(pressure_proper_code) * pressure_cgs_per_code
     velocity_proper_cgs_cm_s = (
-        active_values(sim.fluid.vel_radarray, units.velocity_unit) * velocity_cgs_per_code
+        _active_values(sim.fluid.vel_radarray, units.velocity_unit, count, first)
+        * velocity_cgs_per_code
     )
     rho_proper_cgs_g_cm3 = rho_proper_code * density_cgs_per_code
 
@@ -160,3 +148,20 @@ def plot_snapshot(filename, config, **kwargs):
             "k--",
             linewidth=1.5,
         )
+
+
+def _active_boundary_values(values, count, first):
+    if values.size == count + 1:
+        return values
+    if values.size == count + 2 * first + 1:
+        return values[first : first + count + 1]
+    raise ValueError("unexpected Sedov spherical boundary RadArray shape")
+
+
+def _active_values(radarray, unit, count, first):
+    values = np.asarray(radarray.to(unit).value, dtype=float)
+    if values.size == count:
+        return values
+    if values.size == count + 2 * first:
+        return values[first : first + count]
+    raise ValueError("unexpected Sedov spherical fluid RadArray shape")

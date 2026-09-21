@@ -14,25 +14,24 @@ from radhydropy.runtime_fields import (
 )
 
 
-def GetStepTime(sim, dt=None, final_time=None):  # noqa: N802
-    """Return a timestep, clipped to ``final_time`` when supplied."""
-    if dt is None:
-        dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
+def _apply_dark_matter_timestep_limit(sim, dt):
     gravity = getattr(sim.par, "gravity", None)
     dark_matter = getattr(gravity, "dark_matter", None)
-    if dark_matter is not None and getattr(sim.par, "dark_matter_global_timestep_limit", True):
-        dm_dt = dark_matter.crossing_timestep(safety_factor=1.0)
-        if np.isfinite(dm_dt):
-            if dm_dt <= 0.0:
-                raise RuntimeError(
-                    "dark-matter crossing timestep is non-positive; "
-                    "coincident shell crossings must be resolved before "
-                    "advancing the simulation",
-                )
-            dt = min(dt, dm_dt)
-    fields = runtime_fields(sim.par)
-    runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
-    current_time = getattr(runtime_state, fields.time)
+    if dark_matter is None or not getattr(sim.par, "dark_matter_global_timestep_limit", True):
+        return dt
+    dm_dt = dark_matter.crossing_timestep(safety_factor=1.0)
+    if np.isfinite(dm_dt):
+        if dm_dt <= 0.0:
+            raise RuntimeError(
+                "dark-matter crossing timestep is non-positive; "
+                "coincident shell crossings must be resolved before "
+                "advancing the simulation",
+            )
+        return min(dt, dm_dt)
+    return dt
+
+
+def _align_timestep_units(dt, current_time, final_time):
     if final_time is not None:
         if hasattr(final_time, "units"):
             target_units = final_time.units
@@ -42,6 +41,18 @@ def GetStepTime(sim, dt=None, final_time=None):  # noqa: N802
                 dt = dt * target_units
         elif hasattr(current_time, "units") and not hasattr(dt, "to_value"):
             dt = dt * current_time.units
+    return current_time, dt
+
+
+def GetStepTime(sim, dt=None, final_time=None):  # noqa: N802
+    """Return a timestep, clipped to ``final_time`` when supplied."""
+    if dt is None:
+        dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
+    dt = _apply_dark_matter_timestep_limit(sim, dt)
+    fields = runtime_fields(sim.par)
+    runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
+    current_time = getattr(runtime_state, fields.time)
+    current_time, dt = _align_timestep_units(dt, current_time, final_time)
     if final_time is not None and current_time + dt > final_time:
         dt = final_time - current_time
     return dt
@@ -302,26 +313,7 @@ def Step(  # noqa: N802
     hydro_integrator="euler",
 ):
     """Advance one canonical simulation step in the requested mode."""
-    valid_modes = ("hydro", "hydro_sources", "sources")
-    if mode not in valid_modes:
-        raise ValueError(
-            "Unknown step mode {!r}; valid modes are {}".format(mode, ", ".join(valid_modes)),
-        )
-    valid_hydro_integrators = ("euler", "ssprk2")
-    if hydro_integrator not in valid_hydro_integrators:
-        raise ValueError(
-            "Unknown hydro integrator {!r}; valid options are {}".format(
-                hydro_integrator,
-                ", ".join(valid_hydro_integrators),
-            ),
-        )
-    source_integrator = str(getattr(sim.par, "source_integrator", "lie")).lower()
-    if source_integrator not in ("lie", "strang"):
-        raise ValueError(
-            f"Unknown source integrator {source_integrator!r}; valid options are lie, strang",
-        )
-    if source_integrator == "strang" and mode != "hydro":
-        raise ValueError("source_integrator='strang' requires mode='hydro'")
+    source_integrator = _validate_step_options(sim, mode, hydro_integrator)
     dt = sim.GetStepTime(dt=dt)
     temperature_before = diagnostics.temperature_physical_cgs_K(sim)
     if temperature_before is not None:
@@ -338,32 +330,13 @@ def Step(  # noqa: N802
     sim.last_thermochemistry_energy_change = 0.0
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
-    if mode != "sources":
-        mass_before = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
-        momentum_before = np.asarray(sim.fluid.Mom_code[first:last], dtype=float)
-        energy_before = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
-        kinetic_before = np.zeros_like(mass_before)
-        np.divide(
-            0.5 * momentum_before**2,
-            mass_before,
-            out=kinetic_before,
-            where=mass_before > 0.0,
-        )
-        if sim.energy_diagnostics_enabled:
-            sim.thermal_energy_before_hydro = energy_before - kinetic_before
+    _capture_hydro_thermal_baseline(sim, mode, first, last)
     result = {
         "dt": dt,
         "hydro_steps": 0,
         "source_steps": 0,
     }
-    source_enabled = bool(
-        getattr(sim.par, "gravity", None) is not None
-        or getattr(sim.par, "externalgravity", False)
-        or getattr(sim.par, "simgravity", False)
-        or getattr(sim.par, "cosmological_gravity", False)
-        or getattr(sim.par, "dark_matter", None) is not None
-        or getattr(sim.par, "gas_rotational_energy", False),
-    )
+    source_enabled = _source_enabled(sim)
     if source_integrator == "strang":
         sim.solver.ApplyGravity(0.5 * dt, sim.mesh, sim.fluid, sim.par)
         sim.accumulate_gravity_work()
@@ -461,72 +434,17 @@ def Step(  # noqa: N802
             diagnostics.check_temperature_jump(sim, temperature_before, stage="hydro")
 
     if mode == "hydro" and hydro_integrator == "ssprk2":
-        diagnostics.check_conserved_energy_admissibility(
-            sim,
-            stage="hydro flux update",
-        )
-        diagnostics.check_temperature_jump(sim, temperature_before, stage="hydro")
-
-    if mode == "hydro_sources":
-        energy_before_sources_by_cell = np.asarray(
-            sim.fluid.Energy_code[first:last],
-            dtype=float,
-        ).copy()
-        energy_before_sources = float(np.sum(energy_before_sources_by_cell))
+        _check_ssprk2_step(sim, temperature_before)
 
     if mode in ("hydro_sources", "sources"):
-        source_result = sim.ApplyThermochemistrySources(
+        result["source_steps"] = _apply_source_step(
+            sim,
             dt,
-        )
-        diagnostics.check_conserved_energy_admissibility(
-            sim,
-            stage="thermochemistry update",
-        )
-        sim.last_source_result = source_result
-        sim.last_source_dt = dt
-        sim.synchronize_thermochemistry_internal_energy()
-        # Source updates can change temperature, pressure, and chemistry
-        # fields, so refresh the boundary state before the next loop.
-        if mode == "sources":
-            if getattr(sim.par, "supercomoving_coordinates", False):
-                sim.fluid.tau_supercomoving_code += dt
-            else:
-                sim.fluid.time_proper_code += dt
-        sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
-        sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, "verbose", 0))
-        diagnostics.check_conserved_energy_admissibility(
-            sim,
-            stage="thermochemistry SetConserved synchronization",
-        )
-        pressure_applied = sim.solver.ApplyRadiationPressure(
-            dt,
-            sim.mesh,
-            sim.fluid,
-            sim.par,
-            source_result,
-        )
-        if pressure_applied:
-            sim.sync_hydro_state()
-        if mode == "hydro_sources":
-            energy_after_sources = float(
-                np.sum(np.asarray(sim.fluid.Energy_code[first:last], dtype=float)),
-            )
-            sim.last_thermochemistry_energy_change = energy_after_sources - energy_before_sources
-            if sim.energy_diagnostics_enabled:
-                sim.last_thermochemistry_energy_change_by_cell = (
-                    np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
-                    - energy_before_sources_by_cell
-                )
-                sim.cumulative_thermochemistry_energy_change_by_cell += (
-                    sim.last_thermochemistry_energy_change_by_cell
-                )
-        diagnostics.check_temperature_jump(
-            sim,
+            mode,
+            first,
+            last,
             temperature_before,
-            stage="thermochemistry",
-            source_result=source_result,
         )
-        result["source_steps"] = int(source_result.get("source_steps", 0))
 
     result.update(
         {
@@ -554,3 +472,109 @@ def Step(  # noqa: N802
         },
     )
     return result
+
+
+def _apply_source_step(sim, dt, mode, first, last, temperature_before):
+    """Apply thermochemistry, radiation pressure, and source diagnostics."""
+    energy_before_by_cell = None
+    energy_before = None
+    if mode == "hydro_sources":
+        energy_before_by_cell = np.asarray(
+            sim.fluid.Energy_code[first:last],
+            dtype=float,
+        ).copy()
+        energy_before = float(np.sum(energy_before_by_cell))
+    source_result = sim.ApplyThermochemistrySources(dt)
+    diagnostics.check_conserved_energy_admissibility(sim, stage="thermochemistry update")
+    sim.last_source_result = source_result
+    sim.last_source_dt = dt
+    sim.synchronize_thermochemistry_internal_energy()
+    if mode == "sources":
+        if getattr(sim.par, "supercomoving_coordinates", False):
+            sim.fluid.tau_supercomoving_code += dt
+        else:
+            sim.fluid.time_proper_code += dt
+    sim.solver.SetBoundary(sim.mesh, sim.fluid, sim.par)
+    sim.solver.SetConserved(sim.mesh, sim.fluid, verbose=getattr(sim.par, "verbose", 0))
+    diagnostics.check_conserved_energy_admissibility(
+        sim,
+        stage="thermochemistry SetConserved synchronization",
+    )
+    if sim.solver.ApplyRadiationPressure(
+        dt,
+        sim.mesh,
+        sim.fluid,
+        sim.par,
+        source_result,
+    ):
+        sim.sync_hydro_state()
+    if mode == "hydro_sources":
+        energy_after = float(np.sum(np.asarray(sim.fluid.Energy_code[first:last], dtype=float)))
+        sim.last_thermochemistry_energy_change = energy_after - energy_before
+        if sim.energy_diagnostics_enabled:
+            sim.last_thermochemistry_energy_change_by_cell = (
+                np.asarray(sim.fluid.Energy_code[first:last], dtype=float) - energy_before_by_cell
+            )
+            sim.cumulative_thermochemistry_energy_change_by_cell += (
+                sim.last_thermochemistry_energy_change_by_cell
+            )
+    diagnostics.check_temperature_jump(
+        sim,
+        temperature_before,
+        stage="thermochemistry",
+        source_result=source_result,
+    )
+    return int(source_result.get("source_steps", 0))
+
+
+def _check_ssprk2_step(sim, temperature_before):
+    diagnostics.check_conserved_energy_admissibility(sim, stage="hydro flux update")
+    diagnostics.check_temperature_jump(sim, temperature_before, stage="hydro")
+
+
+def _source_enabled(sim):
+    return bool(
+        getattr(sim.par, "gravity", None) is not None
+        or getattr(sim.par, "externalgravity", False)
+        or getattr(sim.par, "simgravity", False)
+        or getattr(sim.par, "cosmological_gravity", False)
+        or getattr(sim.par, "dark_matter", None) is not None
+        or getattr(sim.par, "gas_rotational_energy", False),
+    )
+
+
+def _capture_hydro_thermal_baseline(sim, mode, first, last):
+    if mode == "sources":
+        return
+    mass_before = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
+    momentum_before = np.asarray(sim.fluid.Mom_code[first:last], dtype=float)
+    energy_before = np.asarray(sim.fluid.Energy_code[first:last], dtype=float)
+    kinetic_before = np.zeros_like(mass_before)
+    np.divide(0.5 * momentum_before**2, mass_before, out=kinetic_before, where=mass_before > 0.0)
+    if sim.energy_diagnostics_enabled:
+        sim.thermal_energy_before_hydro = energy_before - kinetic_before
+
+
+def _validate_step_options(sim, mode, hydro_integrator):
+    """Validate step mode/integrator combinations and return source splitting."""
+    valid_modes = ("hydro", "hydro_sources", "sources")
+    if mode not in valid_modes:
+        raise ValueError(
+            "Unknown step mode {!r}; valid modes are {}".format(mode, ", ".join(valid_modes)),
+        )
+    valid_hydro_integrators = ("euler", "ssprk2")
+    if hydro_integrator not in valid_hydro_integrators:
+        raise ValueError(
+            "Unknown hydro integrator {!r}; valid options are {}".format(
+                hydro_integrator,
+                ", ".join(valid_hydro_integrators),
+            ),
+        )
+    source_integrator = str(getattr(sim.par, "source_integrator", "lie")).lower()
+    if source_integrator not in ("lie", "strang"):
+        raise ValueError(
+            f"Unknown source integrator {source_integrator!r}; valid options are lie, strang",
+        )
+    if source_integrator == "strang" and mode != "hydro":
+        raise ValueError("source_integrator='strang' requires mode='hydro'")
+    return source_integrator

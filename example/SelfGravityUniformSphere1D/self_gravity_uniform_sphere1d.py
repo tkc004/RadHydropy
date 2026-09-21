@@ -22,11 +22,11 @@ os.environ.setdefault(
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 
 import radhydropy.io as rio
+from example import example_utils as eu
 from example.SelfGravityUniformSphere1D import tools as et
 from radhydropy.gravity import Gravity
 from radhydropy.rsim import Rsim

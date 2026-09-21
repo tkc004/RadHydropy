@@ -264,56 +264,19 @@ def plot_temperature_evolution(
         gridspec_kw={"height_ratios": (3.0, 1.25)},
     )
     for color, index in zip(colors, selected, strict=False):
-        comoving_radius = radius_comoving_code
-        # Reconstruct spherical cell volumes from neighboring cell centers;
-        # the common scale-factor volume_comoving_code cancels in the mass weighting.
-        cell_edges = np.empty(comoving_radius.size + 1, dtype=float)
-        if comoving_radius.size > 1:
-            cell_edges[1:-1] = np.sqrt(comoving_radius[:-1] * comoving_radius[1:])
-            cell_edges[0] = comoving_radius[0] ** 2 / cell_edges[1]
-            cell_edges[-1] = comoving_radius[-1] ** 2 / cell_edges[-2]
-        else:
-            cell_edges[:] = (0.5 * comoving_radius[0], 1.5 * comoving_radius[0])
-        cell_volume = np.maximum(np.diff(cell_edges**3), 0.0)
-        mass_weight = np.asarray(rho_comoving_code[index], dtype=float) * cell_volume
-        binned_radius, binned_temperature = _log_radial_bin_profile(
-            comoving_radius,
-            temperature_proper_cgs_K[index],
-            weights=mass_weight,
-            bin_count=radial_bin_count,
-            log_weighted=True,
-        )
-        axes[0].loglog(
-            binned_radius,
-            np.maximum(binned_temperature, 1.0e-30),
-            color=color,
-            lw=1.7,
-            label=f"t = {times[index]:.2f} Gyr",
-        )
-        if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
-            axes[0].axvline(
-                virial_radius[index] / scale_factors[index],
-                color=color,
-                ls="--",
-                lw=0.9,
-                alpha=0.65,
-            )
-        if np.isfinite(virial_temperature[index]) and virial_temperature[index] > 0.0:
-            axes[0].axhline(
-                virial_temperature[index],
-                color=color,
-                ls=":",
-                lw=1.0,
-                alpha=0.7,
-            )
-        cmb_temperature = 2.7255 / scale_factors[index]
-        axes[0].axhline(
-            cmb_temperature,
-            color=color,
-            ls="--",
-            lw=0.55,
-            alpha=0.65,
-            label="CMB temperature" if index == selected[0] else None,
+        _plot_temperature_snapshot(
+            axes[0],
+            color,
+            index,
+            selected[0],
+            times,
+            radius_comoving_code,
+            rho_comoving_code,
+            temperature_proper_cgs_K,
+            virial_radius,
+            virial_temperature,
+            scale_factors,
+            radial_bin_count,
         )
     if inner_radius is not None and float(inner_radius) > 0.0:
         axes[0].axvline(
@@ -368,6 +331,70 @@ def plot_temperature_evolution(
     fig.tight_layout()
     fig.savefig(filename, dpi=220)
     plt.close(fig)
+
+
+def _plot_temperature_snapshot(
+    axis,
+    color,
+    index,
+    first_index,
+    times,
+    radius_comoving_code,
+    rho_comoving_code,
+    temperature_proper_cgs_K,
+    virial_radius,
+    virial_temperature,
+    scale_factors,
+    radial_bin_count,
+):
+    comoving_radius = radius_comoving_code
+    cell_edges = np.empty(comoving_radius.size + 1, dtype=float)
+    if comoving_radius.size > 1:
+        cell_edges[1:-1] = np.sqrt(comoving_radius[:-1] * comoving_radius[1:])
+        cell_edges[0] = comoving_radius[0] ** 2 / cell_edges[1]
+        cell_edges[-1] = comoving_radius[-1] ** 2 / cell_edges[-2]
+    else:
+        cell_edges[:] = (0.5 * comoving_radius[0], 1.5 * comoving_radius[0])
+    cell_volume = np.maximum(np.diff(cell_edges**3), 0.0)
+    mass_weight = np.asarray(rho_comoving_code[index], dtype=float) * cell_volume
+    binned_radius, binned_temperature = _log_radial_bin_profile(
+        comoving_radius,
+        temperature_proper_cgs_K[index],
+        weights=mass_weight,
+        bin_count=radial_bin_count,
+        log_weighted=True,
+    )
+    axis.loglog(
+        binned_radius,
+        np.maximum(binned_temperature, 1.0e-30),
+        color=color,
+        lw=1.7,
+        label=f"t = {times[index]:.2f} Gyr",
+    )
+    if np.isfinite(virial_radius[index]) and virial_radius[index] > 0.0:
+        axis.axvline(
+            virial_radius[index] / scale_factors[index],
+            color=color,
+            ls="--",
+            lw=0.9,
+            alpha=0.65,
+        )
+    if np.isfinite(virial_temperature[index]) and virial_temperature[index] > 0.0:
+        axis.axhline(
+            virial_temperature[index],
+            color=color,
+            ls=":",
+            lw=1.0,
+            alpha=0.7,
+        )
+    axis.axhline(
+        2.7255 / scale_factors[index],
+        color=color,
+        ls="--",
+        lw=0.55,
+        alpha=0.65,
+        label="CMB temperature" if index == first_index else None,
+    )
 
 
 def plot_specific_angular_momentum_evolution(

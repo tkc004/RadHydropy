@@ -111,39 +111,58 @@ def _read_provenance(header):
     return provenance
 
 
+def _yaml_quantity_value(value):
+    raw_value = np.asarray(value.to_value(value.units))
+    if raw_value.shape == () or raw_value.size == 1:
+        return {"value": float(raw_value.reshape(-1)[0]), "unit": str(value.units)}
+    return {"value": raw_value.tolist(), "unit": str(value.units)}
+
+
+def _yaml_object_value(value):
+    return {
+        key: _yaml_config_value(item)
+        for key, item in vars(value).items()
+        if not key.startswith("_")
+    }
+
+
+def _yaml_scalar_value(value):
+    if isinstance(value, np.generic):
+        return True, value.item()
+    if isinstance(value, unyt.unit_object.Unit):
+        return True, str(value)
+    if SympyBasic is not None and isinstance(value, SympyBasic):
+        return True, str(value)
+    if callable(value):
+        return True, getattr(value, "__name__", value.__class__.__name__)
+    if isinstance(value, Path):
+        return True, str(value)
+    return False, value
+
+
+def _yaml_array_value(value):
+    if value.shape == () or value.size == 1:
+        return value.reshape(-1)[0].item()
+    return value.tolist()
+
+
 def _yaml_config_value(value):
     """Convert a value to a YAML config friendly representation."""
-    if isinstance(value, np.generic):
-        return value.item()
-    if isinstance(value, unyt.unit_object.Unit):
-        return str(value)
-    if SympyBasic is not None and isinstance(value, SympyBasic):
-        return str(value)
+    handled, scalar = _yaml_scalar_value(value)
+    if handled:
+        return scalar
     if hasattr(value, "to_dict") and callable(value.to_dict):
         return _yaml_config_value(value.to_dict())
     if hasattr(value, "units"):
-        raw_value = np.asarray(value.to_value(value.units))
-        if raw_value.shape == () or raw_value.size == 1:
-            return {"value": float(raw_value.reshape(-1)[0]), "unit": str(value.units)}
-        return {"value": raw_value.tolist(), "unit": str(value.units)}
+        return _yaml_quantity_value(value)
     if isinstance(value, dict):
         return {str(key): _yaml_config_value(val) for key, val in value.items()}
     if isinstance(value, (list, tuple)):
         return [_yaml_config_value(item) for item in value]
     if isinstance(value, np.ndarray):
-        if value.shape == () or value.size == 1:
-            return value.reshape(-1)[0].item()
-        return value.tolist()
-    if callable(value):
-        return getattr(value, "__name__", value.__class__.__name__)
+        return _yaml_array_value(value)
     if hasattr(value, "__dict__") and not isinstance(value, type):
-        return {
-            key: _yaml_config_value(item)
-            for key, item in vars(value).items()
-            if not key.startswith("_")
-        }
-    if isinstance(value, Path):
-        return str(value)
+        return _yaml_object_value(value)
     return value
 
 
@@ -268,6 +287,32 @@ def _header_attr_value(value):
     return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
 
 
+def _restore_header_array(value):
+    if value.shape == ():
+        return _restore_header_attr_value(value.item())
+    return np.asarray([_restore_header_attr_value(item) for item in value.tolist()])
+
+
+def _restore_header_string(value):
+    try:
+        loaded = yaml.safe_load(value)
+    except yaml.YAMLError:
+        return value
+    if isinstance(loaded, str):
+        return loaded
+    return _restore_header_attr_value(loaded)
+
+
+def _restore_header_mapping(value):
+    if {"value", "unit"} <= value.keys():
+        restored_value = _restore_header_attr_value(value["value"])
+        unit = unyt.Unit(value["unit"])
+        if isinstance(restored_value, list):
+            restored_value = np.asarray(restored_value)
+        return np.asarray(restored_value) * unit
+    return {key: _restore_header_attr_value(item) for key, item in value.items()}
+
+
 def _restore_header_attr_value(value):
     """Convert a stored HDF5 header attribute back into a Python value."""
     if isinstance(value, bytes):
@@ -275,23 +320,9 @@ def _restore_header_attr_value(value):
     if isinstance(value, np.generic):
         value = value.item()
     if isinstance(value, np.ndarray):
-        if value.shape == ():
-            return _restore_header_attr_value(value.item())
-        return np.asarray([_restore_header_attr_value(item) for item in value.tolist()])
+        return _restore_header_array(value)
     if isinstance(value, str):
-        try:
-            loaded = yaml.safe_load(value)
-            if isinstance(loaded, str):
-                return loaded
-            return _restore_header_attr_value(loaded)
-        except yaml.YAMLError:
-            return value
+        return _restore_header_string(value)
     if isinstance(value, dict):
-        if {"value", "unit"} <= value.keys():
-            restored_value = _restore_header_attr_value(value["value"])
-            unit = unyt.Unit(value["unit"])
-            if isinstance(restored_value, list):
-                restored_value = np.asarray(restored_value)
-            return np.asarray(restored_value) * unit
-        return {key: _restore_header_attr_value(item) for key, item in value.items()}
+        return _restore_header_mapping(value)
     return value

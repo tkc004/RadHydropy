@@ -396,6 +396,46 @@ def splashback_radius(
     return float(radii[local])
 
 
+def _find_temperature_shock_radius(
+    proper, rho_comoving_code, temp_phys, velocity_phys, rvir, rtarget
+):
+    finite_temperature = np.isfinite(temp_phys) & (temp_phys > 0.0)
+    if np.count_nonzero(finite_temperature) < 7:  # noqa: PLR2004
+        return np.nan
+    log_temperature = np.log10(np.maximum(temp_phys, 1.0e-30))
+    smoothed = np.convolve(
+        np.pad(log_temperature, (2, 2), mode="edge"), np.ones(5) / 5.0, mode="valid"
+    )
+    gradient = np.gradient(smoothed, np.log10(np.maximum(proper, 1.0e-12)))
+    lower_radius = proper[0]
+    if np.isfinite(rvir) and rvir > proper[0]:
+        lower_radius = max(lower_radius, 0.5 * rvir)
+    elif np.isfinite(rtarget):
+        lower_radius = max(lower_radius, 0.3 * rtarget)
+    upper_radius = proper[max(3, proper.size - 8)]
+    if np.isfinite(rvir) and rvir > proper[0]:
+        upper_radius = min(upper_radius, 3.0 * rvir)
+    candidates = np.flatnonzero(
+        finite_temperature & (proper > lower_radius) & (proper < upper_radius)
+    )
+    resolved = []
+    for local in candidates[gradient[candidates] < -0.05]:  # noqa: PLR2004
+        inner = max(0, int(local) - 2)
+        outer = min(proper.size - 1, int(local) + 2)
+        compression = rho_comoving_code[inner] / max(rho_comoving_code[outer], 1.0e-300)
+        heating = temp_phys[inner] / max(temp_phys[outer], 1.0e-300)
+        decelerated = (
+            velocity_phys[outer] < 0.0
+            and velocity_phys[inner] > velocity_phys[outer]
+            and abs(velocity_phys[inner]) < abs(velocity_phys[outer])
+        )
+        if compression >= 1.2 and heating >= 1.2 and decelerated:  # noqa: PLR2004
+            resolved.append(int(local))
+    if not resolved:
+        return np.nan
+    return float(proper[resolved[int(np.argmin(gradient[resolved]))]])
+
+
 def profiles(sim, dark_matter, time_cosmic_code, config):
     """Measure virial, shock, disc radii and enclosed total masses."""
     initial_condition = config["initial_condition"]
@@ -487,72 +527,14 @@ def profiles(sim, dark_matter, time_cosmic_code, config):
         ),
         dtype=float,
     )
-    finite_temperature = np.isfinite(temp_phys) & (temp_phys > 0.0)
-    if np.count_nonzero(finite_temperature) >= 7:  # noqa: PLR2004
-        # A raw cell-to-cell derivative is dominated by the positivity floor
-        # and by individual shell-scale oscillations.  Smooth log(T) over
-        # five cells, then locate a resolved logarithmic jump in the halo.
-        log_temperature = np.log10(np.maximum(temp_phys, 1.0e-30))
-        padded = np.pad(log_temperature, (2, 2), mode="edge")
-        smoothed = np.convolve(padded, np.ones(5) / 5.0, mode="valid")
-        gradient = np.gradient(
-            smoothed,
-            np.log10(np.maximum(proper, 1.0e-12)),
-        )
-        lower_radius = proper[0]
-        if np.isfinite(rvir) and rvir > proper[0]:
-            # The virial shock is an outer-halo feature.  Exclude inner
-            # cooling/centrifugal transitions from the shock diagnostic.
-            lower_radius = max(lower_radius, 0.5 * rvir)
-        elif np.isfinite(rtarget):
-            # The virial shock is an outer-halo feature.  Do not let an
-            # unresolved inner cooling/adiabatic feature become r_shock
-            # merely because it has a larger cell-to-cell gradient.
-            lower_radius = max(lower_radius, 0.3 * rtarget)
-        # A percentage-of-radius cut removes too few cells on this logarithmic
-        # mesh.  Leave a fixed buffer outside the candidate and its five-cell
-        # smoothing stencil so the explicitly reset EdS reservoir cannot be
-        # reported as a virial shock.
-        outer_buffer_cells = 8
-        upper_index = max(3, proper.size - outer_buffer_cells)
-        upper_radius = proper[upper_index]
-        if np.isfinite(rvir) and rvir > proper[0]:
-            upper_radius = min(upper_radius, 3.0 * rvir)
-        valid = finite_temperature & (proper > lower_radius) & (proper < upper_radius)
-        candidate = np.flatnonzero(valid)
-        if candidate.size:
-            # Across an accretion shock temperature falls outward, so retain
-            # only negative outward gradients.  Positive gradients are inner
-            # cooling transitions, not the outer shock.
-            shock_candidates = candidate[gradient[candidate] < -0.05]  # noqa: PLR2004
-            resolved = []
-            for local in shock_candidates:
-                inner = max(0, int(local) - 2)
-                outer = min(proper.size - 1, int(local) + 2)
-                compression = rho_comoving_code[inner] / max(rho_comoving_code[outer], 1.0e-300)
-                heating = temp_phys[inner] / max(
-                    temp_phys[outer],
-                    1.0e-300,
-                )
-                upstream_velocity = velocity_phys[outer]
-                downstream_velocity = velocity_phys[inner]
-                decelerated = (
-                    upstream_velocity < 0.0
-                    and downstream_velocity > upstream_velocity
-                    and abs(downstream_velocity) < abs(upstream_velocity)
-                )
-                if compression >= 1.2 and heating >= 1.2 and decelerated:  # noqa: PLR2004
-                    resolved.append(int(local))
-            if resolved:
-                resolved = np.asarray(resolved, dtype=int)
-                local = int(resolved[np.argmin(gradient[resolved])])
-                rshock = float(proper[local])
-            else:
-                rshock = np.nan
-        else:
-            rshock = np.nan
-    else:
-        rshock = np.nan
+    rshock = _find_temperature_shock_radius(
+        proper,
+        rho_comoving_code,
+        temp_phys,
+        velocity_phys,
+        rvir,
+        rtarget,
+    )
 
     rsplashback = splashback_radius(
         dm_radius_proper_code,

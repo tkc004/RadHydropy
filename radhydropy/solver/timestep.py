@@ -33,34 +33,23 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):  # noqa: N803
     )
     vsignal = np.absolute(velocity) + fluid.cs_code
     density = np.asarray(density_field, dtype=float)
-    if width_runtime_code.shape != vsignal.shape:
-        interior = solver.interior_slice(par)
-        if width_runtime_code[interior].shape == vsignal.shape:
-            width_runtime_code = width_runtime_code[interior]
-            density = density[interior]
-        elif vsignal[interior].shape == width_runtime_code.shape:
-            vsignal = vsignal[interior]
-            density = density[interior]
-
-    # Ghost zones are needed by the Riemann solve but must not determine
-    # the CFL step.  In particular, reflecting/outflow boundary updates
-    # can leave a ghost velocity temporarily very large while the active
-    # solution remains valid.  Keep the full signal-speed array for later
-    # flux work, and reduce only over the active cells here.
-    active_width_runtime_code = width_runtime_code
-    active_density = density
-    active_vsignal = vsignal
-    first = int(par.mesh.ghost_cells)
+    (
+        width_runtime_code,
+        density,
+        vsignal,
+        active_width_runtime_code,
+        active_density,
+        active_vsignal,
+        first,
+        active_slice,
+    ) = _active_timestep_arrays(
+        solver,
+        par,
+        width_runtime_code,
+        density,
+        vsignal,
+    )
     active_count = int(par.mesh.grid_cells)
-    active_slice = slice(first, first + active_count)
-    if (
-        width_runtime_code.ndim == 1
-        and vsignal.ndim == 1
-        and len(vsignal) >= first + active_count + first
-    ):
-        active_width_runtime_code = width_runtime_code[active_slice]
-        active_density = density[active_slice]
-        active_vsignal = vsignal[active_slice]
 
     # A prescribed boundary state participates in the Riemann problem at the
     # active-domain edge.  Its signal speed must therefore constrain the CFL
@@ -112,69 +101,23 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):  # noqa: N803
     # EOS sound-speed evaluation can produce ``inf`` for rho == 0 because
     # pressure/rho is undefined; exclude such cells from the minimum and
     # keep their interface signal speed neutral for the next flux update.
-    density_floor = max(
-        0.0,
-        float(np.asarray(getattr(par, "cfl_density_floor", 0.0))),
+    density_floor, zero_density, active_vsignal, cfl_vsignal = _mask_vacuum_cells(
+        par,
+        active_density,
+        active_vsignal,
+        cfl_density,
+        cfl_vsignal,
     )
-    zero_density = active_density <= density_floor
-    if np.any(zero_density):
-        active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
-        active_vsignal[zero_density] = 0.0
-    cfl_density_zero = cfl_density <= density_floor
-    if np.any(cfl_density_zero):
-        cfl_vsignal = np.asarray(cfl_vsignal, dtype=float).copy()
-        cfl_vsignal[cfl_density_zero] = 0.0
     dt_array = solver.safe_divide(CFL * cfl_width_runtime_code, cfl_vsignal)
 
-    # A prescribed spherical wind/inflow can have a density very different
-    # from the first active cell.  The wave-speed CFL condition alone then
-    # permits a single update to replace many cell masses at once; the
-    # positivity limiter would consequently suppress most of the boundary
-    # flux.  Bound the step by the mass-loading time of the boundary-adjacent
-    # active cell so the imposed flux is evolved conservatively.
-    boundary = getattr(par, "boundary", None)
-    boundary_condition = getattr(boundary, "condition", None)
-    if (
-        getattr(getattr(par, "hydrodynamics", None), "boundary_mass_loading_timestep", False)
-        and boundary_condition in ("InflowSph", "OutflowSph")
-        and hasattr(fluid, "Mass_code")
-        and first + 1 < len(fluid.Mass_code)
-        and first < len(area_runtime_code)
-    ):
-        if boundary_condition == "InflowSph":
-            boundary_density = getattr(boundary, "rho_inflow_proper", 0.0)
-            boundary_velocity = getattr(boundary, "vel_inflow_proper", 0.0)
-        else:
-            boundary_density = getattr(boundary, "rho_outflow_proper", 0.0)
-            boundary_velocity = getattr(boundary, "vel_outflow_proper", 0.0)
-        mass_flux = (
-            abs(float(np.asarray(boundary_density)))
-            * abs(
-                float(np.asarray(boundary_velocity)),
-            )
-            * abs(float(np.asarray(area_runtime_code[first])))
-        )
-        # The reconstructed boundary/front stencil can deliver the imposed
-        # flux into the next active cell as the wind front advances.  Use the
-        # lower mass of the two receiving cells so the constraint follows a
-        # newly formed low-density cavity instead of assuming that the first
-        # cell remains the receiver.
-        receiving_mass = np.asarray(fluid.Mass_code[first : first + 2], dtype=float)
-        cell_mass = (
-            float(np.min(receiving_mass[receiving_mass > 0.0]))
-            if np.any(
-                receiving_mass > 0.0,
-            )
-            else 0.0
-        )
-        if mass_flux > 0.0 and cell_mass > 0.0:
-            # Keep the injected mass below the receiving-cell mass.  Using
-            # the same safety fraction as the wave-speed CFL preserves the
-            # normal solver accuracy while the two-cell receiving stencil
-            # accounts for cold, low-density cells entering the front.
-            mass_loading_fraction = float(CFL)
-            dt_mass_loading = mass_loading_fraction * cell_mass / mass_flux
-            dt_array = np.minimum(dt_array, dt_mass_loading)
+    dt_array = _apply_boundary_mass_loading_limit(
+        dt_array,
+        CFL,
+        par,
+        fluid,
+        area_runtime_code,
+        first,
+    )
 
     dtmax_value = par.timestep.dtmax
     dtmax = float(np.asarray(dtmax_value, dtype=float))
@@ -241,45 +184,156 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):  # noqa: N803
             dtmin=dtmin_value,
             dtmax=dtmax_value,
         )
-        cell_volume = np.asarray(volume_runtime_code)[diagnostic_index]
-        cell_rho_code = np.asarray(density_field)[diagnostic_index]
-        cell_vel_code = np.asarray(velocity)[diagnostic_index]
-        cell_energy_density = np.asarray(fluid.Energy_code)[diagnostic_index] / cell_volume
-        cell_kinetic_density = 0.5 * cell_rho_code * cell_vel_code**2
-        cell_thermal_density = cell_energy_density - cell_kinetic_density
-        cell_specific_thermal = cell_thermal_density / cell_rho_code if cell_rho_code > 0.0 else 0.0
-        log_diagnostic(
-            logging.WARNING,
-            "hydro_timestep_energy_state",
-            cell=diagnostic_index,
-            energy_density=cell_energy_density,
-            kinetic_density=cell_kinetic_density,
-            thermal_density=cell_thermal_density,
-            specific_thermal=cell_specific_thermal,
-            cfl_density_floor=density_floor,
-            masked_cells=int(np.count_nonzero(zero_density)),
-        )
-        neighbor_start = max(first, diagnostic_index - 2)
-        neighbor_stop = min(
-            first + int(par.mesh.grid_cells),
-            diagnostic_index + 3,
-        )
-        neighbors = []
-        for neighbor in range(neighbor_start, neighbor_stop):
-            neighbors.append(
-                {
-                    "cell": neighbor,
-                    "radius": np.asarray(mesh_coordinate)[neighbor],
-                    "density": np.asarray(density_field)[neighbor],
-                    "velocity": np.asarray(velocity)[neighbor],
-                    "sound_speed": np.asarray(fluid.cs_code)[neighbor],
-                    "pressure": np.asarray(pressure_field)[neighbor],
-                },
-            )
-        log_diagnostic(
-            logging.WARNING,
-            "hydro_timestep_neighbors",
-            cell=diagnostic_index,
-            neighbors=neighbors,
+        _log_timestep_energy_state(
+            diagnostic_index,
+            first,
+            par,
+            mesh_coordinate,
+            density_field,
+            velocity,
+            pressure_field,
+            fluid,
+            volume_runtime_code,
+            density_floor,
+            zero_density,
         )
     return dt
+
+
+def _active_timestep_arrays(solver, par, width_runtime_code, density, vsignal):
+    """Align mesh/fluid arrays and return active-cell CFL views."""
+    if width_runtime_code.shape != vsignal.shape:
+        interior = solver.interior_slice(par)
+        if width_runtime_code[interior].shape == vsignal.shape:
+            width_runtime_code = width_runtime_code[interior]
+            density = density[interior]
+        elif vsignal[interior].shape == width_runtime_code.shape:
+            vsignal = vsignal[interior]
+            density = density[interior]
+    active_width_runtime_code = width_runtime_code
+    active_density = density
+    active_vsignal = vsignal
+    first = int(par.mesh.ghost_cells)
+    active_count = int(par.mesh.grid_cells)
+    active_slice = slice(first, first + active_count)
+    if (
+        width_runtime_code.ndim == 1
+        and vsignal.ndim == 1
+        and len(vsignal) >= first + active_count + first
+    ):
+        active_width_runtime_code = width_runtime_code[active_slice]
+        active_density = density[active_slice]
+        active_vsignal = vsignal[active_slice]
+    return (
+        width_runtime_code,
+        density,
+        vsignal,
+        active_width_runtime_code,
+        active_density,
+        active_vsignal,
+        first,
+        active_slice,
+    )
+
+
+def _mask_vacuum_cells(par, active_density, active_vsignal, cfl_density, cfl_vsignal):
+    """Neutralize signal speeds in cells below the configured density floor."""
+    density_floor = max(
+        0.0,
+        float(np.asarray(getattr(par, "cfl_density_floor", 0.0))),
+    )
+    zero_density = active_density <= density_floor
+    if np.any(zero_density):
+        active_vsignal = np.asarray(active_vsignal, dtype=float).copy()
+        active_vsignal[zero_density] = 0.0
+    cfl_density_zero = cfl_density <= density_floor
+    if np.any(cfl_density_zero):
+        cfl_vsignal = np.asarray(cfl_vsignal, dtype=float).copy()
+        cfl_vsignal[cfl_density_zero] = 0.0
+    return density_floor, zero_density, active_vsignal, cfl_vsignal
+
+
+def _apply_boundary_mass_loading_limit(dt_array, CFL, par, fluid, area_runtime_code, first):
+    """Limit CFL updates when a prescribed spherical boundary loads mass."""
+    boundary = getattr(par, "boundary", None)
+    boundary_condition = getattr(boundary, "condition", None)
+    if not (
+        getattr(getattr(par, "hydrodynamics", None), "boundary_mass_loading_timestep", False)
+        and boundary_condition in ("InflowSph", "OutflowSph")
+        and hasattr(fluid, "Mass_code")
+        and first + 1 < len(fluid.Mass_code)
+        and first < len(area_runtime_code)
+    ):
+        return dt_array
+    if boundary_condition == "InflowSph":
+        boundary_density = getattr(boundary, "rho_inflow_proper", 0.0)
+        boundary_velocity = getattr(boundary, "vel_inflow_proper", 0.0)
+    else:
+        boundary_density = getattr(boundary, "rho_outflow_proper", 0.0)
+        boundary_velocity = getattr(boundary, "vel_outflow_proper", 0.0)
+    mass_flux = (
+        abs(float(np.asarray(boundary_density)))
+        * abs(float(np.asarray(boundary_velocity)))
+        * abs(float(np.asarray(area_runtime_code[first])))
+    )
+    receiving_mass = np.asarray(fluid.Mass_code[first : first + 2], dtype=float)
+    positive_mass = receiving_mass[receiving_mass > 0.0]
+    cell_mass = float(np.min(positive_mass)) if np.any(positive_mass) else 0.0
+    if mass_flux > 0.0 and cell_mass > 0.0:
+        return np.minimum(dt_array, float(CFL) * cell_mass / mass_flux)
+    return dt_array
+
+
+def _log_timestep_energy_state(
+    diagnostic_index,
+    first,
+    par,
+    mesh_coordinate,
+    density_field,
+    velocity,
+    pressure_field,
+    fluid,
+    volume_runtime_code,
+    density_floor,
+    zero_density,
+):
+    """Log energy and neighboring-cell details for a reduced timestep."""
+    cell_volume = np.asarray(volume_runtime_code)[diagnostic_index]
+    cell_rho_code = np.asarray(density_field)[diagnostic_index]
+    cell_vel_code = np.asarray(velocity)[diagnostic_index]
+    cell_energy_density = np.asarray(fluid.Energy_code)[diagnostic_index] / cell_volume
+    cell_kinetic_density = 0.5 * cell_rho_code * cell_vel_code**2
+    cell_thermal_density = cell_energy_density - cell_kinetic_density
+    cell_specific_thermal = (
+        cell_thermal_density / cell_rho_code if cell_rho_code > 0.0 else 0.0
+    )
+    log_diagnostic(
+        logging.WARNING,
+        "hydro_timestep_energy_state",
+        cell=diagnostic_index,
+        energy_density=cell_energy_density,
+        kinetic_density=cell_kinetic_density,
+        thermal_density=cell_thermal_density,
+        specific_thermal=cell_specific_thermal,
+        cfl_density_floor=density_floor,
+        masked_cells=int(np.count_nonzero(zero_density)),
+    )
+    neighbor_start = max(first, diagnostic_index - 2)
+    neighbor_stop = min(first + int(par.mesh.grid_cells), diagnostic_index + 3)
+    neighbors = [
+        {
+            "cell": neighbor,
+            "radius": np.asarray(mesh_coordinate)[neighbor],
+            "density": np.asarray(density_field)[neighbor],
+            "velocity": np.asarray(velocity)[neighbor],
+            "sound_speed": np.asarray(fluid.cs_code)[neighbor],
+            "pressure": np.asarray(pressure_field)[neighbor],
+        }
+        for neighbor in range(neighbor_start, neighbor_stop)
+    ]
+    log_diagnostic(
+        logging.WARNING,
+        "hydro_timestep_neighbors",
+        cell=diagnostic_index,
+        neighbors=neighbors,
+    )

@@ -20,38 +20,56 @@ def _code_units_from_parameter(par):
     return getattr(getattr(par, "units", None), "CodeUnits", None)
 
 
+def _validate_code_units(par, header_code_units):
+    expected_units = _code_units_from_parameter(par)
+    if expected_units is None:
+        return
+    if not isinstance(expected_units, CodeUnits):
+        expected_units = CodeUnits.from_mapping(expected_units)
+    scales = (
+        ("mass", expected_units.mass_in_cgs, header_code_units.mass_in_cgs),
+        ("length", expected_units.length_in_cgs, header_code_units.length_in_cgs),
+        ("velocity", expected_units.velocity_in_cgs, header_code_units.velocity_in_cgs),
+        ("current", expected_units.current_in_cgs, header_code_units.current_in_cgs),
+        ("temperature", expected_units.temperature_in_cgs, header_code_units.temperature_in_cgs),
+    )
+    for name, expected, actual in scales:
+        if not np.isclose(expected, actual, rtol=1e-12, atol=0.0):
+            raise SnapshotConfigurationError(
+                f"snapshot CodeUnits {name} scale ({actual}) does not "
+                f"match runtime scale ({expected})",
+            )
+
+
+def _validate_cosmology(par, header):
+    header_cosmology = _restore_header_attr_value(header.attrs.get("CosmologyType", None))
+    expected_expansion = getattr(par, "cosmological_expansion", None)
+    if header_cosmology is not None and expected_expansion is False:
+        raise SnapshotConfigurationError(
+            "snapshot is cosmological but runtime has cosmological_expansion=False",
+        )
+    if header_cosmology is None and expected_expansion is True:
+        raise SnapshotConfigurationError(
+            "snapshot is non-cosmological but runtime has cosmological_expansion=True",
+        )
+    expected_cosmology = getattr(par, "cosmology_type", None)
+    if expected_cosmology is None:
+        expected_model = getattr(par, "cosmology", None)
+        expected_cosmology = getattr(expected_model, "type_name", None)
+    if header_cosmology is not None and expected_cosmology is not None:
+        if str(header_cosmology) != str(expected_cosmology):
+            raise SnapshotConfigurationError(
+                f"snapshot cosmology {header_cosmology!r} does not match "
+                f"runtime cosmology {expected_cosmology!r}",
+            )
+
+
 def validate_snapshot_configuration(par, header, header_code_units):
     """Validate header compatibility before mutating runtime objects."""
-    expected_units = _code_units_from_parameter(par)
-    if expected_units is not None:
-        if not isinstance(expected_units, CodeUnits):
-            expected_units = CodeUnits.from_mapping(expected_units)
-        scales = (
-            ("mass", expected_units.mass_in_cgs, header_code_units.mass_in_cgs),
-            ("length", expected_units.length_in_cgs, header_code_units.length_in_cgs),
-            ("velocity", expected_units.velocity_in_cgs, header_code_units.velocity_in_cgs),
-            ("current", expected_units.current_in_cgs, header_code_units.current_in_cgs),
-            (
-                "temperature",
-                expected_units.temperature_in_cgs,
-                header_code_units.temperature_in_cgs,
-            ),
-        )
-        for name, expected, actual in scales:
-            if not np.isclose(expected, actual, rtol=1e-12, atol=0.0):
-                raise SnapshotConfigurationError(
-                    f"snapshot CodeUnits {name} scale ({actual}) does not "
-                    f"match runtime scale ({expected})",
-                )
+    _validate_code_units(par, header_code_units)
 
-    header_coordsys = _restore_header_attr_value(
-        header.attrs.get("CoordinateSystem", None),
-    )
-    expected_coordsys = getattr(
-        getattr(par, "simulation", None),
-        "coordinate_system",
-        None,
-    )
+    header_coordsys = _restore_header_attr_value(header.attrs.get("CoordinateSystem", None))
+    expected_coordsys = getattr(getattr(par, "simulation", None), "coordinate_system", None)
     if (
         header_coordsys is not None
         and expected_coordsys is not None
@@ -74,30 +92,7 @@ def validate_snapshot_configuration(par, header, header_code_units):
             f"does not match runtime grid size {int(expected_grid)}",
         )
 
-    header_cosmology = _restore_header_attr_value(
-        header.attrs.get("CosmologyType", None),
-    )
-    expected_expansion = getattr(par, "cosmological_expansion", None)
-    if header_cosmology is not None and expected_expansion is False:
-        raise SnapshotConfigurationError(
-            "snapshot is cosmological but runtime has cosmological_expansion=False",
-        )
-    if header_cosmology is None and expected_expansion is True:
-        raise SnapshotConfigurationError(
-            "snapshot is non-cosmological but runtime has cosmological_expansion=True",
-        )
-    expected_cosmology = getattr(par, "cosmology_type", None)
-    if expected_cosmology is None:
-        expected_model = getattr(par, "cosmology", None)
-        expected_cosmology = getattr(expected_model, "type_name", None)
-    if header_cosmology is not None and expected_cosmology is not None:
-        header_cosmology = str(header_cosmology)
-        expected_cosmology = str(expected_cosmology)
-        if header_cosmology != expected_cosmology:
-            raise SnapshotConfigurationError(
-                f"snapshot cosmology {header_cosmology!r} does not match "
-                f"runtime cosmology {expected_cosmology!r}",
-            )
+    _validate_cosmology(par, header)
 
     for header_key, parameter_key in (
         ("CoordinateFrame", "coordinate_frame"),

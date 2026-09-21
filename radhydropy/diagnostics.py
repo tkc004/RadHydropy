@@ -189,6 +189,60 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     if temperature_after is None or temperature_before is None:
         return
     before = np.asarray(temperature_before, dtype=float)
+    context = _temperature_jump_context(sim, before, temperature_after, threshold)
+    if context is None:
+        return
+    (
+        index,
+        first,
+        last,
+        radius,
+        density,
+        velocity,
+        pressure,
+        sound_speed,
+        mass,
+        energy,
+        time_runtime_code,
+    ) = context
+    diagnostic = _temperature_jump_diagnostic(
+        threshold,
+        stage,
+        index,
+        first,
+        last,
+        radius,
+        before,
+        temperature_after,
+        density,
+        velocity,
+        pressure,
+        sound_speed,
+        mass,
+        energy,
+        time_runtime_code,
+        source_result,
+    )
+    log_diagnostic(
+        logging.ERROR,
+        "temperature_jump_error",
+        stage=stage,
+        cell=index,
+        time=time_runtime_code,
+        threshold=threshold,
+        diagnostic=diagnostic,
+    )
+    output_dir = sim.par.output.directory
+    if output_dir is not None:
+        try:
+            filename = Path(output_dir) / "temperature_jump_error.txt"
+            filename.write_text(diagnostic + "\n", encoding="utf-8")
+        except OSError:
+            pass
+    raise RuntimeError(diagnostic)
+
+
+def _temperature_jump_context(sim, before, temperature_after, threshold):
     runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
     (
         density_runtime_code,
@@ -218,7 +272,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     candidates = np.flatnonzero(crossing)
     candidates = candidates[(candidates >= first) & (candidates < last)]
     if candidates.size == 0:
-        return
+        return None
     index = int(candidates[0])
     radius = np.asarray(
         coordinate_runtime_code,
@@ -238,6 +292,39 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     )
     energy = np.asarray(sim.fluid.Energy_code, dtype=float)
     mass = np.asarray(sim.fluid.Mass_code, dtype=float)
+    return (
+        index,
+        first,
+        last,
+        radius,
+        density,
+        velocity,
+        pressure,
+        sound_speed,
+        mass,
+        energy,
+        time_runtime_code,
+    )
+
+
+def _temperature_jump_diagnostic(
+    threshold,
+    stage,
+    index,
+    first,
+    last,
+    radius,
+    before,
+    temperature_after,
+    density,
+    velocity,
+    pressure,
+    sound_speed,
+    mass,
+    energy,
+    time_runtime_code,
+    source_result,
+):
     lines = [
         "temperature jump error: physical gas temperature exceeded %.6e K "
         "during %s at cell %d (time=%s)"
@@ -248,8 +335,10 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
             time_runtime_code,
         ),
         (
-            f"cell: radius={radius[index]} T_before={before[index]} K T_after={temperature_after[index]} K rho={density[index]} vel={velocity[index]} "
-            f"pressure={pressure[index]} cs={sound_speed[index]} mass={mass[index]} energy={energy[index]}"
+            f"cell: radius={radius[index]} T_before={before[index]} K "
+            f"T_after={temperature_after[index]} K rho={density[index]} "
+            f"vel={velocity[index]} pressure={pressure[index]} "
+            f"cs={sound_speed[index]} mass={mass[index]} energy={energy[index]}"
         ),
         "neighborhood: idx radius T_before[K] T_after[K] rho vel pressure cs mass energy",
     ]
@@ -278,25 +367,7 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
             ),
         )
     diagnostic = "\n".join(lines)
-    log_diagnostic(
-        logging.ERROR,
-        "temperature_jump_error",
-        stage=stage,
-        cell=index,
-        time=time_runtime_code,
-        threshold=threshold,
-        diagnostic=diagnostic,
-    )
-    output_dir = sim.par.output.directory
-    if output_dir is not None:
-        try:
-            filename = Path(output_dir) / "temperature_jump_error.txt"
-            filename.write_text(diagnostic + "\n", encoding="utf-8")
-        except OSError:
-            # The diagnostic is best-effort while the temperature failure is
-            # authoritative; an unwritable output directory must not mask it.
-            pass
-    raise RuntimeError(diagnostic)
+    return diagnostic
 
 
 def check_source_temperature(state, par, temperature_before, stage, source_step):

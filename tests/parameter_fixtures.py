@@ -51,13 +51,20 @@ def parameter_namespace(**values):
         cadence=values.get("outdeltatime"),
         time_list_filename=values.get("outputtimefilename"),
     )
+    radiation = values.get("radiation")
+    radiation_boundary_flux = values.get("radiative_transfer_boundary_flux")
+    if radiation_boundary_flux is None and radiation is not None:
+        radiation_boundary_flux = getattr(radiation, "boundary_flux", None)
+    source_photon_rate = values.get("source_photon_rate")
+    if source_photon_rate is None and radiation is not None:
+        source_photon_rate = getattr(radiation, "source_photon_rate", None)
     par.radiation = SimpleNamespace(
         radiative_transfer=values.get("radiative_transfer"),
         method=values.get("radiative_transfer_method"),
         temporal_scheme=values.get("radiative_transfer_temporal_scheme"),
         direction=values.get("radiative_transfer_direction", 1),
-        boundary_flux=values.get("radiative_transfer_boundary_flux"),
-        source_photon_rate=values.get("source_photon_rate"),
+        boundary_flux=radiation_boundary_flux,
+        source_photon_rate=source_photon_rate,
         boundary_flux_groups=values.get("radiative_transfer_boundary_flux_groups"),
         source_photon_rate_groups=values.get("source_photon_rate_groups"),
     )

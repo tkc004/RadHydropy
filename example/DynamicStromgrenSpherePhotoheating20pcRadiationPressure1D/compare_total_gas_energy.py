@@ -22,7 +22,6 @@ if str(PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(PACKAGE_DIR))
 
 from example.example_utils import load_nested_example_config
-
 from radhydropy.units import CodeUnits
 
 NO_PRESSURE_DIR = HERE.parent / "DynamicStromgrenSpherePhotoheating20pc1D"

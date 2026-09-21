@@ -19,11 +19,11 @@ os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydr
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
+from example import example_utils as eu
 from example.DarkMatterFixedMassOrbit1D import tools as et
 from radhydropy.units import quantity_to_value
 

@@ -33,15 +33,15 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 import matplotlib as mpl
 
 mpl.use("Agg")
-from example import example_utils as eu
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
 
 import radhydropy.io as rio
+from example import example_utils as eu
+from example.ComptonCMBHeating1D.tools import build_initial_condition
 from radhydropy.thermo_networks.compton import cmb_compton_rate
 from radhydropy.units import CodeUnits
-from example.ComptonCMBHeating1D.tools import build_initial_condition
 
 DEFAULT_CONFIG = Path(__file__).resolve().with_name("compton_cmb_heating1d.yaml")
 

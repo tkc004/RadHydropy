@@ -104,6 +104,48 @@ def populate_group_targets(group, targets, code_units=None, scale_map=None):
             setattr(target, attr_name, value)
 
 
+def _quantity_storage_data(
+    name,
+    value,
+    code_units,
+    scale_key,
+    default_unit,
+    field_spec_obj,
+):
+    if code_units is None and scale_key is not None:
+        raise ValueError(f"{name} requires code_units for HDF5 serialization")
+    storage_unit = field_spec_obj.storage_unit if field_spec_obj is not None else "cgs"
+    if field_spec_obj is not None and storage_unit == "code":
+        if code_units is None or scale_key is None:
+            raise ValueError(f"{name} requires code_units and scale_key for code storage")
+        code_unit = scale_unit_for_key(scale_key)
+        if code_unit is None:
+            raise ValueError(f"no code-unit scale is defined for {scale_key!r}")
+        data = np.asarray(
+            value.to_value(code_unit) if hasattr(value, "to_value") else value,
+            dtype=float,
+        )
+        return data, str(code_unit), storage_unit
+    if hasattr(value, "to_value"):
+        if code_units is not None and scale_key is not None:
+            unit_obj = scale_unit_for_key(scale_key) or value.units
+            data = np.asarray(value.to_value(unit_obj))
+            return data, str(getattr(unit_obj, "units", unit_obj)), storage_unit
+        return np.asarray(value.to_value(value.units)), str(value.units), storage_unit
+    if code_units is not None and scale_key is not None:
+        unit_obj = scale_unit_for_key(scale_key)
+        if unit_obj is None:
+            unit_obj = unyt.Unit(default_unit) if default_unit is not None else None
+        data = code_quantity_to_cgs(value, code_units, scale_key)
+        unit = (
+            str(getattr(unit_obj, "units", unit_obj)) if unit_obj is not None else "dimensionless"
+        )
+        return data, unit, storage_unit
+    data = np.asarray(value)
+    unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
+    return data, unit, storage_unit
+
+
 def write_quantity(
     group,
     name,
@@ -116,42 +158,14 @@ def write_quantity(
 ):
     """Write one quantity with canonical units and field metadata."""
 
-    def _unit_label(unit_obj):
-        return str(getattr(unit_obj, "units", unit_obj))
-
-    if code_units is None and scale_key is not None:
-        raise ValueError(f"{name} requires code_units for HDF5 serialization")
-    storage_unit = field_spec_obj.storage_unit if field_spec_obj is not None else "cgs"
-    if field_spec_obj is not None and storage_unit == "code":
-        if code_units is None or scale_key is None:
-            raise ValueError(
-                f"{name} requires code_units and scale_key for code storage",
-            )
-        code_unit = scale_unit_for_key(scale_key)
-        if code_unit is None:
-            raise ValueError(f"no code-unit scale is defined for {scale_key!r}")
-        data = np.asarray(
-            value.to_value(code_unit) if hasattr(value, "to_value") else value,
-            dtype=float,
-        )
-        unit = str(code_unit)
-    elif hasattr(value, "to_value"):
-        if code_units is not None and scale_key is not None:
-            unit_obj = scale_unit_for_key(scale_key) or value.units
-            data = np.asarray(value.to_value(unit_obj))
-            unit = _unit_label(unit_obj)
-        else:
-            data = np.asarray(value.to_value(value.units))
-            unit = str(value.units)
-    elif code_units is not None and scale_key is not None:
-        unit_obj = scale_unit_for_key(scale_key)
-        if unit_obj is None:
-            unit_obj = unyt.Unit(default_unit) if default_unit is not None else None
-        data = code_quantity_to_cgs(value, code_units, scale_key)
-        unit = _unit_label(unit_obj) if unit_obj is not None else "dimensionless"
-    else:
-        data = np.asarray(value)
-        unit = str(unyt.Unit(default_unit)) if default_unit is not None else "dimensionless"
+    data, unit, storage_unit = _quantity_storage_data(
+        name,
+        value,
+        code_units,
+        scale_key,
+        default_unit,
+        field_spec_obj,
+    )
     dataset = group.create_dataset(name, data=data)
     dataset.attrs["units"] = unit
     dataset.attrs["storage_unit"] = storage_unit
@@ -235,6 +249,32 @@ def attach_radarray_views(
             "pre_proper_code": ("pre_radarray", "pre_proper_code"),
             "ngamma_code": ("ngamma_radarray", "ngamma_proper_code"),
         }
+    _attach_canonical_radarray_views(
+        target,
+        dataset_names,
+        mapping,
+        allowed_names,
+        code_units,
+        cosmology,
+    )
+    _attach_extra_radarray_views(
+        target,
+        dataset_names,
+        mapping,
+        allowed_names,
+        code_units,
+        cosmology,
+    )
+
+
+def _attach_canonical_radarray_views(
+    target,
+    dataset_names,
+    mapping,
+    allowed_names,
+    code_units,
+    cosmology,
+):
     for dataset_name, (view_name, canonical_name) in mapping.items():
         if allowed_names is not None and dataset_name not in allowed_names:
             continue
@@ -260,6 +300,16 @@ def attach_radarray_views(
                 field_name=canonical_name,
             ),
         )
+
+
+def _attach_extra_radarray_views(
+    target,
+    dataset_names,
+    mapping,
+    allowed_names,
+    code_units,
+    cosmology,
+):
     for dataset_name, dataset in dataset_names.items():
         if dataset_name in mapping or (
             allowed_names is not None and dataset_name not in allowed_names
