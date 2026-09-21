@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Cosmology-specific HDF5 headers and field metadata."""
 
+from typing import Any
+
 import numpy as np
 import unyt
 
@@ -11,7 +13,12 @@ from radhydropy.field_metadata import field_spec
 from radhydropy.io.metadata import _restore_header_attr_value
 
 
-def write_cosmology_header(header, par, output_time, code_units):
+def write_cosmology_header(
+    header: Any,
+    par: Any,
+    output_time: Any,
+    code_units: Any,
+) -> None:
     """Write the canonical cosmology metadata contract to ``Header``."""
     if not getattr(par, "cosmological_expansion", False):
         return
@@ -60,7 +67,7 @@ def write_cosmology_header(header, par, output_time, code_units):
     header.attrs["Gamma"] = float(par.hydrodynamics.gamma)
 
 
-def restore_cosmology_from_header(par, header, code_units):
+def restore_cosmology_from_header(par: Any, header: Any, code_units: Any) -> None:
     """Restore and validate cosmology metadata from an HDF5 ``Header``."""
     enabled = bool(getattr(par, "cosmological_expansion", False))
     cosmology_type = _restore_header_attr_value(header.attrs.get("CosmologyType", None))
@@ -80,8 +87,10 @@ def restore_cosmology_from_header(par, header, code_units):
         omega_lambda = float(
             _restore_header_attr_value(header.attrs.get("CosmologyOmegaLambda", 0.7)),
         )
-        hubble_ref = float(_restore_header_attr_value(header.attrs.get("CosmologyHubbleRef", 0.0)))
-        if hubble_ref <= 0.0:
+        hubble_ref: float | None = float(
+            _restore_header_attr_value(header.attrs.get("CosmologyHubbleRef", 0.0)),
+        )
+        if hubble_ref is not None and hubble_ref <= 0.0:
             hubble_ref = None
         par.cosmology_omega_m = omega_m
         par.cosmology_omega_lambda = omega_lambda
@@ -106,7 +115,10 @@ def restore_cosmology_from_header(par, header, code_units):
         par.cosmology = cosmology
 
 
-def restore_cosmology_context_from_header(par, header):
+def restore_cosmology_context_from_header(
+    par: Any,
+    header: Any,
+) -> CosmologyContext | None:
     """Restore the immutable snapshot conversion context from ``Header``."""
     gamma_value = header.attrs.get("Gamma")
     scale_factor_value = header.attrs.get("ScaleFactor")
@@ -130,7 +142,12 @@ def restore_cosmology_context_from_header(par, header):
     return context
 
 
-def runtime_field_spec(field_name, par, code_units, output_time):
+def runtime_field_spec(
+    field_name: str,
+    par: Any,
+    code_units: Any,
+    output_time: Any,
+) -> Any:
     """Build metadata for a canonical runtime field at write time."""
     cosmology_parameters = getattr(par, "cosmology", None)
     cosmology = getattr(cosmology_parameters, "model", cosmology_parameters)

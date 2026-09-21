@@ -2,10 +2,18 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Invariant-domain and dual-energy positivity helpers."""
 
+from typing import Any
+
 import numpy as np
 
 
-def limit_internal_flux(old_internal, flux, area, dt, physical):
+def limit_internal_flux(
+    old_internal: Any,
+    flux: Any,
+    area: Any,
+    dt: Any,
+    physical: Any,
+) -> Any:
     """Limit dual internal-energy face fluxes to preserve positivity.
 
     The total-energy flux has its own paired-face limiter.  This second
@@ -46,15 +54,15 @@ def limit_internal_flux(old_internal, flux, area, dt, physical):
 
 
 def positive_conserved_state(
-    mass,
-    momentum,
-    energy,
-    mass_floor=0.0,
-    energy_floor=0.0,
-    relative_tolerance=1.0e-12,
-    angular_momentum=None,
-    radius=None,
-):
+    mass: Any,
+    momentum: Any,
+    energy: Any,
+    mass_floor: float = 0.0,
+    energy_floor: float = 0.0,
+    relative_tolerance: float = 1.0e-12,
+    angular_momentum: Any = None,
+    radius: Any = None,
+) -> Any:
     """Return the invariant-domain admissibility mask for Euler states."""
     mass = np.asarray(mass, dtype=float)
     momentum = np.asarray(momentum, dtype=float)

@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Fixed pressure-supported central-core operations."""
 
+from typing import Any
+
 import numpy as np
 
 from radhydropy.arrays import as_named_array
 from radhydropy.runtime_fields import runtime_fields
 
 
-def hydrostatic_core_enabled(par):
+def hydrostatic_core_enabled(par: Any) -> bool:
     return str(getattr(par, "gas_core_model", "none")).lower() in (
         "hydrostatic",
         "hydrostatic_fixed",
@@ -16,7 +18,7 @@ def hydrostatic_core_enabled(par):
     )
 
 
-def initialize_hydrostatic_core(solver, mesh, fluid, par):
+def initialize_hydrostatic_core(solver: Any, mesh: Any, fluid: Any, par: Any) -> None:
     """Initialize an optional fixed, pressure-supported central core."""
     if not hydrostatic_core_enabled(par):
         return
@@ -68,7 +70,7 @@ def initialize_hydrostatic_core(solver, mesh, fluid, par):
     par.hydrostatic_core_face = int(core_indices[-1] + 1)
 
 
-def apply_hydrostatic_core(solver, mesh, fluid, par):
+def apply_hydrostatic_core(solver: Any, mesh: Any, fluid: Any, par: Any) -> None:
     """Restore the fixed core state before a resolved-halo update."""
     state = getattr(fluid, "hydrostatic_core", None)
     if state is None:
@@ -98,7 +100,7 @@ def apply_hydrostatic_core(solver, mesh, fluid, par):
     solver.active_primitive_arrays(fluid, par)[1][core] = 0.0
 
 
-def apply_hydrostatic_core_flux(solver, fluid, par):
+def apply_hydrostatic_core_flux(solver: Any, fluid: Any, par: Any) -> None:
     """Close the resolved halo with a pressure-bearing, no-mass-flux core."""
     face = getattr(par, "hydrostatic_core_face", None)
     state = getattr(fluid, "hydrostatic_core", None)

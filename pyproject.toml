@@ -85,6 +85,14 @@ files = [
     "radhydropy/cosmology/state.py",
     "radhydropy/cosmology/variables.py",
     "radhydropy/field_metadata.py",
+    "radhydropy/solver/positivity.py",
+    "radhydropy/chemistry.py",
+    "radhydropy/io/cosmology.py",
+    "radhydropy/chemistry_species/hydrogen.py",
+    "radhydropy/solver/hydrostatic.py",
+    "radhydropy/thermo_networks/cie/cie_tables.py",
+    "radhydropy/rsim/evolution.py",
+    "radhydropy/rsim/sources.py",
 ]
 check_untyped_defs = true
 strict = true

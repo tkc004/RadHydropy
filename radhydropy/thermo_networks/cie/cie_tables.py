@@ -3,6 +3,7 @@
 """Cached CHIANTI CIE ion-fraction and cooling-table interpolation."""
 
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -41,7 +42,7 @@ ELEMENT_SYMBOLS = (
 )
 
 
-def _read_abundance_file(filename):
+def _read_abundance_file(filename: str | Path) -> tuple[Any, Any]:
     atomic_number = []
     log_abundance = []
     for line in Path(filename).read_text().splitlines():
@@ -55,7 +56,12 @@ def _read_abundance_file(filename):
 class CIETable:
     """Load and interpolate CHIANTI CIE fractions and cooling coefficients."""
 
-    def __init__(self, ion_fraction_file, cooling_file, abundance_file):
+    def __init__(
+        self,
+        ion_fraction_file: str | Path,
+        cooling_file: str | Path,
+        abundance_file: str | Path,
+    ) -> None:
         self.ion_fraction_file = Path(ion_fraction_file).expanduser().resolve()
         self.cooling_file = Path(cooling_file).expanduser().resolve()
         self.abundance_file = Path(abundance_file).expanduser().resolve()
@@ -82,10 +88,10 @@ class CIETable:
         mean_charge = np.sum(fractions * self.ion_stage[None, :, None], axis=1)
         self._mean_charge = mean_charge
         self._cooling = cooling
-        self._electron_fraction_cache = {}
-        self._cooling_log_cache = {}
+        self._electron_fraction_cache: dict[float, Any] = {}
+        self._cooling_log_cache: dict[float, Any] = {}
 
-    def electron_fraction(self, temperature_cgs_K, metallicity):  # noqa: N803
+    def electron_fraction(self, temperature_cgs_K: Any, metallicity: Any) -> Any:  # noqa: N803
         """Return ``ne / nH`` for temperature and metallicity arrays."""
         temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
         log_temperature = np.log10(np.maximum(temperature_cgs_K, 1.0))
@@ -104,7 +110,12 @@ class CIETable:
             self._electron_fraction_cache[key],
         )
 
-    def cooling_coefficient(self, temperature_cgs_K, electron_density, metallicity):  # noqa: N803
+    def cooling_coefficient(
+        self,
+        temperature_cgs_K: Any,
+        electron_density: Any,
+        metallicity: Any,
+    ) -> Any:  # noqa: N803
         """Return Lambda in erg cm^3 s^-1 using log-space interpolation."""
         temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
         electron_density = np.asarray(electron_density, dtype=float)

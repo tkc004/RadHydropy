@@ -3,25 +3,26 @@
 """Rsim execution subsystem helpers."""
 
 import time
+from typing import Any
 
 import radhydropy.io as rio
 from radhydropy.runtime_fields import runtime_fields
 
 
 def _advance_until(
-    sim,
-    final_time,
-    mode="hydro_sources",
+    sim: Any,
+    final_time: Any,
+    mode: str = "hydro_sources",
     *,
-    advect_chemistry=True,
-    history_callback=None,
-    output_callback=None,
-    stop_condition=None,
-    step_backend=None,
-    step_backend_kwargs=None,
-    before_step_callback=None,
-    emit_initial_history=True,
-):
+    advect_chemistry: bool = True,
+    history_callback: Any = None,
+    output_callback: Any = None,
+    stop_condition: Any = None,
+    step_backend: Any = None,
+    step_backend_kwargs: Any = None,
+    before_step_callback: Any = None,
+    emit_initial_history: bool = True,
+) -> dict[str, int]:
     """Advance ``sim`` to ``final_time`` using the shared step lifecycle.
 
     ``Evolve`` and explicit-time output scheduling both use this function so
@@ -76,18 +77,18 @@ def _advance_until(
 
 
 def Evolve(  # noqa: N802
-    sim,
-    final_time=None,
-    mode="hydro_sources",
+    sim: Any,
+    final_time: Any = None,
+    mode: str = "hydro_sources",
     *,
-    advect_chemistry=True,
-    history_callback=None,
-    output_callback=None,
-    stop_condition=None,
-    step_backend=None,
-    step_backend_kwargs=None,
-    before_step_callback=None,
-):
+    advect_chemistry: bool = True,
+    history_callback: Any = None,
+    output_callback: Any = None,
+    stop_condition: Any = None,
+    step_backend: Any = None,
+    step_backend_kwargs: Any = None,
+    before_step_callback: Any = None,
+) -> dict[str, int]:
     """Evolve the simulation with a pluggable step backend."""
     if final_time is None:
         final_time = sim.par.simulation.final_time
@@ -106,18 +107,18 @@ def Evolve(  # noqa: N802
 
 
 def Run(  # noqa: N802
-    sim,
-    outputtime=0,
-    mode="hydro_sources",
+    sim: Any,
+    outputtime: Any = 0,
+    mode: str = "hydro_sources",
     *,
-    advect_chemistry=True,
-    stop_condition=None,
-    step_backend=None,
-    step_backend_kwargs=None,
-    before_step_callback=None,
-    history_callback=None,
-    snapshot_callback=None,
-):
+    advect_chemistry: bool = True,
+    stop_condition: Any = None,
+    step_backend: Any = None,
+    step_backend_kwargs: Any = None,
+    before_step_callback: Any = None,
+    history_callback: Any = None,
+    snapshot_callback: Any = None,
+) -> None:
     """Run the simulation loop and write periodic HDF5 outputs."""
     sim.WriteUsedParameters()
     if getattr(sim.par, "outputtimefilename", None):
@@ -145,7 +146,7 @@ def Run(  # noqa: N802
     initial_filename = rio.write_numbered_hdf5(sim, 0)
     if snapshot_callback is not None:
         snapshot_callback(sim, initial_filename, 0)
-    output_state = {}
+    output_state: dict[str, Any] = {}
     sim.Evolve(
         final_time=sim.par.simulation.final_time,
         mode=mode,
@@ -177,18 +178,18 @@ def Run(  # noqa: N802
 
 
 def RunAll(  # noqa: N802
-    sim,
-    outputtime=0,
-    mode="hydro_sources",
+    sim: Any,
+    outputtime: Any = 0,
+    mode: str = "hydro_sources",
     *,
-    advect_chemistry=True,
-    stop_condition=None,
-    step_backend=None,
-    step_backend_kwargs=None,
-    before_step_callback=None,
-    history_callback=None,
-    snapshot_callback=None,
-):
+    advect_chemistry: bool = True,
+    stop_condition: Any = None,
+    step_backend: Any = None,
+    step_backend_kwargs: Any = None,
+    before_step_callback: Any = None,
+    history_callback: Any = None,
+    snapshot_callback: Any = None,
+) -> None:
     """Run the full workflow from initial-condition read through outputs."""
     sim.Callreadhdf5()
     sim.SetMesh()

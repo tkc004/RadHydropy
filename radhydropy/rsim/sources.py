@@ -2,13 +2,21 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Rsim execution subsystem helpers."""
 
+from typing import Any
+
 import numpy as np
 
 import radhydropy.thermo_chemistry as rtc
 from radhydropy import diagnostics
 
 
-def AdvectChemistryScalars(sim, dt, old_mass, mass_flux, fluid=None):  # noqa: N802
+def AdvectChemistryScalars(  # noqa: N802
+    sim: Any,
+    dt: Any,
+    old_mass: Any,
+    mass_flux: Any,
+    fluid: Any = None,
+) -> None:
     """Advect passive thermo-chemistry scalars after a hydro flux update."""
     if fluid is None:
         fluid = sim.fluid
@@ -22,7 +30,12 @@ def AdvectChemistryScalars(sim, dt, old_mass, mass_flux, fluid=None):  # noqa: N
     )
 
 
-def UpdateThermochemistryPrimitiveState(sim, *, update_pressure=True, fluid=None):  # noqa: N802
+def UpdateThermochemistryPrimitiveState(  # noqa: N802
+    sim: Any,
+    *,
+    update_pressure: bool = True,
+    fluid: Any = None,
+) -> None:
     """Refresh temperature, mean molecular weight, and optionally pressure."""
     if fluid is None:
         fluid = sim.fluid
@@ -48,17 +61,17 @@ def UpdateThermochemistryPrimitiveState(sim, *, update_pressure=True, fluid=None
 
 
 def FinalizeHydroStep(  # noqa: N802
-    sim,
-    dt,
-    old_mass,
-    mass_flux,
+    sim: Any,
+    dt: Any,
+    old_mass: Any,
+    mass_flux: Any,
     *,
-    advect_chemistry=True,
-    fluid=None,
-    temperature_before=None,
-    gravity_dt=None,
-    apply_gravity=True,
-):
+    advect_chemistry: bool = True,
+    fluid: Any = None,
+    temperature_before: Any = None,
+    gravity_dt: Any = None,
+    apply_gravity: bool = True,
+) -> None:
     """Complete a hydro step after conserved variables have been advanced."""
     if fluid is None:
         fluid = sim.fluid
@@ -91,7 +104,7 @@ def FinalizeHydroStep(  # noqa: N802
     )
 
 
-def ApplyThermochemistrySources(sim, dt):  # noqa: N802
+def ApplyThermochemistrySources(sim: Any, dt: Any) -> Any:  # noqa: N802
     """Apply radiative transport and thermo-chemistry source updates."""
     transport_result = None
     if getattr(sim.par, "radiative_transfer_temporal_scheme", "c2ray") != "c2ray":
@@ -109,7 +122,7 @@ def ApplyThermochemistrySources(sim, dt):  # noqa: N802
     )
 
 
-def _synchronize_thermochemistry_internal_energy(sim):
+def _synchronize_thermochemistry_internal_energy(sim: Any) -> None:
     """Refresh the dual energy from the source-updated conservative state.
 
     Thermochemistry updates the authoritative total energy directly.  The
@@ -151,7 +164,7 @@ def _synchronize_thermochemistry_internal_energy(sim):
     sim.fluid.InternalEnergy_code = internal
 
 
-def _accumulate_gravity_work(sim):
+def _accumulate_gravity_work(sim: Any) -> None:
     """Accumulate work from one completed gravity/source substep."""
     gravity_work = float(getattr(sim.solver, "last_gravity_work", 0.0))
     centrifugal_work = float(

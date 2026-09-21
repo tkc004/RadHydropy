@@ -14,6 +14,7 @@ The actual species microphysics lives in :mod:`radhydropy.chemistry_species`.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 from radhydropy.chemistry_species import helium, hydrogen, metal, molecule
 
@@ -38,12 +39,12 @@ CHEMISTRY_MODULES = {
 }
 
 
-def available_chemistry_modules():
+def available_chemistry_modules() -> tuple[str, ...]:
     """Return the supported chemistry composition keys."""
     return tuple(sorted(CHEMISTRY_MODULES))
 
 
-def get_chemistry_module(par=None, key=None):
+def get_chemistry_module(par: Any = None, key: str | None = None) -> ChemistryModule:
     """Return the selected chemistry composition preset."""
     chemistry_key = key if key is not None else getattr(par, "chemistry_key", "H")
     try:
@@ -55,7 +56,7 @@ def get_chemistry_module(par=None, key=None):
         ) from exc
 
 
-def get_species_modules(chemistry_key):
+def get_species_modules(chemistry_key: str) -> tuple[Any, ...]:
     """Return the underlying species helper modules for a composition key."""
     modules = {
         "hydrogen": hydrogen,
