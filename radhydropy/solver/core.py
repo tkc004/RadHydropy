@@ -87,9 +87,7 @@ def _analytical_face_increment_limit(
         energy0 = float(total_energy[index])
         mass_limit = float(mass_floor[index])
         energy_limit = float(energy_floor[index])
-        if not all(
-            math.isfinite(value) for value in (mass0, mom0, energy0)
-        ) or mass0 < mass_limit:
+        if not all(math.isfinite(value) for value in (mass0, mom0, energy0)) or mass0 < mass_limit:
             return None
         dm = sign * float(delta_mass[face])
         dp = sign * float(delta_mom[face])
@@ -133,8 +131,7 @@ def _bounded_face_mass_increment(dm, max_increment, mass0, mass_limit):
 
 def _store_radiative_transfer_result(result, fluid, density_runtime_code, interior, scales):
     photon_density_code = (
-        np.asarray(result.cell_photon_density, dtype=float)
-        / scales["number_density_cgs_cm3"]
+        np.asarray(result.cell_photon_density, dtype=float) / scales["number_density_cgs_cm3"]
     )
     if np.ndim(photon_density_code) != 2:  # noqa: PLR2004
         raise ValueError("radiative-transfer result must have shape (ngroup, ncell)")
@@ -1920,7 +1917,6 @@ class Solver:
 
         return adjacent_valid, analytical_adjacent_factor
 
-
     def _analytical_batch_validators(
         self,
         *,
@@ -2110,6 +2106,106 @@ class Solver:
 
         return batch_cell_valid, batch_adjacent_valid, batch_analytical_factors
 
+    def _validate_analytical_recovery_state(
+        self,
+        context,
+        geometry_increment,
+        geometry_fraction,
+    ):
+        mass = context["mass"]
+        momentum = context["momentum"]
+        energy = context["energy"]
+        angular = context["angular"]
+        radius = context["radius"]
+        valid = context["valid"]
+        total_mass = mass.copy()
+        total_mom = momentum + geometry_fraction * geometry_increment
+        total_energy = energy.copy()
+        total_angular = angular.copy() if angular is not None else None
+        if np.all(valid(total_mass, total_mom, total_energy, total_angular)):
+            return total_mass, total_mom, total_energy, total_angular
+
+        invalid = ~valid(total_mass, total_mom, total_energy, total_angular)
+        index = int(np.flatnonzero(invalid)[0])
+        mass_value = float(total_mass[index])
+        momentum_value = float(total_mom[index])
+        energy_value = float(total_energy[index])
+        kinetic_value = 0.5 * momentum_value**2 / mass_value if mass_value > 0.0 else 0.0
+        angular_value = float(total_angular[index]) if total_angular is not None else 0.0
+        radius_value = float(radius[index]) if radius is not None else float("nan")
+        rotational_value = (
+            0.5 * angular_value**2 / (mass_value * radius_value**2)
+            if mass_value > 0.0 and radius_value > 0.0
+            else 0.0
+        )
+        internal_value = energy_value - kinetic_value - rotational_value
+        specific_value = angular_value / mass_value if mass_value > 0.0 else 0.0
+        raise ValueError(
+            "hydro state is outside positivity domain before paired "
+            f"face construction at cell {index} "
+            f"(mass={mass_value} mom={momentum_value} energy={energy_value} "
+            f"radius={radius_value} J={angular_value} j={specific_value} "
+            f"kinetic={kinetic_value} rotational={rotational_value} "
+            f"internal={internal_value})",
+        )
+
+    @staticmethod
+    def _analytical_face_factor(
+        face,
+        current,
+        adjacent_valid,
+        analytical_adjacent_factor,
+        factor_method,
+        recovery_iterations,
+        factor_tolerance,
+    ):
+        if adjacent_valid(face, 1.0):
+            return 1.0
+        if factor_method == "analytical":
+            accepted = analytical_adjacent_factor(face, current)
+            if accepted is not None:
+                return accepted
+        low, high = current, 1.0
+        for _ in range(recovery_iterations):
+            middle = 0.5 * (low + high)
+            if adjacent_valid(face, middle):
+                low = middle
+            else:
+                high = middle
+            if high - low <= factor_tolerance:
+                break
+        return low
+
+    @staticmethod
+    def _apply_analytical_face(
+        face,
+        accepted,
+        factors,
+        total_mass,
+        total_mom,
+        total_energy,
+        total_angular,
+        delta_mass,
+        delta_mom,
+        delta_energy,
+        delta_angular,
+        count,
+    ):
+        increment = accepted - factors[face]
+        left = (face - 1) % count
+        right = face
+        total_mass[left] -= increment * delta_mass[face]
+        total_mom[left] -= increment * delta_mom[face]
+        total_energy[left] -= increment * delta_energy[face]
+        total_mass[right] += increment * delta_mass[face]
+        total_mom[right] += increment * delta_mom[face]
+        total_energy[right] += increment * delta_energy[face]
+        if total_angular is not None:
+            total_angular[left] -= increment * delta_angular[face]
+            total_angular[right] += increment * delta_angular[face]
+        factors[face] = accepted
+        return increment
+
     def _recover_analytical_faces(
         self,
         context,
@@ -2124,64 +2220,20 @@ class Solver:
     ):
         """Recover paired face factors with sequential analytical limiting."""
         mass = context["mass"]
-        momentum = context["momentum"]
-        energy = context["energy"]
-        angular = context["angular"]
-        radius = context["radius"]
         physical = context["physical"]
         mass_floor = context["mass_floor"]
         energy_floor = context["energy_floor"]
-        relative_tolerance = context["relative_tolerance"]
-        valid = context["valid"]
+        radius = context["radius"]
         cell_valid = context["cell_valid"]
         count = len(mass)
-        # Construct the limited update from a known admissible state.
-        # Increasing one face coefficient changes only its two adjacent
-        # cells with equal-and-opposite corrections.  Accept an increase
-        # only while both cells remain admissible, so global admissibility
-        # is an invariant of the construction rather than something a
-        # fixed number of repair passes must recover afterward.
         factors = np.zeros(len(mass_face), dtype=float)
-        momentum = momentum + geometry_fraction * geometry_increment
-        total_mass = mass.copy()
-        total_mom = momentum.copy()
-        total_energy = energy.copy()
-        total_angular = angular.copy() if angular is not None else None
-        if not np.all(valid(total_mass, total_mom, total_energy, total_angular)):
-            invalid = ~valid(total_mass, total_mom, total_energy, total_angular)
-            index = int(np.flatnonzero(invalid)[0])
-            mass_value = float(total_mass[index])
-            momentum_value = float(total_mom[index])
-            energy_value = float(total_energy[index])
-            kinetic_value = 0.5 * momentum_value**2 / mass_value if mass_value > 0.0 else 0.0
-            angular_value = float(total_angular[index]) if total_angular is not None else 0.0
-            radius_value = float(radius[index]) if radius is not None else float("nan")
-            rotational_value = (
-                0.5 * angular_value**2 / (mass_value * radius_value**2)
-                if mass_value > 0.0 and radius_value > 0.0
-                else 0.0
+        total_mass, total_mom, total_energy, total_angular = (
+            self._validate_analytical_recovery_state(
+                context,
+                geometry_increment,
+                geometry_fraction,
             )
-            internal_value = energy_value - kinetic_value - rotational_value
-            specific_value = angular_value / mass_value if mass_value > 0.0 else 0.0
-            raise ValueError(
-                "hydro state is outside positivity domain before paired "
-                "face construction at cell %d "
-                "(mass=%s mom=%s energy=%s radius=%s J=%s j=%s "
-                "kinetic=%s rotational=%s internal=%s)"
-                % (
-                    index,
-                    mass_value,
-                    momentum_value,
-                    energy_value,
-                    radius_value,
-                    angular_value,
-                    specific_value,
-                    kinetic_value,
-                    rotational_value,
-                    internal_value,
-                ),
-            )
-
+        )
         adjacent_valid, analytical_adjacent_factor = self._analytical_scalar_validators(
             factors=factors,
             total_mass=total_mass,
@@ -2199,165 +2251,49 @@ class Solver:
             cell_valid=cell_valid,
             count=count,
         )
-        batch_cell_valid, batch_adjacent_valid, batch_analytical_factors = (
-            self._analytical_batch_validators(
-                factors=factors,
-                total_mass=total_mass,
-                total_mom=total_mom,
-                total_energy=total_energy,
-                total_angular=total_angular,
-                delta_mass=delta_mass,
-                delta_mom=delta_mom,
-                delta_energy=delta_energy,
-                physical=physical,
-                mass_floor=mass_floor,
-                energy_floor=energy_floor,
-                radius=radius,
-                relative_tolerance=relative_tolerance,
-                delta_angular=delta_angular,
-                count=count,
-            )
-        )
-
-        def recover_analytical_group(face_values):
-            active = factors[face_values] < 1.0 - factor_tolerance
-            if not np.any(active):
-                factors[face_values] = 1.0
-                return 0.0
-            active_faces = face_values[active]
-            current = factors[active_faces].copy()
-            full = batch_adjacent_valid(
-                active_faces,
-                np.ones_like(current),
-            )
-            accepted = np.ones_like(current)
-            needs_fallback = ~full
-            if np.any(needs_fallback):
-                candidates, possible = batch_analytical_factors(
-                    active_faces[needs_fallback],
-                )
-                candidate_positions = np.flatnonzero(needs_fallback)
-                accepted[candidate_positions[possible]] = candidates[possible]
-                fallback_faces = active_faces[candidate_positions[~possible]]
-                for face in fallback_faces:
-                    current_face = factors[face]
-                    low, high = current_face, 1.0
-                    for _ in range(recovery_iterations):
-                        middle = 0.5 * (low + high)
-                        if adjacent_valid(face, middle):
-                            low = middle
-                        else:
-                            high = middle
-                        if high - low <= factor_tolerance:
-                            break
-                    accepted[np.where(active_faces == face)[0][0]] = low
-            increment = accepted - current
-            left = (active_faces - 1) % count
-            right = active_faces
-            total_mass[left] -= increment * delta_mass[active_faces]
-            total_mass[right] += increment * delta_mass[active_faces]
-            total_mom[left] -= increment * delta_mom[active_faces]
-            total_mom[right] += increment * delta_mom[active_faces]
-            total_energy[left] -= increment * delta_energy[active_faces]
-            total_energy[right] += increment * delta_energy[active_faces]
-            factors[active_faces] = accepted
-            return float(np.max(increment)) if increment.size else 0.0
-
-        # Alternate traversal direction to reduce ordering bias.  The
-        # first sweep already produces a globally admissible update;
-        # later sweeps only recover additional face flux monotonically.
-        # Keep the recovery policy independent of geometry and energy
-        # formulation; reducing it for cold spherical dual-energy runs
-        # would be a performance heuristic rather than a numerical
-        # criterion and could leave more ordering-dependent limiting.
         max_recovery_sweeps = 8
         recovery_iterations = 48
         factor_tolerance = 1.0e-13
         factor_method = str(
-            getattr(
-                par,
-                "positivity_factor_method",
-                "invariant_domain",
-            ),
+            getattr(par, "positivity_factor_method", "invariant_domain"),
         ).lower()
-
-        # Parity batching is intentionally disabled until its altered
-        # recovery ordering is proven equivalent for coupled interfaces.
-        if False:
-            for sweep in range(max_recovery_sweeps):
-                largest_increase = 0.0
-                parities = (0, 1) if sweep % 2 == 0 else (1, 0)
-                for parity in parities:
-                    faces = np.arange(
-                        parity,
-                        len(mass_face),
-                        2,
-                        dtype=int,
-                    )
-                    largest_increase = max(
-                        largest_increase,
-                        recover_analytical_group(faces),
-                    )
-                if np.all(factors >= 1.0 - factor_tolerance):
-                    factors[...] = 1.0
-                    break
-                if largest_increase <= factor_tolerance:
-                    break
-        else:
-            for sweep in range(max_recovery_sweeps):
-                largest_increase = 0.0
-                faces = (
-                    range(len(mass_face)) if sweep % 2 == 0 else range(len(mass_face) - 1, -1, -1)
+        for sweep in range(max_recovery_sweeps):
+            largest_increase = 0.0
+            faces = range(len(mass_face)) if sweep % 2 == 0 else range(len(mass_face) - 1, -1, -1)
+            for face in faces:
+                current = factors[face]
+                if current >= 1.0 - factor_tolerance:
+                    factors[face] = 1.0
+                    continue
+                accepted = self._analytical_face_factor(
+                    face,
+                    current,
+                    adjacent_valid,
+                    analytical_adjacent_factor,
+                    factor_method,
+                    recovery_iterations,
+                    factor_tolerance,
                 )
-                for face in faces:
-                    current = factors[face]
-                    if current >= 1.0 - factor_tolerance:
-                        factors[face] = 1.0
-                        continue
-                    if adjacent_valid(face, 1.0):
-                        accepted = 1.0
-                    else:
-                        accepted = (
-                            analytical_adjacent_factor(face, current)
-                            if factor_method == "analytical"
-                            else None
-                        )
-                        if accepted is None:
-                            # The current coefficient is known admissible.
-                            # Search only upward, never stepping outside the
-                            # invariant domain.
-                            low, high = current, 1.0
-                            for _ in range(recovery_iterations):
-                                middle = 0.5 * (low + high)
-                                if adjacent_valid(face, middle):
-                                    low = middle
-                                else:
-                                    high = middle
-                                if high - low <= factor_tolerance:
-                                    break
-                            accepted = low
-                    largest_increase = max(
-                        largest_increase,
-                        accepted - current,
-                    )
-                    increment = accepted - current
-                    left = (face - 1) % count
-                    right = face
-                    total_mass[left] -= increment * delta_mass[face]
-                    total_mom[left] -= increment * delta_mom[face]
-                    total_energy[left] -= increment * delta_energy[face]
-                    total_mass[right] += increment * delta_mass[face]
-                    total_mom[right] += increment * delta_mom[face]
-                    total_energy[right] += increment * delta_energy[face]
-                    if total_angular is not None:
-                        total_angular[left] -= increment * delta_angular[face]
-                        total_angular[right] += increment * delta_angular[face]
-                    factors[face] = accepted
-                if np.all(factors >= 1.0 - factor_tolerance):
-                    factors[...] = 1.0
-                    break
-                if largest_increase <= factor_tolerance:
-                    break
+                largest_increase = max(largest_increase, accepted - current)
+                self._apply_analytical_face(
+                    face,
+                    accepted,
+                    factors,
+                    total_mass,
+                    total_mom,
+                    total_energy,
+                    total_angular,
+                    delta_mass,
+                    delta_mom,
+                    delta_energy,
+                    delta_angular,
+                    count,
+                )
+            if np.all(factors >= 1.0 - factor_tolerance):
+                factors[...] = 1.0
+                break
+            if largest_increase <= factor_tolerance:
+                break
         return total_mass, total_mom, total_energy, total_angular, factors
 
     def _positivity_limited_face_fluxes(
@@ -2663,20 +2599,11 @@ class Solver:
             order=order,
         )
 
-    def AddFluxes(self, dt: float, mesh, fluid, boundcond):  # noqa: N802
-        """Apply interface fluxes to conserved quantities and advance time."""
-        old_mass_for_internal = np.asarray(fluid.Mass_code, dtype=float).copy()
-        self._limit_angular_momentum_flux(
-            dt,
-            mesh,
-            fluid,
-            getattr(mesh, "par", getattr(mesh, "_par", None)),
-        )
+    def _prepare_flux_updates(self, mesh, fluid, par):
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
-        geometry = self._geometry_state(mesh, getattr(mesh, "par", getattr(mesh, "_par", None)))
+        geometry = self._geometry_state(mesh, par)
         area_runtime_code = geometry.area_runtime_code
-        par = getattr(mesh, "par", getattr(mesh, "_par", None))
         pressure_runtime_code = None
         velocity_runtime_code = None
         if getattr(mesh, "coordsys", None) == "spherical" or (
@@ -2702,10 +2629,7 @@ class Solver:
         if hasattr(fluid, "AngularMomentum_code"):
             angular_flux_area = fluid.AngularMomentum_code.flux * area_runtime_code
             df_AngularMomentum = angular_flux_area - ru.periodic_roll(angular_flux_area, -1)
-        potential_face = self._gravity_potential_faces(
-            mesh,
-            getattr(mesh, "par", getattr(mesh, "_par", None)),
-        )
+        potential_face = self._gravity_potential_faces(mesh, par)
         df_potential = None
         if potential_face is not None:
             potential_flux_area = potential_face * fluid.Mass_code.flux * area_runtime_code
@@ -2717,7 +2641,7 @@ class Solver:
             df_Mom_code += pressure_runtime_code * (area_right - area_runtime_code)
 
         dual_energy = (
-            self._dual_energy_enabled(getattr(mesh, "par", getattr(mesh, "_par", None)))
+            self._dual_energy_enabled(par)
             and hasattr(fluid, "InternalEnergy_code")
             and getattr(fluid.eos, "is_polytropic", False)
         )
@@ -2767,6 +2691,231 @@ class Solver:
         if getattr(mesh, "coordsys", None) == "spherical":
             area_right = ru.periodic_roll(area_runtime_code, -1)
             geometric_mom = pressure_runtime_code * (area_right - area_runtime_code)
+
+        return {
+            "area_runtime_code": area_runtime_code,
+            "pressure_runtime_code": pressure_runtime_code,
+            "velocity_runtime_code": velocity_runtime_code,
+            "df_angular": df_AngularMomentum,
+            "potential_face": potential_face,
+            "df_internal": df_InternalEnergy,
+            "internal_flux": internal_flux if df_InternalEnergy is not None else None,
+            "face_velocity": face_velocity if df_InternalEnergy is not None else None,
+            "geometric_mom": geometric_mom,
+        }
+
+    def _update_dual_energy_from_flux(
+        self,
+        dt,
+        mesh,
+        fluid,
+        par,
+        old_mass_for_internal,
+        area_runtime_code,
+        pressure_runtime_code,
+        internal_flux,
+        face_velocity,
+    ):
+        # Couple the dual-energy advection to the same face coefficients
+        # used by the conservative update.  Applying the minimum face
+        # coefficient globally defeats the purpose of the local limiter.
+        factors = np.asarray(
+            getattr(self, "_last_face_limiter_factors", np.ones(len(fluid.Mass_code.flux))),
+            dtype=float,
+        )
+        limited_internal_flux = np.asarray(internal_flux, dtype=float) * factors
+        first = int(par.mesh.ghost_cells)
+        count = int(par.mesh.grid_cells)
+        physical = np.zeros(len(fluid.InternalEnergy_code), dtype=bool)
+        physical[first : first + count] = True
+        internal_factors = self._positivity_limited_internal_flux(
+            fluid.InternalEnergy_code,
+            limited_internal_flux,
+            area_runtime_code,
+            dt,
+            physical,
+        )
+        limited_internal_flux *= internal_factors
+        limited_df_internal = limited_internal_flux * area_runtime_code - ru.periodic_roll(
+            limited_internal_flux * area_runtime_code,
+            -1,
+        )
+        if getattr(mesh, "coordsys", None) == "spherical":
+            # Retain the established spherical pressure-work
+            # discretization.  The positivity limiter acts on the
+            # Riemann internal-energy flux above; changing the geometric
+            # source and limiting it as a scalar face flux simultaneously
+            # can over-limit cold expanding cells.
+            limited_df_internal -= pressure_runtime_code * (
+                ru.periodic_roll(
+                    factors * face_velocity * area_runtime_code,
+                    -1,
+                )
+                - factors * face_velocity * area_runtime_code
+            )
+        candidate_internal = (
+            np.asarray(fluid.InternalEnergy_code, dtype=float) + limited_df_internal * dt
+        )
+        previous_internal = np.asarray(fluid.InternalEnergy_code, dtype=float)
+
+        # Do not silently turn an unsuccessful dual-energy update into a
+        # pressureless cell.  The conservative update has already been
+        # positivity-limited, so recover its thermal energy whenever
+        # E-K is a strictly positive, finite estimate.  This is the same
+        # fallback used by SetPrimitive, but doing it here prevents a
+        # zero InternalEnergy value from surviving until the next
+        # synchronization and generating a deep entropy spike.
+        mass = np.asarray(fluid.Mass_code, dtype=float)
+        momentum = np.asarray(fluid.Mom_code, dtype=float)
+        total_energy = np.asarray(fluid.Energy_code, dtype=float)
+        conservative_internal = np.zeros_like(total_energy)
+        np.divide(
+            0.5 * momentum**2,
+            mass,
+            out=conservative_internal,
+            where=mass > 0.0,
+        )
+        conservative_internal = total_energy - conservative_internal
+        conservative_internal -= self._rotational_energy_from_conserved(
+            mesh,
+            fluid,
+            getattr(mesh, "par", getattr(mesh, "_par", None)),
+        )
+        first = int(par.mesh.ghost_cells)
+        count = int(par.mesh.grid_cells)
+        physical = np.zeros(len(candidate_internal), dtype=bool)
+        physical[first : first + count] = True
+        fallback = (
+            physical
+            & (~np.isfinite(candidate_internal) | (candidate_internal <= 0.0))
+            & np.isfinite(conservative_internal)
+            & (conservative_internal > 0.0)
+        )
+        if np.any(fallback):
+            candidate_internal[fallback] = conservative_internal[fallback]
+            self.dual_energy_pressure_fallback_count += int(
+                np.count_nonzero(fallback),
+            )
+        # A failed pressure-work update does not make the previous dual
+        # state unphysical.  If E-K is also temporarily unusable, retain
+        # that previous positive estimate for this step.  This avoids
+        # injecting the pressure floor merely because both *post-update*
+        # estimates crossed zero during a highly converging HLLC step.
+        # The total-energy field remains authoritative and unchanged.
+        retain_previous = (
+            physical
+            & (~np.isfinite(candidate_internal) | (candidate_internal <= 0.0))
+            & ~fallback
+            & np.isfinite(previous_internal)
+            & (previous_internal > 0.0)
+        )
+        if np.any(retain_previous):
+            candidate_internal[retain_previous] = previous_internal[retain_previous]
+            self.dual_energy_pressure_fallback_count += int(
+                np.count_nonzero(retain_previous),
+            )
+
+        # A positivity limiter alone can still leave a tiny positive
+        # value after a large cancellation in the spherical pressure-work
+        # update.  Treat an abrupt loss below the configured consistency
+        # fraction as a failed dual estimate as well.  Prefer E-K when it
+        # is admissible; otherwise keep the previous positive dual state.
+        consistency_factor = max(
+            0.0,
+            float(
+                np.asarray(getattr(par, "dual_energy_consistency_factor", 1.0e-1), dtype=float),
+            ),
+        )
+        far_below_previous = (
+            physical
+            & np.isfinite(candidate_internal)
+            & np.isfinite(previous_internal)
+            & (previous_internal > 0.0)
+            & (candidate_internal < consistency_factor * previous_internal)
+        )
+        conservative_recovery = (
+            far_below_previous & np.isfinite(conservative_internal) & (conservative_internal > 0.0)
+        )
+        if np.any(conservative_recovery):
+            candidate_internal[conservative_recovery] = conservative_internal[conservative_recovery]
+            self.dual_energy_pressure_fallback_count += int(
+                np.count_nonzero(conservative_recovery),
+            )
+        retain_consistent = far_below_previous & ~conservative_recovery
+        if np.any(retain_consistent):
+            candidate_internal[retain_consistent] = previous_internal[retain_consistent]
+            self.dual_energy_pressure_fallback_count += int(
+                np.count_nonzero(retain_consistent),
+            )
+
+        # Entropy-stable dual-energy correction for smooth cells.  For an
+        # adiabatic ideal gas, the cell entropy proxy is proportional to
+        # e/rho**gamma.  The Riemann internal-energy update may lose this
+        # quantity through cancellation in the spherical pressure-work
+        # term, even while remaining positive.  Preserve the previous
+        # entropy only for moderate density changes; strong compression,
+        # expansion, and near-vacuum cells are left to the conservative
+        # consistency/fallback logic above.
+        if getattr(
+            par,
+            "dual_energy_entropy_limiter",
+            False,
+        ) and not self._thermochemistry_enabled(fluid, par):
+            volume = np.asarray(
+                self._geometry_state(mesh, par).volume_runtime_code,
+                dtype=float,
+            )
+            old_density = np.divide(
+                old_mass_for_internal,
+                volume,
+                out=np.zeros_like(old_mass_for_internal),
+                where=volume > 0.0,
+            )
+            new_density = np.divide(
+                np.asarray(fluid.Mass_code, dtype=float),
+                volume,
+                out=np.zeros_like(old_density),
+                where=volume > 0.0,
+            )
+            density_ratio = np.divide(
+                new_density,
+                old_density,
+                out=np.ones_like(old_density),
+                where=old_density > 0.0,
+            )
+            moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)  # noqa: PLR2004
+            isentropic_internal = previous_internal * np.maximum(
+                density_ratio,
+                0.0,
+            ) ** float(fluid.eos.gamma)
+            entropy_limited = (
+                moderate_density_change
+                & np.isfinite(previous_internal)
+                & (previous_internal > 0.0)
+                & np.isfinite(isentropic_internal)
+                & (isentropic_internal > 0.0)
+                & (candidate_internal < isentropic_internal)
+            )
+            if np.any(entropy_limited):
+                candidate_internal[entropy_limited] = isentropic_internal[entropy_limited]
+                self.dual_energy_entropy_limiter_count += int(
+                    np.count_nonzero(entropy_limited),
+                )
+
+        # Leave unresolved cells at zero only when the conservative state
+        # is also non-positive.  SetPrimitive will then apply the
+        # configured positive floor and record that injected energy.
+        fluid.InternalEnergy_code = as_named_array(
+            np.maximum(candidate_internal, 0.0),
+        )
+
+    def AddFluxes(self, dt: float, mesh, fluid, boundcond):  # noqa: N802
+        """Apply interface fluxes to conserved quantities and advance time."""
+        old_mass_for_internal = np.asarray(fluid.Mass_code, dtype=float).copy()
+        par = getattr(mesh, "par", getattr(mesh, "_par", None))
+        self._limit_angular_momentum_flux(dt, mesh, fluid, par)
+        updates = self._prepare_flux_updates(mesh, fluid, par)
+        area_runtime_code = updates["area_runtime_code"]
         self.positivity_limited_face_fluxes(
             fluid,
             dt,
@@ -2775,231 +2924,35 @@ class Solver:
             fluid.Mass_code.flux,
             fluid.Mom_code.flux,
             fluid.Energy_code.flux,
-            geometric_mom=geometric_mom,
+            geometric_mom=updates["geometric_mom"],
             angular_face=(
-                fluid.AngularMomentum_code.flux if df_AngularMomentum is not None else None
+                fluid.AngularMomentum_code.flux if updates["df_angular"] is not None else None
             ),
         )
-        # A positivity reduction at the prescribed wind face is a numerical
-        # rejection of reservoir material, not a physical reduction of the
-        # stellar-wind luminosity.  Reinsert the rejected parcel with its
-        # matching mass, momentum, and energy before synchronizing primitives.
-        self._apply_wind_reservoir_flux(
-            dt,
-            mesh,
-            fluid,
-            getattr(mesh, "par", getattr(mesh, "_par", None)),
-        )
-        if df_InternalEnergy is not None:
-            # Couple the dual-energy advection to the same face coefficients
-            # used by the conservative update.  Applying the minimum face
-            # coefficient globally defeats the purpose of the local limiter.
-            factors = np.asarray(
-                getattr(self, "_last_face_limiter_factors", np.ones(len(fluid.Mass_code.flux))),
-                dtype=float,
-            )
-            limited_internal_flux = np.asarray(internal_flux, dtype=float) * factors
-            first = int(par.mesh.ghost_cells)
-            count = int(par.mesh.grid_cells)
-            physical = np.zeros(len(fluid.InternalEnergy_code), dtype=bool)
-            physical[first : first + count] = True
-            internal_factors = self._positivity_limited_internal_flux(
-                fluid.InternalEnergy_code,
-                limited_internal_flux,
-                area_runtime_code,
+        self._apply_wind_reservoir_flux(dt, mesh, fluid, par)
+        if updates["df_internal"] is not None:
+            self._update_dual_energy_from_flux(
                 dt,
-                physical,
-            )
-            limited_internal_flux *= internal_factors
-            limited_df_internal = limited_internal_flux * area_runtime_code - ru.periodic_roll(
-                limited_internal_flux * area_runtime_code,
-                -1,
-            )
-            if getattr(mesh, "coordsys", None) == "spherical":
-                # Retain the established spherical pressure-work
-                # discretization.  The positivity limiter acts on the
-                # Riemann internal-energy flux above; changing the geometric
-                # source and limiting it as a scalar face flux simultaneously
-                # can over-limit cold expanding cells.
-                limited_df_internal -= pressure_runtime_code * (
-                    ru.periodic_roll(
-                        factors * face_velocity * area_runtime_code,
-                        -1,
-                    )
-                    - factors * face_velocity * area_runtime_code
-                )
-            candidate_internal = (
-                np.asarray(fluid.InternalEnergy_code, dtype=float) + limited_df_internal * dt
-            )
-            previous_internal = np.asarray(fluid.InternalEnergy_code, dtype=float)
-
-            # Do not silently turn an unsuccessful dual-energy update into a
-            # pressureless cell.  The conservative update has already been
-            # positivity-limited, so recover its thermal energy whenever
-            # E-K is a strictly positive, finite estimate.  This is the same
-            # fallback used by SetPrimitive, but doing it here prevents a
-            # zero InternalEnergy value from surviving until the next
-            # synchronization and generating a deep entropy spike.
-            mass = np.asarray(fluid.Mass_code, dtype=float)
-            momentum = np.asarray(fluid.Mom_code, dtype=float)
-            total_energy = np.asarray(fluid.Energy_code, dtype=float)
-            conservative_internal = np.zeros_like(total_energy)
-            np.divide(
-                0.5 * momentum**2,
-                mass,
-                out=conservative_internal,
-                where=mass > 0.0,
-            )
-            conservative_internal = total_energy - conservative_internal
-            conservative_internal -= self._rotational_energy_from_conserved(
                 mesh,
                 fluid,
-                getattr(mesh, "par", getattr(mesh, "_par", None)),
-            )
-            first = int(par.mesh.ghost_cells)
-            count = int(par.mesh.grid_cells)
-            physical = np.zeros(len(candidate_internal), dtype=bool)
-            physical[first : first + count] = True
-            fallback = (
-                physical
-                & (~np.isfinite(candidate_internal) | (candidate_internal <= 0.0))
-                & np.isfinite(conservative_internal)
-                & (conservative_internal > 0.0)
-            )
-            if np.any(fallback):
-                candidate_internal[fallback] = conservative_internal[fallback]
-                self.dual_energy_pressure_fallback_count += int(
-                    np.count_nonzero(fallback),
-                )
-            # A failed pressure-work update does not make the previous dual
-            # state unphysical.  If E-K is also temporarily unusable, retain
-            # that previous positive estimate for this step.  This avoids
-            # injecting the pressure floor merely because both *post-update*
-            # estimates crossed zero during a highly converging HLLC step.
-            # The total-energy field remains authoritative and unchanged.
-            retain_previous = (
-                physical
-                & (~np.isfinite(candidate_internal) | (candidate_internal <= 0.0))
-                & ~fallback
-                & np.isfinite(previous_internal)
-                & (previous_internal > 0.0)
-            )
-            if np.any(retain_previous):
-                candidate_internal[retain_previous] = previous_internal[retain_previous]
-                self.dual_energy_pressure_fallback_count += int(
-                    np.count_nonzero(retain_previous),
-                )
-
-            # A positivity limiter alone can still leave a tiny positive
-            # value after a large cancellation in the spherical pressure-work
-            # update.  Treat an abrupt loss below the configured consistency
-            # fraction as a failed dual estimate as well.  Prefer E-K when it
-            # is admissible; otherwise keep the previous positive dual state.
-            consistency_factor = max(
-                0.0,
-                float(
-                    np.asarray(getattr(par, "dual_energy_consistency_factor", 1.0e-1), dtype=float),
-                ),
-            )
-            far_below_previous = (
-                physical
-                & np.isfinite(candidate_internal)
-                & np.isfinite(previous_internal)
-                & (previous_internal > 0.0)
-                & (candidate_internal < consistency_factor * previous_internal)
-            )
-            conservative_recovery = (
-                far_below_previous
-                & np.isfinite(conservative_internal)
-                & (conservative_internal > 0.0)
-            )
-            if np.any(conservative_recovery):
-                candidate_internal[conservative_recovery] = conservative_internal[
-                    conservative_recovery
-                ]
-                self.dual_energy_pressure_fallback_count += int(
-                    np.count_nonzero(conservative_recovery),
-                )
-            retain_consistent = far_below_previous & ~conservative_recovery
-            if np.any(retain_consistent):
-                candidate_internal[retain_consistent] = previous_internal[retain_consistent]
-                self.dual_energy_pressure_fallback_count += int(
-                    np.count_nonzero(retain_consistent),
-                )
-
-            # Entropy-stable dual-energy correction for smooth cells.  For an
-            # adiabatic ideal gas, the cell entropy proxy is proportional to
-            # e/rho**gamma.  The Riemann internal-energy update may lose this
-            # quantity through cancellation in the spherical pressure-work
-            # term, even while remaining positive.  Preserve the previous
-            # entropy only for moderate density changes; strong compression,
-            # expansion, and near-vacuum cells are left to the conservative
-            # consistency/fallback logic above.
-            if getattr(
                 par,
-                "dual_energy_entropy_limiter",
-                False,
-            ) and not self._thermochemistry_enabled(fluid, par):
-                volume = np.asarray(
-                    self._geometry_state(mesh, par).volume_runtime_code,
-                    dtype=float,
-                )
-                old_density = np.divide(
-                    old_mass_for_internal,
-                    volume,
-                    out=np.zeros_like(old_mass_for_internal),
-                    where=volume > 0.0,
-                )
-                new_density = np.divide(
-                    np.asarray(fluid.Mass_code, dtype=float),
-                    volume,
-                    out=np.zeros_like(old_density),
-                    where=volume > 0.0,
-                )
-                density_ratio = np.divide(
-                    new_density,
-                    old_density,
-                    out=np.ones_like(old_density),
-                    where=old_density > 0.0,
-                )
-                moderate_density_change = physical & (density_ratio >= 0.5) & (density_ratio <= 2.0)  # noqa: PLR2004
-                isentropic_internal = previous_internal * np.maximum(
-                    density_ratio,
-                    0.0,
-                ) ** float(fluid.eos.gamma)
-                entropy_limited = (
-                    moderate_density_change
-                    & np.isfinite(previous_internal)
-                    & (previous_internal > 0.0)
-                    & np.isfinite(isentropic_internal)
-                    & (isentropic_internal > 0.0)
-                    & (candidate_internal < isentropic_internal)
-                )
-                if np.any(entropy_limited):
-                    candidate_internal[entropy_limited] = isentropic_internal[entropy_limited]
-                    self.dual_energy_entropy_limiter_count += int(
-                        np.count_nonzero(entropy_limited),
-                    )
-
-            # Leave unresolved cells at zero only when the conservative state
-            # is also non-positive.  SetPrimitive will then apply the
-            # configured positive floor and record that injected energy.
-            fluid.InternalEnergy_code = as_named_array(
-                np.maximum(candidate_internal, 0.0),
+                old_mass_for_internal,
+                area_runtime_code,
+                updates["pressure_runtime_code"],
+                updates["internal_flux"],
+                updates["face_velocity"],
             )
-        if df_potential is not None:
+        if updates["potential_face"] is not None:
             factors = np.asarray(
                 getattr(self, "_last_face_limiter_factors", np.ones(len(fluid.Mass_code.flux))),
                 dtype=float,
             )
             limited_potential_flux_area = (
-                potential_face * fluid.Mass_code.flux * factors * area_runtime_code
+                updates["potential_face"] * fluid.Mass_code.flux * factors * area_runtime_code
             )
             fluid.GravitationalPotentialEnergy_code += dt * (
                 limited_potential_flux_area - ru.periodic_roll(limited_potential_flux_area, -1)
             )
-        # Advance the representation-specific runtime clock.
-        par = getattr(mesh, "par", getattr(mesh, "_par", None))
         if getattr(par, "supercomoving_coordinates", False):
             fluid.tau_supercomoving_code += dt
         else:

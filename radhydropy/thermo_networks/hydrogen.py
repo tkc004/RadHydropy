@@ -1,7 +1,6 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
 """Hydrogen thermo-chemistry network.
-
 This module contains the current hydrogen-only rate network.  The public
 dispatcher in :mod:`radhydropy.thermo_chemistry` calls this through the
 ``HydrogenNetwork`` interface.
@@ -9,6 +8,7 @@ dispatcher in :mod:`radhydropy.thermo_chemistry` calls this through the
 
 import copy
 import logging
+from functools import partial
 from types import SimpleNamespace
 
 import numpy as np
@@ -1210,6 +1210,391 @@ def _apply_compton_only_source(state, dt_s):
     _fast_update_temperature_from_energy(state)
 
 
+def _record_coupled_implicit_failure(
+    reason,
+    determinant,
+    residual_energy,
+    residual_x,
+    state,
+    active_cells,
+    tolerance,
+    residual,
+    log_energy,
+    logit_x,
+    ngamma_cgs_cm3,
+    energy_old,
+    x_old,
+    dt_value,
+):
+    active = active_cells & np.isfinite(residual_energy) & np.isfinite(residual_x)
+    residual_norm = np.maximum(
+        np.abs(residual_energy),
+        np.abs(residual_x),
+    )
+    unconverged = active_cells & (
+        ~np.isfinite(residual_energy) | ~np.isfinite(residual_x) | (residual_norm > tolerance)
+    )
+    unconverged_cells = [
+        {
+            "cell": int(cell),
+            "residual_energy": float(residual_energy[cell]),
+            "residual_xHI": float(residual_x[cell]),
+        }
+        for cell in np.where(unconverged)[0]
+    ]
+    _, _, _, _, failure_trial = residual(log_energy, logit_x)
+    heating_rate = thermal_rate(
+        dict(failure_trial, atomic_cooling=False),
+        ngamma_cgs_cm3,
+    )
+    total_thermal_rate = thermal_rate(failure_trial, ngamma_cgs_cm3)
+    cooling_rate = np.asarray(heating_rate) - np.asarray(total_thermal_rate)
+    alpha_rate = state.get("alpha_B_cgs_cm3_s")
+    if alpha_rate is None:
+        alpha_rate = _cgs_alpha_B(failure_trial["temperature_cgs_K"])
+    else:
+        alpha_rate = np.full_like(
+            np.asarray(failure_trial["temperature_cgs_K"], dtype=float),
+            float(alpha_rate),
+        )
+    n_hydrogen = _cgs_hydrogen_number_density(
+        failure_trial["rho_cgs_g_cm3"],
+        failure_trial["hydrogen_mass_fraction"],
+    )
+    electron_density = n_hydrogen * (1.0 - failure_trial["xHI"])
+    compton_rate = cmb_compton_rate(
+        failure_trial["temperature_cgs_K"],
+        electron_density,
+        enabled=failure_trial["compton_cmb_enabled"],
+        redshift=failure_trial["compton_cmb_redshift"],
+        cmb_temperature_0_cgs_K=failure_trial["cmb_temperature_0_cgs_K"],
+    )
+    photoheating_rate = np.asarray(heating_rate) - np.asarray(compton_rate)
+    failed_cells = []
+    if determinant is not None:
+        singular = active & (np.abs(determinant) <= 1.0e-30)  # noqa: PLR2004
+        for cell in np.where(singular)[0]:
+            failed_cells.append(
+                {
+                    "cell": int(cell),
+                    "temperature_cgs_K": float(np.asarray(state["temperature_cgs_K"])[cell]),
+                    "specific_energy_cgs_erg_g": float(energy_old[cell]),
+                    "xHI": float(x_old[cell]),
+                    "residual_energy": float(residual_energy[cell]),
+                    "residual_xHI": float(residual_x[cell]),
+                    "jacobian_determinant": float(determinant[cell]),
+                    "alpha_B_cgs_cm3_s": float(np.asarray(alpha_rate)[cell]),
+                    "heating_cgs_erg_cm3_s": float(np.asarray(heating_rate)[cell]),
+                    "cooling_cgs_erg_cm3_s": float(np.asarray(cooling_rate)[cell]),
+                    "nH_cgs_cm3": float(np.asarray(n_hydrogen)[cell]),
+                    "ne_cgs_cm3": float(np.asarray(electron_density)[cell]),
+                    "compton_heating_cgs_erg_cm3_s": float(np.asarray(compton_rate)[cell]),
+                    "photoheating_cgs_erg_cm3_s": float(np.asarray(photoheating_rate)[cell]),
+                },
+            )
+    if not np.any(active):
+        state["_implicit_failure"] = {
+            "reason": reason,
+            "dt_s": dt_value,
+            "unconverged_cells": unconverged_cells,
+            "failed_cells": failed_cells,
+        }
+        return False
+    norm = np.maximum(np.abs(residual_energy), np.abs(residual_x))
+    norm = np.where(active, norm, -np.inf)
+    index = int(np.argmax(norm))
+    state["_implicit_failure"] = {
+        "reason": reason,
+        "dt_s": dt_value,
+        "cell": index,
+        "rho_cgs_g_cm3": float(np.asarray(state["rho_cgs_g_cm3"])[index]),
+        "temperature_cgs_K": float(np.asarray(state["temperature_cgs_K"])[index]),
+        "specific_energy_cgs_erg_g": float(energy_old[index]),
+        "xHI": float(x_old[index]),
+        "trial_temperature_cgs_K": float(
+            np.asarray(failure_trial["temperature_cgs_K"])[index],
+        ),
+        "trial_specific_energy_cgs_erg_g": float(
+            np.asarray(failure_trial["specific_energy_cgs_erg_g"])[index],
+        ),
+        "trial_xHI": float(np.asarray(failure_trial["xHI"])[index]),
+        "residual_energy": float(residual_energy[index]),
+        "residual_xHI": float(residual_x[index]),
+        "jacobian_determinant": (None if determinant is None else float(determinant[index])),
+        "alpha_B_cgs_cm3_s": float(np.asarray(alpha_rate)[index]),
+        "heating_cgs_erg_cm3_s": float(np.asarray(heating_rate)[index]),
+        "cooling_cgs_erg_cm3_s": float(np.asarray(cooling_rate)[index]),
+        "nH_cgs_cm3": float(np.asarray(n_hydrogen)[index]),
+        "ne_cgs_cm3": float(np.asarray(electron_density)[index]),
+        "compton_heating_cgs_erg_cm3_s": float(np.asarray(compton_rate)[index]),
+        "photoheating_cgs_erg_cm3_s": float(np.asarray(photoheating_rate)[index]),
+        "failed_cells": failed_cells,
+        "unconverged_cells": unconverged_cells,
+    }
+    return False
+
+
+def _coupled_newton_line_search(
+    delta_energy,
+    delta_x,
+    finite_delta,
+    current_norm,
+    floor_constrained,
+    log_energy,
+    logit_x,
+    residual,
+    residual_energy,
+    residual_x,
+    trust_region,
+):
+    accepted = np.zeros_like(finite_delta, dtype=bool)
+    for damping in (1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125):
+        trial_log_energy = log_energy + damping * delta_energy
+        trial_logit_x = logit_x + damping * delta_x
+        trial_energy_residual, trial_x_residual = residual(
+            trial_log_energy,
+            trial_logit_x,
+        )[:2]
+        trial_norm = np.where(
+            floor_constrained,
+            np.abs(trial_x_residual),
+            np.maximum(np.abs(trial_energy_residual), np.abs(trial_x_residual)),
+        )
+        improve = (
+            finite_delta
+            & ~accepted
+            & np.isfinite(trial_norm)
+            & (trial_norm <= current_norm * (1.0 - (1.0e-4 if trust_region else 0.0)))
+        )
+        if np.any(improve):
+            log_energy[improve] = trial_log_energy[improve]
+            logit_x[improve] = trial_logit_x[improve]
+            residual_energy[improve] = trial_energy_residual[improve]
+            residual_x[improve] = trial_x_residual[improve]
+            accepted[improve] = True
+    return accepted
+
+
+def _run_coupled_newton_iterations(
+    max_iterations,
+    log_energy,
+    logit_x,
+    residual_energy,
+    residual_x,
+    converged,
+    active_cells,
+    residual,
+    floor_constraint,
+    record_failure,
+    energy_residual_acceptance,
+    xhi_residual_tolerance,
+    physical_energy_floor,
+    finite_difference_step,
+    trust_region,
+    trust_radius,
+    trust_radius_min,
+):
+    for _ in range(int(max_iterations)):
+        _, _, _, _, current_trial = residual(log_energy, logit_x)
+        floor_constrained = floor_constraint(current_trial)
+        current_energy_ok = np.abs(residual_energy) <= energy_residual_acceptance
+        current_xhi_ok = np.abs(residual_x) <= xhi_residual_tolerance
+        converged |= active_cells & current_energy_ok & current_xhi_ok
+        converged |= active_cells & floor_constrained & current_xhi_ok
+        active = ~converged & active_cells
+        if not np.any(active):
+            break
+
+        forward_log_energy = log_energy + finite_difference_step
+        floor_log_energy = np.full_like(log_energy, -np.inf)
+        positive_floor = active_cells & (physical_energy_floor > 0.0)
+        floor_log_energy[positive_floor] = (
+            np.log(physical_energy_floor[positive_floor]) + finite_difference_step
+        )
+        # At the physical floor, a symmetric/small perturbation can remain
+        # clipped by _fast_update_temperature_from_energy. Use a strictly
+        # one-sided forward probe above the floor and its actual log-distance.
+        forward_log_energy = np.maximum(forward_log_energy, floor_log_energy)
+        energy_log_step = forward_log_energy - log_energy
+        energy_plus, x_plus = residual(
+            forward_log_energy,
+            logit_x,
+        )[:2]
+        energy_x_plus, x_x_plus = residual(
+            log_energy,
+            logit_x + finite_difference_step,
+        )[:2]
+        safe_energy_log_step = np.where(
+            energy_log_step > 0.0,
+            energy_log_step,
+            np.nan,
+        )
+        jacobian_11 = (energy_plus - residual_energy) / safe_energy_log_step
+        jacobian_21 = (x_plus - residual_x) / safe_energy_log_step
+        jacobian_12 = (energy_x_plus - residual_energy) / finite_difference_step
+        jacobian_22 = (x_x_plus - residual_x) / finite_difference_step
+        determinant = jacobian_11 * jacobian_22 - jacobian_12 * jacobian_21
+        good = (
+            active
+            & ~floor_constrained
+            & np.isfinite(determinant)
+            & (np.abs(determinant) > 1.0e-30)  # noqa: PLR2004
+            & np.isfinite(jacobian_11)
+            & np.isfinite(jacobian_12)
+            & np.isfinite(jacobian_21)
+            & np.isfinite(jacobian_22)
+        )
+        # If thermal sources are disabled, the energy residual is an exactly
+        # decoupled zero equation and the full 2x2 Jacobian is singular.  The
+        # chemistry equation is still a valid scalar Newton problem.  Apply
+        # that reduction (and the analogous energy reduction) rather than
+        # incorrectly treating a solvable source state as a failed solve.
+        scalar_chemistry = (
+            active
+            & ~good
+            & (floor_constrained | (np.abs(residual_energy) <= energy_residual_acceptance))
+            & np.isfinite(jacobian_22)
+            & (np.abs(jacobian_22) > 1.0e-30)  # noqa: PLR2004
+        )
+        scalar_energy = (
+            active
+            & ~good
+            & ~scalar_chemistry
+            & (np.abs(residual_x) <= xhi_residual_tolerance)
+            & np.isfinite(jacobian_11)
+            & (np.abs(jacobian_11) > 1.0e-30)  # noqa: PLR2004
+        )
+        solvable = good | scalar_chemistry | scalar_energy
+        if not np.any(solvable):
+            return record_failure(
+                "no_solvable_jacobian",
+                determinant,
+                residual_energy,
+                residual_x,
+            )
+
+        delta_energy = np.zeros_like(residual_energy)
+        delta_x = np.zeros_like(residual_x)
+        delta_energy[good] = (
+            -residual_energy[good] * jacobian_22[good] + jacobian_12[good] * residual_x[good]
+        ) / determinant[good]
+        delta_x[good] = (
+            jacobian_21[good] * residual_energy[good] - jacobian_11[good] * residual_x[good]
+        ) / determinant[good]
+        delta_x[scalar_chemistry] = -residual_x[scalar_chemistry] / jacobian_22[scalar_chemistry]
+        delta_energy[scalar_energy] = -residual_energy[scalar_energy] / jacobian_11[scalar_energy]
+        finite_delta = solvable & np.isfinite(delta_energy) & np.isfinite(delta_x)
+        if trust_region:
+            step_norm = np.maximum(np.abs(delta_energy), np.abs(delta_x))
+            step_scale = np.minimum(
+                1.0,
+                trust_radius / np.maximum(step_norm, 1.0e-99),
+            )
+            delta_energy = np.where(finite_delta, delta_energy * step_scale, delta_energy)
+            delta_x = np.where(finite_delta, delta_x * step_scale, delta_x)
+        current_norm = np.where(
+            floor_constrained,
+            np.abs(residual_x),
+            np.maximum(np.abs(residual_energy), np.abs(residual_x)),
+        )
+        accepted = _coupled_newton_line_search(
+            delta_energy,
+            delta_x,
+            finite_delta,
+            current_norm,
+            floor_constrained,
+            log_energy,
+            logit_x,
+            residual,
+            residual_energy,
+            residual_x,
+            trust_region,
+        )
+        converged |= accepted & (
+            (floor_constrained & (np.abs(residual_x) <= xhi_residual_tolerance))
+            | (
+                ~floor_constrained
+                & (np.abs(residual_energy) <= energy_residual_acceptance)
+                & (np.abs(residual_x) <= xhi_residual_tolerance)
+            )
+        )
+        # Reject the whole candidate interval as soon as any still-active
+        # cell cannot reduce its residual. The adaptive driver then retries
+        # from the original state with a smaller source timestep.
+        if np.any(active & ~accepted):
+            if trust_region:
+                rejected = active & ~accepted
+                trust_radius[rejected] *= 0.25
+                if np.any(trust_radius[rejected] >= trust_radius_min):
+                    continue
+            return record_failure(
+                "line_search_no_improvement",
+                determinant,
+                residual_energy,
+                residual_x,
+            )
+        if trust_region:
+            trust_radius[accepted] = np.minimum(
+                4.0,
+                trust_radius[accepted] * 1.5,
+            )
+
+    return True
+
+
+def _coupled_source_residual(
+    log_energy,
+    logit_x,
+    state,
+    kinetic,
+    energy_floor,
+    ngamma_cgs_cm3,
+    energy_old,
+    x_old,
+    dt_value,
+    rho_for_update,
+    energy_residual_scale,
+):
+    energy = np.exp(np.clip(log_energy, np.log(energy_floor), 700.0))
+    xhi = 1.0 / (1.0 + np.exp(-np.clip(logit_x, -700.0, 700.0)))
+    trial = dict(state)
+    trial["specific_energy_cgs_erg_g"] = energy
+    trial["specific_total_energy_cgs_erg_g"] = energy + kinetic
+    trial["xHI"] = xhi
+    if trial.get("hydrogen_update_mu", False):
+        trial["mu"] = rh.mean_molecular_weight_mu(
+            xhi,
+            hydrogen_mass_fraction=trial["hydrogen_mass_fraction"],
+        )
+    _fast_update_temperature_from_energy(trial)
+    # _fast_update_temperature_from_energy may impose the physical floor;
+    # use the clamped value in the coupled residual as well.
+    energy = np.asarray(trial["specific_energy_cgs_erg_g"], dtype=float)
+    xhi = np.asarray(trial["xHI"], dtype=float)
+    thermal = thermal_rate(trial, ngamma_cgs_cm3)
+    chemistry = ionization_fraction_rate(trial, ngamma_cgs_cm3)
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        energy_residual = (
+            energy - energy_old - dt_value * thermal / rho_for_update
+        ) / energy_residual_scale
+    chemistry_residual = xhi - x_old - dt_value * chemistry
+    return energy_residual, chemistry_residual, energy, xhi, trial
+
+
+def _coupled_source_floor_constraint(trial, temperature_floor, active_cells, state, ngamma_cgs_cm3):
+    if temperature_floor <= 0.0:
+        return np.zeros_like(active_cells, dtype=bool)
+    thermal = np.asarray(thermal_rate(trial, ngamma_cgs_cm3), dtype=float)
+    return (
+        active_cells
+        & (
+            np.asarray(trial["temperature_cgs_K"])
+            <= temperature_floor * (1.0 + state.get("temperature_floor_tolerance", 1.0e-6))
+        )
+        & (thermal <= 0.0)
+    )
+
+
 def _coupled_implicit_source_update(
     state,
     dt_s,
@@ -1248,114 +1633,6 @@ def _coupled_implicit_source_update(
         and np.all(np.isfinite(energy_old))
         and np.all(np.isfinite(x_old))
     ):
-        return False
-
-    def _record_failure(reason, determinant=None):
-        active = active_cells & np.isfinite(residual_energy) & np.isfinite(residual_x)
-        residual_norm = np.maximum(
-            np.abs(residual_energy),
-            np.abs(residual_x),
-        )
-        unconverged = active_cells & (
-            ~np.isfinite(residual_energy) | ~np.isfinite(residual_x) | (residual_norm > tolerance)
-        )
-        unconverged_cells = [
-            {
-                "cell": int(cell),
-                "residual_energy": float(residual_energy[cell]),
-                "residual_xHI": float(residual_x[cell]),
-            }
-            for cell in np.where(unconverged)[0]
-        ]
-        _, _, _, _, failure_trial = _residual(log_energy, logit_x)
-        heating_rate = thermal_rate(
-            dict(failure_trial, atomic_cooling=False),
-            ngamma_cgs_cm3,
-        )
-        total_thermal_rate = thermal_rate(failure_trial, ngamma_cgs_cm3)
-        cooling_rate = np.asarray(heating_rate) - np.asarray(total_thermal_rate)
-        alpha_rate = state.get("alpha_B_cgs_cm3_s")
-        if alpha_rate is None:
-            alpha_rate = _cgs_alpha_B(failure_trial["temperature_cgs_K"])
-        else:
-            alpha_rate = np.full_like(
-                np.asarray(failure_trial["temperature_cgs_K"], dtype=float),
-                float(alpha_rate),
-            )
-        n_hydrogen = _cgs_hydrogen_number_density(
-            failure_trial["rho_cgs_g_cm3"],
-            failure_trial["hydrogen_mass_fraction"],
-        )
-        electron_density = n_hydrogen * (1.0 - failure_trial["xHI"])
-        compton_rate = cmb_compton_rate(
-            failure_trial["temperature_cgs_K"],
-            electron_density,
-            enabled=failure_trial["compton_cmb_enabled"],
-            redshift=failure_trial["compton_cmb_redshift"],
-            cmb_temperature_0_cgs_K=failure_trial["cmb_temperature_0_cgs_K"],
-        )
-        photoheating_rate = np.asarray(heating_rate) - np.asarray(compton_rate)
-        failed_cells = []
-        if determinant is not None:
-            singular = active & (np.abs(determinant) <= 1.0e-30)  # noqa: PLR2004
-            for cell in np.where(singular)[0]:
-                failed_cells.append(
-                    {
-                        "cell": int(cell),
-                        "temperature_cgs_K": float(np.asarray(state["temperature_cgs_K"])[cell]),
-                        "specific_energy_cgs_erg_g": float(energy_old[cell]),
-                        "xHI": float(x_old[cell]),
-                        "residual_energy": float(residual_energy[cell]),
-                        "residual_xHI": float(residual_x[cell]),
-                        "jacobian_determinant": float(determinant[cell]),
-                        "alpha_B_cgs_cm3_s": float(np.asarray(alpha_rate)[cell]),
-                        "heating_cgs_erg_cm3_s": float(np.asarray(heating_rate)[cell]),
-                        "cooling_cgs_erg_cm3_s": float(np.asarray(cooling_rate)[cell]),
-                        "nH_cgs_cm3": float(np.asarray(n_hydrogen)[cell]),
-                        "ne_cgs_cm3": float(np.asarray(electron_density)[cell]),
-                        "compton_heating_cgs_erg_cm3_s": float(np.asarray(compton_rate)[cell]),
-                        "photoheating_cgs_erg_cm3_s": float(np.asarray(photoheating_rate)[cell]),
-                    },
-                )
-        if not np.any(active):
-            state["_implicit_failure"] = {
-                "reason": reason,
-                "dt_s": dt_value,
-                "unconverged_cells": unconverged_cells,
-                "failed_cells": failed_cells,
-            }
-            return False
-        norm = np.maximum(np.abs(residual_energy), np.abs(residual_x))
-        norm = np.where(active, norm, -np.inf)
-        index = int(np.argmax(norm))
-        state["_implicit_failure"] = {
-            "reason": reason,
-            "dt_s": dt_value,
-            "cell": index,
-            "rho_cgs_g_cm3": float(np.asarray(state["rho_cgs_g_cm3"])[index]),
-            "temperature_cgs_K": float(np.asarray(state["temperature_cgs_K"])[index]),
-            "specific_energy_cgs_erg_g": float(energy_old[index]),
-            "xHI": float(x_old[index]),
-            "trial_temperature_cgs_K": float(
-                np.asarray(failure_trial["temperature_cgs_K"])[index],
-            ),
-            "trial_specific_energy_cgs_erg_g": float(
-                np.asarray(failure_trial["specific_energy_cgs_erg_g"])[index],
-            ),
-            "trial_xHI": float(np.asarray(failure_trial["xHI"])[index]),
-            "residual_energy": float(residual_energy[index]),
-            "residual_xHI": float(residual_x[index]),
-            "jacobian_determinant": (None if determinant is None else float(determinant[index])),
-            "alpha_B_cgs_cm3_s": float(np.asarray(alpha_rate)[index]),
-            "heating_cgs_erg_cm3_s": float(np.asarray(heating_rate)[index]),
-            "cooling_cgs_erg_cm3_s": float(np.asarray(cooling_rate)[index]),
-            "nH_cgs_cm3": float(np.asarray(n_hydrogen)[index]),
-            "ne_cgs_cm3": float(np.asarray(electron_density)[index]),
-            "compton_heating_cgs_erg_cm3_s": float(np.asarray(compton_rate)[index]),
-            "photoheating_cgs_erg_cm3_s": float(np.asarray(photoheating_rate)[index]),
-            "failed_cells": failed_cells,
-            "unconverged_cells": unconverged_cells,
-        }
         return False
 
     # Keep a tiny numerical floor even when no physical floor is configured.
@@ -1443,61 +1720,30 @@ def _coupled_implicit_source_update(
         _fast_update_temperature_from_energy(state)
         return True
 
-    def _logit(value):
-        value = np.clip(value, x_floor, 1.0 - x_floor)
-        return np.log(value / (1.0 - value))
-
-    def _sigmoid(value):
-        value = np.clip(value, -700.0, 700.0)
-        return 1.0 / (1.0 + np.exp(-value))
-
-    def _residual(log_energy, logit_x):
-        energy = np.exp(np.clip(log_energy, np.log(energy_floor), 700.0))
-        xhi = _sigmoid(logit_x)
-        trial = dict(state)
-        trial["specific_energy_cgs_erg_g"] = energy
-        trial["specific_total_energy_cgs_erg_g"] = energy + kinetic
-        trial["xHI"] = xhi
-        if trial.get("hydrogen_update_mu", False):
-            trial["mu"] = rh.mean_molecular_weight_mu(
-                xhi,
-                hydrogen_mass_fraction=trial["hydrogen_mass_fraction"],
-            )
-        _fast_update_temperature_from_energy(trial)
-        # _fast_update_temperature_from_energy may impose the physical floor;
-        # use the clamped value in the coupled residual as well.
-        energy = np.asarray(trial["specific_energy_cgs_erg_g"], dtype=float)
-        xhi = np.asarray(trial["xHI"], dtype=float)
-        thermal = thermal_rate(trial, ngamma_cgs_cm3)
-        chemistry = ionization_fraction_rate(trial, ngamma_cgs_cm3)
-        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
-            energy_residual = (
-                energy - energy_old - dt_value * thermal / rho_for_update
-            ) / energy_residual_scale
-        chemistry_residual = xhi - x_old - dt_value * chemistry
-        return energy_residual, chemistry_residual, energy, xhi, trial
-
-    log_energy = np.log(energy_old)
-    logit_x = _logit(x_old)
-    residual_energy, residual_x, _, _, initial_trial = _residual(
-        log_energy,
-        logit_x,
+    residual = partial(
+        _coupled_source_residual,
+        state=state,
+        kinetic=kinetic,
+        energy_floor=energy_floor,
+        ngamma_cgs_cm3=ngamma_cgs_cm3,
+        energy_old=energy_old,
+        x_old=x_old,
+        dt_value=dt_value,
+        rho_for_update=rho_for_update,
+        energy_residual_scale=energy_residual_scale,
     )
-
-    def _floor_constraint(trial):
-        if temperature_floor <= 0.0:
-            return np.zeros_like(active_cells, dtype=bool)
-        thermal = np.asarray(thermal_rate(trial, ngamma_cgs_cm3), dtype=float)
-        return (
-            active_cells
-            & (
-                np.asarray(trial["temperature_cgs_K"])
-                <= temperature_floor * (1.0 + state.get("temperature_floor_tolerance", 1.0e-6))
-            )
-            & (thermal <= 0.0)
-        )
-
-    floor_constrained = _floor_constraint(initial_trial)
+    log_energy = np.log(energy_old)
+    clipped_x_old = np.clip(x_old, x_floor, 1.0 - x_floor)
+    logit_x = np.log(clipped_x_old / (1.0 - clipped_x_old))
+    residual_energy, residual_x, _, _, initial_trial = residual(log_energy, logit_x)
+    floor_constraint = partial(
+        _coupled_source_floor_constraint,
+        temperature_floor=temperature_floor,
+        active_cells=active_cells,
+        state=state,
+        ngamma_cgs_cm3=ngamma_cgs_cm3,
+    )
+    floor_constrained = floor_constraint(initial_trial)
     converged = np.zeros_like(energy_old, dtype=bool)
     finite = np.isfinite(residual_energy) & np.isfinite(residual_x)
     converged[~active_cells] = True
@@ -1510,159 +1756,45 @@ def _coupled_implicit_source_update(
     )
 
     finite_difference_step = 1.0e-7
-    for _ in range(int(max_iterations)):
-        _, _, _, _, current_trial = _residual(log_energy, logit_x)
-        floor_constrained = _floor_constraint(current_trial)
-        current_energy_ok = np.abs(residual_energy) <= energy_residual_acceptance
-        current_xhi_ok = np.abs(residual_x) <= xhi_residual_tolerance
-        converged |= active_cells & current_energy_ok & current_xhi_ok
-        converged |= active_cells & floor_constrained & current_xhi_ok
-        active = ~converged & active_cells
-        if not np.any(active):
-            break
+    record_failure = partial(
+        _record_coupled_implicit_failure,
+        state=state,
+        active_cells=active_cells,
+        tolerance=tolerance,
+        residual=residual,
+        log_energy=log_energy,
+        logit_x=logit_x,
+        ngamma_cgs_cm3=ngamma_cgs_cm3,
+        energy_old=energy_old,
+        x_old=x_old,
+        dt_value=dt_value,
+    )
+    if not _run_coupled_newton_iterations(
+        max_iterations,
+        log_energy,
+        logit_x,
+        residual_energy,
+        residual_x,
+        converged,
+        active_cells,
+        residual,
+        floor_constraint,
+        record_failure,
+        energy_residual_acceptance,
+        xhi_residual_tolerance,
+        physical_energy_floor,
+        finite_difference_step,
+        trust_region,
+        trust_radius,
+        trust_radius_min,
+    ):
+        return False
 
-        forward_log_energy = log_energy + finite_difference_step
-        floor_log_energy = np.full_like(log_energy, -np.inf)
-        positive_floor = active_cells & (physical_energy_floor > 0.0)
-        floor_log_energy[positive_floor] = (
-            np.log(physical_energy_floor[positive_floor]) + finite_difference_step
-        )
-        # At the physical floor, a symmetric/small perturbation can remain
-        # clipped by _fast_update_temperature_from_energy. Use a strictly
-        # one-sided forward probe above the floor and its actual log-distance.
-        forward_log_energy = np.maximum(forward_log_energy, floor_log_energy)
-        energy_log_step = forward_log_energy - log_energy
-        energy_plus, x_plus = _residual(
-            forward_log_energy,
-            logit_x,
-        )[:2]
-        energy_x_plus, x_x_plus = _residual(
-            log_energy,
-            logit_x + finite_difference_step,
-        )[:2]
-        safe_energy_log_step = np.where(
-            energy_log_step > 0.0,
-            energy_log_step,
-            np.nan,
-        )
-        jacobian_11 = (energy_plus - residual_energy) / safe_energy_log_step
-        jacobian_21 = (x_plus - residual_x) / safe_energy_log_step
-        jacobian_12 = (energy_x_plus - residual_energy) / finite_difference_step
-        jacobian_22 = (x_x_plus - residual_x) / finite_difference_step
-        determinant = jacobian_11 * jacobian_22 - jacobian_12 * jacobian_21
-        good = (
-            active
-            & ~floor_constrained
-            & np.isfinite(determinant)
-            & (np.abs(determinant) > 1.0e-30)  # noqa: PLR2004
-            & np.isfinite(jacobian_11)
-            & np.isfinite(jacobian_12)
-            & np.isfinite(jacobian_21)
-            & np.isfinite(jacobian_22)
-        )
-        # If thermal sources are disabled, the energy residual is an exactly
-        # decoupled zero equation and the full 2x2 Jacobian is singular.  The
-        # chemistry equation is still a valid scalar Newton problem.  Apply
-        # that reduction (and the analogous energy reduction) rather than
-        # incorrectly treating a solvable source state as a failed solve.
-        scalar_chemistry = (
-            active
-            & ~good
-            & (floor_constrained | (np.abs(residual_energy) <= energy_residual_acceptance))
-            & np.isfinite(jacobian_22)
-            & (np.abs(jacobian_22) > 1.0e-30)  # noqa: PLR2004
-        )
-        scalar_energy = (
-            active
-            & ~good
-            & ~scalar_chemistry
-            & (np.abs(residual_x) <= xhi_residual_tolerance)
-            & np.isfinite(jacobian_11)
-            & (np.abs(jacobian_11) > 1.0e-30)  # noqa: PLR2004
-        )
-        solvable = good | scalar_chemistry | scalar_energy
-        if not np.any(solvable):
-            return _record_failure("no_solvable_jacobian", determinant)
-
-        delta_energy = np.zeros_like(residual_energy)
-        delta_x = np.zeros_like(residual_x)
-        delta_energy[good] = (
-            -residual_energy[good] * jacobian_22[good] + jacobian_12[good] * residual_x[good]
-        ) / determinant[good]
-        delta_x[good] = (
-            jacobian_21[good] * residual_energy[good] - jacobian_11[good] * residual_x[good]
-        ) / determinant[good]
-        delta_x[scalar_chemistry] = -residual_x[scalar_chemistry] / jacobian_22[scalar_chemistry]
-        delta_energy[scalar_energy] = -residual_energy[scalar_energy] / jacobian_11[scalar_energy]
-        finite_delta = solvable & np.isfinite(delta_energy) & np.isfinite(delta_x)
-        if trust_region:
-            step_norm = np.maximum(np.abs(delta_energy), np.abs(delta_x))
-            step_scale = np.minimum(
-                1.0,
-                trust_radius / np.maximum(step_norm, 1.0e-99),
-            )
-            delta_energy = np.where(finite_delta, delta_energy * step_scale, delta_energy)
-            delta_x = np.where(finite_delta, delta_x * step_scale, delta_x)
-        accepted = np.zeros_like(active, dtype=bool)
-        current_norm = np.where(
-            floor_constrained,
-            np.abs(residual_x),
-            np.maximum(np.abs(residual_energy), np.abs(residual_x)),
-        )
-        for damping in (1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125):
-            trial_log_energy = log_energy + damping * delta_energy
-            trial_logit_x = logit_x + damping * delta_x
-            trial_energy_residual, trial_x_residual = _residual(
-                trial_log_energy,
-                trial_logit_x,
-            )[:2]
-            trial_norm = np.where(
-                floor_constrained,
-                np.abs(trial_x_residual),
-                np.maximum(np.abs(trial_energy_residual), np.abs(trial_x_residual)),
-            )
-            improve = (
-                finite_delta
-                & ~accepted
-                & np.isfinite(trial_norm)
-                & (trial_norm <= current_norm * (1.0 - (1.0e-4 if trust_region else 0.0)))
-            )
-            if np.any(improve):
-                log_energy[improve] = trial_log_energy[improve]
-                logit_x[improve] = trial_logit_x[improve]
-                residual_energy[improve] = trial_energy_residual[improve]
-                residual_x[improve] = trial_x_residual[improve]
-                accepted[improve] = True
-
-        converged |= accepted & (
-            (floor_constrained & (np.abs(residual_x) <= xhi_residual_tolerance))
-            | (
-                ~floor_constrained
-                & (np.abs(residual_energy) <= energy_residual_acceptance)
-                & (np.abs(residual_x) <= xhi_residual_tolerance)
-            )
-        )
-        # Reject the whole candidate interval as soon as any still-active
-        # cell cannot reduce its residual. The adaptive driver then retries
-        # from the original state with a smaller source timestep.
-        if np.any(active & ~accepted):
-            if trust_region:
-                rejected = active & ~accepted
-                trust_radius[rejected] *= 0.25
-                if np.any(trust_radius[rejected] >= trust_radius_min):
-                    continue
-            return _record_failure("line_search_no_improvement", determinant)
-        if trust_region:
-            trust_radius[accepted] = np.minimum(
-                4.0,
-                trust_radius[accepted] * 1.5,
-            )
-
-    final_residual_energy, final_residual_x, _, _, final_trial = _residual(
+    final_residual_energy, final_residual_x, _, _, final_trial = residual(
         log_energy,
         logit_x,
     )
-    floor_constrained = _floor_constraint(final_trial)
+    floor_constrained = floor_constraint(final_trial)
     final_finite = np.isfinite(final_residual_energy) & np.isfinite(final_residual_x)
     np.where(
         floor_constrained,
@@ -1693,9 +1825,14 @@ def _coupled_implicit_source_update(
     if not np.all(converged):
         residual_energy = final_residual_energy
         residual_x = final_residual_x
-        return _record_failure("maximum_newton_iterations")
+        return record_failure(
+            "maximum_newton_iterations",
+            None,
+            residual_energy,
+            residual_x,
+        )
 
-    _, _, energy, xhi, trial = _residual(log_energy, logit_x)
+    _, _, energy, xhi, trial = residual(log_energy, logit_x)
     state["specific_energy_cgs_erg_g"] = np.where(
         active_cells,
         energy,
@@ -2376,7 +2513,43 @@ def sync_c2ray_state(state, fluid, par):
     return _fast_sync_state_to_fluid(state, fluid, par)
 
 
-def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
+def _try_compton_only_source(state, par, code, source_solver, remaining_s):
+    """Handle the closed-form Compton-only source path."""
+    enabled = all(
+        (
+            source_solver == "explicit",
+            state["thermal_coupling"],
+            state["compton_cmb_enabled"],
+            not state["recombination"],
+            not state["collisional_ionization"],
+            not state.get("atomic_cooling", True),
+            not getattr(par, "radiative_transfer", False),
+            not getattr(par, "hydrogen_radiation_field", False),
+            state.get("ngamma_cgs_cm3") is None,
+        ),
+    )
+    if not enabled:
+        return None
+    _apply_compton_only_source(state, remaining_s)
+    return {
+        "source_steps": 1,
+        "absorbed_photon_rate": None,
+        "photon_energy_cgs_erg": np.atleast_1d(
+            _optional_numeric_value(
+                getattr(
+                    par,
+                    "ionizing_photon_energy_cgs_erg",
+                    getattr(par, "hydrogen_photon_energy", 0.0),
+                ),
+                code.energy_unit,
+                default=0.0,
+            ),
+        ),
+        "direction": int(getattr(par, "radiative_transfer_direction", 1)),
+    }
+
+
+def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):  # noqa: C901
     """Fast source update for RT-coupled thermo-chemistry tests."""
     if not thermochemistry_enabled(fluid, par):
         return 0
@@ -2404,36 +2577,12 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
             "hydrogen_source_solver must be 'explicit', 'coupled_implicit', "
             "'hybrid', 'trust_region', or 'split_implicit'",
         )
-    compton_only = (
-        source_solver == "explicit"
-        and state["thermal_coupling"]
-        and state["compton_cmb_enabled"]
-        and not state["recombination"]
-        and not state["collisional_ionization"]
-        and not state.get("atomic_cooling", True)
-        and not getattr(par, "radiative_transfer", False)
-        and not getattr(par, "hydrogen_radiation_field", False)
-        and state.get("ngamma_cgs_cm3") is None
+    compton_result = _try_compton_only_source(
+        state, par, code, source_solver, remaining_s,
     )
-    if compton_only:
-        _apply_compton_only_source(state, remaining_s)
+    if compton_result is not None:
         _fast_sync_state_to_fluid(state, fluid, par)
-        return {
-            "source_steps": 1,
-            "absorbed_photon_rate": None,
-            "photon_energy_cgs_erg": np.atleast_1d(
-                _optional_numeric_value(
-                    getattr(
-                        par,
-                        "ionizing_photon_energy_cgs_erg",
-                        getattr(par, "hydrogen_photon_energy", 0.0),
-                    ),
-                    code.energy_unit,
-                    default=0.0,
-                ),
-            ),
-            "direction": int(getattr(par, "radiative_transfer_direction", 1)),
-        }
+        return compton_result
     initial_state = _copy_fast_source_state(state)
     if source_solver == "split_implicit" and remaining_s > zero_time_s:
         split_source_steps = _split_implicit_source_state_update(
@@ -2670,125 +2819,12 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
             raise RuntimeError(
                 "coupled implicit hydrogen source solve did not converge",
             )
-    while remaining_s > zero_time_s:
-        absorbed = None
-        # first update the photon density if RT is enabled and we are on the right step
-        if getattr(par, "radiative_transfer", False):
-            if transport_result is not None:
-                transport = transport_result
-                transport_result = None
-            else:
-                boundary_flux = getattr(
-                    par,
-                    "radiative_transfer_boundary_flux_groups",
-                    getattr(par, "radiative_transfer_boundary_flux", 0.0),
-                )
-                if hasattr(boundary_flux, "to_value"):
-                    boundary_flux = boundary_flux.to_value(
-                        1.0 / (unyt.cm**2 * unyt.s),
-                    )
-                else:
-                    boundary_flux = np.asarray(boundary_flux, dtype=float) * float(
-                        (1.0 / (code.length_unit**2 * code.time_unit)).to_value(
-                            1.0 / (unyt.cm**2 * unyt.s),
-                        ),
-                    )
-                transport = rrt.trace_long_characteristics(
-                    SimpleNamespace(
-                        boundary_cgs_cm=state["boundary_cgs_cm"],
-                        volume_cgs_cm3=state["volume_cgs_cm3"],
-                        coordsys=getattr(par, "coordsys", "cartesian"),
-                    ),
-                    absorber_densities={
-                        "HI": (
-                            state["hydrogen_mass_fraction"]
-                            * state["rho_cgs_g_cm3"]
-                            / PROTON_MASS_CGS
-                            * np.clip(state["xHI"], 0.0, 1.0)
-                        ),
-                    },
-                    # ``sigma_gamma_cgs_cm2`` is already expressed in cgs cm^2.
-                    cross_sections_cgs_cm2={
-                        "HI": np.asarray(state["sigma_gamma_cgs_cm2"], dtype=float),
-                    },
-                    boundary_flux=boundary_flux,
-                    # ``source_rate_s`` is already in cgs s^-1.  It was
-                    # previously multiplied by the inverse code time unit a
-                    # second time, suppressing the transported photon field.
-                    source_photon_rate=np.asarray(state["source_rate_s"], dtype=float),
-                    direction=getattr(par, "radiative_transfer_direction", 1),
-                    group_edges_eV=getattr(par, "radiation_group_edges_eV", None),
-                )
-            state["ngamma_cgs_cm3"] = transport.cell_photon_density
-            absorbed = np.asarray(transport.absorbed_photon_rate, dtype=float)
-            if absorbed.ndim == 1:
-                absorbed = absorbed[None, :]
-            if absorbed_integral is None:
-                absorbed_integral = np.zeros_like(absorbed)
 
-        if state["hydrogen_update_mu"]:
-            state["mu"] = rh.mean_molecular_weight_mu(
-                state["xHI"],
-                hydrogen_mass_fraction=state["hydrogen_mass_fraction"],
-            )
-        if state["thermal_coupling"]:
-            _fast_update_temperature_from_energy(state)
-        temperature_before = np.asarray(
-            state["temperature_cgs_K"],
-            dtype=float,
-        ).copy()
-        sub_dt_s, thermal_rate = get_timestep(
-            state,
-            state.get("ngamma_cgs_cm3"),
-            remaining_s,
-            remaining_s,
-            verbose=getattr(par, "verbose", 0) >= 2,  # noqa: PLR2004
-        )
-        if not np.isfinite(sub_dt_s) or sub_dt_s <= zero_time_s:
-            _raise_invalid_source_timestep(
-                state,
-                sub_dt_s,
-                remaining_s,
-                thermal_rate,
-            )
-        sub_dt_s = min(sub_dt_s, remaining_s)
 
-        if state["thermal_coupling"]:
-            _fast_apply_thermal_source(state, thermal_rate, sub_dt_s)
-        # With no recombination, collisional ionization, or radiation field,
-        # the ionization fraction is an intentionally fixed residual input.
-        # Avoid the expensive implicit solve in the Compton-only thermal
-        # network; Compton scattering changes energy, not ionization.
-        if (
-            state["recombination"]
-            or state["collisional_ionization"]
-            or getattr(par, "radiative_transfer", False)
-            or getattr(par, "hydrogen_radiation_field", False)
-        ):
-            ionization_fraction_implicit_update(
-                state,
-                state.get("ngamma_cgs_cm3"),
-                sub_dt_s,
-            )
-        if state["hydrogen_update_mu"]:
-            state["mu"] = rh.mean_molecular_weight_mu(
-                state["xHI"],
-                hydrogen_mass_fraction=state["hydrogen_mass_fraction"],
-            )
-        if state["thermal_coupling"]:
-            _fast_update_temperature_from_energy(state)
-        check_source_temperature(
-            state,
-            par,
-            temperature_before,
-            stage="hydrogen source",
-            source_step=source_steps + 1,
-        )
-        if absorbed is not None:
-            absorbed_integral += absorbed * sub_dt_s
-        remaining_s -= sub_dt_s
-        source_steps += 1
-
+    remaining_s, source_steps, absorbed_integral = _run_fast_source_loop(
+        state, par, code, remaining_s, zero_time_s, transport_result,
+        source_steps, absorbed_integral,
+    )
     _fast_sync_state_to_fluid(state, fluid, par)
     absorbed_rate = None
     if absorbed_integral is not None:
@@ -2809,6 +2845,156 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     }
 
 
+
+
+def _run_fast_source_loop(state, par, code, remaining_s, zero_time_s, transport_result, source_steps, absorbed_integral):
+    """Advance the RT-coupled source state through adaptive substeps."""
+    while remaining_s > zero_time_s:
+        remaining_s, transport_result, source_steps, absorbed_integral = _fast_source_iteration(
+            state, par, code, remaining_s, zero_time_s, transport_result,
+            source_steps, absorbed_integral,
+        )
+    return remaining_s, source_steps, absorbed_integral
+
+
+
+
+def _fast_transport_step(state, par, code, transport_result, absorbed_integral):
+    """Update photon density and absorption for one source step."""
+    absorbed = None
+    # first update the photon density if RT is enabled and we are on the right step
+    if getattr(par, "radiative_transfer", False):
+        if transport_result is not None:
+            transport = transport_result
+            transport_result = None
+        else:
+            boundary_flux = getattr(
+                par,
+                "radiative_transfer_boundary_flux_groups",
+                getattr(par, "radiative_transfer_boundary_flux", 0.0),
+            )
+            if hasattr(boundary_flux, "to_value"):
+                boundary_flux = boundary_flux.to_value(
+                    1.0 / (unyt.cm**2 * unyt.s),
+                )
+            else:
+                boundary_flux = np.asarray(boundary_flux, dtype=float) * float(
+                    (1.0 / (code.length_unit**2 * code.time_unit)).to_value(
+                        1.0 / (unyt.cm**2 * unyt.s),
+                    ),
+                )
+            transport = rrt.trace_long_characteristics(
+                SimpleNamespace(
+                    boundary_cgs_cm=state["boundary_cgs_cm"],
+                    volume_cgs_cm3=state["volume_cgs_cm3"],
+                    coordsys=getattr(par, "coordsys", "cartesian"),
+                ),
+                absorber_densities={
+                    "HI": (
+                        state["hydrogen_mass_fraction"]
+                        * state["rho_cgs_g_cm3"]
+                        / PROTON_MASS_CGS
+                        * np.clip(state["xHI"], 0.0, 1.0)
+                    ),
+                },
+                # ``sigma_gamma_cgs_cm2`` is already expressed in cgs cm^2.
+                cross_sections_cgs_cm2={
+                    "HI": np.asarray(state["sigma_gamma_cgs_cm2"], dtype=float),
+                },
+                boundary_flux=boundary_flux,
+                # ``source_rate_s`` is already in cgs s^-1.  It was
+                # previously multiplied by the inverse code time unit a
+                # second time, suppressing the transported photon field.
+                source_photon_rate=np.asarray(state["source_rate_s"], dtype=float),
+                direction=getattr(par, "radiative_transfer_direction", 1),
+                group_edges_eV=getattr(par, "radiation_group_edges_eV", None),
+            )
+        state["ngamma_cgs_cm3"] = transport.cell_photon_density
+        absorbed = np.asarray(transport.absorbed_photon_rate, dtype=float)
+        if absorbed.ndim == 1:
+            absorbed = absorbed[None, :]
+        if absorbed_integral is None:
+            absorbed_integral = np.zeros_like(absorbed)
+
+    return transport_result, absorbed, absorbed_integral
+
+
+
+def _fast_prepare_substep(state):
+    """Normalize the source state before choosing its adaptive step."""
+    if state["hydrogen_update_mu"]:
+        state["mu"] = rh.mean_molecular_weight_mu(
+            state["xHI"],
+            hydrogen_mass_fraction=state["hydrogen_mass_fraction"],
+        )
+    if state["thermal_coupling"]:
+        _fast_update_temperature_from_energy(state)
+    return np.asarray(state["temperature_cgs_K"], dtype=float).copy()
+
+
+def _fast_choose_substep(state, par, remaining_s, zero_time_s):
+    """Choose and validate one adaptive source timestep."""
+    sub_dt_s, thermal_rate = get_timestep(
+        state,
+        state.get("ngamma_cgs_cm3"),
+        remaining_s,
+        remaining_s,
+        verbose=getattr(par, "verbose", 0) >= 2,  # noqa: PLR2004
+    )
+    if not np.isfinite(sub_dt_s) or sub_dt_s <= zero_time_s:
+        _raise_invalid_source_timestep(state, sub_dt_s, remaining_s, thermal_rate)
+    return min(sub_dt_s, remaining_s), thermal_rate
+
+
+def _fast_apply_chemistry_step(state, par, thermal_rate, sub_dt_s):
+    """Apply thermal and ionization source updates for one substep."""
+    if state["thermal_coupling"]:
+        _fast_apply_thermal_source(state, thermal_rate, sub_dt_s)
+    if (
+        state["recombination"]
+        or state["collisional_ionization"]
+        or getattr(par, "radiative_transfer", False)
+        or getattr(par, "hydrogen_radiation_field", False)
+    ):
+        ionization_fraction_implicit_update(
+            state,
+            state.get("ngamma_cgs_cm3"),
+            sub_dt_s,
+        )
+    if state["hydrogen_update_mu"]:
+        state["mu"] = rh.mean_molecular_weight_mu(
+            state["xHI"],
+            hydrogen_mass_fraction=state["hydrogen_mass_fraction"],
+        )
+    if state["thermal_coupling"]:
+        _fast_update_temperature_from_energy(state)
+
+
+def _fast_source_iteration(state, par, code, remaining_s, zero_time_s, transport_result, source_steps, absorbed_integral):
+    """Advance one adaptive thermo-chemistry source substep."""
+    transport_result, absorbed, absorbed_integral = _fast_transport_step(
+        state, par, code, transport_result, absorbed_integral,
+    )
+    temperature_before = _fast_prepare_substep(state)
+    sub_dt_s, thermal_rate = _fast_choose_substep(
+        state, par, remaining_s, zero_time_s,
+    )
+    _fast_apply_chemistry_step(state, par, thermal_rate, sub_dt_s)
+    check_source_temperature(
+        state,
+        par,
+        temperature_before,
+        stage="hydrogen source",
+        source_step=source_steps + 1,
+    )
+    if absorbed is not None:
+        absorbed_integral += absorbed * sub_dt_s
+    return (
+        remaining_s - sub_dt_s,
+        transport_result,
+        source_steps + 1,
+        absorbed_integral,
+    )
 class HydrogenNetwork(ThermochemistryNetwork):
     """Hydrogen-only thermo-chemistry network."""
 
