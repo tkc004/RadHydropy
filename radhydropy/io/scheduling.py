@@ -19,7 +19,7 @@ def load_output_time_list(filename: str | None) -> Any:
         raise FileNotFoundError(f"Output-time file not found: {outputtimepath}")
 
     unit = None
-    output_times = []
+    output_times: list[float] = []
     with outputtimepath.open() as handle:
         for raw_line in handle:
             line = raw_line.strip()
