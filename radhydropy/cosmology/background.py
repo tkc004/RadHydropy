@@ -15,6 +15,58 @@ def _legendre_quadrature(order):
     return np.polynomial.legendre.leggauss(order)
 
 
+@lru_cache(maxsize=4096)
+def _lambda_cdm_cosmic_time_from_supercomoving_scalar(
+    value,
+    t_ref,
+    a_ref,
+    omega_m,
+    omega_lambda,
+    hubble_ref,
+):
+    """Invert one Lambda-CDM supercomoving time without caching an instance."""
+    value = float(value)
+
+    def tau_integral(u):
+        nodes, weights = _legendre_quadrature(48)
+        lo, hi = (u, 1.0) if u < 1.0 else (1.0, u)
+        mid, half = (lo + hi) / 2.0, (hi - lo) / 2.0
+        values = mid + half * nodes
+        integral = half * np.sum(
+            weights / (values**1.5 * np.sqrt(omega_m + omega_lambda * values**3)),
+        )
+        return -integral if u < 1.0 else integral
+
+    lo, hi = np.finfo(float).tiny, 1.0
+    if value >= 0.0:
+        while tau_integral(hi) < value:
+            hi *= 2.0
+        lo = 1.0
+    for _ in range(80):
+        mid = 0.5 * (lo + hi)
+        if tau_integral(mid) < value:
+            lo = mid
+        else:
+            hi = mid
+
+    u = 0.5 * (lo + hi)
+    if omega_lambda == 0.0:
+        age_ref = 2.0 / (3.0 * hubble_ref)
+        age = age_ref * u**1.5
+    else:
+        age_ref = (
+            2.0
+            * np.arcsinh(np.sqrt(omega_lambda / omega_m))
+            / (3.0 * hubble_ref * np.sqrt(omega_lambda))
+        )
+        age = (
+            2.0
+            / (3.0 * hubble_ref * np.sqrt(omega_lambda))
+            * np.arcsinh(np.sqrt(omega_lambda / omega_m) * u**1.5)
+        )
+    return t_ref - age_ref + age
+
+
 @dataclass(frozen=True)
 class EinsteinDeSitter:
     """Einstein--de Sitter background in simulation code units.
@@ -260,24 +312,17 @@ class LambdaCDM:
     def cosmic_time_from_supercomoving(self, tau):
         tau = np.asarray(tau, dtype=float)
         target = tau * self.a_ref**2 * self._hubble_ref
-        return np.vectorize(self._cosmic_time_from_supercomoving_scalar, otypes=[float])(target)
-
-    @lru_cache(maxsize=4096)
-    def _cosmic_time_from_supercomoving_scalar(self, value):
-        """Invert one supercomoving time; repeated solver-time queries are cached."""
-        value = float(value)
-        lo, hi = np.finfo(float).tiny, 1.0
-        if value >= 0.0:
-            while self._tau_integral(hi) < value:
-                hi *= 2.0
-            lo = 1.0
-        for _ in range(80):
-            mid = 0.5 * (lo + hi)
-            if self._tau_integral(mid) < value:
-                lo = mid
-            else:
-                hi = mid
-        return self._time_from_u(0.5 * (lo + hi))
+        return np.vectorize(
+            lambda value: _lambda_cdm_cosmic_time_from_supercomoving_scalar(
+                value,
+                self.t_ref,
+                self.a_ref,
+                self.omega_m,
+                self.omega_lambda,
+                self._hubble_ref,
+            ),
+            otypes=[float],
+        )(target)
 
     def _tau_integral(self, u):
         nodes, weights = _legendre_quadrature(48)

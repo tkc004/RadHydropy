@@ -4,6 +4,7 @@
 
 import os
 import sys
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
 try:
@@ -23,7 +24,7 @@ copyright = "2026, Tsang Keung Chan"
 
 try:
     release = metadata_version("radhydropy")
-except Exception:
+except PackageNotFoundError:
     release = "1.0.0"
 
 extensions = [

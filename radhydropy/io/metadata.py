@@ -12,7 +12,7 @@ import yaml
 
 try:
     from sympy.core.basic import Basic as SympyBasic
-except Exception:  # pragma: no cover - optional dependency shape
+except ImportError:  # pragma: no cover - optional dependency shape
     SympyBasic = None
 
 

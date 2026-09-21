@@ -349,7 +349,7 @@ def test_every_example_yaml_is_a_complete_loadable_config():
     for filename in _yaml_files():
         try:
             config = load_nested_example_config(filename)
-        except Exception as exc:
+        except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
             failures.append(f"{filename.relative_to(REPO_ROOT)}: {exc}")
             continue
         if set(config) != {"par", "initial_condition", "example"}:
@@ -400,7 +400,10 @@ def test_example_yaml_has_no_duplicate_mapping_keys():
     failures = []
     for filename in _yaml_files():
         try:
-            yaml.load(filename.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+            yaml.load(
+                filename.read_text(encoding="utf-8"),
+                Loader=_UniqueKeyLoader,  # noqa: S506 - _UniqueKeyLoader subclasses SafeLoader.
+            )
         except yaml.YAMLError as exc:
             failures.append(f"{filename.relative_to(REPO_ROOT)}: {exc}")
     assert not failures, "\n".join(failures)

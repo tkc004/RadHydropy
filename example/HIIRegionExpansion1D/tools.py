@@ -3,6 +3,7 @@
 """Utilities for the early isothermal H II region expansion example."""
 
 from pathlib import Path
+import logging
 
 import matplotlib as mpl
 
@@ -14,6 +15,7 @@ import unyt
 import radhydropy.io as rio
 import radhydropy.thermo_networks.hydrogen as rth
 from example.basic_hydro_utils import make_initial_condition
+from radhydropy.diagnostic_logging import log_diagnostic
 from radhydropy.rsim import Rsim
 from radhydropy.units import CodeUnits, code_quantity_to_cgs
 
@@ -223,8 +225,19 @@ def print_startup_diagnostics(sim, config, initial_condition):
     try:
         hydro_dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
         hydro_dt_s = hydro_dt.to_value(unyt.s) if hasattr(hydro_dt, "to_value") else float(hydro_dt)
-    except Exception:
+    except (
+        AttributeError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+        unyt.exceptions.UnitOperationError,
+    ) as exc:
         hydro_dt_s = None
+        log_diagnostic(
+            logging.DEBUG,
+            "hii_startup_hydro_timestep_unavailable",
+            error=str(exc),
+        )
     try:
         source_dt, thermal_rate = sim.solver.GetSourceTimestepFast(
             sim.mesh,
@@ -235,12 +248,25 @@ def print_startup_diagnostics(sim, config, initial_condition):
         source_dt_s = (
             source_dt.to_value(unyt.s) if hasattr(source_dt, "to_value") else float(source_dt)
         )
-        if hydro_dt_s is not None and source_dt_s > 0.0:
-            pass
-        if thermal_rate is not None:
-            pass
-    except Exception:
-        pass
+        log_diagnostic(
+            logging.DEBUG,
+            "hii_startup_source_timestep",
+            hydro_dt_s=hydro_dt_s,
+            source_dt_s=source_dt_s,
+            thermal_rate_available=thermal_rate is not None,
+        )
+    except (
+        AttributeError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+        unyt.exceptions.UnitOperationError,
+    ) as exc:
+        log_diagnostic(
+            logging.DEBUG,
+            "hii_startup_source_timestep_unavailable",
+            error=str(exc),
+        )
 
 
 def make_logging_step_backend(sim, config, max_logged_steps=5):
