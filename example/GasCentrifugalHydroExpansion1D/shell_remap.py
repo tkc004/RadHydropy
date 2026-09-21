@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Conservative remapping of Lagrangian spherical shells to Eulerian cells."""
 
+from functools import partial
+
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -328,11 +330,7 @@ def centrifugal_shell_reference(
         zip(shell_radius_proper_code, shell_specific_angular_momentum_code, strict=False),
     ):
         solution = solve_ivp(
-            lambda time_proper_code, state: rhs(
-                time_proper_code,
-                state,
-                specific_j,
-            ),
+            partial(rhs, specific_j=specific_j),
             (0.0, float(time_final_proper_code)),
             (radius_proper_code, 0.0),
             rtol=1.0e-10,
@@ -345,11 +343,7 @@ def centrifugal_shell_reference(
             float(central_mass_proper_code) * radius_proper_code,
         )
         solution = solve_ivp(
-            lambda time_proper_code, state: rhs(
-                time_proper_code,
-                state,
-                specific_j,
-            ),
+            partial(rhs, specific_j=specific_j),
             (0.0, float(time_final_proper_code)),
             (radius_proper_code, 0.0),
             rtol=1.0e-10,

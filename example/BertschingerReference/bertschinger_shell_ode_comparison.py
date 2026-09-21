@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 import tempfile
+from functools import partial
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
@@ -16,6 +17,28 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
+
+
+def _observe_shell_state(
+    tracker,
+    cosmology,
+    tau_start,
+    elapsed,
+    scale_factor,
+    radius_comoving_code,
+    velocity_comoving_code,
+    mass_comoving_code,
+    shell_id,
+):
+    tracker.observe(
+        float(cosmology.cosmic_time_from_supercomoving(tau_start + elapsed)),
+        scale_factor,
+        radius_comoving_code,
+        velocity_comoving_code,
+        mass_comoving_code,
+        shell_id,
+    )
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
@@ -245,13 +268,11 @@ def _evolve_bertschinger_shells(
             scale_factor_end=float(cosmology.scale_factor(next_time)),
             cosmological=True,
             include_shell_mass_with_fixed=True,
-            state_callback=lambda elapsed, a, radius, velocity, mass, shell_id: tracker.observe(
-                float(cosmology.cosmic_time_from_supercomoving(tau_start + elapsed)),
-                a,
-                radius,
-                velocity,
-                mass,
-                shell_id,
+            state_callback=partial(
+                _observe_shell_state,
+                tracker,
+                cosmology,
+                tau_start,
             ),
         )
         central_shell = shells.radius <= float(initial_condition["softening"])

@@ -4,6 +4,7 @@
 
 import argparse
 import copy
+from functools import partial
 import sys
 from pathlib import Path
 
@@ -23,6 +24,17 @@ import virial_shock_tools as et
 from example.example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
+
+
+def _background_enclosed_mass(radius_comoving_code, density_comoving_code):
+    return (
+        4.0
+        * np.pi
+        / 3.0
+        * density_comoving_code
+        * np.asarray(radius_comoving_code, dtype=float) ** 3
+    )
+
 
 DEFAULT_CONFIG = Path(__file__).with_name("cosmological_dark_matter_correlation_z100.yaml")
 
@@ -439,8 +451,9 @@ def _evolve_eds_live_shells(
         shells.step(
             dt,
             crossing_safety_factor=crossing_safety_factor,
-            background_enclosed_mass=lambda radius: (
-                4.0 * np.pi / 3.0 * rho_comoving * np.asarray(radius, dtype=float) ** 3
+            background_enclosed_mass=partial(
+                _background_enclosed_mass,
+                density_comoving_code=rho_comoving,
             ),
             scale_factor=a_start,
             scale_factor_end=a_end,

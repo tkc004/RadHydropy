@@ -5,6 +5,7 @@
 import os
 import sys
 import tempfile
+from functools import partial
 from pathlib import Path
 
 os.environ.setdefault(
@@ -23,6 +24,18 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
+
+
+def _shell_rhs(tau, state, cosmology, central_mass, shell_j):
+    shell_radius_comoving_code, shell_vel_supercomoving_code = state
+    radius_safe_comoving_code = max(shell_radius_comoving_code, np.finfo(float).tiny)
+    scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
+    return (
+        shell_vel_supercomoving_code,
+        -scale_factor * central_mass / radius_safe_comoving_code**2
+        + shell_j**2 / radius_safe_comoving_code**3,
+    )
+
 
 import radhydropy.io as rio
 from example import example_utils as eu
@@ -345,20 +358,13 @@ def main(config_filename=CONFIG):
         # circular-angular-momentum profile and produces the apparent mismatch.
         shell_j = j
 
-        def shell_rhs(tau, state):
-            shell_radius_comoving_code, shell_vel_supercomoving_code = state
-            radius_safe_comoving_code = max(shell_radius_comoving_code, np.finfo(float).tiny)
-            scale_factor = float(
-                cosmology.scale_factor_from_supercomoving(tau),
-            )
-            return (
-                shell_vel_supercomoving_code,
-                -scale_factor * central_mass / radius_safe_comoving_code**2
-                + shell_j**2 / radius_safe_comoving_code**3,
-            )
-
         shell_reference = solve_ivp(
-            shell_rhs,
+            partial(
+                _shell_rhs,
+                cosmology=cosmology,
+                central_mass=central_mass,
+                shell_j=shell_j,
+            ),
             (0.0, final_tau),
             (initial_radius_comoving_code, v0_supercomoving_code),
             rtol=1.0e-10,

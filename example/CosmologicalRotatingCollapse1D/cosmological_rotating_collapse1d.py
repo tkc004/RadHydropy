@@ -9,6 +9,7 @@ conserved signed specific angular momentum.
 
 import argparse
 import copy
+from functools import partial
 import os
 import sys
 import tempfile
@@ -30,6 +31,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from cosmological_initial_condition import build_initial_condition
 from scipy.integrate import solve_ivp
+
+
+def _shell_rhs(time_code, state, cosmology, enclosed_mass, specific_angular_momentum):
+    radius_proper_code, velocity_proper_code = state
+    if radius_proper_code <= 0.0:
+        return velocity_proper_code, 0.0
+    return (
+        velocity_proper_code,
+        -cosmology.gravitational_constant * enclosed_mass / radius_proper_code**2
+        + specific_angular_momentum**2 / radius_proper_code**3,
+    )
+
 
 import radhydropy.io as rio
 from example import example_utils as eu
@@ -73,19 +86,13 @@ def integrate_shell_reference(initial, config, scale_factors):
     cosmic_times = np.unique(requested_times)
     reference = np.empty((len(cosmic_times), len(radius_comoving_code)), dtype=float)
     for shell, shell_mass in enumerate(mass_comoving_code):
-
-        def rhs(time_cosmic_code, state):
-            radius_shell_proper_code, velocity_shell_proper_code = state
-            if radius_shell_proper_code <= 0.0:
-                return velocity_shell_proper_code, 0.0
-            acceleration = (
-                -cosmology.gravitational_constant * shell_mass / radius_shell_proper_code**2
-                + j[shell] ** 2 / radius_shell_proper_code**3
-            )
-            return velocity_shell_proper_code, acceleration
-
         solution = solve_ivp(
-            rhs,
+            partial(
+                _shell_rhs,
+                cosmology=cosmology,
+                enclosed_mass=shell_mass,
+                specific_angular_momentum=j[shell],
+            ),
             (cosmic_times[0], cosmic_times[-1]),
             (initial_physical_radius[shell], initial_physical_velocity[shell]),
             t_eval=cosmic_times,
@@ -183,19 +190,13 @@ def _integrate_density_reference_edges(
 ):
     physical_edges = np.empty((len(cosmic_times), len(edge_mass)), dtype=float)
     for edge, enclosed_mass in enumerate(edge_mass):
-
-        def rhs(time_cosmic_code, state):
-            radius_shell_proper_code, velocity_shell_proper_code = state
-            if radius_shell_proper_code <= 0.0 or enclosed_mass <= 0.0:
-                return velocity_shell_proper_code, 0.0
-            return (
-                velocity_shell_proper_code,
-                -cosmology.gravitational_constant * enclosed_mass / radius_shell_proper_code**2
-                + edge_j[edge] ** 2 / radius_shell_proper_code**3,
-            )
-
         solution = solve_ivp(
-            rhs,
+            partial(
+                _shell_rhs,
+                cosmology=cosmology,
+                enclosed_mass=enclosed_mass,
+                specific_angular_momentum=edge_j[edge],
+            ),
             (cosmic_times[0], cosmic_times[-1]),
             (initial_physical_boundary[edge], initial_physical_velocity[edge]),
             t_eval=cosmic_times,

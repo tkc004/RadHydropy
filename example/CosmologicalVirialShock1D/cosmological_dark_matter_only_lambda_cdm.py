@@ -25,6 +25,22 @@ from example.example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
 
+
+def _background_enclosed_mass(
+    radius_comoving_code,
+    density_comoving_code,
+    dark_matter_fraction=1.0,
+):
+    return (
+        4.0
+        * np.pi
+        / 3.0
+        * density_comoving_code
+        * dark_matter_fraction
+        * np.asarray(radius_comoving_code, dtype=float) ** 3
+    )
+
+
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_dark_matter_correlation_z100_lambda_cdm.yaml",
 )
@@ -584,18 +600,17 @@ def main(config_filename=DEFAULT_CONFIG):
         scale_start = float(cosmology.scale_factor(cosmic_start))
         rho_start = float(cosmology.background_density(cosmic_start)) * scale_start**3
 
-        def background(radius_comoving_code):
-            return (
-                4.0 * np.pi / 3.0 * rho_start * dm_fraction * np.asarray(radius_comoving_code) ** 3
-            )
-
         time_end = time_cosmic_code + dt
         cosmic_end = float(cosmology.cosmic_time_from_supercomoving(time_end))
         scale_end = float(cosmology.scale_factor(cosmic_end))
         shells.step(
             dt,
             crossing_safety_factor=float(example.get("dark_matter_crossing_safety_factor", 0.5)),
-            background_enclosed_mass=background,
+            background_enclosed_mass=partial(
+                _background_enclosed_mass,
+                density_comoving_code=rho_start,
+                dark_matter_fraction=dm_fraction,
+            ),
             scale_factor=scale_start,
             scale_factor_end=scale_end,
             cosmological=True,

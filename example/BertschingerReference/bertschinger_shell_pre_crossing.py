@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 import tempfile
+from functools import partial
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"))
@@ -26,6 +27,12 @@ from bertschinger_ode import solve_eq41_self_similar
 from example.BertschingerReference import tools as example_tools
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.dark_matter import DarkMatterShells
+
+
+def _background_enclosed_mass(background_coefficient, radius_comoving_code):
+    return background_coefficient * np.asarray(radius_comoving_code) ** 3
+
+
 from radhydropy.units import quantity_to_value
 
 DEFAULT_CONFIG = Path(__file__).with_name("bertschinger_reference.yaml")
@@ -99,9 +106,6 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
         )
         background_coefficient = 4.0 * np.pi / 3.0 * rho_comoving_code
 
-        def background(radius_comoving_code):
-            return background_coefficient * np.asarray(radius_comoving_code) ** 3
-
         dt = min(timestep, final_tau - tau)
         approaching = shells.velocity < 0.0
         if np.any(approaching):
@@ -114,7 +118,10 @@ def run_pre_crossing(config_filename=DEFAULT_CONFIG):
         actual_dt = shells.step(
             dt,
             crossing_safety_factor=float(example["crossing_safety_factor"]),
-            background_enclosed_mass=background,
+            background_enclosed_mass=partial(
+                _background_enclosed_mass,
+                background_coefficient,
+            ),
             scale_factor=scale_factor_dimensionless,
             scale_factor_end=float(cosmology.scale_factor(next_time_cosmic_code)),
             cosmological=True,
