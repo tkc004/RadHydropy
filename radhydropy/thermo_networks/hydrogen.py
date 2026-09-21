@@ -784,7 +784,8 @@ def _fast_source_scaling(fluid, par, gamma):
     }
     if not getattr(par, "supercomoving_coordinates", False):
         return identity
-    cosmology = getattr(par, "cosmology", None)
+    cosmology_parameters = getattr(par, "cosmology", None)
+    cosmology = getattr(cosmology_parameters, "model", None) or cosmology_parameters
     if cosmology is None:
         raise ValueError("supercomoving thermo-chemistry requires par.cosmology")
     _, _, _, _, tau_supercomoving_code = _canonical_fluid_primitive_arrays(

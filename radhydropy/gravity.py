@@ -41,6 +41,12 @@ def _require_code_units(code_units):
     return code_units
 
 
+def _cosmology_model(cosmology):
+    """Resolve the structured cosmology container to its background model."""
+    model = getattr(cosmology, "model", None)
+    return model if model is not None else cosmology
+
+
 def _as_quantity(value, unit):
     if hasattr(value, "to_value"):
         return np.asarray(value.to_value(unit), dtype=float) * unit
@@ -348,7 +354,7 @@ class Gravity:
             )
         if getattr(mesh, "coordsys", None) != "spherical":
             raise ValueError("cosmological gravity currently requires a spherical mesh")
-        cosmology = self.cosmology or getattr(par, "cosmology", None)
+        cosmology = _cosmology_model(self.cosmology or getattr(par, "cosmology", None))
         if cosmology is None:
             raise ValueError("cosmological gravity requires par.cosmology")
         if not getattr(par, "supercomoving_coordinates", False):
@@ -511,7 +517,7 @@ class Gravity:
         else:
             gas_mass = prepare_enclosed_gas_mass(mesh, rho, par)
         if self.cosmological:
-            cosmology = self.cosmology or getattr(par, "cosmology", None)
+            cosmology = _cosmology_model(self.cosmology or getattr(par, "cosmology", None))
             if cosmology is None or not getattr(par, "supercomoving_coordinates", False):
                 raise ValueError(
                     "cosmological dark-matter shells require supercomoving cosmology",

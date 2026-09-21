@@ -37,22 +37,25 @@ par:
     hydrogen_beta: {value: 0.0, unit: cm**3/s}
   thermochemistry:
     hydrogen_chemistry: true
-    hydrogen_source_solver: split_implicit
-    hydrogen_thermal_coupling: true
+    hydrogen_thermal_coupling: false
     hydrogen_recombination: true
     hydrogen_collisional_ionization: false
   radiation:
     radiative_transfer: true
     method: long_characteristics
-    temporal_scheme: instantaneous
+    temporal_scheme: c2ray
     direction: 1
     boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}
     source_photon_rate: {value: 1.0e49, unit: 1/s}
+    c2ray_max_iterations: 8
+    c2ray_tolerance: 1.0e-4
+    c2ray_relaxation: 1.0
+    c2ray_nonconvergence: warn
     hydrogen_radiation_field: false
     hydrogen_radiation_evolution: false
     hydrogen_ngamma_initial: {value: 0.0, unit: 1/cm**3}
     hydrogen_sigma_gamma: {value: 6.3e-18, unit: cm**2}
-    hydrogen_epsilon_gamma: {value: 6.33, unit: eV}
+    hydrogen_epsilon_gamma: {value: 0.0, unit: erg}
   units:
     CodeUnits:
       name: galactic_unit_system

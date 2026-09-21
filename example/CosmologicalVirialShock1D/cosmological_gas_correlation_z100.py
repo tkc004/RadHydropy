@@ -17,11 +17,13 @@ EXAMPLE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import plot_entropy_evolution as entropy_plotter
-import plot_halo_energy_accounting as energy_plotter
-import virial_shock_tools as et
-from cosmological_gas_correlation_runtime import CosmologicalRunCallbacks
-from cosmological_gas_correlation_support import (
+from example.CosmologicalVirialShock1D import plot_entropy_evolution as entropy_plotter
+from example.CosmologicalVirialShock1D import plot_halo_energy_accounting as energy_plotter
+from example.CosmologicalVirialShock1D import virial_shock_tools as et
+from example.CosmologicalVirialShock1D.cosmological_gas_correlation_runtime import (
+    CosmologicalRunCallbacks,
+)
+from example.CosmologicalVirialShock1D.cosmological_gas_correlation_support import (
     _dark_matter_energy_state,
     _energy_audit_state,
     _energy_cell_state,
@@ -39,15 +41,15 @@ from cosmological_gas_correlation_support import (
     plot_temperature_evolution,
     plot_velocity_evolution,
 )
-from diagnostics import CosmologicalVirialShockDiagnostics
+from example.CosmologicalVirialShock1D.diagnostics import CosmologicalVirialShockDiagnostics
+from example.CosmologicalVirialShock1D.physics import CosmologicalVirialShockPhysics
 from example.example_utils import load_nested_example_config
-from physics import CosmologicalVirialShockPhysics
-
 from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.rsim.core import Rsim
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits, quantity_to_value
+from tools.lcdm_correlation import load_lcdm_correlation_table
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_gas_correlation_z100.yaml",
@@ -58,7 +60,7 @@ def load_correlation_table(config_filename, config):
     filename = Path(config["example"]["linear_correlation_table_filename"])
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
-    return et.load_lcdm_correlation_table(filename)
+    return load_lcdm_correlation_table(filename)
 
 
 def run(

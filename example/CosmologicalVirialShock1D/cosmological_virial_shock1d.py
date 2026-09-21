@@ -20,11 +20,10 @@ sys.path.insert(0, str(EXAMPLE_ROOT))
 
 from example.CosmologicalVirialShock1D import virial_shock_tools as et
 from example.example_utils import load_nested_example_config
-
 from radhydropy.gravity import Gravity
-from tools.lcdm_correlation import load_lcdm_correlation_table
 from radhydropy.thermo_networks.pie import MetalPIETable
 from radhydropy.units import CodeUnits, quantity_to_value
+from tools.lcdm_correlation import load_lcdm_correlation_table
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_virial_shock1d_smoke.yaml",
