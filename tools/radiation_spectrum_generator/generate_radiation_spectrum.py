@@ -70,8 +70,8 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
     threshold_ev = parameters[0]
     norms, norm_energies, sigmas, epsilons = [], [], [], []
 
-    for lower_ev, upper_ev in itertools.pairwise(edges_ev):
-        lower_ev = max(lower_ev, threshold_ev)
+    for lower_input, upper_ev in itertools.pairwise(edges_ev):
+        lower_ev = max(lower_input, threshold_ev)
         if lower_ev >= upper_ev:
             norms.append(0.0)
             norm_energies.append(0.0)

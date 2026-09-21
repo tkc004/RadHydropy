@@ -373,7 +373,7 @@ def make_comparison(
     axis.grid(alpha=0.25)
     axis.legend(fontsize=8)
     error_axis.set_xlabel("cosmic age since Big Bang [code units]")
-    error_axis.set_ylabel("|RadHydropy − reference|")
+    error_axis.set_ylabel("|RadHydropy - reference|")
     error_axis.set_yscale("log")
     error_axis.grid(alpha=0.25, which="both")
     error_axis.legend(fontsize=7, ncol=2)

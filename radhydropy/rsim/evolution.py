@@ -62,7 +62,7 @@ def _advance_until(
                 if final_time_value == 0.0
                 else 100.0 * float(getattr(sim.fluid, time_field)) / final_time_value
             )
-            print(
+            print(  # noqa: T201 - intentional periodic lifecycle progress output.
                 f"--- hydro step {progress_steps}: "
                 f"time={float(getattr(sim.fluid, time_field)):.6e} "
                 f"dt={float(dt):.6e} ({progress_percent:.2f}%) ---",
@@ -136,8 +136,10 @@ def Run(  # noqa: N802
         return
     # Fixed-cadence output path: advance to `timesim` and write snapshots
     # whenever `outtime` reaches `outdeltatime`.
-    print("--- Initization finished. Start running ... ---")
-    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
+    print("--- Initization finished. Start running ... ---")  # noqa: T201 - intentional lifecycle output.
+    print(  # noqa: T201 - intentional lifecycle timing output.
+        "--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())),
+    )
     if before_step_callback is not None:
         before_step_callback(sim)
     initial_filename = rio.write_numbered_hdf5(sim, 0)
@@ -168,8 +170,10 @@ def Run(  # noqa: N802
         )
         if snapshot_callback is not None:
             snapshot_callback(sim, final_filename, final_index)
-    print("--- Simulation finished. ---")
-    print("--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())))
+    print("--- Simulation finished. ---")  # noqa: T201 - intentional lifecycle output.
+    print(  # noqa: T201 - intentional lifecycle timing output.
+        "--- %s seconds ---" % (time.time() - getattr(sim, "_start_time", time.time())),
+    )
 
 
 def RunAll(  # noqa: N802

@@ -9,6 +9,7 @@ class NamedArray(np.ndarray):
     """A plain NumPy array that can carry extra attributes."""
 
     def __new__(cls, input_array, unit=None, dtype=float, *, copy=False, **kwargs):
+        del unit, kwargs
         if copy:
             arr = np.array(input_array, dtype=dtype, copy=True)
         else:

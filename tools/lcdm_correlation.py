@@ -14,6 +14,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+_trapezoid = getattr(np, "trapezoid", np.trapz)  # noqa: NPY201 - NumPy 1.x compatibility.
+
 try:
     from tools.cosmology import LambdaCDM
 except ModuleNotFoundError:
@@ -108,7 +110,7 @@ def linear_matter_power_spectrum(
     kr = 8.0 * k_norm
     window = 3.0 * (np.sin(kr) - kr * np.cos(kr)) / np.maximum(kr**3, 1.0e-30)
     sigma8_shape = np.sqrt(
-        np.trapz(k_norm**3 * shape_norm * window**2, np.log(k_norm)) / (2.0 * np.pi**2),
+        _trapezoid(k_norm**3 * shape_norm * window**2, np.log(k_norm)) / (2.0 * np.pi**2),
     )
     return shape * (float(sigma8) / max(sigma8_shape, 1.0e-300)) ** 2
 
@@ -280,7 +282,7 @@ def linear_correlation_from_power_spectrum(radius_mpc_h, k_hmpc, power):
     kr = np.outer(radius_mpc_h, k)
     j0 = np.sinc(kr / np.pi)
     integrand = k[None, :] ** 3 * p[None, :] * j0
-    return np.trapz(integrand, np.log(k), axis=1) / (2.0 * np.pi**2)
+    return _trapezoid(integrand, np.log(k), axis=1) / (2.0 * np.pi**2)
 
 
 def load_lcdm_correlation_table(filename):

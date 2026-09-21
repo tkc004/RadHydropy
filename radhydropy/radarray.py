@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Representation-aware numerical arrays for RadHydropy."""
 
+import operator
+
 import numpy as np
 import unyt
 
@@ -323,9 +325,9 @@ def _result_field_spec(ufunc, rad_inputs, result_units):
     if len(rad_inputs) == 1 or ufunc in (np.add, np.subtract):
         return first.field_spec
     if ufunc is np.multiply:
-        operation = lambda left, right: left + right
+        operation = operator.add
     elif ufunc in (np.true_divide, np.divide, np.floor_divide):
-        operation = lambda left, right: left - right
+        operation = operator.sub
     else:
         return None
     dimensions = tuple(
@@ -350,7 +352,7 @@ def _result_field_spec(ufunc, rad_inputs, result_units):
 
 
 def _fast_radarray_operation(ufunc, inputs, rad_inputs):
-    if ufunc in (np.add, np.subtract) and len(rad_inputs) == 2:
+    if ufunc in (np.add, np.subtract) and len(rad_inputs) == 2:  # noqa: PLR2004
         left, right = inputs
         return RadArray(
             getattr(np, ufunc.__name__)(left.value, right.value),

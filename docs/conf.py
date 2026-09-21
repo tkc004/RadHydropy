@@ -20,7 +20,7 @@ os.environ.setdefault("XDG_CACHE_HOME", str(ROOT / "docs" / "_build" / "cache"))
 
 project = "RadHydropy"
 author = "Tsang Keung Chan"
-copyright = "2026, Tsang Keung Chan"
+copyright = "2026, Tsang Keung Chan"  # noqa: A001
 
 try:
     release = metadata_version("radhydropy")

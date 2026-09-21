@@ -109,10 +109,10 @@ def CheckParamDimen(params):  # noqa: N802
         "tempini": 1.0 * unyt.K,
         "gamma": 1.0,
     }
-    for key in unitdir:
+    for key, expected_unit in unitdir.items():
         if key in params:
             try:
-                CheckDimension(params[key], unitdir[key])
+                CheckDimension(params[key], expected_unit)
             except unyt.exceptions.UnitOperationError:
                 return key
     return True

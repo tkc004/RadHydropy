@@ -88,10 +88,10 @@ def run(config_filename=DEFAULT_CONFIG):
         raise RuntimeError("outflow did not fill any physical vacuum cells")
     figure = Path(output["directory"]) / exampleparams["plot_filename"]
     analytic_label_used = False
-    for time_proper_code, rho_proper_code, _, boundary_proper_code in profiles:
+    for time_proper_code, rho_profile, _, boundary_proper_code in profiles:
         radius_proper_code = 0.5 * (boundary_proper_code[1:] + boundary_proper_code[:-1])
         radius_proper_code = radius_proper_code[first : first + active_count]
-        rho_proper_code = rho_proper_code[first : first + active_count]
+        rho_proper_code = rho_profile[first : first + active_count]
         positive = rho_proper_code > 0.0
         if np.any(positive):
             (line,) = plt.loglog(

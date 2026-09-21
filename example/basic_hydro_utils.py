@@ -84,7 +84,7 @@ def _validate_primitives(
         if allow_vacuum
         else "active rho_proper_code must be strictly positive"
     )
-    for values, limit, message in (
+    for _values, limit, message in (
         (rho_proper_code, density_limit, density_message),
         (temp_proper_code, temp_proper_code < 0.0, "active temp_proper_code must be non-negative"),
         (pre_proper_code, pre_proper_code < 0.0, "active pre_proper_code must be non-negative"),

@@ -692,7 +692,7 @@ def main(
     fig.colorbar(image, cax=colorbar_axis, label="$j=x v_{\\phi,\\rm sc}$")
     fig.savefig(angular_figure, dpi=200)
     plt.close(fig)
-    for label in ("nonrotating", "moderate", "high"):
+    for _label in ("nonrotating", "moderate", "high"):
         pass
 
 

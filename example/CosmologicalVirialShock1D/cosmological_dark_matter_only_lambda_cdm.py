@@ -5,6 +5,7 @@
 import argparse
 import copy
 import sys
+from functools import partial
 from pathlib import Path
 
 import matplotlib as mpl
@@ -274,7 +275,7 @@ def run_live_shell_density_profiles(config):
     virial_radii = []
     next_snapshot = 0
 
-    virial_threshold = lambda time: _virial_threshold(cosmology, time)
+    virial_threshold = partial(_virial_threshold, cosmology)
 
     while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
         _save_live_profile(

@@ -96,9 +96,11 @@ def main(config_filename=CONFIG):
     enclosed_mass = np.empty_like(radii)
     density_plot_radius = []
     density_plot_contrast = []
-    for row, (radius_comoving_code, mass_comoving_code) in enumerate(
+    for row, (radius_input, mass_input) in enumerate(
         zip(radii, masses, strict=False),
     ):
+        radius_comoving_code = np.asarray(radius_input)
+        mass_comoving_code = np.asarray(mass_input)
         order = np.argsort(radius_comoving_code)
         radius_comoving_code = radius_comoving_code[order]
         mass_comoving_code = mass_comoving_code[order]

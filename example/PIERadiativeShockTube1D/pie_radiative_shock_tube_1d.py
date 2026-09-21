@@ -325,7 +325,7 @@ def main(config_filename=DEFAULT_CONFIG):
                 ),
             )
     _plot(results, EXAMPLE_DIR / "PIERadiativeShockTube1D.jpg")
-    for result in results:
+    for _result in results:
         pass
 
 

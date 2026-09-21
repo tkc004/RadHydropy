@@ -19,6 +19,8 @@ from types import SimpleNamespace
 import numpy as np
 import unyt
 
+_IONIZATION_EPSILON = 1.0e-12
+
 from radhydropy import radiative_transfer as rrt
 from radhydropy.constants import (
     DEFAULT_EPSILON_GAMMA_CGS_ERG,
@@ -460,7 +462,9 @@ def _advance_hydrogen_cell(
     cell_converged = not update_chemistry or dt_s == 0.0
     cell_transport = None
     iteration_range = range(1, max_iterations + 1) if update_chemistry else range(1)
-    for iteration in iteration_range:
+    iteration = 0
+    for _iteration in iteration_range:
+        iteration = _iteration
         tau = np.maximum(sigma * hydrogen_density * xmean * width, 0.0)
         cell_transport = rrt.propagate_causal_cell(geometry, incoming, tau, cell, direction)
         photon_rate = np.sum(cell_transport.absorbed_rate) / max(
@@ -480,12 +484,12 @@ def _advance_hydrogen_cell(
             xfinal = equilibrium + (initial_fraction - equilibrium) * decay
             xnew_mean = (
                 equilibrium + (initial_fraction - equilibrium) * (-np.expm1(-exponent)) / exponent
-                if exponent > 1.0e-12
+                if exponent > _IONIZATION_EPSILON
                 else initial_fraction
             )
         else:
             xnew_mean = initial_fraction
-        xnew_mean = float(np.clip(xnew_mean, 1.0e-12, 1.0 - 1.0e-12))
+        xnew_mean = float(np.clip(xnew_mean, _IONIZATION_EPSILON, 1.0 - _IONIZATION_EPSILON))
         if abs(xnew_mean - xmean) <= tolerance:
             cell_converged = True
         xmean = (1.0 - relaxation) * xmean + relaxation * xnew_mean
@@ -813,7 +817,9 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
         cell_transport = None
         cell_converged = not update_chemistry or dt_s == 0.0
         iteration_range = range(1, max_iterations + 1) if update_chemistry else range(1)
-        for iteration in iteration_range:
+        iteration = 0
+        for _iteration in iteration_range:
+            iteration = _iteration
             xheii_mean = np.clip(1.0 - xhei_mean - xheiii_mean, 0.0, 1.0)
             tau_species = {
                 "HI": sigma_species["HI"] * n_h[cell] * xhi_mean * width[cell],

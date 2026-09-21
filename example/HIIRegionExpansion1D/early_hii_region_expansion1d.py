@@ -116,7 +116,7 @@ def main(config_filename=DEFAULT_CONFIG):
     ).to_value(unyt.pc)
     et.stagnation_radius(config).to_value(unyt.pc)
 
-    for density_figure_filename in density_figure_filenames:
+    for _density_figure_filename in density_figure_filenames:
         pass
     for _outputfilename in outputfilenames:
         pass

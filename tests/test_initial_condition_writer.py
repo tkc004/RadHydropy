@@ -182,7 +182,7 @@ def test_writer_radarray_selects_explicit_cosmological_representations():
             7.0,
         ),
     )
-    for representation, values, quantity, expected_proper in cases:
+    for representation, values, quantity, expected_proper_input in cases:
         result = writer.radarray(values, representation=representation)
         assert result.field_spec.quantity == quantity
         assert result.representation == representation
@@ -198,7 +198,8 @@ def test_writer_radarray_selects_explicit_cosmological_representations():
         else:
             proper = result.to_proper()
             round_trip = proper.to_comoving()
-        np.testing.assert_allclose(proper.value, expected_proper)
+        expected_value = expected_proper if quantity == "velocity" else expected_proper_input
+        np.testing.assert_allclose(proper.value, expected_value)
         np.testing.assert_allclose(round_trip.value, result.value)
 
     photon_comoving = writer.radarray(

@@ -233,8 +233,8 @@ def main(config_filename=Path(__file__).with_name("static_stromgren_c2ray_compar
         c2ray_steps,
         root,
     )
-    for steps in example["comparison_instantaneous_steps"]:
-        steps = int(steps)
+    for steps_input in example["comparison_instantaneous_steps"]:
+        steps = int(steps_input)
         histories[f"instantaneous_{steps}"] = _run_case(
             nested,
             tools,

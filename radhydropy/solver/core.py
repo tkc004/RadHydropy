@@ -31,6 +31,8 @@ from radhydropy.units import (
     code_unit_scales,
 )
 
+_GEOMETRY_FACTOR_TOLERANCE = 1.0e-13
+
 # The paired-face positivity recovery path calls ``cell_valid`` many times.
 # Keep this scalar constant out of that hot loop; constructing a NumPy finfo
 # object for every trial is unnecessary overhead.
@@ -1676,7 +1678,7 @@ class Solver:
                     low = middle
                 else:
                     high = middle
-                if high - low <= 1.0e-13:
+                if high - low <= _GEOMETRY_FACTOR_TOLERANCE:
                     break
             geometry_fraction[index] = low
         return geometry_increment, geometry_fraction

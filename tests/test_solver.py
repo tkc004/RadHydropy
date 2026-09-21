@@ -1289,7 +1289,7 @@ class Testing(unittest.TestCase):
         delta_mom = np.array([0.0, 10.0, 0.0])
         delta_energy = np.zeros(cell_count)
 
-        _, recovered_momentum, _, _, factors = solver._recover_invariant_domain_faces(
+        _, recovered_momentum, _, _, factors = solver._recover_invariant_domain_faces(  # noqa: SLF001 - direct helper regression test.
             context,
             np.zeros(cell_count),
             delta_mass,
@@ -1352,7 +1352,7 @@ class Testing(unittest.TestCase):
         par = SimpleNamespace(positivity_factor_method="analytical")
 
         recovered_mass, recovered_momentum, recovered_energy, _, factors = (
-            solver._recover_analytical_faces(
+            solver._recover_analytical_faces(  # noqa: SLF001 - direct helper regression test.
                 context,
                 par,
                 np.zeros(cell_count),
@@ -1397,7 +1397,7 @@ class Testing(unittest.TestCase):
         momentum = np.zeros(2)
         energy = np.array([0.5, 2.0])
 
-        repaired_mass, repaired_momentum, repaired_energy = Solver()._repair_wind_reservoir(
+        repaired_mass, repaired_momentum, repaired_energy = Solver()._repair_wind_reservoir(  # noqa: SLF001 - direct helper regression test.
             fluid,
             par,
             context,

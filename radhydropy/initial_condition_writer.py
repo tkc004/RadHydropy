@@ -544,6 +544,7 @@ class InitialConditionWriter:
 
     @classmethod
     def _convert(cls, value, target_field, *, context, x_comoving_code=None):
+        del context
         if not isinstance(value, (RadArray, RadQuantity)):
             return cls._code_values(value)
         if value.code_units is None:

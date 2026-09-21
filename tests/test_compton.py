@@ -650,7 +650,7 @@ def test_public_explicit_source_rejects_invalid_timestep():
 
     with pytest.raises(
         RuntimeError,
-        match="hydrogen explicit source timestep.*active_cell_indices",
+        match=r"hydrogen explicit source timestep.*active_cell_indices",
     ):
         apply_thermochemistry_fast(1.0, mesh, fluid, par)
 

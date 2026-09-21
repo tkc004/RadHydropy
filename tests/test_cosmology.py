@@ -671,7 +671,7 @@ def test_par_gravity_assignment_updates_nested_model():
 
 
 def test_par_rejects_unknown_run_parameters():
-    with pytest.raises(ValueError, match="unknown run parameter.*typo"):
+    with pytest.raises(ValueError, match=r"unknown run parameter.*typo"):
         Par({"CodeUnits": code_units(), "typo": True})
 
 

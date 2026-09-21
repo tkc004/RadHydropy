@@ -74,8 +74,8 @@ def species_photoionization_rates(ngamma_cgs_cm3, sigma_by_species):
     """Return photoionization and photoheating rates for each absorber."""
     ngamma_cgs_cm3 = np.asarray(ngamma_cgs_cm3, dtype=float)
     rates_cgs_s = {}
-    for species, sigma_gamma_cgs_cm2 in sigma_by_species.items():
-        sigma_gamma_cgs_cm2 = np.asarray(sigma_gamma_cgs_cm2, dtype=float)
+    for species, sigma_input in sigma_by_species.items():
+        sigma_gamma_cgs_cm2 = np.asarray(sigma_input, dtype=float)
         if ngamma_cgs_cm3.ndim == 2 and sigma_gamma_cgs_cm2.ndim == 1:  # noqa: PLR2004
             sigma_gamma_cgs_cm2 = sigma_gamma_cgs_cm2[:, None]
         rate_cgs_s = SPEED_OF_LIGHT_CGS * sigma_gamma_cgs_cm2 * ngamma_cgs_cm3
@@ -85,12 +85,12 @@ def species_photoionization_rates(ngamma_cgs_cm3, sigma_by_species):
 
 def species_photoionization_heating(ngamma_cgs_cm3, sigma_by_species, epsilon_by_species):
     rates_cgs_erg_cm3_s = {}
-    for species, sigma_gamma_cgs_cm2 in sigma_by_species.items():
+    for species, sigma_input in sigma_by_species.items():
         epsilon_gamma_cgs_erg = np.asarray(
             epsilon_by_species.get(species, 0.0),
             dtype=float,
         )
-        sigma_gamma_cgs_cm2 = np.asarray(sigma_gamma_cgs_cm2, dtype=float)
+        sigma_gamma_cgs_cm2 = np.asarray(sigma_input, dtype=float)
         if ngamma_cgs_cm3.ndim == 2:  # noqa: PLR2004
             sigma_gamma_cgs_cm2 = (
                 sigma_gamma_cgs_cm2[:, None]
@@ -415,8 +415,8 @@ def _build_group_optical_depth(
     """Build optical depth per photon group from absorber densities."""
     widths = _cell_widths_cm(mesh)
     optical_depth = np.zeros((ngroup, widths.size), dtype=float)
-    for species, density in absorber_densities.items():
-        density = np.asarray(density, dtype=float)
+    for species, density_input in absorber_densities.items():
+        density = np.asarray(density_input, dtype=float)
         if density.shape != widths.shape:
             raise ValueError(
                 f"absorber density for {species!r} must have shape {widths.shape}",

@@ -6,6 +6,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 
+_trapezoid = getattr(np, "trapezoid", np.trapz)  # noqa: NPY201 - NumPy 1.x compatibility.
+
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "lcdm_correlation.py"
 _SPEC = importlib.util.spec_from_file_location("lcdm_correlation_test_module", _MODULE_PATH)
 _LCDM = importlib.util.module_from_spec(_SPEC)
@@ -48,7 +50,7 @@ def test_sigma8_normalization():
     kr = 8.0 * k
     window = 3.0 * (np.sin(kr) - kr * np.cos(kr)) / kr**3
     sigma8 = np.sqrt(
-        np.trapz(k**3 * power * window**2, np.log(k)) / (2.0 * np.pi**2),
+        _trapezoid(k**3 * power * window**2, np.log(k)) / (2.0 * np.pi**2),
     )
 
     assert np.isclose(sigma8, 0.811, rtol=1.0e-4)

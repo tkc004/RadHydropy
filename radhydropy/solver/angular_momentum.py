@@ -2,10 +2,35 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Numerical solver subsystem helpers."""
 
+from functools import partial
+
 import numpy as np
 
 import radhydropy.utils as ru
 from radhydropy.arrays import as_named_array
+
+
+def _angular_trial_valid(
+    valid_cell,
+    left,
+    right,
+    increment,
+    dt,
+    face,
+    trial_angular,
+    trial_energy,
+    rotational_correction_area,
+    alpha,
+):
+    return valid_cell(
+        left,
+        trial_angular[left] - alpha * increment,
+        trial_energy[left] - alpha * dt * rotational_correction_area[face],
+    ) and valid_cell(
+        right,
+        trial_angular[right] + alpha * increment,
+        trial_energy[right] + alpha * dt * rotational_correction_area[face],
+    )
 
 
 def _canonical_mesh_geometry(mesh):
@@ -319,17 +344,17 @@ def _limit_face_corrections(
             continue
         increment = dt * correction_area[face]
 
-        trial_valid = lambda alpha: (
-            valid_cell(
-                left,
-                trial_angular[left] - alpha * increment,
-                trial_energy[left] - alpha * dt * rotational_correction_area[face],
-            )
-            and valid_cell(
-                right,
-                trial_angular[right] + alpha * increment,
-                trial_energy[right] + alpha * dt * rotational_correction_area[face],
-            )
+        trial_valid = partial(
+            _angular_trial_valid,
+            valid_cell,
+            left,
+            right,
+            increment,
+            dt,
+            face,
+            trial_angular,
+            trial_energy,
+            rotational_correction_area,
         )
 
         if trial_valid(1.0):

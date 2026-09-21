@@ -254,7 +254,7 @@ def main(config_filename=DEFAULT_CONFIG):
     fig.tight_layout()
     fig.savefig(figure, dpi=180)
     plt.close(fig)
-    for result in results:
+    for _result in results:
         pass
 
 

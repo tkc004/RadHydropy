@@ -320,8 +320,10 @@ def _temperature_jump_diagnostic(
     source_result,
 ):
     lines = [
-        f"temperature jump error: physical gas temperature exceeded {threshold:.6e} K "
-        f"during {stage} at cell {index} (time={time_runtime_code})",
+        (
+            f"temperature jump error: physical gas temperature exceeded {threshold:.6e} K "
+            f"during {stage} at cell {index} (time={time_runtime_code})"
+        ),
         (
             f"cell: radius={radius[index]} T_before={before[index]} K "
             f"T_after={temperature_after[index]} K rho={density[index]} "
@@ -348,8 +350,7 @@ def _temperature_jump_diagnostic(
                 source_result.get("source_steps", "unknown"),
             ),
         )
-    diagnostic = "\n".join(lines)
-    return diagnostic
+    return "\n".join(lines)
 
 
 def check_source_temperature(state, par, temperature_before, stage, source_step):

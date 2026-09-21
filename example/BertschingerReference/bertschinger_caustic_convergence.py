@@ -38,8 +38,8 @@ def main():
     base_config = example_tools.load_reference_config(CONFIG)
     OUTPUT.mkdir(parents=True, exist_ok=True)
     rows = []
-    with tempfile.TemporaryDirectory(prefix="radhydropy-caustic-") as temp:
-        temp = Path(temp)
+    with tempfile.TemporaryDirectory(prefix="radhydropy-caustic-") as temp_dir:
+        temp = Path(temp_dir)
         for parameter, values in CASES.items():
             for value in values:
                 config = deepcopy(base_config)

@@ -162,11 +162,11 @@ def main(config_filename=DEFAULT_CONFIG):
     output_dir.mkdir(exist_ok=True)
     for stale_csv in output_dir.glob("*.csv"):
         stale_csv.unlink()
-    for index, (label, density_initial_cgs_cm3, temperature_initial_cgs_K) in enumerate(
+    for index, (label, density_input, temperature_input) in enumerate(
         thermo["cases"],
     ):
-        density_initial_cgs_cm3 = float(density_initial_cgs_cm3)
-        temperature_initial_cgs_K = float(temperature_initial_cgs_K)
+        density_initial_cgs_cm3 = float(density_input)
+        temperature_initial_cgs_K = float(temperature_input)
         result = integrate_isobaric_case(
             table,
             density_initial_cgs_cm3,

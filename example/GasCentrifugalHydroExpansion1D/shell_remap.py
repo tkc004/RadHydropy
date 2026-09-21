@@ -77,7 +77,7 @@ def conservative_shell_remap(
     overlap the target domain.
     """
     (
-        radius_proper_code,
+        _radius_proper_code,
         vel_proper_code,
         specific_angular_momentum_code,
         mass_proper_code,

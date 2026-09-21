@@ -347,7 +347,7 @@ def _is_snapshot_like_base(name: str) -> bool:
 def test_every_example_yaml_is_a_complete_loadable_config():
     failures = []
     for filename in _yaml_files():
-        try:
+        try:  # noqa: PERF203 - collect all duplicate-key failures in one pass.
             config = load_nested_example_config(filename)
         except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
             failures.append(f"{filename.relative_to(REPO_ROOT)}: {exc}")
@@ -404,7 +404,7 @@ def test_example_yaml_has_no_duplicate_mapping_keys():
                 filename.read_text(encoding="utf-8"),
                 Loader=_UniqueKeyLoader,  # noqa: S506 - _UniqueKeyLoader subclasses SafeLoader.
             )
-        except yaml.YAMLError as exc:
+        except yaml.YAMLError as exc:  # noqa: PERF203 - collect all duplicate-key failures in one pass.
             failures.append(f"{filename.relative_to(REPO_ROOT)}: {exc}")
     assert not failures, "\n".join(failures)
 

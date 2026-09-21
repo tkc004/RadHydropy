@@ -792,7 +792,7 @@ def run_comparison(config_filename=DEFAULT_CONFIG):
         raise RuntimeError("dark-matter shell radii became non-finite")
     if not np.all(np.diff(shells.radius) >= 0.0):
         raise RuntimeError("dark-matter shells are not sorted after evolution")
-    for profile in slope_profiles:
+    for _profile in slope_profiles:
         pass
     return figure
 

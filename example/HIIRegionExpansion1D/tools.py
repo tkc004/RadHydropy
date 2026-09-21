@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Utilities for the early isothermal H II region expansion example."""
 
-from pathlib import Path
 import logging
+from pathlib import Path
 
 import matplotlib as mpl
 
