@@ -22,7 +22,7 @@ class CosmologyContext:
     hubble_parameter_km_s_Mpc: float = 0.0
     isothermal: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not isinstance(self.cosmology, str) or not self.cosmology:
             raise ValueError("cosmology must be a non-empty string")
 
@@ -49,7 +49,7 @@ class CosmologyContext:
         object.__setattr__(self, "hubble_parameter_km_s_Mpc", hubble)
 
     @staticmethod
-    def _finite_real(value, name):
+    def _finite_real(value: object, name: str) -> float:
         if isinstance(value, bool) or not isinstance(value, Real):
             raise TypeError(f"{name} must be a real number")
         value = float(value)

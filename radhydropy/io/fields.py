@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Dataset scaling and canonical field restoration helpers."""
 
+from typing import Any
+
 import h5py
 import numpy as np
 import unyt
@@ -14,7 +16,7 @@ from radhydropy.radarray import RadArray, RadQuantity
 from radhydropy.units import code_quantity_to_cgs, code_unit_scales
 
 
-def scale_unit_for_key(scale_key):
+def scale_unit_for_key(scale_key: Any) -> Any:
     """Return the cgs unit associated with a canonical scale key."""
     return {
         "length_cgs_cm": unyt.cm,
@@ -41,13 +43,13 @@ def scale_unit_for_key(scale_key):
     }.get(scale_key)
 
 
-def normalize_attr_name(name):
+def normalize_attr_name(name: Any) -> str:
     """Return a safe Python attribute name for an HDF5 dataset name."""
     normalized = [char if char.isalnum() or char == "_" else "_" for char in str(name)]
     return "".join(normalized).strip("_") or "field"
 
 
-def read_any_dataset(dataset, code_units=None, scale_key=None):
+def read_any_dataset(dataset: Any, code_units: Any = None, scale_key: Any = None) -> Any:
     """Read a dataset and normalize it into code-unit numeric arrays."""
     data = np.asarray(dataset[()], dtype=float)
     storage_unit = dataset.attrs.get("storage_unit", None)
@@ -88,7 +90,12 @@ def read_any_dataset(dataset, code_units=None, scale_key=None):
     return as_named_array(data)
 
 
-def populate_group_targets(group, targets, code_units=None, scale_map=None):
+def populate_group_targets(
+    group: Any,
+    targets: Any,
+    code_units: Any = None,
+    scale_map: Any = None,
+) -> None:
     """Restore HDF5 datasets as named numeric attributes on target objects."""
     scale_map = scale_map or {}
     for name, dataset in group.items():
@@ -105,13 +112,13 @@ def populate_group_targets(group, targets, code_units=None, scale_map=None):
 
 
 def _quantity_storage_data(
-    name,
-    value,
-    code_units,
-    scale_key,
-    default_unit,
-    field_spec_obj,
-):
+    name: str,
+    value: Any,
+    code_units: Any,
+    scale_key: Any,
+    default_unit: Any,
+    field_spec_obj: Any,
+) -> tuple[Any, str, Any]:
     if code_units is None and scale_key is not None:
         raise ValueError(f"{name} requires code_units for HDF5 serialization")
     storage_unit = field_spec_obj.storage_unit if field_spec_obj is not None else "cgs"
@@ -147,15 +154,15 @@ def _quantity_storage_data(
 
 
 def write_quantity(
-    group,
-    name,
-    value,
-    code_units=None,
-    scale_key=None,
-    default_unit=None,
-    metadata=None,
-    field_spec_obj=None,
-):
+    group: Any,
+    name: str,
+    value: Any,
+    code_units: Any = None,
+    scale_key: Any = None,
+    default_unit: Any = None,
+    metadata: Any = None,
+    field_spec_obj: Any = None,
+) -> Any:
     """Write one quantity with canonical units and field metadata."""
 
     data, unit, storage_unit = _quantity_storage_data(
@@ -178,7 +185,12 @@ def write_quantity(
     return dataset
 
 
-def radarray_field_spec(dataset, canonical_name, code_units, cosmology):
+def radarray_field_spec(
+    dataset: Any,
+    canonical_name: str,
+    code_units: Any,
+    cosmology: Any,
+) -> FieldSpec:
     """Restore a dataset's ``FieldSpec`` or build its canonical fallback."""
     metadata = {
         key: _restore_header_attr_value(value)
@@ -219,14 +231,14 @@ def radarray_field_spec(dataset, canonical_name, code_units, cosmology):
 
 
 def attach_radarray_views(
-    group,
-    target,
-    dataset_names,
-    canonical_schema,
-    code_units,
-    cosmology,
-    allowed_names=None,
-):
+    group: Any,
+    target: Any,
+    dataset_names: Any,
+    canonical_schema: str,
+    code_units: Any,
+    cosmology: Any,
+    allowed_names: Any = None,
+) -> None:
     """Expose loaded dimensional fields as typed ``*_radarray`` views."""
     del group  # The target and dataset mapping are sufficient for restoration.
     if cosmology is None:
@@ -268,13 +280,13 @@ def attach_radarray_views(
 
 
 def _attach_canonical_radarray_views(
-    target,
-    dataset_names,
-    mapping,
-    allowed_names,
-    code_units,
-    cosmology,
-):
+    target: Any,
+    dataset_names: Any,
+    mapping: Any,
+    allowed_names: Any,
+    code_units: Any,
+    cosmology: Any,
+) -> None:
     for dataset_name, (view_name, canonical_name) in mapping.items():
         if allowed_names is not None and dataset_name not in allowed_names:
             continue
@@ -303,13 +315,13 @@ def _attach_canonical_radarray_views(
 
 
 def _attach_extra_radarray_views(
-    target,
-    dataset_names,
-    mapping,
-    allowed_names,
-    code_units,
-    cosmology,
-):
+    target: Any,
+    dataset_names: Any,
+    mapping: Any,
+    allowed_names: Any,
+    code_units: Any,
+    cosmology: Any,
+) -> None:
     for dataset_name, dataset in dataset_names.items():
         if dataset_name in mapping or (
             allowed_names is not None and dataset_name not in allowed_names
@@ -337,12 +349,12 @@ def _attach_extra_radarray_views(
 
 
 def attach_dark_matter_radarray_views(
-    group,
-    par,
-    code_units,
-    cosmology,
-    canonical_schema,
-):
+    group: Any,
+    par: Any,
+    code_units: Any,
+    cosmology: Any,
+    canonical_schema: str,
+) -> DarkMatterSnapshot | None:
     """Restore the typed analysis view for a ``DarkMatter`` HDF5 group."""
     if group is None or cosmology is None:
         return None

@@ -78,6 +78,13 @@ files = [
     "radhydropy/diagnostic_logging.py",
     "radhydropy/io/__init__.py",
     "radhydropy/io/scheduling.py",
+    "radhydropy/io/cosmology_state.py",
+    "radhydropy/io/fields.py",
+    "radhydropy/cosmology/context.py",
+    "radhydropy/arrays.py",
+    "radhydropy/cosmology/state.py",
+    "radhydropy/cosmology/variables.py",
+    "radhydropy/field_metadata.py",
 ]
 check_untyped_defs = true
 strict = true

@@ -8,13 +8,17 @@ Representation and unit names are deliberately part of every public field.
 """
 
 from dataclasses import dataclass
+from typing import Any, TypeAlias, cast
 
 import numpy as np
+from numpy.typing import NDArray
 
 from radhydropy.units import code_unit_scales
 
+FloatArray: TypeAlias = NDArray[np.float64]
 
-def validate_supercomoving_contract(par, mesh, fluid):
+
+def validate_supercomoving_contract(par: Any, mesh: Any, fluid: Any) -> None:
     """Validate the explicit cosmological runtime representation.
 
     This is intentionally strict once a state has adopted the new schema;
@@ -58,25 +62,25 @@ def validate_supercomoving_contract(par, mesh, fluid):
         raise ValueError("legacy fluid.vel_code is forbidden in cosmological state")
 
 
-def _array(name, value):
+def _array(name: str, value: Any) -> FloatArray:
     result = np.asarray(value, dtype=float)
     if not np.all(np.isfinite(result)):
         raise ValueError(f"{name} contains non-finite values")
-    return result.copy()
+    return cast("FloatArray", result.copy())
 
 
 @dataclass(frozen=True)
 class SupercomovingState:
     """Numeric solver state in comoving/supercomoving code variables."""
 
-    x_comoving_code: np.ndarray
-    rho_comoving_code: np.ndarray
-    vel_supercomoving_code: np.ndarray
-    pre_supercomoving_code: np.ndarray
-    temp_supercomoving_code: np.ndarray
+    x_comoving_code: FloatArray
+    rho_comoving_code: FloatArray
+    vel_supercomoving_code: FloatArray
+    pre_supercomoving_code: FloatArray
+    temp_supercomoving_code: FloatArray
     tau_supercomoving_code: float
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         for name in (
             "x_comoving_code",
             "rho_comoving_code",
@@ -95,14 +99,14 @@ class SupercomovingState:
 class ProperCgsState:
     """Numeric proper physical state in CGS units."""
 
-    x_proper_cgs_cm: np.ndarray
-    rho_proper_cgs_g_cm3: np.ndarray
-    vel_peculiar_proper_cgs_cm_s: np.ndarray
-    pre_proper_cgs_erg_cm3: np.ndarray
-    temp_proper_cgs_K: np.ndarray
+    x_proper_cgs_cm: FloatArray
+    rho_proper_cgs_g_cm3: FloatArray
+    vel_peculiar_proper_cgs_cm_s: FloatArray
+    pre_proper_cgs_erg_cm3: FloatArray
+    temp_proper_cgs_K: FloatArray
     time_cosmic_cgs_s: float
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         for name in (
             "x_proper_cgs_cm",
             "rho_proper_cgs_g_cm3",
@@ -121,11 +125,11 @@ class ProperCgsState:
 class SupercomovingMeshState:
     """Mesh geometry in comoving code coordinates."""
 
-    x_comoving_code: np.ndarray
-    boundary_comoving_code: np.ndarray
-    width_comoving_code: np.ndarray
+    x_comoving_code: FloatArray
+    boundary_comoving_code: FloatArray
+    width_comoving_code: FloatArray
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         for name in (
             "x_comoving_code",
             "boundary_comoving_code",
@@ -140,28 +144,42 @@ class SupercomovingHdf5State:
 
     state: SupercomovingState
     mesh: SupercomovingMeshState
-    box_size_comoving_code: np.ndarray
+    box_size_comoving_code: FloatArray
 
 
-def supercomoving_to_cosmic_time(cosmology, tau_supercomoving_code):
+def supercomoving_to_cosmic_time(
+    cosmology: Any,
+    tau_supercomoving_code: Any,
+) -> FloatArray:
     """Convert supercomoving code time to cosmic code time."""
-    return np.asarray(
-        cosmology.cosmic_time_from_supercomoving(
-            np.asarray(tau_supercomoving_code, dtype=float),
+    return cast(
+        "FloatArray",
+        np.asarray(
+            cosmology.cosmic_time_from_supercomoving(
+                np.asarray(tau_supercomoving_code, dtype=float),
+            ),
+            dtype=float,
         ),
-        dtype=float,
     )
 
 
-def proper_to_supercomoving_time(cosmology, time_cosmic_code):
+def proper_to_supercomoving_time(cosmology: Any, time_cosmic_code: Any) -> FloatArray:
     """Convert cosmic code time to supercomoving code time."""
-    return np.asarray(
-        cosmology.supercomoving_time(np.asarray(time_cosmic_code, dtype=float)),
-        dtype=float,
+    return cast(
+        "FloatArray",
+        np.asarray(
+            cosmology.supercomoving_time(np.asarray(time_cosmic_code, dtype=float)),
+            dtype=float,
+        ),
     )
 
 
-def to_proper_state(state, cosmology, code_units, gamma):
+def to_proper_state(
+    state: SupercomovingState,
+    cosmology: Any,
+    code_units: Any,
+    gamma: float,
+) -> ProperCgsState:
     """Convert a typed supercomoving code state to proper CGS values."""
     scales = code_unit_scales(code_units)
     tau = float(state.tau_supercomoving_code)
@@ -191,12 +209,12 @@ def to_proper_state(state, cosmology, code_units, gamma):
 
 
 def to_supercomoving_state(
-    state,
-    cosmology,
-    code_units,
-    tau_supercomoving_code,
-    gamma,
-):
+    state: ProperCgsState,
+    cosmology: Any,
+    code_units: Any,
+    tau_supercomoving_code: float,
+    gamma: float,
+) -> SupercomovingState:
     """Convert a proper CGS state to a typed supercomoving code state."""
     scales = code_unit_scales(code_units)
     tau = float(tau_supercomoving_code)

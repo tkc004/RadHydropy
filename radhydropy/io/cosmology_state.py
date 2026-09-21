@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Canonical HDF5 boundary for typed supercomoving cosmological states."""
 
+from typing import Any
+
 import h5py
 import numpy as np
 
@@ -13,7 +15,7 @@ from radhydropy.cosmology.state import (
 from radhydropy.units import code_unit_scales
 
 
-def _dataset(group, name, value, units, **metadata):
+def _dataset(group: Any, name: str, value: Any, units: str, **metadata: Any) -> Any:
     dataset = group.create_dataset(name, data=np.asarray(value, dtype=float))
     dataset.attrs["units"] = units
     for key, item in metadata.items():
@@ -22,14 +24,14 @@ def _dataset(group, name, value, units, **metadata):
 
 
 def write_supercomoving_state_hdf5(
-    filename,
+    filename: str,
     *,
-    state,
-    boundary_comoving_code,
-    width_comoving_code,
-    box_size_comoving_code,
-    code_units,
-):
+    state: SupercomovingState,
+    boundary_comoving_code: Any,
+    width_comoving_code: Any,
+    box_size_comoving_code: Any,
+    code_units: Any,
+) -> None:
     """Write a typed state using only canonical cosmological dataset names."""
     if not isinstance(state, SupercomovingState):
         raise TypeError("state must be a SupercomovingState")
@@ -119,7 +121,7 @@ def write_supercomoving_state_hdf5(
         )
 
 
-def read_supercomoving_state_hdf5(filename):
+def read_supercomoving_state_hdf5(filename: str) -> SupercomovingHdf5State:
     """Read and validate the canonical typed cosmological HDF5 state."""
     with h5py.File(filename, "r") as handle:
         header = handle["Header"]
