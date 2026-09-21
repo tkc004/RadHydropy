@@ -290,7 +290,7 @@ def _validate_radarray_operands(rad_inputs):
     for other in rad_inputs[1:]:
         if first.representation != other.representation:
             raise RepresentationMismatchError(
-                "RadArray arithmetic requires matching representations"
+                "RadArray arithmetic requires matching representations",
             )
         if first.cosmology != other.cosmology:
             raise ValueError("RadArray arithmetic requires matching cosmology contexts")

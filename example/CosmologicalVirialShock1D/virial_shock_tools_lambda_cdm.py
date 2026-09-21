@@ -397,14 +397,21 @@ def splashback_radius(
 
 
 def _find_temperature_shock_radius(
-    proper, rho_comoving_code, temp_phys, velocity_phys, rvir, rtarget
+    proper,
+    rho_comoving_code,
+    temp_phys,
+    velocity_phys,
+    rvir,
+    rtarget,
 ):
     finite_temperature = np.isfinite(temp_phys) & (temp_phys > 0.0)
     if np.count_nonzero(finite_temperature) < 7:  # noqa: PLR2004
         return np.nan
     log_temperature = np.log10(np.maximum(temp_phys, 1.0e-30))
     smoothed = np.convolve(
-        np.pad(log_temperature, (2, 2), mode="edge"), np.ones(5) / 5.0, mode="valid"
+        np.pad(log_temperature, (2, 2), mode="edge"),
+        np.ones(5) / 5.0,
+        mode="valid",
     )
     gradient = np.gradient(smoothed, np.log10(np.maximum(proper, 1.0e-12)))
     lower_radius = proper[0]
@@ -416,7 +423,7 @@ def _find_temperature_shock_radius(
     if np.isfinite(rvir) and rvir > proper[0]:
         upper_radius = min(upper_radius, 3.0 * rvir)
     candidates = np.flatnonzero(
-        finite_temperature & (proper > lower_radius) & (proper < upper_radius)
+        finite_temperature & (proper > lower_radius) & (proper < upper_radius),
     )
     resolved = []
     for local in candidates[gradient[candidates] < -0.05]:  # noqa: PLR2004

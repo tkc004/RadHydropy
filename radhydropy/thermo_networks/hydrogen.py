@@ -653,11 +653,10 @@ def _ionization_timestep(state, ngamma_cgs_cm3, source_CFL, verbose):
     neutral_dt = source_CFL * neutral_times[index]
     detail = None
     if verbose:
-        detail = "[source dt] neutral limiter cell=%d rate=%s scale=%s candidate=%s" % (
-            neutral_cell,
-            neutral_rate[neutral_cell],
-            scale[neutral_cell],
-            neutral_dt,
+        detail = (
+            f"[source dt] neutral limiter cell={neutral_cell} "
+            f"rate={neutral_rate[neutral_cell]} scale={scale[neutral_cell]} "
+            f"candidate={neutral_dt}"
         )
     return neutral_dt, detail
 
@@ -685,11 +684,11 @@ def _thermal_timestep(state, source_thermal_rate, source_CFL, verbose):
     thermal_dt = source_CFL * thermal_times[index]
     detail = None
     if verbose:
-        detail = "[source dt] thermal limiter cell=%d dudt=%s energy=%s candidate=%s" % (
-            thermal_cell,
-            dudt[thermal_cell],
-            state["specific_energy_cgs_erg_g"][thermal_cell],
-            thermal_dt,
+        detail = (
+            f"[source dt] thermal limiter cell={thermal_cell} "
+            f"dudt={dudt[thermal_cell]} "
+            f"energy={state['specific_energy_cgs_erg_g'][thermal_cell]} "
+            f"candidate={thermal_dt}"
         )
     return thermal_dt, detail
 
@@ -2578,7 +2577,11 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):  # 
             "'hybrid', 'trust_region', or 'split_implicit'",
         )
     compton_result = _try_compton_only_source(
-        state, par, code, source_solver, remaining_s,
+        state,
+        par,
+        code,
+        source_solver,
+        remaining_s,
     )
     if compton_result is not None:
         _fast_sync_state_to_fluid(state, fluid, par)
@@ -2820,10 +2823,15 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):  # 
                 "coupled implicit hydrogen source solve did not converge",
             )
 
-
     remaining_s, source_steps, absorbed_integral = _run_fast_source_loop(
-        state, par, code, remaining_s, zero_time_s, transport_result,
-        source_steps, absorbed_integral,
+        state,
+        par,
+        code,
+        remaining_s,
+        zero_time_s,
+        transport_result,
+        source_steps,
+        absorbed_integral,
     )
     _fast_sync_state_to_fluid(state, fluid, par)
     absorbed_rate = None
@@ -2845,18 +2853,22 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):  # 
     }
 
 
-
-
-def _run_fast_source_loop(state, par, code, remaining_s, zero_time_s, transport_result, source_steps, absorbed_integral):
+def _run_fast_source_loop(
+    state, par, code, remaining_s, zero_time_s, transport_result, source_steps, absorbed_integral
+):
     """Advance the RT-coupled source state through adaptive substeps."""
     while remaining_s > zero_time_s:
         remaining_s, transport_result, source_steps, absorbed_integral = _fast_source_iteration(
-            state, par, code, remaining_s, zero_time_s, transport_result,
-            source_steps, absorbed_integral,
+            state,
+            par,
+            code,
+            remaining_s,
+            zero_time_s,
+            transport_result,
+            source_steps,
+            absorbed_integral,
         )
     return remaining_s, source_steps, absorbed_integral
-
-
 
 
 def _fast_transport_step(state, par, code, transport_result, absorbed_integral):
@@ -2919,7 +2931,6 @@ def _fast_transport_step(state, par, code, transport_result, absorbed_integral):
     return transport_result, absorbed, absorbed_integral
 
 
-
 def _fast_prepare_substep(state):
     """Normalize the source state before choosing its adaptive step."""
     if state["hydrogen_update_mu"]:
@@ -2970,14 +2981,23 @@ def _fast_apply_chemistry_step(state, par, thermal_rate, sub_dt_s):
         _fast_update_temperature_from_energy(state)
 
 
-def _fast_source_iteration(state, par, code, remaining_s, zero_time_s, transport_result, source_steps, absorbed_integral):
+def _fast_source_iteration(
+    state, par, code, remaining_s, zero_time_s, transport_result, source_steps, absorbed_integral
+):
     """Advance one adaptive thermo-chemistry source substep."""
     transport_result, absorbed, absorbed_integral = _fast_transport_step(
-        state, par, code, transport_result, absorbed_integral,
+        state,
+        par,
+        code,
+        transport_result,
+        absorbed_integral,
     )
     temperature_before = _fast_prepare_substep(state)
     sub_dt_s, thermal_rate = _fast_choose_substep(
-        state, par, remaining_s, zero_time_s,
+        state,
+        par,
+        remaining_s,
+        zero_time_s,
     )
     _fast_apply_chemistry_step(state, par, thermal_rate, sub_dt_s)
     check_source_temperature(
@@ -2995,6 +3015,8 @@ def _fast_source_iteration(state, par, code, remaining_s, zero_time_s, transport
         source_steps + 1,
         absorbed_integral,
     )
+
+
 class HydrogenNetwork(ThermochemistryNetwork):
     """Hydrogen-only thermo-chemistry network."""
 

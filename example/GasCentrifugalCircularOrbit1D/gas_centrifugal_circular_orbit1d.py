@@ -4,9 +4,13 @@
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
+)
 
 ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parents[1]
@@ -458,8 +462,7 @@ def _compute_eccentric_orbit(
         radius_safe = max(orbit_radius, np.finfo(float).tiny)
         return (
             orbit_velocity,
-            specific_angular_momentum**2 / radius_safe**3
-            - central_mass / radius_safe**2,
+            specific_angular_momentum**2 / radius_safe**3 - central_mass / radius_safe**2,
         )
 
     reference = solve_ivp(
@@ -483,9 +486,7 @@ def _compute_eccentric_orbit(
         k2 = np.asarray(orbit_rhs(0.0, state + 0.5 * timestep * k1))
         k3 = np.asarray(orbit_rhs(0.0, state + 0.5 * timestep * k2))
         k4 = np.asarray(orbit_rhs(0.0, state + timestep * k3))
-        eccentric_state[:, index + 1] = state + timestep * (
-            k1 + 2.0 * k2 + 2.0 * k3 + k4
-        ) / 6.0
+        eccentric_state[:, index + 1] = state + timestep * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
     reference_eccentric = reference.sol(eccentric_times)
     if np.max(np.abs(eccentric_state[0] - reference_eccentric[0])) > 1.0e-8:  # noqa: PLR2004
         raise RuntimeError("eccentric orbit disagrees with analytic ODE")

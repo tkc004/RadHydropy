@@ -456,7 +456,8 @@ def _ambiguous_mapping_failures(filename, node):
 def _ambiguous_argument_failures(filename, node):
     arguments = [*node.args.args, *node.args.kwonlyargs]
     return [
-        f"{filename.relative_to(REPO_ROOT)}:{argument.lineno}: ambiguous physical parameter: {argument.arg}"
+        f"{filename.relative_to(REPO_ROOT)}:{argument.lineno}: "
+        f"ambiguous physical parameter: {argument.arg}"
         for argument in arguments
         if argument.arg in GENERIC_PHYSICAL_NAMES | AMBIGUOUS_PHYSICAL_NAMES
     ]
@@ -472,7 +473,8 @@ def _ambiguous_keyword_failures(filename, node):
     )
     allowed = INTENTIONAL_KEYWORD_EXCEPTIONS.get(callee_name, set())
     return [
-        f"{filename.relative_to(REPO_ROOT)}:{keyword.lineno}: ambiguous physical keyword: {keyword.arg}"
+        f"{filename.relative_to(REPO_ROOT)}:{keyword.lineno}: "
+        f"ambiguous physical keyword: {keyword.arg}"
         for keyword in node.keywords
         if keyword.arg in GENERIC_PHYSICAL_NAMES and keyword.arg not in allowed
     ]
@@ -556,7 +558,8 @@ def test_cosmological_diagnostics_do_not_mix_coordinate_representations():
         'rho_proper_code = np.asarray(profile["dm_rho_proper_code"]',
     )
     failures = [
-        f"{filename.relative_to(REPO_ROOT)}: proper DM diagnostic lost its proper representation: {text}"
+        f"{filename.relative_to(REPO_ROOT)}: proper DM diagnostic lost its "
+        f"proper representation: {text}"
         for text in required_assignments
         if text not in source
     ]

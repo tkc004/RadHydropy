@@ -188,7 +188,8 @@ def ApplyGravity(solver, dt, mesh, fluid, par):  # noqa: N802
     density_field = current_rho
     if np.shape(acceleration) != np.shape(density_field):
         raise ValueError(
-            f"Gravity acceleration shape {np.shape(acceleration)} does not match fluid state shape {np.shape(density_field)}",
+            f"Gravity acceleration shape {np.shape(acceleration)} does not match "
+            f"fluid state shape {np.shape(density_field)}",
         )
     gravity_acceleration = acceleration.copy()
     rotational_acceleration = _rotational_acceleration(
@@ -307,11 +308,10 @@ def _limit_rotational_source(
         ),
     )
     rotational_energy = np.zeros_like(mass)
-    valid_rotational = (
-        (mass > 0.0) & (radius > 0.0) & np.isfinite(angular) & np.isfinite(radius)
-    )
+    valid_rotational = (mass > 0.0) & (radius > 0.0) & np.isfinite(angular) & np.isfinite(radius)
     rotational_energy[valid_rotational] = (
-        0.5 * angular[valid_rotational] ** 2
+        0.5
+        * angular[valid_rotational] ** 2
         / (mass[valid_rotational] * radius[valid_rotational] ** 2)
     )
     available_radial_energy = new_energy - rotational_energy
@@ -325,9 +325,7 @@ def _limit_rotational_source(
 
     def source_admissible(index, factor):
         trial_momentum = gravity_momentum[index] + factor * source_increment[index]
-        trial_kinetic = (
-            0.5 * trial_momentum**2 / mass[index] if mass[index] > 0.0 else 0.0
-        )
+        trial_kinetic = 0.5 * trial_momentum**2 / mass[index] if mass[index] > 0.0 else 0.0
         tolerance = 1.0e-12 * max(
             abs(new_energy[index]),
             abs(rotational_energy[index]),

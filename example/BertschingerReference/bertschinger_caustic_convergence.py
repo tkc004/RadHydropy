@@ -85,8 +85,10 @@ def main():
         handle.write("parameter value samples median_lambda scatter_lambda ode_lambda offset\n")
         for row in result:
             handle.write(
-                "%s %.8g %d %.8g %.8g %.8g %.8g\n"
-                % (*row, row["median_lambda"] - row["ode_lambda"]),
+                f"{row['parameter']} {row['value']:.8g} {row['samples']} "
+                f"{row['median_lambda']:.8g} {row['scatter_lambda']:.8g} "
+                f"{row['ode_lambda']:.8g} "
+                f"{row['median_lambda'] - row['ode_lambda']:.8g}\n",
             )
 
     figure, axes = plt.subplots(1, len(CASES), figsize=(15, 3.5), sharey=True)

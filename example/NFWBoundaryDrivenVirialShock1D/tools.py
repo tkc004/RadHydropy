@@ -340,8 +340,10 @@ def shock_history(filenames, halo, config, times_myr=None):
 def write_report(rows, filename):
     with Path(filename).open("w", encoding="utf-8") as stream:
         stream.write(
-            "time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200_dimensionless density_ratio_dimensionless "
-            "temperature_ratio_dimensionless velocity_inner_proper_km_s velocity_outer_proper_km_s\n",
+            "time_proper_Myr shock_radius_proper_kpc "
+            "shock_radius_over_R200_dimensionless density_ratio_dimensionless "
+            "temperature_ratio_dimensionless velocity_inner_proper_km_s "
+            "velocity_outer_proper_km_s\n",
         )
         stream.writelines(
             "{time_proper_Myr:.8g} {shock_radius_proper_kpc:.8g} "

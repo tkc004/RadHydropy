@@ -611,7 +611,7 @@ def run(
         output_dir = output_dir.with_name(output_dir.name + str(output_suffix))
     if resolution_override is not None:
         output_dir = output_dir.with_name(
-            "%s_%d" % (output_dir.name, int(resolution_override)),
+            f"{output_dir.name}_{int(resolution_override)}",
         )
     if not smooth_force:
         output_dir = output_dir.with_name(output_dir.name + "_raw_shell_force")

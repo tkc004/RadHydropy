@@ -5,6 +5,7 @@
 import argparse
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import matplotlib as mpl
@@ -19,7 +20,10 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
         sys.path.insert(0, str(path))
 sys.path.insert(0, str(EXAMPLE_DIR.parent))
 
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
+)
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -188,7 +192,10 @@ def main(config_filename=DEFAULT_CONFIG):
             )
             results.append(
                 {
-                    "label": rf"$n_H={hydrogen_number_density_cgs_cm3:g},\ T_0={temperature_proper:.0e}$",
+                    "label": (
+                        rf"$n_H={hydrogen_number_density_cgs_cm3:g},\ "
+                        rf"T_0={temperature_proper:.0e}$"
+                    ),
                     "hydrogen_number_density_cgs_cm3": hydrogen_number_density_cgs_cm3,
                     "temperature_initial_proper_K": temperature_proper,
                     "temperature_equilibrium_cgs_K": temperature_equilibrium_cgs_K,
@@ -303,7 +310,10 @@ def main(config_filename=DEFAULT_CONFIG):
         ax_temp.legend(frameon=False, fontsize=8, ncol=2)
         ax_error.legend(frameon=False, fontsize=8, ncol=2)
         fig.suptitle(
-            rf"HM12 PIE timescale test: $n_H={hydrogen_number_density_cgs_cm3:g}\ {{\rm cm^{{-3}}}}$",
+            (
+                rf"HM12 PIE timescale test: $n_H={hydrogen_number_density_cgs_cm3:g}\ "
+                rf"{{\rm cm^{{-3}}}}$"
+            ),
         )
         fig.tight_layout()
         figure = (

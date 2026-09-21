@@ -11,9 +11,13 @@ import argparse
 import copy
 import os
 import sys
+import tempfile
 from pathlib import Path
 
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/radhydropy-matplotlib")
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
+)
 ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -91,7 +95,7 @@ def integrate_shell_reference(initial, config, scale_factors):
         )
         if not solution.success:
             raise RuntimeError(
-                "shell ODE failed for shell %d: %s" % (shell, solution.message),
+                f"shell ODE failed for shell {shell}: {solution.message}",
             )
         reference[:, shell] = solution.y[0]
     reference /= np.asarray(cosmology.scale_factor(cosmic_times), dtype=float)[:, None]
@@ -201,7 +205,7 @@ def _integrate_density_reference_edges(
         )
         if not solution.success:
             raise RuntimeError(
-                "density shell ODE failed at edge %d: %s" % (edge, solution.message),
+                f"density shell ODE failed at edge {edge}: {solution.message}",
             )
         physical_edges[:, edge] = solution.y[0]
     return physical_edges

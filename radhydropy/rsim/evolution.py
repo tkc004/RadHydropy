@@ -63,13 +63,9 @@ def _advance_until(
                 else 100.0 * float(getattr(sim.fluid, time_field)) / final_time_value
             )
             print(
-                "--- hydro step %d: time=%.6e dt=%.6e (%.2f%%) ---"
-                % (
-                    progress_steps,
-                    float(getattr(sim.fluid, time_field)),
-                    float(dt),
-                    progress_percent,
-                ),
+                f"--- hydro step {progress_steps}: "
+                f"time={float(getattr(sim.fluid, time_field)):.6e} "
+                f"dt={float(dt):.6e} ({progress_percent:.2f}%) ---",
                 flush=True,
             )
         if history_callback is not None:

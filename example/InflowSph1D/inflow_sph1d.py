@@ -27,29 +27,32 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 from example import example_utils as eu
-from example.AdvectionSph1D import tools as et
+from example.InflowSph1D import tools as et
 
-DEFAULT_CONFIG = Path(__file__).resolve().with_name("advectionSph1d.yaml")
+DEFAULT_CONFIG = Path(__file__).resolve().with_name("InflowSph1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
     Path.cwd().resolve()
     config = eu.load_nested_example_config(config_filename)
 
-    exampleparams = config["example"]
+    output = config["par"]["output"]
     eu.clean_previous_outputs(config)
     code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
     config["_code_units"] = code_units_obj
     ric = et.build_initial_condition(config)
-    ric.write(config["par"]["simulation"]["initial_condition_filename"])
+    ric.write(
+        config["par"]["simulation"]["initial_condition_filename"],
+        validate=True,
+    )
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
-    plt.gca()
-    color_cycle = iter(mpl.rcParams["axes.prop_cycle"])
-    for outindex in exampleparams["output_indices"]:
-        outfilename = Path(config["par"]["output"]["directory"]) / (
-            config["par"]["output"]["filename_prefix"] + "_%03d" % outindex + ".hdf5"
+    ax = plt.gca()
+    color_cycle = iter(plt.rcParams["axes.prop_cycle"])
+    for outindex in range(0, 9, 2):
+        outfilename = Path(output["directory"]) / (
+            f"{output['filename_prefix']}_{outindex:03d}.hdf5"
         )
         et.plot_snapshot(
             outfilename,
@@ -57,17 +60,17 @@ def main(config_filename=DEFAULT_CONFIG):
             ls="none",
             marker="o",
             mfc="none",
-            markevery=10,
+            markevery=1,
             color=next(color_cycle)["color"],
         )
-    figure_filename = Path(config["par"]["output"]["directory"]) / exampleparams["plot"]["filename"]
+    figure_filename = Path(output["directory"]) / config["example"]["plot_filename"]
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run the spherical advection example.")
+    parser = argparse.ArgumentParser(description="Run the spherical inflow example.")
     parser.add_argument(
         "--config",
         default=DEFAULT_CONFIG,

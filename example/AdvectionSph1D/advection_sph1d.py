@@ -27,11 +27,9 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 from example import example_utils as eu
-from example.SedovTaylorSph1d import tools as et
+from example.AdvectionSph1D import tools as et
 
-et.set_plot_style()
-
-DEFAULT_CONFIG = Path(__file__).resolve().with_name("SedovTaylorSph1d.yaml")
+DEFAULT_CONFIG = Path(__file__).resolve().with_name("advectionSph1d.yaml")
 
 
 def main(config_filename=DEFAULT_CONFIG):
@@ -39,7 +37,6 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
     exampleparams = config["example"]
-    output = config["par"]["output"]
     eu.clean_previous_outputs(config)
     code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 
@@ -48,11 +45,11 @@ def main(config_filename=DEFAULT_CONFIG):
     ric.write(config["par"]["simulation"]["initial_condition_filename"])
     mainrun = Rsim(config["par"])
     mainrun.RunAll(outputtime=0)
-    ax = plt.gca()
-    color_cycle = iter(plt.rcParams["axes.prop_cycle"])
+    plt.gca()
+    color_cycle = iter(mpl.rcParams["axes.prop_cycle"])
     for outindex in exampleparams["output_indices"]:
-        outfilename = Path(output["directory"]) / (
-            output["filename_prefix"] + "_%03d" % outindex + ".hdf5"
+        outfilename = Path(config["par"]["output"]["directory"]) / (
+            f"{config['par']['output']['filename_prefix']}_{outindex:03d}.hdf5"
         )
         et.plot_snapshot(
             outfilename,
@@ -60,21 +57,21 @@ def main(config_filename=DEFAULT_CONFIG):
             ls="none",
             marker="o",
             mfc="none",
-            markevery=1,
+            markevery=10,
             color=next(color_cycle)["color"],
         )
-    figure_filename = Path(output["directory"]) / exampleparams["plot_filename"]
+    figure_filename = Path(config["par"]["output"]["directory"]) / exampleparams["plot"]["filename"]
     plt.tight_layout()
     plt.savefig(figure_filename, dpi=200)
     plt.close()
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run the spherical Sedov-Taylor example.")
+    parser = argparse.ArgumentParser(description="Run the spherical advection example.")
     parser.add_argument(
         "--config",
         default=DEFAULT_CONFIG,
-        help='YAML file with config["par"] and initial_condition.',
+        help="YAML file with nested runtime and initial-condition settings.",
     )
     return parser.parse_args()
 

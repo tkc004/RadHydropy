@@ -306,9 +306,7 @@ def _limit_face_corrections(
         kinetic_new = 0.5 * mom_new[index] ** 2 / mass_new[index]
         radius_value = abs(float(coordinate[index]))
         rotational_new = (
-            0.5 * value**2 / (mass_new[index] * radius_value**2)
-            if radius_value > 0.0
-            else 0.0
+            0.5 * value**2 / (mass_new[index] * radius_value**2) if radius_value > 0.0 else 0.0
         )
         return angular_ok and energy_value >= kinetic_new + rotational_new
 
@@ -321,14 +319,17 @@ def _limit_face_corrections(
             continue
         increment = dt * correction_area[face]
 
-        trial_valid = lambda alpha: valid_cell(  # noqa: E731
-            left,
-            trial_angular[left] - alpha * increment,
-            trial_energy[left] - alpha * dt * rotational_correction_area[face],
-        ) and valid_cell(
-            right,
-            trial_angular[right] + alpha * increment,
-            trial_energy[right] + alpha * dt * rotational_correction_area[face],
+        trial_valid = lambda alpha: (
+            valid_cell(  # noqa: E731
+                left,
+                trial_angular[left] - alpha * increment,
+                trial_energy[left] - alpha * dt * rotational_correction_area[face],
+            )
+            and valid_cell(
+                right,
+                trial_angular[right] + alpha * increment,
+                trial_energy[right] + alpha * dt * rotational_correction_area[face],
+            )
         )
 
         if trial_valid(1.0):

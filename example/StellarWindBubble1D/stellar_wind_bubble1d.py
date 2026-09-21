@@ -43,7 +43,7 @@ def load_snapshots(config, max_outputs=10, start_index=1):
     snapshots = []
     for outindex in range(start_index, max_outputs):
         outfilename = Path(config["par"]["output"]["directory"]) / (
-            config["par"]["output"]["filename_prefix"] + "_%03d" % outindex + ".hdf5"
+            f"{config['par']['output']['filename_prefix']}_{outindex:03d}.hdf5"
         )
         snapshots.append(et.load_output_state(outfilename, config))
     return snapshots

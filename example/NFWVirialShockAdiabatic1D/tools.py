@@ -220,7 +220,8 @@ def write_rankine_hugoniot_report(rows, filename):
             "{time_proper_Myr:.8g} {shock_radius_proper_kpc:.8g} "
             "{shock_radius_over_R200:.8g} {shock_speed_proper_km_s:.8g} "
             "{mach_number_dimensionless:.8g} {density_ratio_measured_dimensionless:.8g} "
-            "{density_ratio_predicted_dimensionless:.8g} {temperature_ratio_measured_dimensionless:.8g} "
+            "{density_ratio_predicted_dimensionless:.8g} "
+            "{temperature_ratio_measured_dimensionless:.8g} "
             "{temperature_ratio_predicted_dimensionless:.8g}\n".format(**row)
             for row in rows
         )

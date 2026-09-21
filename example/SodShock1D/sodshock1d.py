@@ -49,9 +49,7 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     mainrun = Rsim(config["par"])
     mainrun.RunAll()
     outindex = exampleparams["output_index"]
-    outfilename = (
-        Path(output["directory"]) / output["filename_prefix"] + "_%03d" % outindex + ".hdf5"
-    )
+    outfilename = Path(output["directory"]) / f"{output['filename_prefix']}_{outindex:03d}.hdf5"
     et.plot_snapshot(
         outfilename,
         config,

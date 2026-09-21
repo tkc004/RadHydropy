@@ -229,8 +229,12 @@ def _evolve_bertschinger_shells(
         next_time = float(cosmology.cosmic_time_from_supercomoving(tau + dt))
         a_start = float(cosmology.scale_factor(time_cosmic_code))
         background = (
-            4.0 * np.pi / 3.0 * float(cosmology.background_density(time_cosmic_code))
-            * a_start**3 * shells.radius**3
+            4.0
+            * np.pi
+            / 3.0
+            * float(cosmology.background_density(time_cosmic_code))
+            * a_start**3
+            * shells.radius**3
         )
         tau_start = tau
         actual_dt = shells.step(
@@ -243,7 +247,11 @@ def _evolve_bertschinger_shells(
             include_shell_mass_with_fixed=True,
             state_callback=lambda elapsed, a, radius, velocity, mass, shell_id: tracker.observe(
                 float(cosmology.cosmic_time_from_supercomoving(tau_start + elapsed)),
-                a, radius, velocity, mass, shell_id,
+                a,
+                radius,
+                velocity,
+                mass,
+                shell_id,
             ),
         )
         central_shell = shells.radius <= float(initial_condition["softening"])
@@ -266,14 +274,21 @@ def _evolve_bertschinger_shells(
         lambda_values.extend((radius_proper_code[selected] / turnaround).tolist())
         turnaround_values.append((time_cosmic_code, turnaround))
         caustic = _outer_lagrangian_caustic_radius(
-            shells, initial_q, time_cosmic_code, config, turnaround,
+            shells,
+            initial_q,
+            time_cosmic_code,
+            config,
+            turnaround,
             smoothing_bins=caustic_smoothing,
         )
         if caustic is not None and np.isfinite(caustic):
             caustic_values.append((xi, caustic / turnaround))
         if next_profile < profile_targets.size and xi >= profile_targets[next_profile]:
             profile = _density_slope_profile(
-                shells, time_cosmic_code, config, turnaround,
+                shells,
+                time_cosmic_code,
+                config,
+                turnaround,
                 bins=int(example.get("slope_profile_bins", 192)),
                 smoothing_bins=float(example.get("slope_smoothing_bins", 3.0)),
             )

@@ -528,7 +528,10 @@ def _restore_hdf5_scalar_attributes(par, header):
 def _restore_hdf5_header_attributes(par, header):
     """Restore code units, scalar attributes, and cosmology metadata."""
     if "CodeUnits" not in header.attrs:
-        raise ValueError("IC file is missing Header.attrs['CodeUnits']; cannot read datasets without a code-unit mapping.")
+        raise ValueError(
+            "IC file is missing Header.attrs['CodeUnits']; "
+            "cannot read datasets without a code-unit mapping."
+        )
     code_units = _restore_header_attr_value(header.attrs["CodeUnits"])
     if isinstance(code_units, dict):
         code_units = CodeUnits.from_mapping(code_units)
@@ -548,33 +551,54 @@ def _identify_hdf5_schema(par, header, expected_coordsys, expected_nogrid):
     """Validate the canonical header schema and return its representation."""
     coordinate_system = par.simulation.coordinate_system
     if expected_coordsys is not None and coordinate_system != expected_coordsys:
-        raise Exception(f"Coordinate systems in IC ({coordinate_system}) and run ({expected_coordsys}) do not agree!")
+        raise Exception(
+            f"Coordinate systems in IC ({coordinate_system}) and run "
+            f"({expected_coordsys}) do not agree!"
+        )
     grid_cells = par.mesh.grid_cells
     if expected_nogrid is not None and grid_cells != expected_nogrid:
-        raise Exception(f"Number of grids in IC ({grid_cells}) and run ({expected_nogrid}) do not agree!")
-    generic_names = _GENERIC_HEADER_DATASETS.intersection(header.keys()) or _GENERIC_HEADER_DATASETS.intersection(header.attrs.keys())
+        raise Exception(
+            f"Number of grids in IC ({grid_cells}) and run ({expected_nogrid}) do not agree!"
+        )
+    generic_names = _GENERIC_HEADER_DATASETS.intersection(
+        header.keys()
+    ) or _GENERIC_HEADER_DATASETS.intersection(header.attrs.keys())
     if generic_names:
         names = ", ".join(sorted(generic_names))
-        raise ValueError(f"HDF5 header uses unsupported generic field name(s): {names}; use the representation-specific schema")
+        raise ValueError(
+            f"HDF5 header uses unsupported generic field name(s): {names}; "
+            "use the representation-specific schema"
+        )
     cosmological = "tau_supercomoving_code" in header or "box_size_comoving_code" in header
     proper = "time_proper_code" in header or "box_size_proper_code" in header
     if cosmological and proper:
         raise ValueError("HDF5 header mixes cosmological and proper schemas")
     if not cosmological and not proper:
-        raise ValueError("HDF5 header has no canonical representation-specific time and box-size datasets")
-    required = {"tau_supercomoving_code", "box_size_comoving_code"} if cosmological else {"time_proper_code", "box_size_proper_code"}
+        raise ValueError(
+            "HDF5 header has no canonical representation-specific time and box-size datasets"
+        )
+    required = (
+        {"tau_supercomoving_code", "box_size_comoving_code"}
+        if cosmological
+        else {"time_proper_code", "box_size_proper_code"}
+    )
     missing = required.difference(header.keys())
     if missing:
-        raise ValueError(f"HDF5 header is missing canonical dataset(s): {', '.join(sorted(missing))}")
+        raise ValueError(
+            f"HDF5 header is missing canonical dataset(s): {', '.join(sorted(missing))}"
+        )
     return cosmological
 
 
 def _synchronize_hdf5_header(par, fluid, header, code_units, cosmological):
     """Populate typed header values and synchronize the restored runtime clock."""
     metadata_fields = {
-        "CoordinateFrame": "coordinate_frame", "TimeCoordinate": "time_coordinate",
-        "VelocityRepresentation": "velocity_representation", "DensityRepresentation": "density_representation",
-        "PressureRepresentation": "pressure_representation", "TemperatureRepresentation": "temperature_representation",
+        "CoordinateFrame": "coordinate_frame",
+        "TimeCoordinate": "time_coordinate",
+        "VelocityRepresentation": "velocity_representation",
+        "DensityRepresentation": "density_representation",
+        "PressureRepresentation": "pressure_representation",
+        "TemperatureRepresentation": "temperature_representation",
     }
     for header_name, parameter_name in metadata_fields.items():
         if header_name in header.attrs:
@@ -593,7 +617,9 @@ def _synchronize_hdf5_header(par, fluid, header, code_units, cosmological):
     time_field = "tau_supercomoving_code" if cosmological else "time_proper_code"
     box_field = "box_size_comoving_code" if cosmological else "box_size_proper_code"
     _populate_group_targets(
-        header, (par,), code_units=code_units,
+        header,
+        (par,),
+        code_units=code_units,
         scale_map={time_field: "time_s", box_field: "length_cgs_cm"},
     )
     runtime_time = getattr(par, time_field)
@@ -647,17 +673,37 @@ def _read_hdf5_data(par, mesh, fluid, fic, header, code_units, canonical_cosmolo
     snapshot_cosmology = getattr(par, "cosmology_context", None)
     schema = "cosmological" if canonical_cosmological_schema else "proper"
     _attach_radarray_views(
-        gdata, mesh, gdata, schema, code_units, snapshot_cosmology,
+        gdata,
+        mesh,
+        gdata,
+        schema,
+        code_units,
+        snapshot_cosmology,
         allowed_names={"boundary_proper_code", "boundary_comoving_code"},
     )
     _attach_radarray_views(
-        gdata, fluid, gdata, schema, code_units, snapshot_cosmology,
+        gdata,
+        fluid,
+        gdata,
+        schema,
+        code_units,
+        snapshot_cosmology,
         allowed_names={
-            "rho_proper_code", "rho_comoving_code", "vel_proper_code",
-            "vel_supercomoving_code", "temp_proper_code", "temp_supercomoving_code",
-            "pre_proper_code", "pre_supercomoving_code", "Mass_code", "Energy_code",
-            "InternalEnergy_code", "GravitationalPotentialEnergy_code", "AngularMomentum_code",
-            "specific_angular_momentum_code", "ngamma_code",
+            "rho_proper_code",
+            "rho_comoving_code",
+            "vel_proper_code",
+            "vel_supercomoving_code",
+            "temp_proper_code",
+            "temp_supercomoving_code",
+            "pre_proper_code",
+            "pre_supercomoving_code",
+            "Mass_code",
+            "Energy_code",
+            "InternalEnergy_code",
+            "GravitationalPotentialEnergy_code",
+            "AngularMomentum_code",
+            "specific_angular_momentum_code",
+            "ngamma_code",
         },
     )
     _restore_runtime_state(par, fluid, gdata, canonical_cosmological_schema)
@@ -676,10 +722,13 @@ def _restore_runtime_state(par, fluid, gdata, canonical_cosmological_schema):
             SUPERCOMOVING_RUNTIME_FIELDS,
             rho_comoving_code=fluid.rho_comoving_code,
             vel_supercomoving_code=fluid.vel_supercomoving_code,
-            pre_supercomoving_code=getattr(fluid, "pre_supercomoving_code", np.zeros_like(fluid.rho_comoving_code)),
+            pre_supercomoving_code=getattr(
+                fluid, "pre_supercomoving_code", np.zeros_like(fluid.rho_comoving_code)
+            ),
             temp_supercomoving_code=fluid.temp_supercomoving_code,
             tau_supercomoving_code=getattr(fluid, "tau_supercomoving_code", 0.0),
-            mu_dimensionless=getattr(fluid, "mu", None), xHI_dimensionless=getattr(fluid, "xHI", None),
+            mu_dimensionless=getattr(fluid, "mu", None),
+            xHI_dimensionless=getattr(fluid, "xHI", None),
         )
         return
     fluid.runtime_fields = PROPER_RUNTIME_FIELDS
@@ -690,7 +739,8 @@ def _restore_runtime_state(par, fluid, gdata, canonical_cosmological_schema):
         pre_proper_code=getattr(fluid, "pre_proper_code", np.zeros_like(fluid.rho_proper_code)),
         temp_proper_code=fluid.temp_proper_code,
         time_proper_code=getattr(fluid, "time_proper_code", 0.0),
-        mu_dimensionless=getattr(fluid, "mu", None), xHI_dimensionless=getattr(fluid, "xHI", None),
+        mu_dimensionless=getattr(fluid, "mu", None),
+        xHI_dimensionless=getattr(fluid, "xHI", None),
     )
 
 
@@ -721,19 +771,27 @@ def _restore_field_metadata(par, gdata):
 def _restore_dark_matter_snapshot(par, dmdata, code_units, schema):
     """Restore optional dark-matter shell and analysis state."""
     dm_scale_map = {
-        "Radius": "length_cgs_cm", "RadialVelocity": "velocity_cgs_cm_s",
-        "Mass": "mass_g", "SpecificAngularMomentum": "specific_angular_momentum",
+        "Radius": "length_cgs_cm",
+        "RadialVelocity": "velocity_cgs_cm_s",
+        "Mass": "mass_g",
+        "SpecificAngularMomentum": "specific_angular_momentum",
     }
     _populate_group_targets(dmdata, (par,), code_units=code_units, scale_map=dm_scale_map)
     snapshot = {
-        "radius": par.Radius, "velocity": par.RadialVelocity, "mass": par.Mass,
+        "radius": par.Radius,
+        "velocity": par.RadialVelocity,
+        "mass": par.Mass,
         "angular_momentum": par.SpecificAngularMomentum,
         "softening": _restore_header_attr_value(dmdata.attrs.get("Softening", 0.0)),
     }
     par.dark_matter_snapshot = snapshot
     par.dark_matter = DarkMatterShells(**snapshot, code_units=code_units)
     par.dark_matter_radarrays = _attach_dark_matter_radarray_views(
-        dmdata, par, code_units, getattr(par, "cosmology_context", None), schema,
+        dmdata,
+        par,
+        code_units,
+        getattr(par, "cosmology_context", None),
+        schema,
     )
 
 
@@ -749,10 +807,16 @@ def readhdf5(par, mesh, fluid, ICfilename):  # noqa: N803
         expected_coordsys = par.simulation.coordinate_system
         expected_nogrid = getattr(getattr(par, "mesh", None), "grid_cells", None)
         header, code_units, canonical_cosmological_schema = _read_hdf5_header(
-            par, fluid, fic, expected_coordsys, expected_nogrid,
+            par,
+            fluid,
+            fic,
+            expected_coordsys,
+            expected_nogrid,
         )
         _read_hdf5_data(par, mesh, fluid, fic, header, code_units, canonical_cosmological_schema)
         return
+
+
 def loadhdf5(config, ICfilename):  # noqa: N803
     """Construct and load an ``Rsim`` from a nested configuration.
 

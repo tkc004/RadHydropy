@@ -5,7 +5,8 @@
 This example is from STARBENCH: The D-type expansion of an H II region
 https://arxiv.org/abs/1507.05621v1
 
-(Late phase of the expansion: note the neutral gas is at 10^3 K, not 10^2 K as in the early phase example.)
+(Late phase of the expansion: note the neutral gas is at 10^3 K, not 10^2 K
+as in the early phase example.)
 
 This example follows the hydrodynamic expansion of a central photoionized
 region around a source at the origin. The gas is pure hydrogen, spherical,
@@ -34,8 +35,8 @@ if str(example_root) not in sys.path:
 
 cache_dir = Path(tempfile.gettempdir()) / "radhydropy-cache"
 mplconfig_dir = Path(tempfile.gettempdir()) / "radhydropy-matplotlib"
-os.makedirs(cache_dir, exist_ok=True)
-os.makedirs(mplconfig_dir, exist_ok=True)
+cache_dir.mkdir(parents=True, exist_ok=True)
+mplconfig_dir.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
 os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 

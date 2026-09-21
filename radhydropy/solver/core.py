@@ -1811,8 +1811,8 @@ class Solver:
                 high *= 2.0
             if not reservoir_valid(high):
                 raise ValueError(
-                    "wind reservoir could not restore conservative "
-                    "energy admissibility at cell %d" % index,
+                    f"wind reservoir could not restore conservative "
+                    f"energy admissibility at cell {index}",
                 )
             for _ in range(64):
                 middle = 0.5 * (low + high)
@@ -2429,9 +2429,9 @@ class Solver:
             invalid = ~valid(mass, momentum, energy, total_angular)
             index = int(np.flatnonzero(invalid)[0])
             raise ValueError(
-                "hydro state is outside positivity domain after face update "
-                "at cell %d (mass=%s mom=%s energy=%s)"
-                % (index, mass[index], momentum[index], energy[index]),
+                f"hydro state is outside positivity domain after face update "
+                f"at cell {index} (mass={mass[index]} mom={momentum[index]} "
+                f"energy={energy[index]})",
             )
 
         fluid.Mass_code[...] = mass
@@ -2546,8 +2546,8 @@ class Solver:
             and energy[first] >= kinetic
         ):
             raise ValueError(
-                "WindSph reservoir correction produced an inadmissible "
-                "conserved state at cell %d" % first,
+                f"WindSph reservoir correction produced an inadmissible "
+                f"conserved state at cell {first}",
             )
         self._last_wind_reservoir_mass = (
             getattr(self, "_last_wind_reservoir_mass", 0.0) + correction_mass

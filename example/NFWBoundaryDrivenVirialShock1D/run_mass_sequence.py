@@ -111,7 +111,8 @@ def _case_diagnostics(config_filename):
 def _write_summary(cases, filename):
     with Path(filename).open("w", encoding="utf-8") as stream:
         stream.write(
-            "halo_mass_proper_Msun time_proper_Myr shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n",
+            "halo_mass_proper_Msun time_proper_Myr "
+            "shock_radius_over_R200_dimensionless gamma_eff_dimensionless status\n",
         )
         for case in cases:
             for time_proper_Myr, radius_dimensionless, gamma_eff_dimensionless in zip(
@@ -130,7 +131,8 @@ def _write_summary(cases, filename):
                 else:
                     status = "supported"
                 stream.write(
-                    f"{case['mass_proper_Msun']:.8g} {time_proper_Myr:.8g} {radius_dimensionless:.8g} "
+                    f"{case['mass_proper_Msun']:.8g} {time_proper_Myr:.8g} "
+                    f"{radius_dimensionless:.8g} "
                     f"{gamma_eff_dimensionless:.8g} {status}\n",
                 )
 

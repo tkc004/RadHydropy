@@ -190,7 +190,8 @@ def _run_case(config, label, hydrogen_number_density_cgs_cm3, temperature_proper
 def _write_report(results, config, filename):
     with open(filename, "w", encoding="utf-8") as report:
         report.write(
-            "case nH_cgs_cm3 T_initial_proper_cgs_K T_final_proper_cgs_K T_equilibrium_proper_cgs_K "
+            "case nH_cgs_cm3 T_initial_proper_cgs_K "
+            "T_final_proper_cgs_K T_equilibrium_proper_cgs_K "
             "initial_net_rate_cgs_erg_cm3_s thermal_time_proper_Myr "
             "density_relative_change\n",
         )

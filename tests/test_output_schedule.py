@@ -139,7 +139,7 @@ class Testing(unittest.TestCase):
 
             def fake_write(current_sim, index):
                 writes.append((index, fluid.time_proper_code.copy()))
-                return str(Path(tmpdir) / ("output_%d.hdf5" % index))
+                return str(Path(tmpdir) / f"output_{index}.hdf5")
 
             def fake_step(dt=None, mode=None, **kwargs):
                 fluid.time_proper_code += dt
@@ -178,7 +178,7 @@ class Testing(unittest.TestCase):
             callbacks = []
 
             def fake_write(current_sim, index):
-                filename = Path(tmpdir) / ("written_%d.hdf5" % index)
+                filename = Path(tmpdir) / f"written_{index}.hdf5"
                 filename.touch()
                 return str(filename)
 
@@ -218,9 +218,9 @@ class Testing(unittest.TestCase):
             events = []
 
             def fake_write(current_sim, index):
-                filename = Path(tmpdir) / ("ordered_%d.hdf5" % index)
+                filename = Path(tmpdir) / f"ordered_{index}.hdf5"
                 filename.touch()
-                events.append("write_%d" % index)
+                events.append(f"write_{index}")
                 return str(filename)
 
             def fake_get_step_time(dt=None, final_time=None):
@@ -241,7 +241,7 @@ class Testing(unittest.TestCase):
                     before_step_callback=lambda current_sim: events.append("before_step"),
                     history_callback=lambda current_sim: events.append("history"),
                     snapshot_callback=lambda current_sim, filename, index: events.append(
-                        "snapshot_%d" % index,
+                        f"snapshot_{index}",
                     ),
                 )
 
@@ -279,15 +279,15 @@ class Testing(unittest.TestCase):
             sim.Evolve = lambda **kwargs: events.append("evolve")
 
             def fake_write(current_sim, index):
-                filename = Path(tmpdir) / ("fixed_%d.hdf5" % index)
+                filename = Path(tmpdir) / f"fixed_{index}.hdf5"
                 filename.touch()
-                events.append("write_%d" % index)
+                events.append(f"write_{index}")
                 return str(filename)
 
             with mock.patch.object(rio, "write_numbered_hdf5", side_effect=fake_write):
                 sim.Run(
                     snapshot_callback=lambda current_sim, filename, index: events.append(
-                        "snapshot_%d_exists_%s" % (index, Path(filename).exists()),
+                        f"snapshot_{index}_exists_{Path(filename).exists()}",
                     ),
                 )
 
@@ -313,7 +313,7 @@ class Testing(unittest.TestCase):
             sim.WriteUsedParameters = lambda: None
 
             def fake_write(current_sim, index):
-                filename = Path(tmpdir) / ("fixed_%d.hdf5" % index)
+                filename = Path(tmpdir) / f"fixed_{index}.hdf5"
                 filename.touch()
                 return str(filename)
 

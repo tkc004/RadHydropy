@@ -16,8 +16,8 @@ from pathlib import Path
 
 cache_dir = Path(tempfile.gettempdir()) / "radhydropy-cache"
 mplconfig_dir = Path(tempfile.gettempdir()) / "radhydropy-matplotlib"
-os.makedirs(cache_dir, exist_ok=True)
-os.makedirs(mplconfig_dir, exist_ok=True)
+cache_dir.mkdir(parents=True, exist_ok=True)
+mplconfig_dir.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
 os.environ.setdefault("MPLCONFIGDIR", str(mplconfig_dir))
 
@@ -214,8 +214,7 @@ def _run_converged_case(config, label, temperature_proper_unyt):
             return fine
         coarse = fine
     raise RuntimeError(
-        "%s: implicit source timestep failed to converge after %d refinements"
-        % (label, max_refinements),
+        f"{label}: implicit source timestep failed to converge after {max_refinements} refinements",
     )
 
 

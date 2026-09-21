@@ -52,8 +52,7 @@ def _pad_proper_fluid_fields(fluid, par, code_units):
             np.concatenate((np.zeros(noghost), values, np.zeros(noghost))),
         )
     if (
-        getattr(par, "hydrogen_radiation_field", False)
-        or getattr(par, "radiative_transfer", False)
+        getattr(par, "hydrogen_radiation_field", False) or getattr(par, "radiative_transfer", False)
     ) and not hasattr(fluid, "ngamma_code"):
         initial = _proper_photon_density(par, code_units)
         fluid.ngamma_code = as_named_array(

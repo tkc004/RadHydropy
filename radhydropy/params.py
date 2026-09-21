@@ -731,7 +731,9 @@ class Par:
                 "cosmological": "cosmological_gravity",
                 "cosmological_expansion": "cosmological_expansion",
                 "supercomoving_coordinates": "supercomoving_coordinates",
-                "cosmological_background_boundary_reconstruction": "cosmological_background_boundary_reconstruction",
+                "cosmological_background_boundary_reconstruction": (
+                    "cosmological_background_boundary_reconstruction"
+                ),
                 "cosmology_type": "cosmology_type",
                 "cosmology_t_ref": "cosmology_t_ref",
                 "cosmology_a_ref": "cosmology_a_ref",
@@ -761,14 +763,20 @@ class Par:
                 "temporal_scheme": "radiative_transfer_temporal_scheme",
                 "radiative_transfer_temporal_scheme": "radiative_transfer_temporal_scheme",
                 "c2ray_max_iterations": "radiative_transfer_c2ray_max_iterations",
-                "radiative_transfer_c2ray_max_iterations": "radiative_transfer_c2ray_max_iterations",
+                "radiative_transfer_c2ray_max_iterations": (
+                    "radiative_transfer_c2ray_max_iterations"
+                ),
                 "c2ray_tolerance": "radiative_transfer_c2ray_tolerance",
                 "radiative_transfer_c2ray_tolerance": "radiative_transfer_c2ray_tolerance",
                 "c2ray_relaxation": "radiative_transfer_c2ray_relaxation",
                 "radiative_transfer_c2ray_relaxation": "radiative_transfer_c2ray_relaxation",
                 "c2ray_nonconvergence": "radiative_transfer_c2ray_nonconvergence",
-                "radiative_transfer_c2ray_nonconvergence": "radiative_transfer_c2ray_nonconvergence",
-                "radiative_transfer_c2ray_ode_max_iterations": "radiative_transfer_c2ray_ode_max_iterations",
+                "radiative_transfer_c2ray_nonconvergence": (
+                    "radiative_transfer_c2ray_nonconvergence"
+                ),
+                "radiative_transfer_c2ray_ode_max_iterations": (
+                    "radiative_transfer_c2ray_ode_max_iterations"
+                ),
                 "radiative_transfer_c2ray_ode_tolerance": "radiative_transfer_c2ray_ode_tolerance",
                 "hydrogen_radiation_field": "hydrogen_radiation_field",
                 "hydrogen_radiation_evolution": "hydrogen_radiation_evolution",
@@ -780,7 +788,9 @@ class Par:
                 "hydrogen_photon_energy": "hydrogen_photon_energy",
                 "radiation_spectrum_filename": "radiation_spectrum_filename",
                 "spectrum_total_photon_rate": "spectrum_total_photon_rate",
-                "radiative_transfer_boundary_flux_groups": "radiative_transfer_boundary_flux_groups",
+                "radiative_transfer_boundary_flux_groups": (
+                    "radiative_transfer_boundary_flux_groups"
+                ),
                 "source_photon_rate_groups": "source_photon_rate_groups",
                 "radiation_group_sigma_gamma": "radiation_group_sigma_gamma",
                 "radiation_group_epsilon_gamma": "radiation_group_epsilon_gamma",
@@ -788,7 +798,9 @@ class Par:
                 "radiation_group_sigma_gamma_HeII": "radiation_group_sigma_gamma_HeII",
                 "radiation_group_epsilon_gamma_HeI": "radiation_group_epsilon_gamma_HeI",
                 "radiation_group_epsilon_gamma_HeII": "radiation_group_epsilon_gamma_HeII",
-                "stellar_spectrum_blackbody_temperature_cgs_K": "stellar_spectrum_blackbody_temperature_cgs_K",
+                "stellar_spectrum_blackbody_temperature_cgs_K": (
+                    "stellar_spectrum_blackbody_temperature_cgs_K"
+                ),
             },
             "chemistry": {
                 "hydrogen_mass_fraction": "hydrogen_mass_fraction",
@@ -818,11 +830,15 @@ class Par:
                 "hydrogen_photon_energy": "hydrogen_photon_energy",
                 "hydrogen_radiation_field": "hydrogen_radiation_field",
                 "hydrogen_radiation_evolution": "hydrogen_radiation_evolution",
-                "hydrogen_initial_collisional_equilibrium": "hydrogen_initial_collisional_equilibrium",
+                "hydrogen_initial_collisional_equilibrium": (
+                    "hydrogen_initial_collisional_equilibrium"
+                ),
                 "absolute_tolerance": "absolute_tolerance",
                 "relative_tolerance": "relative_tolerance",
                 "explicit_tolerance": "explicit_tolerance",
-                "hydrogen_implicit_absolute_temperature_tolerance": "hydrogen_implicit_absolute_temperature_tolerance",
+                "hydrogen_implicit_absolute_temperature_tolerance": (
+                    "hydrogen_implicit_absolute_temperature_tolerance"
+                ),
                 "hydrogen_thermal_coupling": "hydrogen_thermal_coupling",
                 "hydrogen_recombination": "hydrogen_recombination",
                 "hydrogen_collisional_ionization": "hydrogen_collisional_ionization",
@@ -837,7 +853,9 @@ class Par:
                 "hydrogen_implicit_max_iterations": "hydrogen_implicit_max_iterations",
                 "hydrogen_implicit_fallback": "hydrogen_implicit_fallback",
                 "hydrogen_hybrid_change_tolerance": "hydrogen_hybrid_change_tolerance",
-                "hydrogen_implicit_convergence_tolerance": "hydrogen_implicit_convergence_tolerance",
+                "hydrogen_implicit_convergence_tolerance": (
+                    "hydrogen_implicit_convergence_tolerance"
+                ),
                 "hydrogen_implicit_max_refinements": "hydrogen_implicit_max_refinements",
                 "hydrogen_source_CFL": "hydrogen_source_CFL",
                 "hydrogen_split_implicit_max_subcycles": "hydrogen_split_implicit_max_subcycles",
@@ -853,7 +871,9 @@ class Par:
                 "metal_pie_enabled": "metal_pie_enabled",
                 "metal_pie_redshift": "metal_pie_redshift",
                 "metal_pie_table_filename": "metal_pie_table_filename",
-                "metal_pie_photoheating_max_density_cgs_cm3": "metal_pie_photoheating_max_density_cgs_cm3",
+                "metal_pie_photoheating_max_density_cgs_cm3": (
+                    "metal_pie_photoheating_max_density_cgs_cm3"
+                ),
                 "pie_uvbg_implicit_tolerance": "pie_uvbg_implicit_tolerance",
                 "pie_uvbg_implicit_max_retries": "pie_uvbg_implicit_max_retries",
                 "pie_uvbg_implicit_max_iterations": "pie_uvbg_implicit_max_iterations",

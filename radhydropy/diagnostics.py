@@ -145,21 +145,12 @@ def check_conserved_energy_admissibility(
         return
     index = int(np.flatnonzero(invalid)[0])
     diagnostic = (
-        "conserved energy admissibility error after %s at cell %d: "
-        "kinetic energy exceeds total energy; mass=%s momentum=%s "
-        "energy=%s kinetic=%s deficit=%s relative_deficit=%s "
-        "relative_tolerance=%s"
-        % (
-            stage,
-            index,
-            mass[index],
-            momentum[index],
-            energy[index],
-            kinetic[index],
-            deficit[index],
-            deficit[index] / scale[index],
-            relative_tolerance,
-        )
+        f"conserved energy admissibility error after {stage} at cell {index}: "
+        "kinetic energy exceeds total energy; "
+        f"mass={mass[index]} momentum={momentum[index]} "
+        f"energy={energy[index]} kinetic={kinetic[index]} "
+        f"deficit={deficit[index]} relative_deficit={deficit[index] / scale[index]} "
+        f"relative_tolerance={relative_tolerance}"
     )
     log_diagnostic(
         logging.ERROR,
@@ -266,7 +257,7 @@ def _temperature_jump_context(sim, before, temperature_after, threshold):
     if before.shape == temperature_after.shape:
         crossing &= before <= threshold
     if not np.any(crossing):
-        return
+        return None
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(sim.par.mesh.grid_cells)
     candidates = np.flatnonzero(crossing)
@@ -326,14 +317,8 @@ def _temperature_jump_diagnostic(
     source_result,
 ):
     lines = [
-        "temperature jump error: physical gas temperature exceeded %.6e K "
-        "during %s at cell %d (time=%s)"
-        % (
-            threshold,
-            stage,
-            index,
-            time_runtime_code,
-        ),
+        f"temperature jump error: physical gas temperature exceeded {threshold:.6e} K "
+        f"during {stage} at cell {index} (time={time_runtime_code})",
         (
             f"cell: radius={radius[index]} T_before={before[index]} K "
             f"T_after={temperature_after[index]} K rho={density[index]} "
@@ -344,19 +329,11 @@ def _temperature_jump_diagnostic(
     ]
     for neighbor in range(max(first, index - 2), min(last, index + 3)):
         lines.append(
-            "%d %s %s %s %s %s %s %s %s %s"
-            % (
-                neighbor,
-                radius[neighbor],
-                before[neighbor] if before.shape == temperature_after.shape else np.nan,
-                temperature_after[neighbor],
-                density[neighbor],
-                velocity[neighbor],
-                pressure[neighbor],
-                sound_speed[neighbor],
-                mass[neighbor],
-                energy[neighbor],
-            ),
+            f"{neighbor} {radius[neighbor]} "
+            f"{before[neighbor] if before.shape == temperature_after.shape else np.nan} "
+            f"{temperature_after[neighbor]} {density[neighbor]} {velocity[neighbor]} "
+            f"{pressure[neighbor]} {sound_speed[neighbor]} {mass[neighbor]} "
+            f"{energy[neighbor]}",
         )
     if source_result:
         lines.append(
@@ -407,20 +384,11 @@ def check_source_temperature(state, par, temperature_before, stage, source_step)
     )
     diagnostic = (
         "temperature jump error: physical gas temperature exceeded "
-        "%.6e K during %s source substep %d at cell %d "
-        "(T_before=%s K T_after=%s K rho=%s g/cm^3 xHI=%s "
-        "specific_energy=%s erg/g)"
-        % (
-            threshold,
-            stage,
-            int(source_step),
-            mesh_index,
-            before[index] if before.shape == temperature_after.shape else np.nan,
-            temperature_after[index],
-            rho[index],
-            xhi[index],
-            energy[index],
-        )
+        f"{threshold:.6e} K during {stage} source substep {int(source_step)} "
+        f"at cell {mesh_index} "
+        f"(T_before={before[index] if before.shape == temperature_after.shape else np.nan} K "
+        f"T_after={temperature_after[index]} K rho={rho[index]} g/cm^3 "
+        f"xHI={xhi[index]} specific_energy={energy[index]} erg/g)"
     )
     log_diagnostic(
         logging.ERROR,

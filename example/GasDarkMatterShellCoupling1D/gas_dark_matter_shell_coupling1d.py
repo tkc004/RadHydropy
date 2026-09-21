@@ -119,7 +119,9 @@ def main(config_filename=DEFAULT_CONFIG):
     )
     if gas_mass_error_dimensionless > 1.0e-12 or dm_mass_error_dimensionless > 1.0e-12:  # noqa: PLR2004
         raise RuntimeError(
-            f"mass conservation failed: gas {gas_mass_error_dimensionless:.6g}, dark matter {dm_mass_error_dimensionless:.6g}",
+            "mass conservation failed: "
+            f"gas {gas_mass_error_dimensionless:.6g}, "
+            f"dark matter {dm_mass_error_dimensionless:.6g}",
         )
     fig, axis = plt.subplots(figsize=(5, 4))
     axis.plot(

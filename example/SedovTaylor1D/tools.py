@@ -10,7 +10,7 @@ import numpy as np
 import unyt
 
 import radhydropy.io as rio
-from example.SedovTaylor1D import SedovTaylor_analytic as sa
+from example.SedovTaylor1D import sedov_taylor_analytic as sa
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import quantity_to_value
 

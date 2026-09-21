@@ -52,7 +52,7 @@ def main(config_filename=DEFAULT_CONFIG):
     color_cycle = iter(plt.rcParams["axes.prop_cycle"])
     for outindex in exampleparams["output_indices"]:
         outfilename = Path(output["directory"]) / (
-            output["filename_prefix"] + "_%03d" % outindex + ".hdf5"
+            f"{output['filename_prefix']}_{outindex:03d}.hdf5"
         )
         et.plot_snapshot(
             outfilename,

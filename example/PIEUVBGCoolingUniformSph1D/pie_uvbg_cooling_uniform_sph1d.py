@@ -6,6 +6,7 @@ import argparse
 import copy
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import matplotlib as mpl
@@ -19,7 +20,10 @@ for path in (PROJECT_ROOT, EXAMPLE_ROOT, EXAMPLE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-os.environ.setdefault("MPLCONFIGDIR", str(Path("/tmp/radhydropy-matplotlib")))
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
+)
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 

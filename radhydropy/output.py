@@ -15,11 +15,7 @@ from radhydropy.units import code_unit_scales
 def write_numbered_hdf5(sim, outindex):
     """Write ``Output_###.hdf5`` for the supplied simulation."""
     filename = (
-        sim.par.output.directory
-        + "/"
-        + sim.par.output.filename_prefix
-        + "_%03d" % outindex
-        + ".hdf5"
+        sim.par.output.directory + "/" + sim.par.output.filename_prefix + f"_{outindex:03d}.hdf5"
     )
     # The live runtime already owns ghost-filled, solver-ready state.  Route
     # snapshots directly to the serializer so the IC preparation boundary
@@ -142,7 +138,6 @@ def run_with_output_times(
     current_time = getattr(sim.fluid, runtime_fields(sim.par).time)
     final_time = sim.par.simulation.final_time
     time_tol = max(abs(float(np.asarray(final_time, dtype=float))) * 1.0e-12, 1.0e-30)
-    from radhydropy.io import load_output_time_list  # noqa: PLC0415
 
     output_times = _normalized_output_times(sim, final_time, current_time)
 

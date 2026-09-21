@@ -5,11 +5,12 @@
 import argparse
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    str(Path("/tmp") / "radhydropy-matplotlib"),
+    str(Path(tempfile.gettempdir()) / "radhydropy-matplotlib"),
 )
 import matplotlib as mpl
 

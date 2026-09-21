@@ -10,7 +10,7 @@ import numpy as np
 import unyt
 
 import radhydropy.io as rio
-from example.SedovTaylorSph1d.SedovTaylor_analytic import get_blastwave_solution
+from example.SedovTaylorSph1d.sedov_taylor_analytic import get_blastwave_solution
 from radhydropy.initial_condition_writer import InitialConditionWriter
 
 

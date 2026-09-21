@@ -643,7 +643,12 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
             return trial, True
 
         jacobian = _hhe_finite_difference_jacobian(
-            local, photon_density, trial, old, residual, dt_s
+            local,
+            photon_density,
+            trial,
+            old,
+            residual,
+            dt_s,
         )
         if jacobian is None:
             return trial, False
@@ -866,7 +871,8 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
                 raise RuntimeError(f"C2-Ray H/He did not converge in cell {cell}")
             if policy == "warn":
                 warnings.warn(
-                    f"C2-Ray H/He did not converge in cell {cell} after {max_iterations} iterations",
+                    f"C2-Ray H/He did not converge in cell {cell} after "
+                    f"{max_iterations} iterations",
                     RuntimeWarning,
                     stacklevel=2,
                 )

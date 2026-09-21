@@ -219,7 +219,7 @@ def _advance_top_hat_step(
     velocity_new = velocity_half + 0.5 * dt * acceleration(radius_new, a_end)
     if radius_new <= 0.0:
         raise RuntimeError(
-            "top-hat boundary reached the pressureless singularity before virial crossing"
+            "top-hat boundary reached the pressureless singularity before virial crossing",
         )
     return tau_end, cosmic_end, radius_new, velocity_new
 
@@ -278,7 +278,12 @@ def run_live_shell_density_profiles(config):
 
     while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
         _save_live_profile(
-            target_times[next_snapshot], shells, cosmology, profiles, virial_radii, virial_threshold
+            target_times[next_snapshot],
+            shells,
+            cosmology,
+            profiles,
+            virial_radii,
+            virial_threshold,
         )
         next_snapshot += 1
 

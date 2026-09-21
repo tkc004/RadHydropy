@@ -233,7 +233,8 @@ def cgs_source_state_from_code(
         )
     else:
         raise UnitBoundaryError(
-            "fluid requires representation-specific specific energy or both Energy_code and Mass_code",
+            "fluid requires representation-specific specific energy or both "
+            "Energy_code and Mass_code",
         )
     return CgsSourceState(**converted)
 

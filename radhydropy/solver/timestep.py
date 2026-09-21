@@ -144,17 +144,12 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):  # noqa: N803
         min_index = int(cfl_indices[active_index])
         diagnostic_index = min_index
         raise ValueError(
-            " time step %.2e smaller than the minimum time step %.2e "
-            "at cell %d (rho=%.2e, vel=%.2e, cs=%.2e, dx=%.2e)"
-            % (
-                dt,
-                dtmin_value,
-                min_index,
-                cfl_density[active_index],
-                velocity[diagnostic_index],
-                fluid.cs_code[diagnostic_index],
-                cfl_width_runtime_code[active_index],
-            ),
+            f" time step {dt:.2e} smaller than the minimum time step "
+            f"{float(np.asarray(dtmin_value, dtype=float)):.2e} at cell {min_index} "
+            f"(rho={cfl_density[active_index]:.2e}, "
+            f"vel={velocity[diagnostic_index]:.2e}, "
+            f"cs={fluid.cs_code[diagnostic_index]:.2e}, "
+            f"dx={cfl_width_runtime_code[active_index]:.2e})",
         )
     dt = min(dt, dtmax)
     if (
@@ -304,9 +299,7 @@ def _log_timestep_energy_state(
     cell_energy_density = np.asarray(fluid.Energy_code)[diagnostic_index] / cell_volume
     cell_kinetic_density = 0.5 * cell_rho_code * cell_vel_code**2
     cell_thermal_density = cell_energy_density - cell_kinetic_density
-    cell_specific_thermal = (
-        cell_thermal_density / cell_rho_code if cell_rho_code > 0.0 else 0.0
-    )
+    cell_specific_thermal = cell_thermal_density / cell_rho_code if cell_rho_code > 0.0 else 0.0
     log_diagnostic(
         logging.WARNING,
         "hydro_timestep_energy_state",

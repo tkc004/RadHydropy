@@ -16,8 +16,8 @@ from pathlib import Path
 
 cache_dir = Path(tempfile.gettempdir()) / "radhydropy-cache"
 mplconfig_dir = Path(tempfile.gettempdir()) / "radhydropy-matplotlib"
-os.makedirs(cache_dir, exist_ok=True)
-os.makedirs(mplconfig_dir, exist_ok=True)
+cache_dir.mkdir(parents=True, exist_ok=True)
+mplconfig_dir.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
 os.environ.setdefault(
     "MPLCONFIGDIR",

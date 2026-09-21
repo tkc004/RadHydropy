@@ -422,7 +422,11 @@ def _evolve_eds_live_shells(
     next_snapshot = 0
     while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
         _save_eds_live_profile(
-            target_times[next_snapshot], shells, cosmology, profiles, virial_radii
+            target_times[next_snapshot],
+            shells,
+            cosmology,
+            profiles,
+            virial_radii,
         )
         next_snapshot += 1
     while tau < final_tau - 1.0e-12:
@@ -446,7 +450,11 @@ def _evolve_eds_live_shells(
         tau += dt
         while next_snapshot < target_times.size and target_tau[next_snapshot] <= tau + 1.0e-12:
             _save_eds_live_profile(
-                target_times[next_snapshot], shells, cosmology, profiles, virial_radii
+                target_times[next_snapshot],
+                shells,
+                cosmology,
+                profiles,
+                virial_radii,
             )
             next_snapshot += 1
     return profiles, virial_radii

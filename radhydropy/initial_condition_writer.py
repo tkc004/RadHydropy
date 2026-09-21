@@ -625,11 +625,14 @@ class InitialConditionWriter:
     ):
         expected_mass_code = rho_proper_code * volume_proper_code
         expected_mom_code = expected_mass_code * vel_proper_code
-        expected_energy_code = fluid.eos.total_energy_density(
-            rho_proper_code,
-            vel_proper_code,
-            pre_proper_code,
-        ) * volume_proper_code
+        expected_energy_code = (
+            fluid.eos.total_energy_density(
+                rho_proper_code,
+                vel_proper_code,
+                pre_proper_code,
+            )
+            * volume_proper_code
+        )
         mass_code = np.asarray(fluid.Mass_code[first:last], dtype=float)
         mom_code = np.asarray(fluid.Mom_code[first:last], dtype=float)
         energy_code = np.asarray(fluid.Energy_code[first:last], dtype=float)
@@ -714,18 +717,13 @@ class InitialConditionWriter:
         inner_radius_values = boundary_values[:-1]
         outer_radius_values = boundary_values[1:]
         area_values = 4.0 * np.pi * inner_radius_values**2
-        volume_values = 4.0 * np.pi / 3.0 * (
-            outer_radius_values**3 - inner_radius_values**3
-        )
+        volume_values = 4.0 * np.pi / 3.0 * (outer_radius_values**3 - inner_radius_values**3)
         volume_denominator = outer_radius_values**3 - inner_radius_values**3
         x_values = 0.5 * (inner_radius_values + outer_radius_values)
         nonzero_volume = volume_denominator != 0.0
         x_values[nonzero_volume] = (
             0.75
-            * (
-                outer_radius_values[nonzero_volume] ** 4
-                - inner_radius_values[nonzero_volume] ** 4
-            )
+            * (outer_radius_values[nonzero_volume] ** 4 - inner_radius_values[nonzero_volume] ** 4)
             / volume_denominator[nonzero_volume]
         )
         return x_values, width_values, area_values, volume_values
@@ -878,18 +876,23 @@ class InitialConditionWriter:
             time_name = "tau_supercomoving_code"
             if self.ic_config is not None and "time_cosmic" in self.ic_config:
                 cosmic_time = self._to_code_values(
-                    self.ic_config["time_cosmic"], self.code_units.time_unit
+                    self.ic_config["time_cosmic"],
+                    self.code_units.time_unit,
                 )
                 model = getattr(getattr(par, "cosmology", None), "model", None)
                 if model is None:
                     raise ValueError("cosmological IC time conversion requires par.cosmology.model")
                 cosmic_time_value = float(np.asarray(cosmic_time).flat[0])
-                time_value = 0.0 if cosmic_time_value == 0.0 else model.supercomoving_time(cosmic_time_value)
+                time_value = (
+                    0.0 if cosmic_time_value == 0.0 else model.supercomoving_time(cosmic_time_value)
+                )
             else:
                 time_value = getattr(
                     par,
                     "tau_supercomoving_code",
-                    getattr(getattr(par, "simulation", None), time_name, getattr(fluid, time_name, 0.0)),
+                    getattr(
+                        getattr(par, "simulation", None), time_name, getattr(fluid, time_name, 0.0)
+                    ),
                 )
             time_value = float(np.asarray(time_value).flat[0])
             fluid.tau_supercomoving_code = time_value
@@ -916,9 +919,15 @@ class InitialConditionWriter:
             return
         fields = PROPER_RUNTIME_FIELDS
         if self.ic_config is not None and "time_proper" in self.ic_config:
-            time_value = self._to_code_values(self.ic_config["time_proper"], self.code_units.time_unit)
+            time_value = self._to_code_values(
+                self.ic_config["time_proper"], self.code_units.time_unit
+            )
         else:
-            time_value = getattr(fluid, "time_proper_code", getattr(getattr(fluid, "runtime_state", None), "time_proper_code", 0.0))
+            time_value = getattr(
+                fluid,
+                "time_proper_code",
+                getattr(getattr(fluid, "runtime_state", None), "time_proper_code", 0.0),
+            )
         time_value = float(np.asarray(time_value).flat[0])
         fluid.time_proper_code = time_value
         mesh.geometry_state = MeshGeometryState.from_arrays(

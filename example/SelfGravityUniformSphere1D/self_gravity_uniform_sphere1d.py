@@ -98,7 +98,8 @@ def main(config_filename=DEFAULT_CONFIG):
         raise RuntimeError("self-gravity acceleration contains non-finite values")
     if max_relative_error > 5.0e-3:  # noqa: PLR2004
         raise RuntimeError(
-            f"uniform-sphere self-gravity relative error {max_relative_error:.6g} exceeds tolerance",
+            "uniform-sphere self-gravity relative error "
+            f"{max_relative_error:.6g} exceeds tolerance",
         )
 
     figure_filename = Path(config["par"]["output"]["directory"]) / "SelfGravityUniformSphere1D.jpg"
