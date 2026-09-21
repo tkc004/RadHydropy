@@ -530,7 +530,7 @@ def _restore_hdf5_header_attributes(par, header):
     if "CodeUnits" not in header.attrs:
         raise ValueError(
             "IC file is missing Header.attrs['CodeUnits']; "
-            "cannot read datasets without a code-unit mapping."
+            "cannot read datasets without a code-unit mapping.",
         )
     code_units = _restore_header_attr_value(header.attrs["CodeUnits"])
     if isinstance(code_units, dict):
@@ -553,21 +553,21 @@ def _identify_hdf5_schema(par, header, expected_coordsys, expected_nogrid):
     if expected_coordsys is not None and coordinate_system != expected_coordsys:
         raise Exception(
             f"Coordinate systems in IC ({coordinate_system}) and run "
-            f"({expected_coordsys}) do not agree!"
+            f"({expected_coordsys}) do not agree!",
         )
     grid_cells = par.mesh.grid_cells
     if expected_nogrid is not None and grid_cells != expected_nogrid:
         raise Exception(
-            f"Number of grids in IC ({grid_cells}) and run ({expected_nogrid}) do not agree!"
+            f"Number of grids in IC ({grid_cells}) and run ({expected_nogrid}) do not agree!",
         )
     generic_names = _GENERIC_HEADER_DATASETS.intersection(
-        header.keys()
+        header.keys(),
     ) or _GENERIC_HEADER_DATASETS.intersection(header.attrs.keys())
     if generic_names:
         names = ", ".join(sorted(generic_names))
         raise ValueError(
             f"HDF5 header uses unsupported generic field name(s): {names}; "
-            "use the representation-specific schema"
+            "use the representation-specific schema",
         )
     cosmological = "tau_supercomoving_code" in header or "box_size_comoving_code" in header
     proper = "time_proper_code" in header or "box_size_proper_code" in header
@@ -575,7 +575,7 @@ def _identify_hdf5_schema(par, header, expected_coordsys, expected_nogrid):
         raise ValueError("HDF5 header mixes cosmological and proper schemas")
     if not cosmological and not proper:
         raise ValueError(
-            "HDF5 header has no canonical representation-specific time and box-size datasets"
+            "HDF5 header has no canonical representation-specific time and box-size datasets",
         )
     required = (
         {"tau_supercomoving_code", "box_size_comoving_code"}
@@ -585,7 +585,7 @@ def _identify_hdf5_schema(par, header, expected_coordsys, expected_nogrid):
     missing = required.difference(header.keys())
     if missing:
         raise ValueError(
-            f"HDF5 header is missing canonical dataset(s): {', '.join(sorted(missing))}"
+            f"HDF5 header is missing canonical dataset(s): {', '.join(sorted(missing))}",
         )
     return cosmological
 
@@ -723,7 +723,9 @@ def _restore_runtime_state(par, fluid, gdata, canonical_cosmological_schema):
             rho_comoving_code=fluid.rho_comoving_code,
             vel_supercomoving_code=fluid.vel_supercomoving_code,
             pre_supercomoving_code=getattr(
-                fluid, "pre_supercomoving_code", np.zeros_like(fluid.rho_comoving_code)
+                fluid,
+                "pre_supercomoving_code",
+                np.zeros_like(fluid.rho_comoving_code),
             ),
             temp_supercomoving_code=fluid.temp_supercomoving_code,
             tau_supercomoving_code=getattr(fluid, "tau_supercomoving_code", 0.0),

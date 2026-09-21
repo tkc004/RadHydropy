@@ -55,6 +55,90 @@ def _unit_for_dimensions(code_units, dimensions):
     )
 
 
+def _convert_to_proper_values(
+    source,
+    cosmology,
+    code_units,
+    values,
+    x_comoving_code,
+    proper_name,
+):
+    scale_factor = cosmology.scale_factor
+    quantity = source.quantity
+    if quantity == "radius":
+        converted = values * scale_factor
+        target_name = proper_name
+    elif quantity == "mass_density":
+        converted = values / scale_factor**3
+        target_name = "rho_proper_code"
+    elif quantity == "temperature":
+        converted = values / scale_factor ** (3.0 * (cosmology.gamma - 1.0))
+        target_name = "temp_proper_code"
+    elif quantity == "number_density":
+        converted = values / scale_factor**3
+        target_name = "ngamma_proper_code"
+    elif quantity == "pressure":
+        converted = values / scale_factor ** (3.0 * cosmology.gamma)
+        target_name = "pre_proper_code"
+    elif quantity == "velocity":
+        if x_comoving_code is None:
+            raise ValueError("supercomoving velocity conversion requires x_comoving_code")
+        hubble_code = hubble_parameter_code(
+            code_units,
+            cosmology.hubble_parameter_km_s_Mpc,
+        )
+        converted = hubble_code * scale_factor * x_comoving_code + values / scale_factor
+        target_name = "vel_proper_code"
+    elif quantity == "specific_angular_momentum":
+        converted = values
+        target_name = "specific_angular_momentum_proper_code"
+    else:
+        raise ValueError(f"unsupported proper conversion for {quantity!r}")
+    return converted, target_name
+
+
+def _convert_to_comoving_values(
+    source,
+    cosmology,
+    code_units,
+    values,
+    x_comoving_code,
+    comoving_name,
+):
+    scale_factor = cosmology.scale_factor
+    quantity = source.quantity
+    if quantity == "radius":
+        converted = values / scale_factor
+        target_name = comoving_name
+    elif quantity == "mass_density":
+        converted = values * scale_factor**3
+        target_name = "rho_comoving_code"
+    elif quantity == "temperature":
+        converted = values * scale_factor ** (3.0 * (cosmology.gamma - 1.0))
+        target_name = "temp_supercomoving_code"
+    elif quantity == "number_density":
+        converted = values * scale_factor**3
+        target_name = "ngamma_comoving_code"
+    elif quantity == "pressure":
+        converted = values * scale_factor ** (3.0 * cosmology.gamma)
+        target_name = "pre_supercomoving_code"
+    elif quantity == "velocity":
+        if x_comoving_code is None:
+            raise ValueError("proper velocity conversion requires x_comoving_code")
+        hubble_code = hubble_parameter_code(
+            code_units,
+            cosmology.hubble_parameter_km_s_Mpc,
+        )
+        converted = scale_factor * (values - hubble_code * scale_factor * x_comoving_code)
+        target_name = "vel_supercomoving_code"
+    elif quantity == "specific_angular_momentum":
+        converted = values
+        target_name = "specific_angular_momentum_supercomoving_code"
+    else:
+        raise ValueError(f"unsupported comoving conversion for {quantity!r}")
+    return converted, target_name
+
+
 class RadArray(unyt.unyt_array):
     """A code-unit ``unyt_array`` carrying field and cosmology metadata."""
 
@@ -126,102 +210,40 @@ class RadArray(unyt.unyt_array):
         source = self.field_spec
         if source.representation == "proper":
             return self
-
-        a = self.cosmology.scale_factor
         values = np.asarray(self)
-        quantity = source.quantity
-
-        if quantity == "radius":
-            proper_name, _ = self._representation_field_name(
-                "boundary_proper_code",
-                "boundary_comoving_code",
-            )
-            return self._target(values * a, proper_name)
-        if quantity == "mass_density":
-            return self._target(values / a**3, "rho_proper_code")
-        if quantity == "temperature":
-            gamma = self.cosmology.gamma
-            return self._target(
-                values / a ** (3.0 * (gamma - 1.0)),
-                "temp_proper_code",
-            )
-        if quantity == "number_density":
-            return self._target(values / a**3, "ngamma_proper_code")
-        if quantity == "pressure":
-            gamma = self.cosmology.gamma
-            return self._target(values / a ** (3.0 * gamma), "pre_proper_code")
-        if quantity == "velocity":
-            if x_comoving_code is None:
-                raise ValueError(
-                    "supercomoving velocity conversion requires x_comoving_code",
-                )
-            hubble_code = hubble_parameter_code(
-                self.code_units,
-                self.cosmology.hubble_parameter_km_s_Mpc,
-            )
-            return self._target(
-                hubble_code * a * np.asarray(x_comoving_code) + values / a,
-                "vel_proper_code",
-            )
-        if quantity == "specific_angular_momentum":
-            return self._target(
-                values,
-                "specific_angular_momentum_proper_code",
-            )
-
-        raise ValueError(f"unsupported proper conversion for {quantity!r}")
+        proper_name, _ = self._representation_field_name(
+            "boundary_proper_code",
+            "boundary_comoving_code",
+        )
+        converted, target_name = _convert_to_proper_values(
+            source,
+            self.cosmology,
+            self.code_units,
+            values,
+            None if x_comoving_code is None else np.asarray(x_comoving_code),
+            proper_name,
+        )
+        return self._target(converted, target_name)
 
     def to_comoving(self, *, x_comoving_code=None):
         """Return a new array converted to the comoving representation."""
         source = self.field_spec
         if source.representation in {"comoving", "supercomoving"}:
             return self
-
-        a = self.cosmology.scale_factor
         values = np.asarray(self)
-        quantity = source.quantity
-
-        if source.representation == "proper" and quantity == "radius":
-            _, comoving_name = self._representation_field_name(
-                "boundary_proper_code",
-                "boundary_comoving_code",
-            )
-            return self._target(values / a, comoving_name)
-        if source.representation == "proper" and quantity == "mass_density":
-            return self._target(values * a**3, "rho_comoving_code")
-        if source.representation == "proper" and quantity == "temperature":
-            gamma = self.cosmology.gamma
-            return self._target(
-                values * a ** (3.0 * (gamma - 1.0)),
-                "temp_supercomoving_code",
-            )
-        if source.representation == "proper" and quantity == "number_density":
-            return self._target(values * a**3, "ngamma_comoving_code")
-        if source.representation == "proper" and quantity == "pressure":
-            gamma = self.cosmology.gamma
-            return self._target(
-                values * a ** (3.0 * gamma),
-                "pre_supercomoving_code",
-            )
-        if source.representation == "proper" and quantity == "velocity":
-            if x_comoving_code is None:
-                raise ValueError(
-                    "proper velocity conversion requires x_comoving_code",
-                )
-            hubble_code = hubble_parameter_code(
-                self.code_units,
-                self.cosmology.hubble_parameter_km_s_Mpc,
-            )
-            return self._target(
-                a * (values - hubble_code * a * np.asarray(x_comoving_code)),
-                "vel_supercomoving_code",
-            )
-        if source.representation == "proper" and quantity == "specific_angular_momentum":
-            return self._target(
-                values,
-                "specific_angular_momentum_supercomoving_code",
-            )
-        raise ValueError(f"unsupported comoving conversion for {quantity!r}")
+        _, comoving_name = self._representation_field_name(
+            "boundary_proper_code",
+            "boundary_comoving_code",
+        )
+        converted, target_name = _convert_to_comoving_values(
+            source,
+            self.cosmology,
+            self.code_units,
+            values,
+            None if x_comoving_code is None else np.asarray(x_comoving_code),
+            comoving_name,
+        )
+        return self._target(converted, target_name)
 
     def to_cgs(self):
         """Return the current representation as a cgs ``unyt_array``."""
@@ -436,94 +458,40 @@ class RadQuantity(unyt.unyt_quantity):
         source = self.field_spec
         if source.representation == "proper":
             return self
-
-        a = self.cosmology.scale_factor
         value = float(self.value)
-        quantity = source.quantity
-        if quantity == "radius":
-            proper_name, _ = self._representation_field_name(
-                "boundary_proper_code",
-                "boundary_comoving_code",
-            )
-            return self._target(value * a, proper_name)
-        if quantity == "mass_density":
-            return self._target(value / a**3, "rho_proper_code")
-        if quantity == "temperature":
-            return self._target(
-                value / a ** (3.0 * (self.cosmology.gamma - 1.0)),
-                "temp_proper_code",
-            )
-        if quantity == "pressure":
-            return self._target(
-                value / a ** (3.0 * self.cosmology.gamma),
-                "pre_proper_code",
-            )
-        if quantity == "velocity":
-            if x_comoving_code is None:
-                raise ValueError(
-                    "supercomoving velocity conversion requires x_comoving_code",
-                )
-            hubble_code = hubble_parameter_code(
-                self.code_units,
-                self.cosmology.hubble_parameter_km_s_Mpc,
-            )
-            return self._target(
-                hubble_code * a * float(x_comoving_code) + value / a,
-                "vel_proper_code",
-            )
-        if quantity == "specific_angular_momentum":
-            return self._target(
-                value,
-                "specific_angular_momentum_proper_code",
-            )
-        raise ValueError(f"unsupported proper conversion for {quantity!r}")
+        proper_name, _ = self._representation_field_name(
+            "boundary_proper_code",
+            "boundary_comoving_code",
+        )
+        converted, target_name = _convert_to_proper_values(
+            source,
+            self.cosmology,
+            self.code_units,
+            value,
+            None if x_comoving_code is None else float(x_comoving_code),
+            proper_name,
+        )
+        return self._target(converted, target_name)
 
     def to_comoving(self, *, x_comoving_code=None):
         """Return a new scalar converted to comoving or supercomoving form."""
         source = self.field_spec
         if source.representation in {"comoving", "supercomoving"}:
             return self
-
-        a = self.cosmology.scale_factor
         value = float(self.value)
-        quantity = source.quantity
-        if quantity == "radius":
-            _, comoving_name = self._representation_field_name(
-                "boundary_proper_code",
-                "boundary_comoving_code",
-            )
-            return self._target(value / a, comoving_name)
-        if quantity == "mass_density":
-            return self._target(value * a**3, "rho_comoving_code")
-        if quantity == "temperature":
-            return self._target(
-                value * a ** (3.0 * (self.cosmology.gamma - 1.0)),
-                "temp_supercomoving_code",
-            )
-        if quantity == "pressure":
-            return self._target(
-                value * a ** (3.0 * self.cosmology.gamma),
-                "pre_supercomoving_code",
-            )
-        if quantity == "velocity":
-            if x_comoving_code is None:
-                raise ValueError(
-                    "proper velocity conversion requires x_comoving_code",
-                )
-            hubble_code = hubble_parameter_code(
-                self.code_units,
-                self.cosmology.hubble_parameter_km_s_Mpc,
-            )
-            return self._target(
-                a * (value - hubble_code * a * float(x_comoving_code)),
-                "vel_supercomoving_code",
-            )
-        if quantity == "specific_angular_momentum":
-            return self._target(
-                value,
-                "specific_angular_momentum_supercomoving_code",
-            )
-        raise ValueError(f"unsupported comoving conversion for {quantity!r}")
+        _, comoving_name = self._representation_field_name(
+            "boundary_proper_code",
+            "boundary_comoving_code",
+        )
+        converted, target_name = _convert_to_comoving_values(
+            source,
+            self.cosmology,
+            self.code_units,
+            value,
+            None if x_comoving_code is None else float(x_comoving_code),
+            comoving_name,
+        )
+        return self._target(converted, target_name)
 
     def to_cgs(self):
         """Return the current scalar as an ordinary cgs ``unyt_quantity``."""

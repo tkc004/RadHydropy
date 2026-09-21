@@ -1594,6 +1594,27 @@ def _coupled_source_floor_constraint(trial, temperature_floor, active_cells, sta
     )
 
 
+def _prepare_coupled_source_inputs(state, dt_s):
+    if not state.get("thermal_coupling", False):
+        return None
+    rho = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
+    active_cells = np.asarray(state.get("active", rho > 0.0), dtype=bool)
+    rho_for_update = np.where(active_cells, rho, 1.0)
+    kinetic = np.asarray(state["specific_kinetic_energy_cgs_erg_g"], dtype=float)
+    energy_old = np.asarray(state["specific_energy_cgs_erg_g"], dtype=float).copy()
+    x_old = np.asarray(state["xHI"], dtype=float).copy()
+    dt_value = float(np.asarray(dt_s, dtype=float))
+    valid = (
+        np.all(np.isfinite(rho))
+        and np.all(rho_for_update > 0.0)
+        and np.all(np.isfinite(energy_old))
+        and np.all(np.isfinite(x_old))
+    )
+    if not valid:
+        return None
+    return rho, active_cells, rho_for_update, kinetic, energy_old, x_old, dt_value
+
+
 def _coupled_implicit_source_update(
     state,
     dt_s,
@@ -1616,23 +1637,10 @@ def _coupled_implicit_source_update(
     Returns ``True`` only when every cell converges.  The caller can then use
     the existing source subcycler as a safe fallback for a failed solve.
     """
-    if not state.get("thermal_coupling", False):
+    inputs = _prepare_coupled_source_inputs(state, dt_s)
+    if inputs is None:
         return False
-
-    rho = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
-    active_cells = np.asarray(state.get("active", rho > 0.0), dtype=bool)
-    rho_for_update = np.where(active_cells, rho, 1.0)
-    kinetic = np.asarray(state["specific_kinetic_energy_cgs_erg_g"], dtype=float)
-    energy_old = np.asarray(state["specific_energy_cgs_erg_g"], dtype=float).copy()
-    x_old = np.asarray(state["xHI"], dtype=float).copy()
-    dt_value = float(np.asarray(dt_s, dtype=float))
-    if not (
-        np.all(np.isfinite(rho))
-        and np.all(rho_for_update > 0.0)
-        and np.all(np.isfinite(energy_old))
-        and np.all(np.isfinite(x_old))
-    ):
-        return False
+    _, active_cells, rho_for_update, kinetic, energy_old, x_old, dt_value = inputs
 
     # Keep a tiny numerical floor even when no physical floor is configured.
     # The physical floor is enforced by _fast_update_temperature_from_energy
@@ -2548,7 +2556,165 @@ def _try_compton_only_source(state, par, code, source_solver, remaining_s):
     }
 
 
-def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):  # noqa: C901
+def _fast_solver_result(par, code, source_steps, source_solver, relative_change):
+    photon_energy = _optional_numeric_value(
+        getattr(
+            par,
+            "ionizing_photon_energy_cgs_erg",
+            getattr(par, "hydrogen_photon_energy", 0.0),
+        ),
+        code.energy_unit,
+        default=0.0,
+    )
+    return {
+        "source_steps": source_steps,
+        "source_solver": source_solver,
+        "relative_change": relative_change,
+        "absorbed_photon_rate": None,
+        "photon_energy_cgs_erg": np.atleast_1d(photon_energy),
+        "direction": int(getattr(par, "radiative_transfer_direction", 1)),
+    }
+
+
+def _adaptive_coupled_source_steps(state, remaining_s, par, source_solver):
+    if getattr(par, "radiative_transfer", False):
+        return None
+    solved, source_steps = _adaptive_coupled_implicit_source_update(
+        state,
+        remaining_s,
+        ngamma_cgs_cm3=state.get("ngamma_cgs_cm3"),
+        tolerance=float(getattr(par, "hydrogen_implicit_tolerance", 1.0e-6)),
+        max_iterations=int(getattr(par, "hydrogen_implicit_max_iterations", 32)),
+        convergence_tolerance=float(
+            getattr(par, "hydrogen_implicit_convergence_tolerance", 1.0e-3),
+        ),
+        max_refinements=int(getattr(par, "hydrogen_implicit_max_refinements", 4)),
+        trust_region=source_solver == "trust_region",
+        absolute_temperature_tolerance=float(
+            getattr(par, "hydrogen_implicit_absolute_temperature_tolerance", 0.0),
+        ),
+        absolute_xhi_tolerance=float(
+            getattr(par, "hydrogen_implicit_absolute_xhi_tolerance", 0.0),
+        ),
+    )
+    return source_steps if solved else None
+
+
+def _try_split_implicit_source(state, initial_state, remaining_s, par, code, source_solver):
+    if source_solver != "split_implicit" or remaining_s <= 0.0:
+        return None
+    source_steps = _split_implicit_source_state_update(state, remaining_s, par)
+    change = _source_relative_change(initial_state, state)
+    return _fast_solver_result(par, code, source_steps, source_solver, change)
+
+
+def _try_hybrid_explicit_probe(state, remaining_s, par, code, source_solver):
+    if not (
+        source_solver == "hybrid"
+        and getattr(par, "hydrogen_hybrid_explicit_probe", False)
+        and remaining_s > 0.0
+    ):
+        return None
+    initial_state = _copy_fast_source_state(state)
+    explicit_state = _copy_fast_source_state(state)
+    explicit_steps = _explicit_source_state_update(explicit_state, remaining_s, par)
+    change = _source_relative_change(initial_state, explicit_state)
+    threshold = float(getattr(par, "hydrogen_hybrid_change_tolerance", 0.1))
+    explicit_accepted = (
+        change <= threshold
+        or getattr(par, "radiative_transfer", False)
+        or getattr(par, "hydrogen_radiation_field", False)
+    )
+    if explicit_accepted:
+        _set_fast_source_state(state, explicit_state)
+        return _fast_solver_result(par, code, explicit_steps, "explicit", change)
+
+    _set_fast_source_state(state, initial_state)
+    implicit_steps = _adaptive_coupled_source_steps(state, remaining_s, par, source_solver)
+    if implicit_steps is not None:
+        implicit_solver = "trust_region" if source_solver == "trust_region" else "coupled_implicit"
+        change = _source_relative_change(initial_state, state)
+        return _fast_solver_result(par, code, implicit_steps, implicit_solver, change)
+
+    fallback = str(getattr(par, "hydrogen_implicit_fallback", "explicit")).lower()
+    if fallback == "error":
+        raise RuntimeError(
+            "hybrid hydrogen source implicit solve did not converge "
+            f"(explicit relative change={change:.6g})",
+        )
+    _set_fast_source_state(state, explicit_state)
+    return _fast_solver_result(par, code, explicit_steps, "explicit_fallback", change)
+
+
+def _try_coupled_source(
+    state,
+    initial_state,
+    remaining_s,
+    par,
+    code,
+    source_solver,
+):
+    if source_solver not in ("hybrid", "coupled_implicit", "trust_region") or remaining_s <= 0.0:
+        return None
+    implicit_steps = _adaptive_coupled_source_steps(state, remaining_s, par, source_solver)
+    if implicit_steps is not None:
+        implicit_solver = "trust_region" if source_solver == "trust_region" else "coupled_implicit"
+        change = _source_relative_change(initial_state, state)
+        return _fast_solver_result(par, code, implicit_steps, implicit_solver, change)
+
+    fallback = str(getattr(par, "hydrogen_implicit_fallback", "explicit")).lower()
+    if fallback not in ("explicit", "error"):
+        raise ValueError("hydrogen_implicit_fallback must be 'explicit' or 'error'")
+    failure = state.get("_implicit_failure", {})
+    if getattr(par, "hydrogen_implicit_debug", False) or failure:
+        log_diagnostic(
+            logging.ERROR if failure else logging.DEBUG,
+            "hydrogen_implicit_failure",
+            failure=failure,
+            singular_cells=failure.get("failed_cells", []),
+            unconverged_cells=failure.get("unconverged_cells", []),
+        )
+    if fallback == "error":
+        raise RuntimeError("coupled implicit hydrogen source solve did not converge")
+    return None
+
+
+def _finish_fast_source_update(
+    state,
+    par,
+    code,
+    remaining_s,
+    total_dt_s,
+    source_steps,
+    absorbed_integral,
+    transport_result,
+):
+    remaining_s, source_steps, absorbed_integral = _run_fast_source_loop(
+        state,
+        par,
+        code,
+        remaining_s,
+        0.0,
+        transport_result,
+        source_steps,
+        absorbed_integral,
+    )
+    absorbed_rate = None
+    if absorbed_integral is not None:
+        absorbed_rate = (
+            np.zeros_like(absorbed_integral)
+            if total_dt_s == 0.0
+            else absorbed_integral / total_dt_s
+        )
+    energy = getattr(par, "ionizing_photon_energy_cgs_erg", None)
+    if energy is None:
+        energy = getattr(par, "hydrogen_photon_energy", 0.0)
+    if hasattr(energy, "to_value"):
+        energy = np.asarray(energy.to_value("erg"), dtype=float)
+    return source_steps, absorbed_rate, np.atleast_1d(energy)
+
+
+def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
     """Fast source update for RT-coupled thermo-chemistry tests."""
     if not thermochemistry_enabled(fluid, par):
         return 0
@@ -2559,7 +2725,6 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):  # 
         raise ValueError("hydrogen thermo-chemistry requires configured code units")
     remaining_s = to_unit_value(dt, code.time_unit) * state["source_scale_factor"] ** 2
     total_dt_s = remaining_s
-    zero_time_s = 0.0
     source_steps = 0
     absorbed_integral = None
     source_solver = str(
@@ -2587,274 +2752,67 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):  # 
         _fast_sync_state_to_fluid(state, fluid, par)
         return compton_result
     initial_state = _copy_fast_source_state(state)
-    if source_solver == "split_implicit" and remaining_s > zero_time_s:
-        split_source_steps = _split_implicit_source_state_update(
-            state,
-            remaining_s,
-            par,
-        )
-        change = _source_relative_change(initial_state, state)
+    split_result = _try_split_implicit_source(
+        state,
+        initial_state,
+        remaining_s,
+        par,
+        code,
+        source_solver,
+    )
+    if split_result is not None:
         _fast_sync_state_to_fluid(state, fluid, par)
-        return {
-            "source_steps": split_source_steps,
-            "source_solver": "split_implicit",
-            "relative_change": change,
-            "absorbed_photon_rate": None,
-            "photon_energy_cgs_erg": np.atleast_1d(
-                _optional_numeric_value(
-                    getattr(
-                        par,
-                        "ionizing_photon_energy_cgs_erg",
-                        getattr(par, "hydrogen_photon_energy", 0.0),
-                    ),
-                    code.energy_unit,
-                    default=0.0,
-                ),
-            ),
-            "direction": int(getattr(par, "radiative_transfer_direction", 1)),
-        }
-    if (
-        source_solver == "hybrid"
-        and getattr(
-            par,
-            "hydrogen_hybrid_explicit_probe",
-            False,
-        )
-        and remaining_s > zero_time_s
-    ):
-        initial_state = _copy_fast_source_state(state)
-        explicit_state = _copy_fast_source_state(state)
-        explicit_steps = _explicit_source_state_update(
-            explicit_state,
-            remaining_s,
-            par,
-        )
-        change = _source_relative_change(initial_state, explicit_state)
-        threshold = float(
-            getattr(par, "hydrogen_hybrid_change_tolerance", 0.1),
-        )
-        if (
-            change <= threshold
-            or getattr(par, "radiative_transfer", False)
-            or getattr(par, "hydrogen_radiation_field", False)
-        ):
-            _set_fast_source_state(state, explicit_state)
-            _fast_sync_state_to_fluid(state, fluid, par)
-            return {
-                "source_steps": explicit_steps,
-                "source_solver": "explicit",
-                "relative_change": change,
-                "absorbed_photon_rate": None,
-                "photon_energy_cgs_erg": np.atleast_1d(
-                    _optional_numeric_value(
-                        getattr(
-                            par,
-                            "ionizing_photon_energy_cgs_erg",
-                            getattr(par, "hydrogen_photon_energy", 0.0),
-                        ),
-                        code.energy_unit,
-                        default=0.0,
-                    ),
-                ),
-                "direction": int(getattr(par, "radiative_transfer_direction", 1)),
-            }
-        state = initial_state
-        can_solve_coupled = not getattr(par, "radiative_transfer", False)
-        solved = False
-        if can_solve_coupled:
-            solved, implicit_source_steps = _adaptive_coupled_implicit_source_update(
-                state,
-                remaining_s,
-                ngamma_cgs_cm3=state.get("ngamma_cgs_cm3"),
-                tolerance=float(
-                    getattr(par, "hydrogen_implicit_tolerance", 1.0e-6),
-                ),
-                max_iterations=int(
-                    getattr(par, "hydrogen_implicit_max_iterations", 32),
-                ),
-                convergence_tolerance=float(
-                    getattr(
-                        par,
-                        "hydrogen_implicit_convergence_tolerance",
-                        1.0e-3,
-                    ),
-                ),
-                max_refinements=int(
-                    getattr(par, "hydrogen_implicit_max_refinements", 4),
-                ),
-                trust_region=(source_solver == "trust_region"),
-                absolute_temperature_tolerance=float(
-                    getattr(par, "hydrogen_implicit_absolute_temperature_tolerance", 0.0),
-                ),
-                absolute_xhi_tolerance=float(
-                    getattr(par, "hydrogen_implicit_absolute_xhi_tolerance", 0.0),
-                ),
-            )
-        if solved:
-            change = _source_relative_change(initial_state, state)
-            _fast_sync_state_to_fluid(state, fluid, par)
-            return {
-                "source_steps": implicit_source_steps,
-                "source_solver": (
-                    "trust_region" if source_solver == "trust_region" else "coupled_implicit"
-                ),
-                "relative_change": change,
-                "absorbed_photon_rate": None,
-                "photon_energy_cgs_erg": np.atleast_1d(
-                    _optional_numeric_value(
-                        getattr(
-                            par,
-                            "ionizing_photon_energy_cgs_erg",
-                            getattr(par, "hydrogen_photon_energy", 0.0),
-                        ),
-                        code.energy_unit,
-                        default=0.0,
-                    ),
-                ),
-                "direction": int(getattr(par, "radiative_transfer_direction", 1)),
-            }
-        fallback = str(
-            getattr(par, "hydrogen_implicit_fallback", "explicit"),
-        ).lower()
-        if fallback == "error":
-            raise RuntimeError(
-                "hybrid hydrogen source implicit solve did not converge "
-                f"(explicit relative change={change:.6g})",
-            )
-        _set_fast_source_state(state, explicit_state)
+        return split_result
+    hybrid_result = _try_hybrid_explicit_probe(
+        state,
+        remaining_s,
+        par,
+        code,
+        source_solver,
+    )
+    if hybrid_result is not None:
         _fast_sync_state_to_fluid(state, fluid, par)
-        return {
-            "source_steps": explicit_steps,
-            "source_solver": "explicit_fallback",
-            "relative_change": change,
-            "absorbed_photon_rate": None,
-            "photon_energy_cgs_erg": np.atleast_1d(
-                _optional_numeric_value(
-                    getattr(
-                        par,
-                        "ionizing_photon_energy_cgs_erg",
-                        getattr(par, "hydrogen_photon_energy", 0.0),
-                    ),
-                    code.energy_unit,
-                    default=0.0,
-                ),
-            ),
-            "direction": int(getattr(par, "radiative_transfer_direction", 1)),
-        }
-    if (
-        source_solver in ("hybrid", "coupled_implicit", "trust_region")
-        and remaining_s > zero_time_s
-    ):
-        # A ray-traced photon field can change during the source step.  Keep
-        # that operator split on the established path; the coupled solver is
-        # for a local, fixed photon field (including no photon field).
-        can_solve_coupled = not getattr(par, "radiative_transfer", False)
-        solved = False
-        if can_solve_coupled:
-            solved, implicit_source_steps = _adaptive_coupled_implicit_source_update(
-                state,
-                remaining_s,
-                ngamma_cgs_cm3=state.get("ngamma_cgs_cm3"),
-                tolerance=float(
-                    getattr(par, "hydrogen_implicit_tolerance", 1.0e-6),
-                ),
-                max_iterations=int(
-                    getattr(par, "hydrogen_implicit_max_iterations", 32),
-                ),
-                convergence_tolerance=float(
-                    getattr(
-                        par,
-                        "hydrogen_implicit_convergence_tolerance",
-                        1.0e-3,
-                    ),
-                ),
-                max_refinements=int(
-                    getattr(par, "hydrogen_implicit_max_refinements", 4),
-                ),
-                trust_region=(source_solver == "trust_region"),
-                absolute_temperature_tolerance=float(
-                    getattr(par, "hydrogen_implicit_absolute_temperature_tolerance", 0.0),
-                ),
-                absolute_xhi_tolerance=float(
-                    getattr(par, "hydrogen_implicit_absolute_xhi_tolerance", 0.0),
-                ),
-            )
-        if solved:
-            change = _source_relative_change(initial_state, state)
-            _fast_sync_state_to_fluid(state, fluid, par)
-            return {
-                "source_steps": implicit_source_steps,
-                "source_solver": (
-                    "trust_region" if source_solver == "trust_region" else "coupled_implicit"
-                ),
-                "relative_change": change,
-                "absorbed_photon_rate": None,
-                "photon_energy_cgs_erg": np.atleast_1d(
-                    _optional_numeric_value(
-                        getattr(
-                            par,
-                            "ionizing_photon_energy_cgs_erg",
-                            getattr(par, "hydrogen_photon_energy", 0.0),
-                        ),
-                        code.energy_unit,
-                        default=0.0,
-                    ),
-                ),
-                "direction": int(getattr(par, "radiative_transfer_direction", 1)),
-            }
-        fallback = str(
-            getattr(par, "hydrogen_implicit_fallback", "explicit"),
-        ).lower()
-        if fallback not in ("explicit", "error"):
-            raise ValueError(
-                "hydrogen_implicit_fallback must be 'explicit' or 'error'",
-            )
-        failure = state.get("_implicit_failure", {})
-        if getattr(par, "hydrogen_implicit_debug", False) or failure:
-            log_diagnostic(
-                logging.ERROR if failure else logging.DEBUG,
-                "hydrogen_implicit_failure",
-                failure=failure,
-                singular_cells=failure.get("failed_cells", []),
-                unconverged_cells=failure.get("unconverged_cells", []),
-            )
-        if fallback == "error":
-            raise RuntimeError(
-                "coupled implicit hydrogen source solve did not converge",
-            )
+        return hybrid_result
+    coupled_result = _try_coupled_source(
+        state,
+        initial_state,
+        remaining_s,
+        par,
+        code,
+        source_solver,
+    )
+    if coupled_result is not None:
+        _fast_sync_state_to_fluid(state, fluid, par)
+        return coupled_result
 
-    remaining_s, source_steps, absorbed_integral = _run_fast_source_loop(
+    source_steps, absorbed_rate, photon_energy = _finish_fast_source_update(
         state,
         par,
         code,
         remaining_s,
-        zero_time_s,
-        transport_result,
+        total_dt_s,
         source_steps,
         absorbed_integral,
+        transport_result,
     )
     _fast_sync_state_to_fluid(state, fluid, par)
-    absorbed_rate = None
-    if absorbed_integral is not None:
-        if total_dt_s == 0.0:
-            absorbed_rate = np.zeros_like(absorbed_integral)
-        else:
-            absorbed_rate = absorbed_integral / total_dt_s
-    energy = getattr(par, "ionizing_photon_energy_cgs_erg", None)
-    if energy is None:
-        energy = getattr(par, "hydrogen_photon_energy", 0.0)
-    if hasattr(energy, "to_value"):
-        energy = np.asarray(energy.to_value("erg"), dtype=float)
     return {
         "source_steps": source_steps,
         "absorbed_photon_rate": absorbed_rate,
-        "photon_energy_cgs_erg": np.atleast_1d(energy),
+        "photon_energy_cgs_erg": photon_energy,
         "direction": int(getattr(par, "radiative_transfer_direction", 1)),
     }
 
 
 def _run_fast_source_loop(
-    state, par, code, remaining_s, zero_time_s, transport_result, source_steps, absorbed_integral
+    state,
+    par,
+    code,
+    remaining_s,
+    zero_time_s,
+    transport_result,
+    source_steps,
+    absorbed_integral,
 ):
     """Advance the RT-coupled source state through adaptive substeps."""
     while remaining_s > zero_time_s:
@@ -2982,7 +2940,14 @@ def _fast_apply_chemistry_step(state, par, thermal_rate, sub_dt_s):
 
 
 def _fast_source_iteration(
-    state, par, code, remaining_s, zero_time_s, transport_result, source_steps, absorbed_integral
+    state,
+    par,
+    code,
+    remaining_s,
+    zero_time_s,
+    transport_result,
+    source_steps,
+    absorbed_integral,
 ):
     """Advance one adaptive thermo-chemistry source substep."""
     transport_result, absorbed, absorbed_integral = _fast_transport_step(

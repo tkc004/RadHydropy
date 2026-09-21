@@ -7,6 +7,7 @@ from math import erf
 import numpy as np
 import unyt
 
+from example.CosmologicalVirialShock1D.splashback import splashback_radius
 from radhydropy.constants import PROTON_MASS_CGS
 from radhydropy.dark_matter import DarkMatterShells
 from radhydropy.eos import EOS
@@ -509,81 +510,6 @@ def make_dark_matter(config):
     )
     shells.central_core_mass = float(central_core_mass) if central_core_mass is not None else 0.0
     return shells
-
-
-def splashback_radius(
-    dm_radius_proper_code,
-    dm_mass_comoving_code,
-    rvir_proper_code=np.nan,
-    bin_count=128,
-):
-    """Estimate splashback from the steepest outer DM density slope.
-
-    The input shell masses are rebinned exactly, rather than differentiating
-    the noisy density assigned to individual infinitesimal shells.  The
-    returned radius is in the same proper-code basis as ``dm_radius_proper_code``.
-    """
-    radius_proper_code = np.asarray(dm_radius_proper_code, dtype=float)
-    mass_comoving_code = np.asarray(dm_mass_comoving_code, dtype=float)
-    if not np.isfinite(rvir_proper_code) or float(rvir_proper_code) <= 0.0:
-        return float("nan")
-    valid = (
-        np.isfinite(radius_proper_code)
-        & np.isfinite(mass_comoving_code)
-        & (radius_proper_code > 0.0)
-        & (mass_comoving_code > 0.0)
-    )
-    radius_proper_code = radius_proper_code[valid]
-    mass_comoving_code = mass_comoving_code[valid]
-    if radius_proper_code.size < 16:  # noqa: PLR2004
-        return float("nan")
-    order = np.argsort(radius_proper_code)
-    radius_proper_code = radius_proper_code[order]
-    mass_comoving_code = mass_comoving_code[order]
-    edges = np.geomspace(
-        max(radius_proper_code[0] * 0.9, 1.0e-12),
-        radius_proper_code[-1] * 1.1,
-        int(max(32, bin_count)) + 1,
-    )
-    shell_mass_comoving_code, _ = np.histogram(
-        radius_proper_code,
-        bins=edges,
-        weights=mass_comoving_code,
-    )
-    shell_volume = 4.0 * np.pi / 3.0 * np.diff(edges**3)
-    rho_comoving_code = shell_mass_comoving_code / np.maximum(shell_volume, 1.0e-300)
-    occupied = rho_comoving_code > 0.0
-    if np.count_nonzero(occupied) < 12:  # noqa: PLR2004
-        return float("nan")
-    radii = np.sqrt(edges[:-1] * edges[1:])[occupied]
-    rho_comoving_code = rho_comoving_code[occupied]
-    log_radius = np.log(radii)
-    log_density = np.log(rho_comoving_code)
-    # A short boxcar suppresses individual-shell noise while retaining the
-    # broad splashback trough.
-    window = min(7, log_density.size if log_density.size % 2 else log_density.size - 1)
-    if window >= 3:  # noqa: PLR2004
-        padded = np.pad(log_density, (window // 2,), mode="edge")
-        log_density = np.convolve(
-            padded,
-            np.ones(window) / float(window),
-            mode="valid",
-        )
-    slope = np.gradient(log_density, log_radius)
-    # Splashback is an outer-halo caustic; features inside r200 are inner
-    # structure and must not be reported as the splashback radius.
-    lower = max(float(rvir_proper_code), radii[0])
-    upper = min(3.0 * float(rvir_proper_code), 0.95 * radii[-1])
-    if upper <= lower:
-        return float("nan")
-    candidates = np.flatnonzero((radii >= lower) & (radii <= upper))
-    if candidates.size < 3:  # noqa: PLR2004
-        return float("nan")
-    # Avoid reporting a weak numerical edge as splashback.
-    local = candidates[np.argmin(slope[candidates])]
-    if not np.isfinite(slope[local]) or slope[local] > -1.0:
-        return float("nan")
-    return float(radii[local])
 
 
 def _find_virial_shock_radius(

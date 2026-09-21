@@ -172,19 +172,7 @@ def format_density_threshold_factor(threshold_factor):
     return f"{factor_value:.2g}"
 
 
-def shell_inner_edge_radius(
-    rout,
-    ambient_density,
-    threshold_factor=1.0,
-    minimum_radius=None,
-):
-    """Estimate the cavity-side edge of the outer swept-up shell.
-
-    The resolved wind launch region and contact discontinuity can create
-    several separate density excursions above the ambient threshold.  The
-    forward swept-up shell is the outermost such excursion, not necessarily
-    the first one encountered after the launch region.
-    """
+def _shell_edge_profile(rout, minimum_radius):
     boundary_proper_unyt = _boundary_proper_unyt(rout)
     x_proper_code = 0.5 * (boundary_proper_unyt[1:] + boundary_proper_unyt[:-1])
     rho_proper_unyt = _rho_proper_unyt(rout)
@@ -205,36 +193,34 @@ def shell_inner_edge_radius(
 
     if rho_proper_values.size < 2:  # noqa: PLR2004
         return None
+    return x_proper_code, coordinate_values, rho_proper_values, rho_proper_unyt
 
-    threshold = ambient_density.to_value(rho_proper_unyt.units) * float(
-        np.asarray(threshold_factor).reshape(-1)[0],
-    )
-    # Equality is the ambient state itself, not shell compression.  Using
-    # ``>=`` makes an unperturbed ambient profile look like a shell beginning
-    # at the first active cell when the threshold factor is 1.
-    above = rho_proper_values > threshold
-    if not np.any(above):
-        return None
 
+def _shell_edge_index(above):
     starts = np.flatnonzero(above & np.concatenate(([True], ~above[:-1])))
     if starts.size == 0:
         return None
 
-    if above[0]:
-        # The inner wind can itself be above the ambient threshold.  Skip
-        # that initial region and use the first subsequent crossing, which is
-        # the cavity-side edge of the swept-up shell.
-        below = np.flatnonzero(~above)
-        if below.size == 0:
-            return None
-        search_start = int(below[0] + 1)
-        candidate_starts = starts[starts >= search_start]
-        if candidate_starts.size == 0:
-            return None
-        edge_index = int(candidate_starts[0])
-    else:
-        edge_index = int(starts[0])
+    if not above[0]:
+        return int(starts[0])
 
+    below = np.flatnonzero(~above)
+    if below.size == 0:
+        return None
+    search_start = int(below[0] + 1)
+    candidate_starts = starts[starts >= search_start]
+    if candidate_starts.size == 0:
+        return None
+    return int(candidate_starts[0])
+
+
+def _interpolate_shell_edge(
+    edge_index,
+    coordinate_values,
+    rho_proper_values,
+    x_proper_code,
+    threshold,
+):
     if edge_index == 0:
         return x_proper_code[0]
 
@@ -245,10 +231,47 @@ def shell_inner_edge_radius(
     if y1 == y0:
         return x_proper_code[edge_index]
 
-    fraction = (threshold - y0) / (y1 - y0)
-    fraction = np.clip(fraction, 0.0, 1.0)
-    shell_radius_proper_code = x0 + fraction * (x1 - x0)
-    return shell_radius_proper_code * x_proper_code.units
+    fraction = np.clip((threshold - y0) / (y1 - y0), 0.0, 1.0)
+    return (x0 + fraction * (x1 - x0)) * x_proper_code.units
+
+
+def shell_inner_edge_radius(
+    rout,
+    ambient_density,
+    threshold_factor=1.0,
+    minimum_radius=None,
+):
+    """Estimate the cavity-side edge of the outer swept-up shell.
+
+    The resolved wind launch region and contact discontinuity can create
+    several separate density excursions above the ambient threshold.  The
+    forward swept-up shell is the outermost such excursion, not necessarily
+    the first one encountered after the launch region.
+    """
+    profile = _shell_edge_profile(rout, minimum_radius)
+    if profile is None:
+        return None
+    x_proper_code, coordinate_values, rho_proper_values, rho_proper_unyt = profile
+
+    threshold = ambient_density.to_value(rho_proper_unyt.units) * float(
+        np.asarray(threshold_factor).reshape(-1)[0],
+    )
+    # Equality is the ambient state itself, not shell compression.  Using
+    # ``>=`` makes an unperturbed ambient profile look like a shell beginning
+    # at the first active cell when the threshold factor is 1.
+    above = rho_proper_values > threshold
+    if not np.any(above):
+        return None
+    edge_index = _shell_edge_index(above)
+    if edge_index is None:
+        return None
+    return _interpolate_shell_edge(
+        edge_index,
+        coordinate_values,
+        rho_proper_values,
+        x_proper_code,
+        threshold,
+    )
 
 
 def weaver_forward_shock_radius(rout, config):

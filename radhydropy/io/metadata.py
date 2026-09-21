@@ -16,27 +16,41 @@ except Exception:  # pragma: no cover - optional dependency shape
     SympyBasic = None
 
 
+def _provenance_quantity_value(value):
+    numeric_value = np.asarray(value.value)
+    numeric_value = numeric_value.item() if numeric_value.ndim == 0 else numeric_value.tolist()
+    return {"value": numeric_value, "unit": str(value.units)}
+
+
+def _provenance_mapping_value(value):
+    return {
+        str(key): _provenance_yaml_value(item)
+        for key, item in value.items()
+        if not str(key).startswith("_")
+    }
+
+
+def _provenance_sequence_value(value):
+    return [_provenance_yaml_value(item) for item in value]
+
+
 def _provenance_yaml_value(value):
     """Convert nested configuration values into YAML-safe values."""
     if isinstance(value, unyt.array.unyt_array):
-        numeric_value = np.asarray(value.value)
-        numeric_value = numeric_value.item() if numeric_value.ndim == 0 else numeric_value.tolist()
-        return {"value": numeric_value, "unit": str(value.units)}
-    if isinstance(value, dict):
-        return {
-            str(key): _provenance_yaml_value(item)
-            for key, item in value.items()
-            if not str(key).startswith("_")
-        }
-    if isinstance(value, (list, tuple)):
-        return [_provenance_yaml_value(item) for item in value]
-    if isinstance(value, np.generic):
-        return value.item()
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    return str(value)
+        converted = _provenance_quantity_value(value)
+    elif isinstance(value, dict):
+        converted = _provenance_mapping_value(value)
+    elif isinstance(value, (list, tuple)):
+        converted = _provenance_sequence_value(value)
+    elif isinstance(value, np.generic):
+        converted = value.item()
+    elif isinstance(value, Path):
+        converted = str(value)
+    elif isinstance(value, (str, int, float, bool)) or value is None:
+        converted = value
+    else:
+        converted = str(value)
+    return converted
 
 
 def _provenance_yaml_text(value):
@@ -146,24 +160,34 @@ def _yaml_array_value(value):
     return value.tolist()
 
 
+def _yaml_mapping_value(value):
+    return {str(key): _yaml_config_value(item) for key, item in value.items()}
+
+
+def _yaml_sequence_value(value):
+    return [_yaml_config_value(item) for item in value]
+
+
 def _yaml_config_value(value):
     """Convert a value to a YAML config friendly representation."""
     handled, scalar = _yaml_scalar_value(value)
     if handled:
-        return scalar
-    if hasattr(value, "to_dict") and callable(value.to_dict):
-        return _yaml_config_value(value.to_dict())
-    if hasattr(value, "units"):
-        return _yaml_quantity_value(value)
-    if isinstance(value, dict):
-        return {str(key): _yaml_config_value(val) for key, val in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_yaml_config_value(item) for item in value]
-    if isinstance(value, np.ndarray):
-        return _yaml_array_value(value)
-    if hasattr(value, "__dict__") and not isinstance(value, type):
-        return _yaml_object_value(value)
-    return value
+        converted = scalar
+    elif hasattr(value, "to_dict") and callable(value.to_dict):
+        converted = _yaml_config_value(value.to_dict())
+    elif hasattr(value, "units"):
+        converted = _yaml_quantity_value(value)
+    elif isinstance(value, dict):
+        converted = _yaml_mapping_value(value)
+    elif isinstance(value, (list, tuple)):
+        converted = _yaml_sequence_value(value)
+    elif isinstance(value, np.ndarray):
+        converted = _yaml_array_value(value)
+    elif hasattr(value, "__dict__") and not isinstance(value, type):
+        converted = _yaml_object_value(value)
+    else:
+        converted = value
+    return converted
 
 
 def parameter_tree(value):
@@ -264,27 +288,44 @@ def write_used_parameters(path, par):
     return path
 
 
+def _yaml_dump_value(value):
+    return yaml.safe_dump(value, sort_keys=True, default_flow_style=False)
+
+
+def _header_array_value(tree):
+    if tree.dtype == object or tree.dtype.kind == "U":
+        return _yaml_dump_value(tree.tolist())
+    return tree
+
+
+def _header_sequence_value(tree):
+    scalar_items = all(
+        isinstance(item, (str, bytes, int, float, bool, np.generic)) for item in tree
+    )
+    if not scalar_items:
+        return _yaml_dump_value(tree)
+    array = np.asarray(tree)
+    if array.dtype == object or array.dtype.kind == "U":
+        return _yaml_dump_value(tree)
+    return array
+
+
 def _header_attr_value(value):
     """Convert a runtime parameter into an HDF5-attribute-friendly value."""
     tree = parameter_tree(value)
     if tree is None:
-        return yaml.safe_dump(None, sort_keys=True, default_flow_style=False)
-    if isinstance(tree, (str, bytes, int, float, bool)):
-        return tree
-    if isinstance(tree, np.generic):
-        return tree.item()
-    if isinstance(tree, np.ndarray):
-        if tree.dtype == object or tree.dtype.kind == "U":
-            return yaml.safe_dump(tree.tolist(), sort_keys=True, default_flow_style=False)
-        return tree
-    if isinstance(tree, (list, tuple)) and all(
-        isinstance(item, (str, bytes, int, float, bool, np.generic)) for item in tree
-    ):
-        array = np.asarray(tree)
-        if array.dtype == object or array.dtype.kind == "U":
-            return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
-        return array
-    return yaml.safe_dump(tree, sort_keys=True, default_flow_style=False)
+        converted = _yaml_dump_value(None)
+    elif isinstance(tree, (str, bytes, int, float, bool)):
+        converted = tree
+    elif isinstance(tree, np.generic):
+        converted = tree.item()
+    elif isinstance(tree, np.ndarray):
+        converted = _header_array_value(tree)
+    elif isinstance(tree, (list, tuple)):
+        converted = _header_sequence_value(tree)
+    else:
+        converted = _yaml_dump_value(tree)
+    return converted
 
 
 def _restore_header_array(value):

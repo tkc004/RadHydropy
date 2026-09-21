@@ -891,7 +891,9 @@ class InitialConditionWriter:
                     par,
                     "tau_supercomoving_code",
                     getattr(
-                        getattr(par, "simulation", None), time_name, getattr(fluid, time_name, 0.0)
+                        getattr(par, "simulation", None),
+                        time_name,
+                        getattr(fluid, time_name, 0.0),
                     ),
                 )
             time_value = float(np.asarray(time_value).flat[0])
@@ -920,7 +922,8 @@ class InitialConditionWriter:
         fields = PROPER_RUNTIME_FIELDS
         if self.ic_config is not None and "time_proper" in self.ic_config:
             time_value = self._to_code_values(
-                self.ic_config["time_proper"], self.code_units.time_unit
+                self.ic_config["time_proper"],
+                self.code_units.time_unit,
             )
         else:
             time_value = getattr(

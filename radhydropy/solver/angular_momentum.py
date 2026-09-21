@@ -320,7 +320,7 @@ def _limit_face_corrections(
         increment = dt * correction_area[face]
 
         trial_valid = lambda alpha: (
-            valid_cell(  # noqa: E731
+            valid_cell(
                 left,
                 trial_angular[left] - alpha * increment,
                 trial_energy[left] - alpha * dt * rotational_correction_area[face],
