@@ -8,7 +8,7 @@ import argparse
 import itertools
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import h5py
 import numpy as np
@@ -31,7 +31,7 @@ from radhydropy.radiation_spectrum import (
     SPECTRUM_GROUP,
 )
 
-_trapezoid = cast("Any", getattr(np, "trapezoid", getattr(np, "trapz", None)))
+_trapezoid = np.trapezoid
 
 EV_TO_ERG = 1.602176634e-12
 DEFAULT_EDGES_EV = (13.6, 24.6, 54.4, 10_000.0)

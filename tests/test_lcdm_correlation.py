@@ -6,7 +6,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-_trapezoid = getattr(np, "trapezoid", np.trapz)  # noqa: NPY201 - NumPy 1.x compatibility.
+_trapezoid = np.trapezoid
 
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "lcdm_correlation.py"
 _SPEC = importlib.util.spec_from_file_location("lcdm_correlation_test_module", _MODULE_PATH)

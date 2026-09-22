@@ -14,7 +14,7 @@ authors = [
 ]
 dependencies = [
     "h5py",
-    "numpy",
+    "numpy>=2.0",
     "PyYAML",
     "unyt",
 ]
