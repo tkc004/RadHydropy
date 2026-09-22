@@ -193,7 +193,7 @@ def run_with_output_times(
 def _normalized_output_times(sim: Any, final_time: Any, current_time: Any) -> list[Any]:
     from radhydropy.io import load_output_time_list  # noqa: PLC0415
 
-    output_times = load_output_time_list(getattr(sim.par, "outputtimefilename", None))
+    output_times = load_output_time_list(sim.par.output.time_list_filename)
     if output_times is None:
         return []
     if hasattr(final_time, "units"):

@@ -103,7 +103,7 @@ def _snapshot_profiles(filename, config):
         time_proper_Myr,
         radius_proper_cgs_cm_unyt.to_value(unyt.kpc),
         rho_proper_cgs_g_cm3_unyt,
-        temperature_proper_cgs_K_unyt,
+        temperature_proper_cgs_K_unyt.to_value(unyt.K),
         vel_peculiar_proper_cgs_cm_s_unyt,
     )
 

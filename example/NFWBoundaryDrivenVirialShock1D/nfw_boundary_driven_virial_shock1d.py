@@ -115,6 +115,7 @@ def _run_stage(config, halo, mode, *, restart=False):
         sim.par.output.directory = stage_config["par"]["output"]["directory"]
         sim.par.output.filename_prefix = stage_config["par"]["output"]["filename_prefix"]
         sim.par.output.time_list_filename = stage_config["par"]["output"]["time_list_filename"]
+        sim.par.simulation.final_time = stage_config["par"]["simulation"]["final_time"]
     if restart:
         _strip_snapshot_ghosts(sim)
     sim.SetMesh()
@@ -131,6 +132,14 @@ def _run_stage(config, halo, mode, *, restart=False):
         coordinate=sim.mesh.geometry_state.x_proper_code.copy(),
         code_units=sim.par.units.CodeUnits,
     )
+    if restart:
+        sim.par.output.directory = stage_config["par"]["output"]["directory"]
+        sim.par.output.filename_prefix = stage_config["par"]["output"]["filename_prefix"]
+        sim.par.output.time_list_filename = stage_config["par"]["output"]["time_list_filename"]
+        stage_final_time = stage_config["par"]["simulation"]["final_time"]
+        sim.par.simulation.final_time = float(
+            stage_final_time.to_value(sim.par.units.CodeUnits.time_unit),
+        )
     sim.Run(mode=mode)
     return sorted(
         output_directory.glob(

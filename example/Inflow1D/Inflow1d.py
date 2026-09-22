@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 import tempfile
+from itertools import cycle
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -56,7 +57,7 @@ def main(config_filename=DEFAULT_CONFIG):
     outputfiles = sorted(
         Path(output["directory"]).glob(f"{output['filename_prefix']}_*.hdf5"),
     )
-    color_cycle = iter(plt.rcParams["axes.prop_cycle"])
+    color_cycle = cycle(plt.rcParams["axes.prop_cycle"])
     for outfilename in outputfiles:
         et.plot_snapshot(
             str(outfilename),

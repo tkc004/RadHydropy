@@ -1,0 +1,4 @@
+time_proper_Myr shock_radius_proper_kpc shock_radius_over_R200_dimensionless density_ratio_dimensionless temperature_ratio_dimensionless velocity_inner_proper_km_s velocity_outer_proper_km_s
+800 190.80732 0.92500561 2.6509232 6.8170051 -85.013907 -223.83097
+1000 200.93983 0.97412651 2.7048721 6.1560061 -72.12962 -223.57366
+1200 213.81158 1.0365269 2.7445208 5.6636628 -58.275975 -221.25432

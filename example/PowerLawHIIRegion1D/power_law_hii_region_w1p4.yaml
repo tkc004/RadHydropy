@@ -13,6 +13,7 @@ par:
     gamma: 1.0
     CFL: 0.4
     order: 1
+    positivity_preserving: false
   boundary:
     condition: OpenSph
   timestep:
@@ -40,6 +41,7 @@ par:
   radiation:
     radiative_transfer: true
     radiative_transfer_method: long_characteristics
+    radiative_transfer_temporal_scheme: instantaneous
     radiative_transfer_boundary_flux: {value: 0.0, unit: 1/(cm**2*s)}
     source_photon_rate: {value: 5.0e49, unit: 1/s}
     radiative_transfer_direction: 1

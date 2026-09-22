@@ -1,4 +1,4 @@
-time_Myr shock_radius_kpc
+time_proper_Myr shock_radius_proper_kpc
 0 4.8037109
 0.02 10.444336
 0.04 10.444336
@@ -1002,4 +1002,4 @@ time_Myr shock_radius_kpc
 20 9.5166016
 
 final_cooling_diagnostics
-cooling_length_kpc nan
+cooling_length_proper_kpc nan

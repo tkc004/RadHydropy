@@ -220,7 +220,11 @@ def shock_radius_cgs_cm(
 
 
 def output_files(output_directory, prefix):
-    return sorted(Path(output_directory).glob(f"{prefix}_*.hdf5"))
+    return sorted(
+        path
+        for path in Path(output_directory).glob(f"{prefix}_*.hdf5")
+        if path.stem.removeprefix(f"{prefix}_").isdigit()
+    )
 
 
 def apply_piecewise_isothermal_state(sim, config):

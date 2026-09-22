@@ -138,9 +138,11 @@ def main(config_filename=DEFAULT_CONFIG):
     photon_energy_cgs_erg = (20.0 * unyt.eV).to_value(unyt.erg)
     shell_mass_cgs_g = initial["shell_mass"].to_value(unyt.g)
     shell_state = {
-        "radius_proper_code": quantity_to_value(
-            initial["radius_shell_initial_proper"],
-            code.length_unit,
+        "radius_proper_code": float(
+            quantity_to_value(
+                initial["radius_shell_initial_proper"],
+                code.length_unit,
+            ),
         ),
         "vel_proper_code": 0.0,
     }
