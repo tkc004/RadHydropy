@@ -132,7 +132,9 @@ jobs:
           git lfs install
           git clone --depth 1 https://github.com/tkc004/RadhydropyData.git ../RadhydropyData
           git -C ../RadhydropyData lfs pull
-          ln -s RadhydropyData/metal_pie_table ../metal_pie_table
+          if [ ! -e ../metal_pie_table ] && [ ! -L ../metal_pie_table ]; then
+            ln -s RadhydropyData/metal_pie_table ../metal_pie_table
+          fi
           test -s ../metal_pie_table/metal_pie_hm12_total.h5
 
       - name: Run the PIE radiative shock-tube smoke test
