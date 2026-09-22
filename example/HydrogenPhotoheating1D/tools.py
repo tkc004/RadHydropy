@@ -170,6 +170,8 @@ def RunHydrogenPhotoheating(sim, source_switch_time, photon_density_on, outputti
     output_times = rio.load_output_time_list(
         getattr(sim.par.output, "time_list_filename", None),
     )
+    output_interval = None
+    next_output_time = None
     if output_times is not None:
         target_unit = final_time.units
         output_times = np.unique(

@@ -44,6 +44,13 @@ def main(config_filename=DEFAULT_CONFIG):
     ric.write(config["par"]["simulation"]["initial_condition_filename"], validate=True)
 
     mainrun = rio.loadhdf5(config, config["par"]["simulation"]["initial_condition_filename"])
+    # Initialize the IC first: that workflow refreshes structured parameter
+    # groups.  Attach the example-local external field after the refresh so it
+    # remains the live runtime gravity model during the evolution.
+    mainrun.Callreadhdf5()
+    mainrun.SetMesh()
+    mainrun.SetFluid()
+    mainrun.SetInitFluid()
     mainrun.par.gravity = Gravity(
         externalgravity=True,
         acceleration=et.constant_gravity_acceleration(
@@ -52,7 +59,7 @@ def main(config_filename=DEFAULT_CONFIG):
         ),
         code_units=code_units_obj,
     )
-    mainrun.RunAll(outputtime=0, mode="hydro")
+    mainrun.Run(outputtime=0, mode="hydro")
 
     output_files = sorted(
         Path(config["par"]["output"]["directory"]).glob(

@@ -21,7 +21,7 @@ mplconfig_dir.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir))
 os.environ.setdefault(
     "MPLCONFIGDIR",
-    mplconfig_dir,
+    str(mplconfig_dir),
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
