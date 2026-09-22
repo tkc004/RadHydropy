@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Interface-state and Riemann flux calculations."""
 
+from typing import Any
+
 import numpy as np
 
 import radhydropy.utils as ru
 from radhydropy.arrays import as_named_array
 
 
-def vacuum_safe_primitive_state(rho, vel, pre):
+def vacuum_safe_primitive_state(rho: Any, vel: Any, pre: Any) -> tuple[Any, Any, Any]:
     """Return a finite, positive primitive state for a face Riemann solve.
 
     This operates on temporary face states only.  It does not alter the
@@ -32,7 +34,15 @@ def vacuum_safe_primitive_state(rho, vel, pre):
     )
 
 
-def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):  # noqa: N803
+def hllc_flux(
+    rho_L: Any,
+    vel_L: Any,
+    pre_L: Any,
+    rho_R: Any,
+    vel_R: Any,
+    pre_R: Any,
+    gamma: float,
+) -> tuple[Any, Any]:  # noqa: N803
     """Return an HLLC Euler flux for positive, non-vacuum states.
 
     The caller supplies the Rusanov flux for vacuum, non-finite, or
@@ -113,7 +123,16 @@ def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):  # noqa: N803
     return result, valid
 
 
-def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):  # noqa: N803
+def interface_fluxes(
+    fluid: Any,
+    rho_L: Any,
+    vel_L: Any,
+    pre_L: Any,
+    rho_R: Any,
+    vel_R: Any,
+    pre_R: Any,
+    method: str,
+) -> Any:  # noqa: N803
     states = fluid.eos.fluxes(rho_L, vel_L, pre_L)
     states_R = fluid.eos.fluxes(rho_R, vel_R, pre_R)
     if method != "HLLC" or not getattr(fluid.eos, "is_polytropic", False):
@@ -148,7 +167,13 @@ def interface_fluxes(fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):  
     return tuple(flux[index] for index in range(3))
 
 
-def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
+def set_flux_on_face(
+    solver: Any,
+    fluid: Any,
+    par: Any = None,
+    order: int = 0,
+    method: str = "Rusanov",
+) -> None:
     """Assemble limited mass, momentum, and energy face fluxes."""
     density_code, velocity_code, pressure_code, _ = solver.active_primitive_arrays(fluid, par)
     rho_L, vel_L, pre_L = vacuum_safe_primitive_state(
@@ -254,7 +279,7 @@ def set_flux_on_face(solver, fluid, par=None, order=0, method="Rusanov"):
         raise ValueError(f"order unknown: {order}")
 
 
-def set_face_lr(solver, mesh, fluid, order=0):
+def set_face_lr(solver: Any, mesh: Any, fluid: Any, order: int = 0) -> None:
     """Construct left and right primitive states at cell faces."""
     par = getattr(mesh, "par", getattr(mesh, "_par", None))
     geometry = solver.geometry_state(mesh, par)

@@ -18,7 +18,7 @@ DEFAULT_TABLE = (
 )
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Plot CHIANTI cooling rate versus log10 temperature.",
     )
@@ -54,7 +54,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
     table_path = args.table.expanduser().resolve()
     output_path = args.output or table_path.with_name(

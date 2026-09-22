@@ -3,6 +3,7 @@
 """Load the canonical nested configuration used by RadHydropy examples."""
 
 from pathlib import Path
+from typing import Any
 
 import unyt
 import yaml
@@ -13,7 +14,7 @@ from radhydropy.radiation_spectrum import (
 )
 
 
-def _load_yaml_value(value):
+def _load_yaml_value(value: Any) -> Any:
     """Convert YAML ``value``/``unit`` mappings into unyt quantities."""
     if isinstance(value, dict) and {"value", "unit"} <= value.keys():
         return float(value["value"]) * unyt.Unit(value["unit"])
@@ -24,14 +25,14 @@ def _load_yaml_value(value):
     return value
 
 
-def _resolve_path(value, base_directory):
+def _resolve_path(value: str | Path, base_directory: str | Path) -> str:
     path = Path(value)
     if path.is_absolute():
         return str(path)
     return str(Path(base_directory) / path)
 
 
-def load_example_config(config_filename):
+def load_example_config(config_filename: str | Path) -> dict[str, Any]:
     """Load a complete nested example configuration.
 
     The result always contains the independent ``par``, ``initial_condition``,

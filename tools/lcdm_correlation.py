@@ -10,6 +10,7 @@ Eisenstein--Hu no-wiggle transfer shape.
 
 import importlib.util
 from pathlib import Path
+from typing import Any, cast
 
 import h5py
 import numpy as np
@@ -26,25 +27,33 @@ except ModuleNotFoundError:
         "radhydropy_physical_cosmology",
         _COSMOLOGY_FILE,
     )
+    if _COSMOLOGY_SPEC is None or _COSMOLOGY_SPEC.loader is None:
+        raise ImportError(
+            f"could not load cosmology module from {_COSMOLOGY_FILE}",
+        ) from None
     _COSMOLOGY_MODULE = importlib.util.module_from_spec(_COSMOLOGY_SPEC)
     _COSMOLOGY_SPEC.loader.exec_module(_COSMOLOGY_MODULE)
-    LambdaCDM = _COSMOLOGY_MODULE.LambdaCDM
+    LambdaCDM = cast("Any", _COSMOLOGY_MODULE.LambdaCDM)
 
 
-def _validate_lcdm_parameters(omega_m, omega_lambda, omega_b=None):
+def _validate_lcdm_parameters(
+    omega_m: float,
+    omega_lambda: float,
+    omega_b: float | None = None,
+) -> None:
     LambdaCDM(omega_m=omega_m, omega_lambda=omega_lambda)
     if omega_b is not None and not (0.0 < omega_b < omega_m):
         raise ValueError("require 0 < omega_b < omega_m")
 
 
 def eisenstein_hu_nowiggle_transfer(
-    k_hmpc,
-    omega_m=0.315,
-    omega_b=0.049,
-    h=0.674,
-    omega_lambda=0.685,
-    theta_cmb=2.7255 / 2.7,
-):
+    k_hmpc: Any,
+    omega_m: float = 0.315,
+    omega_b: float = 0.049,
+    h: float = 0.674,
+    omega_lambda: float = 0.685,
+    theta_cmb: float = 2.7255 / 2.7,
+) -> Any:
     """Return the Eisenstein--Hu no-wiggle transfer function."""
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     if np.any(k_hmpc <= 0.0):
@@ -61,13 +70,13 @@ def eisenstein_hu_nowiggle_transfer(
 
 
 def linear_matter_power_spectrum_shape(
-    k_hmpc,
-    omega_m=0.315,
-    omega_b=0.049,
-    h=0.674,
-    n_s=0.965,
-    omega_lambda=0.685,
-):
+    k_hmpc: Any,
+    omega_m: float = 0.315,
+    omega_b: float = 0.049,
+    h: float = 0.674,
+    n_s: float = 0.965,
+    omega_lambda: float = 0.685,
+) -> Any:
     """Return the unnormalized ``k**n_s T(k)**2`` power-spectrum shape."""
     transfer = eisenstein_hu_nowiggle_transfer(
         k_hmpc,
@@ -80,14 +89,14 @@ def linear_matter_power_spectrum_shape(
 
 
 def linear_matter_power_spectrum(
-    k_hmpc,
-    omega_m=0.315,
-    omega_b=0.049,
-    h=0.674,
-    n_s=0.965,
-    sigma8=0.811,
-    omega_lambda=0.685,
-):
+    k_hmpc: Any,
+    omega_m: float = 0.315,
+    omega_b: float = 0.049,
+    h: float = 0.674,
+    n_s: float = 0.965,
+    sigma8: float = 0.811,
+    omega_lambda: float = 0.685,
+) -> Any:
     """Return a sigma8-normalized linear matter power spectrum."""
     k_hmpc = np.asarray(k_hmpc, dtype=float)
     shape = linear_matter_power_spectrum_shape(
@@ -116,13 +125,13 @@ def linear_matter_power_spectrum(
 
 
 def plot_lcdm_transfer_function(
-    filename=None,
-    k_hmpc=None,
-    omega_m=0.315,
-    omega_b=0.049,
-    h=0.674,
-    omega_lambda=0.685,
-):
+    filename: str | Path | None = None,
+    k_hmpc: Any = None,
+    omega_m: float = 0.315,
+    omega_b: float = 0.049,
+    h: float = 0.674,
+    omega_lambda: float = 0.685,
+) -> tuple[Any, Any]:
     """Plot the dimensionless Eisenstein--Hu transfer function.
 
     The horizontal axis is ``k`` in ``h/Mpc``.  If ``filename`` is supplied,
@@ -160,15 +169,15 @@ def plot_lcdm_transfer_function(
 
 
 def plot_linear_matter_power_spectrum(
-    filename=None,
-    k_hmpc=None,
-    omega_m=0.315,
-    omega_b=0.049,
-    h=0.674,
-    n_s=0.965,
-    sigma8=0.811,
-    omega_lambda=0.685,
-):
+    filename: str | Path | None = None,
+    k_hmpc: Any = None,
+    omega_m: float = 0.315,
+    omega_b: float = 0.049,
+    h: float = 0.674,
+    n_s: float = 0.965,
+    sigma8: float = 0.811,
+    omega_lambda: float = 0.685,
+) -> tuple[Any, Any]:
     """Plot the sigma8-normalized linear matter power spectrum."""
     import matplotlib.pyplot as plt  # noqa: PLC0415
 
@@ -202,17 +211,17 @@ def plot_linear_matter_power_spectrum(
 
 
 def plot_linear_correlation_from_power_spectrum(
-    filename=None,
-    radius_mpc_h=None,
-    k_hmpc=None,
-    power=None,
-    omega_m=0.315,
-    omega_b=0.049,
-    h=0.674,
-    n_s=0.965,
-    sigma8=0.811,
-    omega_lambda=0.685,
-):
+    filename: str | Path | None = None,
+    radius_mpc_h: Any = None,
+    k_hmpc: Any = None,
+    power: Any = None,
+    omega_m: float = 0.315,
+    omega_b: float = 0.049,
+    h: float = 0.674,
+    n_s: float = 0.965,
+    sigma8: float = 0.811,
+    omega_lambda: float = 0.685,
+) -> tuple[Any, Any]:
     """Plot ``xi(r)`` computed from a tabulated or built-in linear ``P(k)``.
 
     The default plotted range ends at 50 Mpc/h, before finite-k endpoint
@@ -265,7 +274,11 @@ def plot_linear_correlation_from_power_spectrum(
     return radius_mpc_h, correlation
 
 
-def linear_correlation_from_power_spectrum(radius_mpc_h, k_hmpc, power):
+def linear_correlation_from_power_spectrum(
+    radius_mpc_h: Any,
+    k_hmpc: Any,
+    power: Any,
+) -> Any:
     """Compute ``xi(r)`` exactly for a supplied tabulated ``P(k)``."""
     radius_mpc_h = np.asarray(radius_mpc_h, dtype=float)
     k_hmpc = np.asarray(k_hmpc, dtype=float)
@@ -285,7 +298,7 @@ def linear_correlation_from_power_spectrum(radius_mpc_h, k_hmpc, power):
     return _trapezoid(integrand, np.log(k), axis=1) / (2.0 * np.pi**2)
 
 
-def load_lcdm_correlation_table(filename):
+def load_lcdm_correlation_table(filename: str | Path) -> dict[str, Any]:
     """Load a previously generated correlation table from HDF5."""
     with h5py.File(filename, "r") as handle:
         return {
@@ -298,17 +311,17 @@ def load_lcdm_correlation_table(filename):
 
 
 def generate_lcdm_correlation_table(
-    filename=None,
-    radius_mpc_h=None,
-    k_hmpc=None,
-    omega_m=0.315,
-    omega_b=0.049,
-    h=0.674,
-    n_s=0.965,
-    sigma8=0.811,
-    omega_lambda=0.685,
-    k_min_hmpc=None,
-):
+    filename: str | Path | None = None,
+    radius_mpc_h: Any = None,
+    k_hmpc: Any = None,
+    omega_m: float = 0.315,
+    omega_b: float = 0.049,
+    h: float = 0.674,
+    n_s: float = 0.965,
+    sigma8: float = 0.811,
+    omega_lambda: float = 0.685,
+    k_min_hmpc: float | None = None,
+) -> dict[str, Any]:
     """Generate a linear correlation table, optionally with a box cutoff.
 
     ``k_min_hmpc`` removes modes larger than the modeled comoving box.  The

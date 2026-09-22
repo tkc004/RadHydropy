@@ -53,6 +53,7 @@ import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -68,11 +69,11 @@ import numpy as np
 # RadHydropy/tools, without requiring the caller to set XUVTOP first.
 DEFAULT_XUVTOP = Path(__file__).resolve().parents[2] / "CHIANTI_11.0.2_database"
 
-ch = None
-_WORKER_XUVTOP = None
+ch: Any = None
+_WORKER_XUVTOP: str | None = None
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate a CHIANTI cooling table in HDF5 format.",
     )
@@ -208,15 +209,14 @@ def parse_args():
     return parser.parse_args()
 
 
-def check_environment(xuvtop_arg=None):
+def check_environment(xuvtop_arg: str | None = None) -> str:
     global ch
 
     # Prefer an explicit CLI value, then the environment, then the database
     # bundled alongside this repository.
+    xuvtop_value = xuvtop_arg or os.environ.get("XUVTOP") or str(DEFAULT_XUVTOP)
     xuvtop = (
-        Path(
-            xuvtop_arg or os.environ.get("XUVTOP", DEFAULT_XUVTOP),
-        )
+        Path(xuvtop_value)
         .expanduser()
         .resolve()
     )
@@ -240,13 +240,13 @@ def check_environment(xuvtop_arg=None):
     return str(xuvtop)
 
 
-def _initialize_cooling_worker(xuvtop):
+def _initialize_cooling_worker(xuvtop: str) -> None:
     """Configure CHIANTI inside a spawned worker process."""
     global _WORKER_XUVTOP
     _WORKER_XUVTOP = check_environment(xuvtop)
 
 
-def _get_radloss_rate(radloss_object):
+def _get_radloss_rate(radloss_object: Any) -> Any:
     """Extract the radiative-loss coefficient from a ChiantiPy radLoss object.
 
     In common ChiantiPy versions this is:
@@ -273,13 +273,13 @@ def _get_radloss_rate(radloss_object):
 
 
 def compute_cooling_vs_T_for_density(  # noqa: N802
-    temperatures,
-    electron_density,
-    abundance,
-    min_abund,
+    temperatures: Any,
+    electron_density: float,
+    abundance: str,
+    min_abund: float,
     *,
-    do_continuum=True,
-):
+    do_continuum: bool = True,
+) -> Any:
     """Compute Lambda(T, ne) for one density and all temperatures.
 
     Parameters
@@ -326,7 +326,7 @@ def compute_cooling_vs_T_for_density(  # noqa: N802
     return rate
 
 
-def _compute_density_column(task):
+def _compute_density_column(task: Any) -> tuple[Any, ...]:
     (
         index,
         electron_density,
@@ -348,16 +348,16 @@ def _compute_density_column(task):
 
 
 def compute_cooling_grid(
-    temperatures,
-    electron_densities,
-    abundance,
-    min_abund,
+    temperatures: Any,
+    electron_densities: Any,
+    abundance: str,
+    min_abund: float,
     *,
-    do_continuum=True,
-    label="",
-    workers=1,
-    xuvtop=None,
-):
+    do_continuum: bool = True,
+    label: str = "",
+    workers: int = 1,
+    xuvtop: str | None = None,
+) -> Any:
     """Compute Lambda(T, ne) on a 2D grid.
 
     Returns
@@ -407,8 +407,8 @@ def compute_cooling_grid(
         with ProcessPoolExecutor(
             max_workers=workers,
             mp_context=context,
-            initializer=_initialize_cooling_worker,
-            initargs=(xuvtop,),
+            initializer=_initialize_cooling_worker,  # type: ignore[arg-type]
+            initargs=(xuvtop,),  # type: ignore[arg-type]
         ) as executor:
             futures = {executor.submit(_compute_density_column, task): task[0] for task in tasks}
             for _completed, future in enumerate(as_completed(futures), start=1):
@@ -419,12 +419,12 @@ def compute_cooling_grid(
 
 
 def build_metallicity_table(
-    cooling_solar,
-    cooling_hhe,
-    metallicities,
+    cooling_solar: Any,
+    cooling_hhe: Any,
+    metallicities: Any,
     *,
-    clip_negative_metal_cooling=False,
-):
+    clip_negative_metal_cooling: bool = False,
+) -> tuple[Any, Any]:
     """Build Lambda(Z, T, ne) from solar and H/He cooling.
 
     Parameters
@@ -464,17 +464,17 @@ def build_metallicity_table(
 
 
 def write_hdf5(
-    filename,
-    temperatures,
-    electron_densities,
-    metallicities,
-    cooling_table,
-    cooling_solar,
-    cooling_hhe,
-    cooling_metals_solar,
-    args,
-    xuvtop,
-):
+    filename: str | Path,
+    temperatures: Any,
+    electron_densities: Any,
+    metallicities: Any,
+    cooling_table: Any,
+    cooling_solar: Any,
+    cooling_hhe: Any,
+    cooling_metals_solar: Any,
+    args: Any,
+    xuvtop: str,
+) -> None:
     """Write table and metadata to HDF5."""
     with h5py.File(filename, "w") as f:
         f.create_dataset("temperature_K", data=temperatures)
@@ -536,7 +536,7 @@ def write_hdf5(
         f.attrs["axis_order"] = "cooling_erg_cm3_s[metallicity, temperature, electron_density]"
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     if Path(args.output).exists() and not args.overwrite:

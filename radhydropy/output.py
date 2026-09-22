@@ -3,6 +3,7 @@
 """Simulation output scheduling helpers."""
 
 import logging
+from typing import Any
 
 import numpy as np
 import unyt
@@ -12,7 +13,7 @@ from radhydropy.runtime_fields import runtime_fields
 from radhydropy.units import code_unit_scales
 
 
-def write_numbered_hdf5(sim, outindex):
+def write_numbered_hdf5(sim: Any, outindex: int) -> Any:
     """Write ``Output_###.hdf5`` for the supplied simulation."""
     filename = (
         sim.par.output.directory + "/" + sim.par.output.filename_prefix + f"_{outindex:03d}.hdf5"
@@ -27,12 +28,12 @@ def write_numbered_hdf5(sim, outindex):
 
 
 def hdf5_output_callback(
-    sim,
-    outputtime=0,
-    output_state=None,
-    output_writer=None,
-    snapshot_callback=None,
-):
+    sim: Any,
+    outputtime: Any = 0,
+    output_state: Any = None,
+    output_writer: Any = None,
+    snapshot_callback: Any = None,
+) -> Any:
     """Return a callback that writes HDF5 snapshots at fixed cadence."""
     if output_writer is None:
         output_writer = write_numbered_hdf5
@@ -63,7 +64,7 @@ def hdf5_output_callback(
             ),
         )
 
-    def callback(sim, step):
+    def callback(sim: Any, step: Any) -> None:
         dt = step["dt"]
         if getattr(dt, "shape", None) == (1,):
             dt = dt[0]
@@ -102,19 +103,19 @@ def hdf5_output_callback(
 
 
 def run_with_output_times(
-    sim,
-    outputtime=0,
-    mode="hydro_sources",
+    sim: Any,
+    outputtime: Any = 0,
+    mode: str = "hydro_sources",
     *,
-    advect_chemistry=True,
-    stop_condition=None,
-    step_backend=None,
-    step_backend_kwargs=None,
-    output_writer=None,
-    before_step_callback=None,
-    history_callback=None,
-    snapshot_callback=None,
-):
+    advect_chemistry: bool = True,
+    stop_condition: Any = None,
+    step_backend: Any = None,
+    step_backend_kwargs: Any = None,
+    output_writer: Any = None,
+    before_step_callback: Any = None,
+    history_callback: Any = None,
+    snapshot_callback: Any = None,
+) -> None:
     """Run a simulation using an explicit output-time list."""
     if output_writer is None:
         output_writer = write_numbered_hdf5
@@ -189,7 +190,7 @@ def run_with_output_times(
             snapshot_callback(sim, snapshot_filename, outindex)
 
 
-def _normalized_output_times(sim, final_time, current_time):
+def _normalized_output_times(sim: Any, final_time: Any, current_time: Any) -> list[Any]:
     from radhydropy.io import load_output_time_list  # noqa: PLC0415
 
     output_times = load_output_time_list(getattr(sim.par, "outputtimefilename", None))
@@ -216,20 +217,20 @@ def _normalized_output_times(sim, final_time, current_time):
 
 
 def _write_requested_outputs(
-    sim,
-    output_times,
-    time_tol,
-    mode,
-    advect_chemistry,
-    stop_condition,
-    step_backend,
-    step_backend_kwargs,
-    before_step_callback,
-    history_callback,
-    output_writer,
-    snapshot_callback,
-    last_output_time_s,
-):
+    sim: Any,
+    output_times: Any,
+    time_tol: float,
+    mode: str,
+    advect_chemistry: Any,
+    stop_condition: Any,
+    step_backend: Any,
+    step_backend_kwargs: Any,
+    before_step_callback: Any,
+    history_callback: Any,
+    output_writer: Any,
+    snapshot_callback: Any,
+    last_output_time_s: float,
+) -> tuple[int, float]:
     from radhydropy.rsim.evolution import _advance_until  # noqa: PLC0415
 
     outindex = 1

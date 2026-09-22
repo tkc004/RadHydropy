@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Numerical solver subsystem helpers."""
 
+from typing import Any
+
 import numpy as np
 import unyt
 
@@ -11,7 +13,7 @@ from radhydropy.units import (
 )
 
 
-def _boundary_field_names(solver, fluid):
+def _boundary_field_names(solver: Any, fluid: Any) -> list[str]:
     runtime = getattr(fluid, "runtime_fields", None)
     if runtime is None:
         runtime = runtime_fields(getattr(fluid, "_par", None))
@@ -25,7 +27,7 @@ def _boundary_field_names(solver, fluid):
     return fields
 
 
-def _copy_boundary_state(solver, fluid, target_slice, values):
+def _copy_boundary_state(solver: Any, fluid: Any, target_slice: Any, values: Any) -> None:
     for attr, value in values.items():
         target = getattr(fluid, attr)
         if attr == "ngamma_code" and np.ndim(target) == 2:  # noqa: PLR2004
@@ -38,14 +40,14 @@ def _copy_boundary_state(solver, fluid, target_slice, values):
 
 
 def _boundary_state(
-    solver,
-    fluid,
-    source,
+    solver: Any,
+    fluid: Any,
+    source: Any,
     *,
-    include_velocity=True,
-    negate_velocity=False,
-    reverse=False,
-):
+    include_velocity: bool = True,
+    negate_velocity: bool = False,
+    reverse: bool = False,
+) -> dict[str, Any]:
     runtime = getattr(fluid, "runtime_fields", None)
     if runtime is None:
         runtime = runtime_fields(getattr(fluid, "_par", None))
@@ -71,14 +73,21 @@ def _boundary_state(
     return state
 
 
-def _to_code_number_density(solver, value, scales):
+def _to_code_number_density(solver: Any, value: Any, scales: Any) -> Any:
     density = np.asarray(photon_number_density(value).to_value(unyt.cm**-3), dtype=float)
     if scales is None:
         return density
     return density / scales["number_density_cgs_cm3"]
 
 
-def _apply_periodic_boundary(solver, fluid, interior, left_ghost, right_ghost, noghost):
+def _apply_periodic_boundary(
+    solver: Any,
+    fluid: Any,
+    interior: Any,
+    left_ghost: Any,
+    right_ghost: Any,
+    noghost: int,
+) -> None:
     fields = solver.boundary_field_names(fluid)
     for attr in fields:
         quan = getattr(fluid, attr)
@@ -90,7 +99,14 @@ def _apply_periodic_boundary(solver, fluid, interior, left_ghost, right_ghost, n
             quan[right_ghost] = quan[interior][:noghost]
 
 
-def _apply_open_boundary(solver, fluid, first, nolast, left_ghost, right_ghost):
+def _apply_open_boundary(
+    solver: Any,
+    fluid: Any,
+    first: int,
+    nolast: int,
+    left_ghost: Any,
+    right_ghost: Any,
+) -> None:
     fields = solver.boundary_field_names(fluid)
     for attr in fields:
         quan = getattr(fluid, attr)
@@ -102,7 +118,14 @@ def _apply_open_boundary(solver, fluid, first, nolast, left_ghost, right_ghost):
             quan[right_ghost] = quan[nolast]
 
 
-def _apply_reflecting_boundary(solver, fluid, interior, left_ghost, right_ghost, noghost):
+def _apply_reflecting_boundary(
+    solver: Any,
+    fluid: Any,
+    interior: Any,
+    left_ghost: Any,
+    right_ghost: Any,
+    noghost: int,
+) -> None:
     runtime = getattr(fluid, "runtime_fields", None)
     if runtime is None:
         runtime = runtime_fields(getattr(fluid, "_par", None))
@@ -117,7 +140,13 @@ def _apply_reflecting_boundary(solver, fluid, interior, left_ghost, right_ghost,
     velocity[right_ghost] = -velocity[interior][-noghost:][::-1]
 
 
-def _apply_spherical_inner_boundary(solver, mesh, fluid, first, noghost):
+def _apply_spherical_inner_boundary(
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    first: int,
+    noghost: int,
+) -> None:
     mirror_start = first
     runtime = getattr(fluid, "runtime_fields", None)
     if runtime is None:
@@ -138,34 +167,34 @@ def _apply_spherical_inner_boundary(solver, mesh, fluid, first, noghost):
 
 
 def _apply_open_spherical_boundary(
-    solver,
-    mesh,
-    fluid,
-    par,
-    scales,
-    first,
-    nolast,
-    left_ghost,
-    right_ghost,
-    noghost,
-):
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    scales: Any,
+    first: int,
+    nolast: int,
+    left_ghost: Any,
+    right_ghost: Any,
+    noghost: int,
+) -> None:
     solver.apply_spherical_inner_boundary(mesh, fluid, first, noghost)
     right_state = solver.boundary_state(fluid, nolast)
     solver.copy_boundary_state(fluid, right_ghost, right_state)
 
 
 def _apply_inflow_spherical_boundary(
-    solver,
-    mesh,
-    fluid,
-    par,
-    scales,
-    first,
-    nolast,
-    left_ghost,
-    right_ghost,
-    noghost,
-):
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    scales: Any,
+    first: int,
+    nolast: int,
+    left_ghost: Any,
+    right_ghost: Any,
+    noghost: int,
+) -> None:
     solver.apply_spherical_inner_boundary(mesh, fluid, first, noghost)
     runtime = runtime_fields(par)
     right_state = {
@@ -194,17 +223,17 @@ def _apply_inflow_spherical_boundary(
 
 
 def _apply_outflow_spherical_boundary(
-    solver,
-    mesh,
-    fluid,
-    par,
-    scales,
-    first,
-    nolast,
-    left_ghost,
-    right_ghost,
-    noghost,
-):
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    scales: Any,
+    first: int,
+    nolast: int,
+    left_ghost: Any,
+    right_ghost: Any,
+    noghost: int,
+) -> None:
     runtime = runtime_fields(par)
     left_state = {
         runtime.density: par.boundary.rho_outflow_proper,
@@ -234,17 +263,17 @@ def _apply_outflow_spherical_boundary(
 
 
 def _apply_wind_spherical_boundary(
-    solver,
-    mesh,
-    fluid,
-    par,
-    scales,
-    first,
-    nolast,
-    left_ghost,
-    right_ghost,
-    noghost,
-):
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    scales: Any,
+    first: int,
+    nolast: int,
+    left_ghost: Any,
+    right_ghost: Any,
+    noghost: int,
+) -> None:
     """Inject a resolved, steady spherical wind at the inner boundary.
 
     The density in the ghost cells follows ``rho r**2 = constant``.  This

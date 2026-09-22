@@ -3,6 +3,7 @@
 """CFL timestep calculation for the finite-volume solver."""
 
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -13,7 +14,13 @@ from radhydropy.runtime_fields import (
 )
 
 
-def get_time_step(solver, mesh, fluid, par, CFL=None):  # noqa: N803
+def get_time_step(
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    CFL: Any = None,  # noqa: N803
+) -> Any:
     """Return a CFL-limited timestep in the active time coordinate."""
     if CFL is None:
         CFL = par.hydrodynamics.CFL
@@ -122,7 +129,7 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):  # noqa: N803
     dtmax_value = par.timestep.dtmax
     dtmax = float(np.asarray(dtmax_value, dtype=float))
     dt_array = np.where(cfl_vsignal != 0.0, dt_array, dtmax)
-    dt = np.amin(dt_array)
+    dt: Any = np.amin(dt_array)
     fluid.vsignal_code = np.asarray(vsignal, dtype=float)
     if len(fluid.vsignal_code) == len(active_vsignal):
         fluid.vsignal_code[zero_density] = 0.0
@@ -195,7 +202,13 @@ def get_time_step(solver, mesh, fluid, par, CFL=None):  # noqa: N803
     return dt
 
 
-def _active_timestep_arrays(solver, par, width_runtime_code, density, vsignal):
+def _active_timestep_arrays(
+    solver: Any,
+    par: Any,
+    width_runtime_code: Any,
+    density: Any,
+    vsignal: Any,
+) -> tuple[Any, ...]:
     """Align mesh/fluid arrays and return active-cell CFL views."""
     if width_runtime_code.shape != vsignal.shape:
         interior = solver.interior_slice(par)
@@ -231,7 +244,13 @@ def _active_timestep_arrays(solver, par, width_runtime_code, density, vsignal):
     )
 
 
-def _mask_vacuum_cells(par, active_density, active_vsignal, cfl_density, cfl_vsignal):
+def _mask_vacuum_cells(
+    par: Any,
+    active_density: Any,
+    active_vsignal: Any,
+    cfl_density: Any,
+    cfl_vsignal: Any,
+) -> tuple[Any, ...]:
     """Neutralize signal speeds in cells below the configured density floor."""
     density_floor = max(
         0.0,
@@ -248,7 +267,14 @@ def _mask_vacuum_cells(par, active_density, active_vsignal, cfl_density, cfl_vsi
     return density_floor, zero_density, active_vsignal, cfl_vsignal
 
 
-def _apply_boundary_mass_loading_limit(dt_array, CFL, par, fluid, area_runtime_code, first):
+def _apply_boundary_mass_loading_limit(
+    dt_array: Any,
+    CFL: Any,  # noqa: N803
+    par: Any,
+    fluid: Any,
+    area_runtime_code: Any,
+    first: int,
+) -> Any:
     """Limit CFL updates when a prescribed spherical boundary loads mass."""
     boundary = getattr(par, "boundary", None)
     boundary_condition = getattr(boundary, "condition", None)
@@ -280,18 +306,18 @@ def _apply_boundary_mass_loading_limit(dt_array, CFL, par, fluid, area_runtime_c
 
 
 def _log_timestep_energy_state(
-    diagnostic_index,
-    first,
-    par,
-    mesh_coordinate,
-    density_field,
-    velocity,
-    pressure_field,
-    fluid,
-    volume_runtime_code,
-    density_floor,
-    zero_density,
-):
+    diagnostic_index: int,
+    first: int,
+    par: Any,
+    mesh_coordinate: Any,
+    density_field: Any,
+    velocity: Any,
+    pressure_field: Any,
+    fluid: Any,
+    volume_runtime_code: Any,
+    density_floor: float,
+    zero_density: Any,
+) -> None:
     """Log energy and neighboring-cell details for a reduced timestep."""
     cell_volume = np.asarray(volume_runtime_code)[diagnostic_index]
     cell_rho_code = np.asarray(density_field)[diagnostic_index]

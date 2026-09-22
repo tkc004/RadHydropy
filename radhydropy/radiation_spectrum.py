@@ -3,6 +3,7 @@
 """Load radiation-spectrum data used by the runtime parameter system."""
 
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -15,7 +16,7 @@ SPECTRUM_DATASET_SIGMA = "group_sigma_gamma_cgs_cm2"
 SPECTRUM_DATASET_EPSILON = "group_epsilon_gamma_cgs_erg"
 
 
-def _required_dataset(group, name):
+def _required_dataset(group: Any, name: str) -> Any:
     if name not in group:
         raise ValueError(
             f"radiation spectrum is missing required dataset {name!r}; "
@@ -24,7 +25,7 @@ def _required_dataset(group, name):
     return group[name]
 
 
-def load_radiation_spectrum(filename):
+def load_radiation_spectrum(filename: str | Path) -> dict[str, Any]:
     """Read and validate a radiation spectrum from HDF5."""
     with h5py.File(filename, "r") as handle:
         if SPECTRUM_GROUP not in handle:
@@ -71,7 +72,10 @@ def load_radiation_spectrum(filename):
         return result
 
 
-def resolve_spectrum_filename(filename, base_directory=None):
+def resolve_spectrum_filename(
+    filename: str | Path,
+    base_directory: str | Path | None = None,
+) -> Path:
     path = Path(filename)
     if not path.is_absolute() and base_directory is not None:
         path = Path(base_directory) / path

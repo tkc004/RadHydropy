@@ -16,6 +16,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from numpy.typing import NDArray
 
 DEFAULT_DATABASE = Path(__file__).resolve().parents[2] / "CHIANTI_11.0.2_database"
 DEFAULT_IONEQ = DEFAULT_DATABASE / "ioneq" / "chianti.ioneq"
@@ -55,7 +56,7 @@ ELEMENT_SYMBOLS = (
 )
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate a CHIANTI collisional-ionization-equilibrium table.",
     )
@@ -79,7 +80,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def read_ioneq_file(filename):
+def read_ioneq_file(filename: Path) -> tuple[NDArray[np.float64], NDArray[np.float64], int]:
     """Read the CHIANTI fixed-format .ioneq file without changing values."""
     lines = filename.read_text().splitlines()
     n_temperature, n_elements = (int(value) for value in lines[0].split())
@@ -129,7 +130,7 @@ def read_ioneq_file(filename):
     return 10.0**log_temperature, fractions, n_elements
 
 
-def main():
+def main() -> None:
     args = parse_args()
     ioneq_file = args.ioneq_file.expanduser().resolve()
     output_file = args.output.expanduser().resolve()
@@ -152,7 +153,7 @@ def main():
     # Keep the source values but record the diagnostic for the user.
     fraction_sums = fractions.sum(axis=1)
     populated = fraction_sums > 0.0
-    maximum_sum_error = np.max(np.abs(fraction_sums[populated] - 1.0))
+    maximum_sum_error: float = float(np.max(np.abs(fraction_sums[populated] - 1.0)))
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     string_dtype = h5py.string_dtype(encoding="utf-8")

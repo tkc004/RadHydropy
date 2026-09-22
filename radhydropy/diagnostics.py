@@ -4,6 +4,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -16,7 +17,7 @@ from radhydropy.runtime_fields import (
 )
 
 
-def temperature_physical_cgs_K(sim):  # noqa: N802
+def temperature_physical_cgs_K(sim: Any) -> Any:  # noqa: N802
     """Return the simulation gas temperature in physical kelvin."""
     runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
     try:
@@ -49,7 +50,11 @@ def temperature_physical_cgs_K(sim):  # noqa: N802
     return np.asarray(temperature, dtype=float)
 
 
-def thermochemistry_active_mask(rho_physical_cgs_g_cm3, par, density_factor=1.0):
+def thermochemistry_active_mask(
+    rho_physical_cgs_g_cm3: Any,
+    par: Any,
+    density_factor: float = 1.0,
+) -> Any:
     """Return the source-update mask using the hydro CFL density floor.
 
     ``rho_physical_cgs_g_cm3`` is physical density, while ``cfl_density_floor``
@@ -72,10 +77,10 @@ def thermochemistry_active_mask(rho_physical_cgs_g_cm3, par, density_factor=1.0)
 
 
 def check_conserved_energy_admissibility(
-    sim,
-    stage,
-    relative_tolerance=1.0e-7,
-):
+    sim: Any,
+    stage: str,
+    relative_tolerance: float = 1.0e-7,
+) -> None:
     """Reject resolved cells whose kinetic energy exceeds total energy.
 
     The dual-energy variable may provide a pressure fallback when ``E-K``
@@ -171,7 +176,12 @@ def check_conserved_energy_admissibility(
     raise ValueError(diagnostic)
 
 
-def check_temperature_jump(sim, temperature_before, stage, source_result=None):
+def check_temperature_jump(
+    sim: Any,
+    temperature_before: Any,
+    stage: str,
+    source_result: Any = None,
+) -> None:
     """Raise and save a neighborhood dump when a new T exceeds the guard."""
     threshold = getattr(sim.par, "temperature_jump_error_threshold", None)
     if threshold is None:
@@ -236,7 +246,12 @@ def check_temperature_jump(sim, temperature_before, stage, source_result=None):
     raise RuntimeError(diagnostic)
 
 
-def _temperature_jump_context(sim, before, temperature_after, threshold):
+def _temperature_jump_context(
+    sim: Any,
+    before: Any,
+    temperature_after: Any,
+    threshold: float,
+) -> Any:
     runtime_state = getattr(sim.fluid, "runtime_state", None) or sim.fluid
     (
         density_runtime_code,
@@ -302,23 +317,23 @@ def _temperature_jump_context(sim, before, temperature_after, threshold):
 
 
 def _temperature_jump_diagnostic(
-    threshold,
-    stage,
-    index,
-    first,
-    last,
-    radius,
-    before,
-    temperature_after,
-    density,
-    velocity,
-    pressure,
-    sound_speed,
-    mass,
-    energy,
-    time_runtime_code,
-    source_result,
-):
+    threshold: float,
+    stage: str,
+    index: int,
+    first: int,
+    last: int,
+    radius: Any,
+    before: Any,
+    temperature_after: Any,
+    density: Any,
+    velocity: Any,
+    pressure: Any,
+    sound_speed: Any,
+    mass: Any,
+    energy: Any,
+    time_runtime_code: Any,
+    source_result: Any,
+) -> str:
     lines = [
         (
             f"temperature jump error: physical gas temperature exceeded {threshold:.6e} K "
@@ -353,7 +368,13 @@ def _temperature_jump_diagnostic(
     return "\n".join(lines)
 
 
-def check_source_temperature(state, par, temperature_before, stage, source_step):
+def check_source_temperature(
+    state: Any,
+    par: Any,
+    temperature_before: Any,
+    stage: str,
+    source_step: int,
+) -> None:
     """Reject a source substep that crosses the configured temperature guard.
 
     ``state['temperature_cgs_K']`` is already in physical kelvin and contains

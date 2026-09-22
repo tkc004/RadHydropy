@@ -13,6 +13,7 @@ explicitly depend on density. Metallicity scales elements heavier than He.
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -22,7 +23,7 @@ DEFAULT_TABLE = DEFAULT_DATABASE / "cooling_tables" / "chianti_cie_ion_fractions
 DEFAULT_ABUNDANCE = DEFAULT_DATABASE / "abundance" / "sun_photospheric_2015_scott.abund"
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Calculate ne from CIE ion fractions, metallicity, nH, and T.",
     )
@@ -55,7 +56,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def read_abundances(filename):
+def read_abundances(filename: Path) -> tuple[Any, Any, Any]:
     """Read CHIANTI logarithmic abundances, where log10(H)=12."""
     atomic_number = []
     log_abundance = []
@@ -73,7 +74,13 @@ def read_abundances(filename):
     return np.asarray(atomic_number), np.asarray(symbols), abundance
 
 
-def calculate_electron_density(table_file, abundance_file, metallicity, nH, temperatures):  # noqa: N803
+def calculate_electron_density(
+    table_file: Path,
+    abundance_file: Path,
+    metallicity: float,
+    nH: float,  # noqa: N803
+    temperatures: Any,
+) -> tuple[Any, ...]:
     if metallicity < 0:
         raise ValueError("metallicity must be non-negative")
     if nH < 0:
@@ -131,7 +138,7 @@ def calculate_electron_density(table_file, abundance_file, metallicity, nH, temp
     )
 
 
-def main():
+def main() -> None:
     args = parse_args()
     table_file = args.table.expanduser().resolve()
     abundance_file = args.abundance_file.expanduser().resolve()

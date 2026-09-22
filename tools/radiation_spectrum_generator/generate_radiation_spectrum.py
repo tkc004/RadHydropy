@@ -5,19 +5,22 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import h5py
 import numpy as np
 from astropy import units
 from astropy.modeling.models import BlackBody
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
 package_root = Path(__file__).resolve().parents[2]
 if str(package_root) not in sys.path:
     sys.path.insert(0, str(package_root))
-
-import itertools
 
 from radhydropy.radiation_spectrum import (
     SPECTRUM_DATASET_EPSILON,
@@ -35,7 +38,11 @@ DEFAULT_INJECTED_PHOTONS_PER_SECOND = 5.0e48
 DEFAULT_OUTPUT_NAME = "radiation_spectrum_BB100000K_3groups_HI.h5"
 
 
-def read_verner96(filename: Path, atomic_number: int, ion: int) -> np.ndarray:
+def read_verner96(
+    filename: Path,
+    atomic_number: int,
+    ion: int,
+) -> NDArray[np.float64]:
     """Read one Verner & Yakovlev (1996) fit from the local data file."""
     with filename.open() as handle:
         for line in handle:
@@ -46,7 +53,10 @@ def read_verner96(filename: Path, atomic_number: int, ion: int) -> np.ndarray:
     raise ValueError(f"fit Z={atomic_number}, ion={ion} was not found in {filename}")
 
 
-def verner96_sigma(energy_ev: np.ndarray, parameters: np.ndarray) -> np.ndarray:
+def verner96_sigma(
+    energy_ev: NDArray[np.float64],
+    parameters: NDArray[np.float64],
+) -> NDArray[np.float64]:
     """Evaluate the Verner '96 cross-section fit in cm^2."""
     e0, sigma0, ya, power, yw, y0, y1 = parameters[2:9]
     x = energy_ev / e0 - y0
@@ -60,7 +70,12 @@ def verner96_sigma(energy_ev: np.ndarray, parameters: np.ndarray) -> np.ndarray:
     )
 
 
-def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
+def calculate_groups(
+    edges_ev: Any,
+    temperature_k: float,
+    parameters: NDArray[np.float64],
+    samples_per_group: int,
+) -> dict[str, Any]:
     if len(edges_ev) < 2 or np.any(np.diff(edges_ev) <= 0.0):  # noqa: PLR2004
         raise ValueError("group edges must be strictly increasing")
     if temperature_k <= 0.0 or samples_per_group < 2:  # noqa: PLR2004
@@ -83,10 +98,13 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
             intensity = blackbody(energy).value * 2.0
         photon_weight = intensity / energy.value
         cross_section = verner96_sigma(energy.value, parameters)
-        norm = np.trapezoid(photon_weight, energy.value)
-        norm_energy = np.trapezoid(intensity, energy.value)
-        sigma_integral = np.trapezoid(photon_weight * cross_section, energy.value)
-        epsilon_integral = np.trapezoid(
+        norm = np.trapezoid(photon_weight, energy.value)  # type: ignore[attr-defined]
+        norm_energy = np.trapezoid(intensity, energy.value)  # type: ignore[attr-defined]
+        sigma_integral = np.trapezoid(  # type: ignore[attr-defined]
+            photon_weight * cross_section,
+            energy.value,
+        )
+        epsilon_integral = np.trapezoid(  # type: ignore[attr-defined]
             photon_weight * cross_section * (energy.value - threshold_ev),
             energy.value,
         )
@@ -111,15 +129,15 @@ def calculate_groups(edges_ev, temperature_k, parameters, samples_per_group):
 
 
 def write_spectrum(
-    output,
-    edges_ev,
-    temperature_k,
-    injected_photons,
-    parameters_by_species,
-    samples,
+    output: Path,
+    edges_ev: Any,
+    temperature_k: float,
+    injected_photons: float,
+    parameters_by_species: dict[str, NDArray[np.float64]],
+    samples: int,
     *,
-    include_helium=False,
-):
+    include_helium: bool = False,
+) -> None:
     values = {
         species: calculate_groups(edges_ev, temperature_k, parameters, samples)
         for species, parameters in parameters_by_species.items()
@@ -181,7 +199,7 @@ def write_spectrum(
         )
 
 
-def main():
+def main() -> None:
     directory = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

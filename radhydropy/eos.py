@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Equation-of-state definitions."""
 
+from typing import Any
+
 import numpy as np
 import unyt
 
@@ -23,7 +25,12 @@ class EOS:
 
     """
 
-    def __init__(self, EOStype: str, gamma=5.0 / 3.0, code_units=None):  # noqa: N803
+    def __init__(
+        self,
+        EOStype: str,
+        gamma: float = 5.0 / 3.0,
+        code_units: Any = None,
+    ) -> None:  # noqa: N803
         self.EOStype = EOStype
         self.gamma = gamma
         self.CodeUnits = code_units
@@ -33,16 +40,16 @@ class EOS:
             raise Exception("gamma cannot be equal to 1 for a polytropic EOS")
 
     @property
-    def is_polytropic(self):
+    def is_polytropic(self) -> bool:
         """Return ``True`` when the EOS evolves thermal energy."""
         return self.EOStype == "polytropic"
 
     @property
-    def is_isothermal(self):
+    def is_isothermal(self) -> bool:
         """Return ``True`` for an isothermal closure."""
         return self.EOStype == "isothermal"
 
-    def pressure(self, rho, temp, mu):
+    def pressure(self, rho: Any, temp: Any, mu: Any) -> Any:
         """Return pressure from density, temperature, and mean molecular weight."""
         if self.CodeUnits is not None:
             rho_value = np.asarray(rho, dtype=np.longdouble)
@@ -59,7 +66,7 @@ class EOS:
             return as_named_array(np.asarray(quotient, dtype=float))
         return rho / (mu * unyt.mp) * unyt.kb * temp
 
-    def temperature(self, rho, pressure, mu):
+    def temperature(self, rho: Any, pressure: Any, mu: Any) -> Any:
         """Return temperature from density, pressure, and mean molecular weight."""
         if self.CodeUnits is not None:
             rho_value = np.asarray(rho, dtype=float)
@@ -81,7 +88,7 @@ class EOS:
         pressure_over_rho = ru.SafeDivide(pressure, rho)
         return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
 
-    def thermal_energy_density(self, pressure):
+    def thermal_energy_density(self, pressure: Any) -> Any:
         """Return thermal energy density for the selected EOS."""
         if self.is_isothermal:
             # Isothermal pressure is supplied by the temperature closure;
@@ -89,7 +96,13 @@ class EOS:
             return np.zeros_like(np.asarray(pressure, dtype=float))
         return pressure / (self.gamma - 1.0)
 
-    def sound_speed(self, rho, pressure, temp=None, mu=None):
+    def sound_speed(
+        self,
+        rho: Any,
+        pressure: Any,
+        temp: Any = None,
+        mu: Any = None,
+    ) -> Any:
         """Return the characteristic sound speed for the selected EOS."""
         if self.CodeUnits is not None:
             gamma_factor = 1.0 if self.is_isothermal else self.gamma
@@ -110,14 +123,21 @@ class EOS:
         soundspeed[np.isnan(soundspeed)] = 0.0 * unyt.cm / unyt.s
         return soundspeed
 
-    def total_energy_density(self, rho, vel, pressure):
+    def total_energy_density(self, rho: Any, vel: Any, pressure: Any) -> Any:
         """Return the conserved energy density."""
         kinetic = 0.5 * rho * vel**2
         if self.is_isothermal:
             return kinetic
         return kinetic + self.thermal_energy_density(pressure)
 
-    def pressure_from_conserved(self, rho, vel, energy_density, temp=None, mu=None):
+    def pressure_from_conserved(
+        self,
+        rho: Any,
+        vel: Any,
+        energy_density: Any,
+        temp: Any = None,
+        mu: Any = None,
+    ) -> Any:
         """Recover pressure from conserved variables."""
         if self.is_isothermal:
             if temp is None or mu is None:
@@ -134,7 +154,7 @@ class EOS:
             )
         return (energy_density - 0.5 * rho * vel**2) * (self.gamma - 1.0)
 
-    def fluxes(self, rho, vel, pressure):
+    def fluxes(self, rho: Any, vel: Any, pressure: Any) -> tuple[Any, ...]:
         """Return conserved densities and Euler fluxes for the selected EOS."""
         Fmass = rho * vel
         qmass = rho
@@ -152,12 +172,12 @@ class EOS:
 
     def apply_piecewise_isothermal_state(
         self,
-        fluid,
-        par,
-        neutral_temperature,
-        ionized_temperature,
-        ionized_fraction_threshold=None,
-    ):
+        fluid: Any,
+        par: Any,
+        neutral_temperature: Any,
+        ionized_temperature: Any,
+        ionized_fraction_threshold: Any = None,
+    ) -> None:
         """Apply the piecewise-isothermal closure used by HII-region examples.
 
         If ``ionized_fraction_threshold`` is ``None``, temperature varies

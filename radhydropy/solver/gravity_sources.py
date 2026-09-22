@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Numerical solver subsystem helpers."""
 
+from typing import Any
+
 import numpy as np
 
 import radhydropy.gravity as rg
 from radhydropy.runtime_fields import runtime_fields
 
 
-def _gravity_model(solver, par):
+def _gravity_model(solver: Any, par: Any) -> Any:
     """Return the configured gravity model, if any."""
     gravity = getattr(par, "gravity", None)
     if isinstance(gravity, rg.Gravity):
@@ -41,7 +43,13 @@ def _gravity_model(solver, par):
     )
 
 
-def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
+def _synchronize_gravity_energy_roundoff(
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    momentum: Any,
+) -> Any:
     """Remove a sub-ULP-scale ``E < K`` deficit after a gravity update.
 
     Gravity updates momentum and total energy with mathematically identical
@@ -116,7 +124,7 @@ def _synchronize_gravity_energy_roundoff(solver, mesh, fluid, par, momentum):
     return solver.last_gravity_roundoff_energy
 
 
-def ApplyGravity(solver, dt, mesh, fluid, par):  # noqa: N802
+def ApplyGravity(solver: Any, dt: Any, mesh: Any, fluid: Any, par: Any) -> Any:  # noqa: N802
     """Apply the combined external and gas self-gravity source update."""
     interior = solver.interior_slice(par)
     gravity = solver.gravity_model(par)
@@ -266,7 +274,15 @@ def ApplyGravity(solver, dt, mesh, fluid, par):  # noqa: N802
     return 1
 
 
-def _rotational_acceleration(rotational_support, solver, mesh, par, fluid, mass, shape_like):
+def _rotational_acceleration(
+    rotational_support: Any,
+    solver: Any,
+    mesh: Any,
+    par: Any,
+    fluid: Any,
+    mass: Any,
+    shape_like: Any,
+) -> Any:
     """Return centrifugal acceleration from the conserved angular momentum."""
     acceleration = np.zeros_like(shape_like)
     if not rotational_support:
@@ -286,16 +302,16 @@ def _rotational_acceleration(rotational_support, solver, mesh, par, fluid, mass,
 
 
 def _limit_rotational_source(
-    rotational_support,
-    solver,
-    mesh,
-    par,
-    fluid,
-    mass,
-    new_energy,
-    gravity_momentum,
-    source_increment,
-):
+    rotational_support: Any,
+    solver: Any,
+    mesh: Any,
+    par: Any,
+    fluid: Any,
+    mass: Any,
+    new_energy: Any,
+    gravity_momentum: Any,
+    source_increment: Any,
+) -> Any:
     """Limit centrifugal momentum increments to the available energy."""
     source_factors = np.ones_like(source_increment)
     if not rotational_support:
@@ -323,7 +339,7 @@ def _limit_rotational_source(
         & (0.5 * gravity_momentum**2 / mass <= available_radial_energy)
     )
 
-    def source_admissible(index, factor):
+    def source_admissible(index: Any, factor: float) -> bool:
         trial_momentum = gravity_momentum[index] + factor * source_increment[index]
         trial_kinetic = 0.5 * trial_momentum**2 / mass[index] if mass[index] > 0.0 else 0.0
         tolerance = 1.0e-12 * max(
@@ -331,7 +347,7 @@ def _limit_rotational_source(
             abs(rotational_energy[index]),
             np.finfo(float).tiny,
         )
-        return trial_kinetic <= available_radial_energy[index] + tolerance
+        return bool(trial_kinetic <= available_radial_energy[index] + tolerance)
 
     for index in np.flatnonzero(base_admissible & (source_increment != 0.0)):
         if source_admissible(index, 1.0):

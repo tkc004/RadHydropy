@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Numerical solver subsystem helpers."""
 
+from typing import Any
+
 import numpy as np
 
 from radhydropy.runtime_fields import select_fluid_primitive_arrays, select_mesh_geometry_arrays
 
 
-def _cfl_density_floor(par):
+def _cfl_density_floor(par: Any) -> float:
     return max(
         0.0,
         float(
@@ -19,19 +21,19 @@ def _cfl_density_floor(par):
     )
 
 
-def _dual_energy_enabled(par):
+def _dual_energy_enabled(par: Any) -> bool:
     return bool(getattr(par, "dual_energy", False))
 
 
-def _rotational_energy_enabled(par):
+def _rotational_energy_enabled(par: Any) -> bool:
     return bool(getattr(par, "gas_rotational_energy", False))
 
 
-def _gravity_potential_energy_enabled(par):
+def _gravity_potential_energy_enabled(par: Any) -> bool:
     return bool(getattr(par, "gravity_potential_energy", False))
 
 
-def _gravity_potential(solver, mesh, par):
+def _gravity_potential(solver: Any, mesh: Any, par: Any) -> Any:
     if not solver.gravity_potential_energy_enabled(par):
         return None
     gravity = solver.gravity_model(par)
@@ -44,7 +46,7 @@ def _gravity_potential(solver, mesh, par):
     return np.asarray(gravity.potential_on(coordinate_runtime_code), dtype=float)
 
 
-def _gravity_potential_faces(solver, mesh, par):
+def _gravity_potential_faces(solver: Any, mesh: Any, par: Any) -> Any:
     if not solver.gravity_potential_energy_enabled(par):
         return None
     gravity = solver.gravity_model(par)
@@ -57,7 +59,7 @@ def _gravity_potential_faces(solver, mesh, par):
     return np.asarray(gravity.potential_on(boundary_runtime_code[:-1]), dtype=float)
 
 
-def _rotational_energy_density(solver, mesh, fluid, par):
+def _rotational_energy_density(solver: Any, mesh: Any, fluid: Any, par: Any) -> Any:
     """Return opt-in rotational kinetic-energy density."""
     runtime_state = fluid.runtime_state
     rho_runtime_code = select_fluid_primitive_arrays(runtime_state, par)[0]
@@ -86,7 +88,7 @@ def _rotational_energy_density(solver, mesh, fluid, par):
     return result
 
 
-def _rotational_energy_from_conserved(solver, mesh, fluid, par):
+def _rotational_energy_from_conserved(solver: Any, mesh: Any, fluid: Any, par: Any) -> Any:
     """Return opt-in rotational kinetic energy from conserved J and M."""
     result = np.zeros_like(np.asarray(fluid.Mass_code, dtype=float))
     if not solver.rotational_energy_enabled(par):
@@ -109,5 +111,5 @@ def _rotational_energy_from_conserved(solver, mesh, fluid, par):
     return result
 
 
-def _dual_energy_eta(par, name):
+def _dual_energy_eta(par: Any, name: str) -> float:
     return max(0.0, float(getattr(par, name)))

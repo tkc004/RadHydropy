@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Validation of persisted HDF5 state against a runtime configuration."""
 
+from typing import Any
+
 import numpy as np
 
 from radhydropy.io.metadata import _restore_header_attr_value
@@ -12,7 +14,7 @@ class SnapshotConfigurationError(ValueError):
     """Raised when a snapshot is incompatible with the supplied runtime."""
 
 
-def _code_units_from_parameter(par):
+def _code_units_from_parameter(par: Any) -> Any:
     """Return pre-existing runtime code units, if the runtime declares them."""
     code_units = getattr(par, "CodeUnits", None)
     if code_units is not None:
@@ -20,7 +22,7 @@ def _code_units_from_parameter(par):
     return getattr(getattr(par, "units", None), "CodeUnits", None)
 
 
-def _validate_code_units(par, header_code_units):
+def _validate_code_units(par: Any, header_code_units: Any) -> None:
     expected_units = _code_units_from_parameter(par)
     if expected_units is None:
         return
@@ -41,7 +43,7 @@ def _validate_code_units(par, header_code_units):
             )
 
 
-def _validate_cosmology(par, header):
+def _validate_cosmology(par: Any, header: Any) -> None:
     header_cosmology = _restore_header_attr_value(header.attrs.get("CosmologyType", None))
     expected_expansion = getattr(par, "cosmological_expansion", None)
     if header_cosmology is not None and expected_expansion is False:
@@ -67,7 +69,11 @@ def _validate_cosmology(par, header):
         )
 
 
-def validate_snapshot_configuration(par, header, header_code_units):
+def validate_snapshot_configuration(
+    par: Any,
+    header: Any,
+    header_code_units: Any,
+) -> None:
     """Validate header compatibility before mutating runtime objects."""
     _validate_code_units(par, header_code_units)
 

@@ -3,6 +3,7 @@
 """Numerical solver subsystem helpers."""
 
 from functools import partial
+from typing import Any
 
 import numpy as np
 
@@ -11,29 +12,32 @@ from radhydropy.arrays import as_named_array
 
 
 def _angular_trial_valid(
-    valid_cell,
-    left,
-    right,
-    increment,
-    dt,
-    face,
-    trial_angular,
-    trial_energy,
-    rotational_correction_area,
-    alpha,
-):
-    return valid_cell(
-        left,
-        trial_angular[left] - alpha * increment,
-        trial_energy[left] - alpha * dt * rotational_correction_area[face],
-    ) and valid_cell(
-        right,
-        trial_angular[right] + alpha * increment,
-        trial_energy[right] + alpha * dt * rotational_correction_area[face],
+    valid_cell: Any,
+    left: int,
+    right: int,
+    increment: Any,
+    dt: Any,
+    face: int,
+    trial_angular: Any,
+    trial_energy: Any,
+    rotational_correction_area: Any,
+    alpha: float,
+) -> bool:
+    return bool(
+        valid_cell(
+            left,
+            trial_angular[left] - alpha * increment,
+            trial_energy[left] - alpha * dt * rotational_correction_area[face],
+        )
+        and valid_cell(
+            right,
+            trial_angular[right] + alpha * increment,
+            trial_energy[right] + alpha * dt * rotational_correction_area[face],
+        ),
     )
 
 
-def _canonical_mesh_geometry(mesh):
+def _canonical_mesh_geometry(mesh: Any) -> tuple[Any, Any, Any]:
     """Return explicit active-representation mesh geometry."""
     geometry = getattr(mesh, "geometry_state", None)
     if geometry is not None and all(
@@ -91,7 +95,7 @@ def _canonical_mesh_geometry(mesh):
     raise ValueError("angular momentum requires canonical mesh runtime fields")
 
 
-def _set_angular_momentum_flux(fluid, order=0):
+def _set_angular_momentum_flux(fluid: Any, order: int = 0) -> Any:
     """Build a mass-consistent flux for optional gas angular momentum."""
     if not (
         hasattr(fluid, "specific_angular_momentum_code") and hasattr(fluid, "AngularMomentum_code")
@@ -133,7 +137,13 @@ def _set_angular_momentum_flux(fluid, order=0):
     return j_high
 
 
-def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
+def _limit_angular_momentum_flux(
+    solver: Any,
+    dt: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+) -> None:
     """Apply a local FCT limiter to the angular-momentum flux.
 
     The donor flux is the bound-preserving low-order base.  A MUSCL
@@ -301,24 +311,24 @@ def _limit_angular_momentum_flux(solver, dt, mesh, fluid, par):
 
 
 def _limit_face_corrections(
-    scheme,
-    factors,
-    physical,
-    mass,
-    mass_new,
-    mom_new,
-    coordinate,
-    lower,
-    upper,
-    dt,
-    correction_area,
-    rotational_correction_area,
-    trial_angular,
-    trial_energy,
-):
+    scheme: str,
+    factors: Any,
+    physical: Any,
+    mass: Any,
+    mass_new: Any,
+    mom_new: Any,
+    coordinate: Any,
+    lower: Any,
+    upper: Any,
+    dt: Any,
+    correction_area: Any,
+    rotational_correction_area: Any,
+    trial_angular: Any,
+    trial_energy: Any,
+) -> tuple[Any, Any, Any]:
     """Recover the largest admissible correction independently per face."""
 
-    def valid_cell(index, value, energy_value):
+    def valid_cell(index: int, value: Any, energy_value: Any) -> bool:
         if not physical[index] or mass_new[index] <= 0.0:
             return True
         candidate = value / mass_new[index]
@@ -333,7 +343,7 @@ def _limit_face_corrections(
         rotational_new = (
             0.5 * value**2 / (mass_new[index] * radius_value**2) if radius_value > 0.0 else 0.0
         )
-        return angular_ok and energy_value >= kinetic_new + rotational_new
+        return bool(angular_ok and energy_value >= kinetic_new + rotational_new)
 
     for face in range(len(factors)):
         if scheme == "donor" or factors[face] == 0.0:
@@ -379,7 +389,13 @@ def _limit_face_corrections(
     return factors, trial_angular, trial_energy
 
 
-def _set_rotational_energy_flux(solver, mesh, fluid, par, j_face=None):
+def _set_rotational_energy_flux(
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    j_face: Any = None,
+) -> None:
     """Add the advected rotational-energy flux to the total-energy flux."""
     if not solver.rotational_energy_enabled(par):
         return
@@ -399,7 +415,12 @@ def _set_rotational_energy_flux(solver, mesh, fluid, par, j_face=None):
     fluid.Energy_code.flux += fluid.rotational_energy_flux
 
 
-def _apply_local_angular_energy_fallback(solver, mesh, fluid, par):
+def _apply_local_angular_energy_fallback(
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+) -> None:
     """Use first-order hydro fluxes only near a cold rotating cell."""
     if not (
         solver.rotational_energy_enabled(par) and hasattr(fluid, "angular_momentum_mass_flux_low")

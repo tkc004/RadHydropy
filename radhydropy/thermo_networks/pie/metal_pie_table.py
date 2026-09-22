@@ -3,6 +3,7 @@
 """Interpolation for photoionization-equilibrium heating and cooling tables."""
 
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -11,7 +12,7 @@ import numpy as np
 class MetalPIETable:
     """Load and trilinearly interpolate a metal-only PIE HDF5 table."""
 
-    def __init__(self, filename):
+    def __init__(self, filename: str | Path) -> None:
         self.filename = Path(filename).expanduser().resolve()
         with h5py.File(self.filename, "r") as handle:
             group = handle["MetalPIE"]
@@ -44,9 +45,10 @@ class MetalPIETable:
             self._heating = np.asarray(rates[heating_name], dtype=float)
             self._cooling = np.asarray(rates[cooling_name], dtype=float)
 
-        third_axis_length = len(
-            self.redshift if self.is_hm12_uv_background else self.log_ionization_parameter,
-        )
+        third_axis = self.redshift if self.is_hm12_uv_background else self.log_ionization_parameter
+        if third_axis is None:
+            raise ValueError("metal PIE table is missing its third interpolation axis")
+        third_axis_length = len(third_axis)
         expected = (
             len(self.log_temperature),
             len(self.log_density),
@@ -62,21 +64,26 @@ class MetalPIETable:
         self._log_cooling = np.log10(np.maximum(self._cooling, 1.0e-99))
 
     @property
-    def heating(self):
+    def heating(self) -> Any:
         return self._heating
 
     @property
-    def cooling(self):
+    def cooling(self) -> Any:
         return self._cooling
 
     @staticmethod
-    def _bracket(grid, value):
+    def _bracket(grid: Any, value: Any) -> tuple[Any, Any]:
         value = np.clip(np.asarray(value, dtype=float), grid[0], grid[-1])
         index = np.clip(np.searchsorted(grid, value, side="right") - 1, 0, len(grid) - 2)
         weight = (value - grid[index]) / (grid[index + 1] - grid[index])
         return index, weight
 
-    def _coordinates(self, temperature_cgs_K, hydrogen_density_cgs_cm3, third_axis):  # noqa: N803
+    def _coordinates(
+        self,
+        temperature_cgs_K: Any,
+        hydrogen_density_cgs_cm3: Any,
+        third_axis: Any,
+    ) -> tuple[Any, ...]:  # noqa: N803
         log_t = np.log10(np.maximum(np.asarray(temperature_cgs_K, dtype=float), 1.0))
         log_n = np.log10(np.maximum(np.asarray(hydrogen_density_cgs_cm3, dtype=float), 1.0e-99))
         third = np.asarray(third_axis, dtype=float)
@@ -90,7 +97,7 @@ class MetalPIETable:
         return it, wt, inn, wn, iu, wu
 
     @staticmethod
-    def _interpolate_log(log_values, coordinates):
+    def _interpolate_log(log_values: Any, coordinates: Any) -> Any:
         it, wt, inn, wn, iu, wu = coordinates
         c000 = log_values[it, inn, iu]
         c001 = log_values[it, inn, iu + 1]
@@ -108,12 +115,12 @@ class MetalPIETable:
 
     def rates(
         self,
-        temperature_cgs_K,  # noqa: N803
-        hydrogen_density_cgs_cm3,
-        ionization_parameter=None,
-        metallicity=1.0,
-        redshift=None,
-    ):
+        temperature_cgs_K: Any,  # noqa: N803
+        hydrogen_density_cgs_cm3: Any,
+        ionization_parameter: Any = None,
+        metallicity: float = 1.0,
+        redshift: Any = None,
+    ) -> tuple[Any, Any]:
         if self.is_hm12_uv_background:
             if redshift is None:
                 raise ValueError("HM12 PIE tables require a redshift lookup value")

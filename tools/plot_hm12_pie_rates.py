@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 import h5py
 import matplotlib.pyplot as plt
@@ -27,7 +28,7 @@ DEFAULT_TABLE = REPOSITORY_ROOT / "metal_pie_table" / "metal_pie_hm12_total.h5"
 DEFAULT_REDSHIFTS = (0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Plot log10 net cooling and photoheating rates from an HM12 MetalPIE HDF5 table."
@@ -87,7 +88,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def interpolate_axis(values, axis_values, target, axis_number=0):
+def interpolate_axis(
+    values: Any,
+    axis_values: Any,
+    target: float,
+    axis_number: int = 0,
+) -> Any:
     """Interpolate values along one axis, clipping target to the table range."""
     target = float(np.clip(target, axis_values[0], axis_values[-1]))
     upper = int(np.searchsorted(axis_values, target, side="right"))
@@ -102,13 +108,18 @@ def interpolate_axis(values, axis_values, target, axis_number=0):
     return (1.0 - weight) * low + weight * high
 
 
-def select_metallicity(table, requested):
+def select_metallicity(table: Any, requested: Any) -> tuple[int, float]:
     metallicities = np.asarray(table["axes/metallicity_Zsun"], dtype=float)
     index = 0 if requested is None else int(np.argmin(np.abs(metallicities - requested)))
     return index, float(metallicities[index])
 
 
-def load_rates(table_path, hydrogen_density, redshifts, metallicity):
+def load_rates(
+    table_path: Path,
+    hydrogen_density: float,
+    redshifts: Any,
+    metallicity: float,
+) -> tuple[Any, Any, Any, float]:
     with h5py.File(table_path, "r") as handle:
         group = handle["MetalPIE"]
         axes = group["axes"]
@@ -157,13 +168,13 @@ def load_rates(table_path, hydrogen_density, redshifts, metallicity):
 
 
 def plot_rates(
-    table_path,
-    output_path,
-    hydrogen_density,
-    redshifts,
-    metallicity,
-    max_log_heating=None,
-):
+    table_path: Path,
+    output_path: Path,
+    hydrogen_density: float,
+    redshifts: Any,
+    metallicity: float,
+    max_log_heating: float | None = None,
+) -> float:
     log_temperature, cooling, heating, selected_metallicity = load_rates(
         table_path,
         hydrogen_density,
@@ -224,7 +235,7 @@ def plot_rates(
     return selected_metallicity
 
 
-def main():
+def main() -> None:
     args = parse_args()
     table_path = args.table.expanduser().resolve()
     log_densities = (
