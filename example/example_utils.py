@@ -197,11 +197,10 @@ def clean_previous_outputs(config: Any) -> Any:
 def write_radial_profile_csv(hdf5_filename: Any, config: Any, csv_filename: Any = None) -> Any:
     """Write physical radial velocity, hydrogen density, and temperature.
 
-    The HDF5 datasets are expected to be ``Data/Boundary``, ``Data/Velocity``,
-    ``Data/Density``, and ``Data/Temperature`` as written by
-    :func:`radhydropy.io.writehdf5`.  The boundary dataset is used to calculate
-    cell-center radii.  Ghost cells, when identified by
-    ``Header.attrs['noghost']``, are omitted from the CSV.
+    The snapshot is interpreted through the canonical representation-specific
+    mesh and fluid fields restored by :func:`radhydropy.io.loadhdf5`.  The
+    boundary field is used to calculate cell-center radii.  Ghost cells, when
+    identified by ``Header.attrs['noghost']``, are omitted from the CSV.
 
     Parameters
     ----------
@@ -243,8 +242,8 @@ def write_radial_profile_csv(hdf5_filename: Any, config: Any, csv_filename: Any 
         cell_count = len(vel_proper_code)
     if boundary_count != cell_count + 1:
         raise ValueError(
-            "Data/Boundary must contain exactly one more value than "
-            "Data/Velocity, Data/Density, and Data/Temperature.",
+            "the canonical boundary field must contain exactly one more value "
+            "than the canonical velocity, density, and temperature fields.",
         )
     if physical_values:
         quantity_count = (
@@ -260,7 +259,7 @@ def write_radial_profile_csv(hdf5_filename: Any, config: Any, csv_filename: Any 
         )
     if not (quantity_count[0] == quantity_count[1] == quantity_count[2]):
         raise ValueError(
-            "Data/Velocity, Data/Density, and Data/Temperature must have the same length.",
+            "the canonical velocity, density, and temperature fields must have the same length.",
         )
 
     if physical_values:

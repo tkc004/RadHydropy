@@ -78,19 +78,6 @@ storage contract may use ``storage_unit = cgs``. On load, canonical fields are
 restored as explicitly named runtime arrays such as
 ``fluid.rho_proper_code`` or ``fluid.rho_comoving_code``.
 
-Legacy format
-~~~~~~~~~~~~~
-
-Older files may contain generic names such as ``Coordinate_System``,
-``Number_Grids``, ``Time``, ``BoxSize``, ``Boundary``, ``Density``,
-``Velocity``, or ``Temperature``. These names are retained here only to help
-identify historical files; they are not part of the current schema. The
-current loader deliberately rejects generic header names (for example
-``time_code`` or ``box_size_code``) and generic data names (for example
-``rho_code`` or ``pre_code``) because they do not state whether values are
-proper, comoving, or supercomoving. Regenerate such files with
-``InitialConditionWriter`` or migrate them before loading.
-
 Reading and Writing
 -------------------
 

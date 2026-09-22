@@ -33,18 +33,5 @@ container, use representation-specific runtime fields, and keep
 ``cosmological``, ``cosmological_expansion``, and
 ``supercomoving_coordinates`` consistent for supercomoving runs.
 
-Historical migration plan
--------------------------
-
-The detailed ``CosmologicalVirialShock1D`` ``Rsim.RunAll()`` migration plan is retained
-as a design and historical record. It describes the intended callback-based
-runner architecture, snapshot diagnostic boundary, and validation sequence;
-it is not itself the authoritative current API reference.
-
-Download the full plan:
-
-* :download:`CosmologicalVirialShock1D RunAll migration plan
-  <cosmological_virial_shock_runall_migration_plan.md>`
-
 For current behavior, consult :doc:`architecture`, :doc:`snapshots`,
 :doc:`initial_conditions`, and :doc:`validation`.
