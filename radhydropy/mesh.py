@@ -120,7 +120,11 @@ class Mesh:
             raise ValueError("volume vanished")
 
     def _set_up_supercomoving_geometry(
-        self, par: Any, code_units: Any, nogrid: int, noghost: int,
+        self,
+        par: Any,
+        code_units: Any,
+        nogrid: int,
+        noghost: int,
     ) -> None:
         if self.coordsys == "cartesian":
             if not hasattr(par.mesh, "area_proper"):

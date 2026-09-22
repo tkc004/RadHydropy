@@ -126,7 +126,7 @@ def check_conserved_energy_admissibility(
     energy = np.asarray(sim.fluid.Energy_code, dtype=float)
     if last <= first:
         return
-    physical = np.zeros(len(mass), dtype=bool)
+    physical: np.ndarray[Any, Any] = np.zeros(len(mass), dtype=bool)
     physical[first : min(last, len(mass))] = True
     density_floor = max(
         0.0,

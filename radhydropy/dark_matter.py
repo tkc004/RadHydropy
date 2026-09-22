@@ -243,7 +243,7 @@ class DarkMatterShells:
             mass_unit,
         )
         self._mass_prefix_cache = None
-        self._enclosed_mass_cache = None
+        self._enclosed_mass_cache: np.ndarray[Any, Any] | None = None
         self.last_substep_count = 0
         self.total_substep_count = 0
         self.last_crossing_event_count = 0
@@ -335,13 +335,16 @@ class DarkMatterShells:
         )
         ends = np.r_[starts[1:], radius.size]
         group_values = prefix[starts] + 0.5 * (prefix[ends] - prefix[starts])
-        sorted_result = np.repeat(group_values, ends - starts)
+        sorted_result: np.ndarray[Any, Any] = np.repeat(group_values, ends - starts)
         result = np.empty_like(sorted_result)
         result[order] = sorted_result
         return result
 
     def gravitating_enclosed_mass(
-        self, radius: Any = None, *, include_shell_mass_with_fixed: Any = False,
+        self,
+        radius: Any = None,
+        *,
+        include_shell_mass_with_fixed: Any = False,
     ) -> Any:
         """Return dynamic plus configured fixed enclosed mass."""
         if radius is None:
@@ -736,7 +739,7 @@ class DarkMatterShells:
         while remaining > minimum_step:
             crossing_dt = self.crossing_timestep(safety_factor=1.0)
             substep = remaining
-            event_pairs = np.empty(0, dtype=int)
+            event_pairs: np.ndarray[Any, Any] = np.empty(0, dtype=int)
             batched_crossing = crossing_batch_fraction > 0.0 and crossing_dt < substep
             if crossing_dt < substep:
                 # Advance exactly to the first crossing, exchange the

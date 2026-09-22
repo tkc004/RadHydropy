@@ -52,7 +52,12 @@ def thermochemistry_radiation_evolution_enabled(fluid: Any, par: Any) -> Any:
 
 
 def advect_ionization_fraction(
-    dt: Any, mesh: Any, fluid: Any, par: Any, old_mass: Any, mass_flux: Any,
+    dt: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    old_mass: Any,
+    mass_flux: Any,
 ) -> Any:
     """Advect chemistry scalars consistently with the mass flux."""
     return get_network(par).advect_ionization_fraction(
@@ -104,7 +109,10 @@ def update_temperature_from_energy(state: Any) -> Any:
 
 
 def ionization_fraction_implicit_update(
-    state: Any, ngamma_cgs_cm3: Any, dt_s: Any, par: Any,
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    dt_s: Any,
+    par: Any,
 ) -> Any:
     """Implicitly update chemistry fractions for the selected network."""
     return get_network(par).ionization_fraction_implicit_update(
@@ -115,7 +123,10 @@ def ionization_fraction_implicit_update(
 
 
 def coupled_implicit_update(
-    state: Any, ngamma_cgs_cm3: Any, dt_s: Any, par: Any,
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    dt_s: Any,
+    par: Any,
 ) -> Any:
     network = get_network(par)
     if hasattr(network, "coupled_implicit_update"):
@@ -130,7 +141,10 @@ def apply_state(state: Any, fluid: Any, par: Any) -> Any:
 
 
 def get_thermochemistry_source_timestep_fast(
-    mesh: Any, fluid: Any, par: Any, remaining: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    remaining: Any,
 ) -> Any:
     """Return a fast source substep for the selected network."""
     return get_network(par).get_source_timestep_fast(mesh, fluid, par, remaining)

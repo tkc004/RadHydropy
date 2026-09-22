@@ -290,7 +290,10 @@ def _require_unitless_runtime_parameters(sim: Any) -> None:
 
 
 def _visit_runtime_value(
-    value: Any, path: str, visited: set[int], leaked: list[str],
+    value: Any,
+    path: str,
+    visited: set[int],
+    leaked: list[str],
 ) -> None:
     """Collect paths containing unit-bearing values in a runtime object."""
     if value is None or id(value) in visited:
@@ -314,7 +317,10 @@ def _visit_runtime_value(
 
 
 def _visit_runtime_mapping(
-    value: Mapping[Any, Any], path: str, visited: set[int], leaked: list[str],
+    value: Mapping[Any, Any],
+    path: str,
+    visited: set[int],
+    leaked: list[str],
 ) -> None:
     for name, child in value.items():
         if name not in {"CodeUnits", "unit_system"}:
@@ -322,7 +328,10 @@ def _visit_runtime_mapping(
 
 
 def _visit_runtime_dataclass(
-    value: Any, path: str, visited: set[int], leaked: list[str],
+    value: Any,
+    path: str,
+    visited: set[int],
+    leaked: list[str],
 ) -> None:
     for field in fields(value):
         if field.name not in {"CodeUnits", "unit_system", "model"}:
@@ -355,7 +364,10 @@ def _visit_runtime_array(
 
 
 def _visit_runtime_object(
-    value: Any, path: str, visited: set[int], leaked: list[str],
+    value: Any,
+    path: str,
+    visited: set[int],
+    leaked: list[str],
 ) -> None:
     excluded = {
         "par_config",

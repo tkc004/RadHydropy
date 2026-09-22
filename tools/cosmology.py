@@ -18,7 +18,8 @@ _G_MPC_cgs_KMS_MSUN = 4.300917270e-9
 
 
 def _validate_flat_parameters(
-    omega_m: float, omega_lambda: float,
+    omega_m: float,
+    omega_lambda: float,
 ) -> tuple[float, float]:
     omega_m = float(omega_m)
     omega_lambda = float(omega_lambda)
@@ -178,7 +179,8 @@ class LambdaCDM:
 
 
 def make_cosmology(
-    cosmology_type: str | None = "einstein_de_sitter", **kwargs: Any,
+    cosmology_type: str | None = "einstein_de_sitter",
+    **kwargs: Any,
 ) -> EinsteinDeSitter | LambdaCDM:
     """Construct an EdS or flat ΛCDM cosmology; EdS is the default."""
     if cosmology_type in (None, "einstein_de_sitter", "EinsteinDeSitter", "eds"):

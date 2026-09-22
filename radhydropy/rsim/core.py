@@ -49,7 +49,11 @@ class Rsim:
 
     @classmethod
     def FromComponents(  # noqa: N802
-        cls, par: Any, mesh: Any, fluid: Any, solver: Any = None,
+        cls,
+        par: Any,
+        mesh: Any,
+        fluid: Any,
+        solver: Any = None,
     ) -> Any:
         """Create a runner from already-initialized objects."""
         sim = cls.__new__(cls)
@@ -115,14 +119,21 @@ class Rsim:
         return AdvanceHydroFluxes(self, dt, fluid=fluid)
 
     def AdvectChemistryScalars(  # noqa: N802
-        self, dt: Any, old_mass: Any, mass_flux: Any, fluid: Any = None,
+        self,
+        dt: Any,
+        old_mass: Any,
+        mass_flux: Any,
+        fluid: Any = None,
     ) -> Any:
         from .sources import AdvectChemistryScalars  # noqa: PLC0415
 
         return AdvectChemistryScalars(self, dt, old_mass, mass_flux, fluid=fluid)
 
     def UpdateThermochemistryPrimitiveState(  # noqa: N802
-        self, *, update_pressure: bool = True, fluid: Any = None,
+        self,
+        *,
+        update_pressure: bool = True,
+        fluid: Any = None,
     ) -> Any:
         from .sources import UpdateThermochemistryPrimitiveState  # noqa: PLC0415
 
@@ -226,7 +237,11 @@ class Rsim:
         )
 
     def _hydro_step_ssprk2(
-        self, dt: Any, *, advect_chemistry: bool = True, apply_gravity: bool = True,
+        self,
+        dt: Any,
+        *,
+        advect_chemistry: bool = True,
+        apply_gravity: bool = True,
     ) -> Any:
         from .stepping import _hydro_step_ssprk2  # noqa: PLC0415
 
@@ -238,7 +253,11 @@ class Rsim:
         )
 
     def hydro_step_ssprk2(
-        self, dt: Any, *, advect_chemistry: bool = True, apply_gravity: bool = True,
+        self,
+        dt: Any,
+        *,
+        advect_chemistry: bool = True,
+        apply_gravity: bool = True,
     ) -> Any:
         """Advance one SSPRK2 hydro step through the public simulation API."""
         return self._hydro_step_ssprk2(

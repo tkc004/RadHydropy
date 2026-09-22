@@ -206,7 +206,10 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         _update_temperature(state)
 
     def ionization_fraction_implicit_update(
-        self, state: dict[str, Any], ngamma_cgs_cm3: Any, dt_s: Any,
+        self,
+        state: dict[str, Any],
+        ngamma_cgs_cm3: Any,
+        dt_s: Any,
     ) -> None:
         return None
 
@@ -214,7 +217,11 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         return None
 
     def get_source_timestep_fast(
-        self, mesh: Any, fluid: Any, par: Any, remaining: Any,
+        self,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        remaining: Any,
     ) -> tuple[Any, Any]:
         state = _state(mesh, fluid, par)
         state.update(

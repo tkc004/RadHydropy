@@ -113,7 +113,10 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         _update_temperature(state)
 
     def ionization_fraction_implicit_update(
-        self, state: dict[str, Any], ngamma_cgs_cm3: Any, dt_s: Any,
+        self,
+        state: dict[str, Any],
+        ngamma_cgs_cm3: Any,
+        dt_s: Any,
     ) -> None:
         return None
 
@@ -121,7 +124,11 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         return None
 
     def get_source_timestep_fast(
-        self, mesh: Any, fluid: Any, par: Any, remaining: Any,
+        self,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        remaining: Any,
     ) -> tuple[Any, Any]:
         state = self.source_state(mesh, fluid, par)
         code = state["code"]
@@ -139,7 +146,8 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
 
     @staticmethod
     def _energy_at_temperature(
-        state: dict[str, Any], temperature_cgs_K: Any,
+        state: dict[str, Any],
+        temperature_cgs_K: Any,
     ) -> Any:  # noqa: N803
         return (
             BOLTZMANN_CONSTANT_CGS

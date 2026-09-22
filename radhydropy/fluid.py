@@ -46,7 +46,7 @@ def _pad_proper_fluid_fields(fluid: Any, par: Any, code_units: Any) -> None:
     for attr, default in defaults:
         if hasattr(fluid, attr):
             values = np.asarray(getattr(fluid, attr), dtype=float)
-            ghost = np.full(noghost, default, dtype=float)
+            ghost: np.ndarray[Any, Any] = np.full(noghost, default, dtype=float)
             setattr(fluid, attr, as_named_array(np.concatenate((ghost, values, ghost))))
     if hasattr(fluid, "specific_angular_momentum_code"):
         values = np.asarray(fluid.specific_angular_momentum_code, dtype=float)

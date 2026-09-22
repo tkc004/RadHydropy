@@ -433,7 +433,10 @@ def thermal_rate(state: Any, ngamma_cgs_cm3: Any) -> Any:
 
 
 def get_timestep(
-    state: Any, ngamma_cgs_cm3: Any, remaining_s: Any, dtmax_s: Any,
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    remaining_s: Any,
+    dtmax_s: Any,
 ) -> Any:
     d_hi, d_hei, d_heiii, thermal = _rates(state, ngamma_cgs_cm3)
     if state.get("coupled_implicit", True):
@@ -482,7 +485,9 @@ def update_temperature_from_energy(state: Any) -> Any:
 
 
 def ionization_fraction_implicit_update(
-    state: Any, ngamma_cgs_cm3: Any, dt_s: Any,
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    dt_s: Any,
 ) -> Any:
     old = np.array([state["xHI"], state["xHeI"], state["xHeIII"]])
     trial = old.copy()
@@ -627,7 +632,11 @@ class HydrogenHeliumNetwork(ThermochemistryNetwork):
         return thermal_rate(state, ngamma_cgs_cm3)
 
     def get_timestep(
-        self, state: Any, ngamma_cgs_cm3: Any, remaining_s: Any, dtmax_s: Any,
+        self,
+        state: Any,
+        ngamma_cgs_cm3: Any,
+        remaining_s: Any,
+        dtmax_s: Any,
     ) -> Any:
         return get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s)
 
@@ -635,12 +644,18 @@ class HydrogenHeliumNetwork(ThermochemistryNetwork):
         return update_temperature_from_energy(state)
 
     def ionization_fraction_implicit_update(
-        self, state: Any, ngamma_cgs_cm3: Any, dt_s: Any,
+        self,
+        state: Any,
+        ngamma_cgs_cm3: Any,
+        dt_s: Any,
     ) -> Any:
         return ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s)
 
     def coupled_implicit_update(
-        self, state: Any, ngamma_cgs_cm3: Any, dt_s: Any,
+        self,
+        state: Any,
+        ngamma_cgs_cm3: Any,
+        dt_s: Any,
     ) -> Any:
         return coupled_implicit_update(state, ngamma_cgs_cm3, dt_s)
 
@@ -648,7 +663,11 @@ class HydrogenHeliumNetwork(ThermochemistryNetwork):
         return apply_state(state, fluid, par)
 
     def get_source_timestep_fast(
-        self, mesh: Any, fluid: Any, par: Any, remaining: Any,
+        self,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        remaining: Any,
     ) -> Any:
         state = source_state(mesh, fluid, par)
         code = _code_units(par)

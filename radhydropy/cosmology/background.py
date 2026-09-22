@@ -84,7 +84,10 @@ class EinsteinDeSitter:
 
     @classmethod
     def from_code_units(
-        cls: Any, code_units: Any, t_ref: Any = 1.0, a_ref: Any = 1.0,
+        cls: Any,
+        code_units: Any,
+        t_ref: Any = 1.0,
+        a_ref: Any = 1.0,
     ) -> Any:
         """Construct the background using the code-unit gravitational constant."""
         g_code = (

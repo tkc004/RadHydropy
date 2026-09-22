@@ -198,7 +198,9 @@ def parameter_tree(value: Any) -> Any:
 
 
 def _used_parameters_payload(
-    par_config: Any = None, initial_condition: Any = None, existing: Any = None,
+    par_config: Any = None,
+    initial_condition: Any = None,
+    existing: Any = None,
 ) -> dict[str, Any]:
     payload = {}
     if isinstance(existing, dict):
@@ -223,7 +225,9 @@ def _used_parameters_payload(
 
 
 def update_used_parameters_yaml(
-    path: Any, par_config: Any = None, initial_condition: Any = None,
+    path: Any,
+    par_config: Any = None,
+    initial_condition: Any = None,
 ) -> Any:
     """Create or update a config-style ``used_parameters.yaml`` file."""
     path = Path(path)

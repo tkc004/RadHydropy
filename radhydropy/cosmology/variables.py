@@ -85,9 +85,7 @@ def physical_velocity(
     return cast(
         "FloatArray",
         hubble * scale_factor * _as_float_array(radius)
-        + (
-            _as_float_array(velocity) / scale_factor
-        ),
+        + (_as_float_array(velocity) / scale_factor),
     )
 
 

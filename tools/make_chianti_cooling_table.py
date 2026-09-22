@@ -215,11 +215,7 @@ def check_environment(xuvtop_arg: str | None = None) -> str:
     # Prefer an explicit CLI value, then the environment, then the database
     # bundled alongside this repository.
     xuvtop_value = xuvtop_arg or os.environ.get("XUVTOP") or str(DEFAULT_XUVTOP)
-    xuvtop = (
-        Path(xuvtop_value)
-        .expanduser()
-        .resolve()
-    )
+    xuvtop = Path(xuvtop_value).expanduser().resolve()
 
     if not xuvtop.is_dir():
         raise RuntimeError(f"CHIANTI database directory does not exist: {xuvtop}")
@@ -374,7 +370,7 @@ def compute_cooling_grid(
     if workers > 1 and xuvtop is None:
         raise ValueError("xuvtop is required when workers is greater than 1")
 
-    cooling = np.zeros((nT, nne), dtype=float)
+    cooling: np.ndarray[Any, Any] = np.zeros((nT, nne), dtype=float)
 
     time.time()
 

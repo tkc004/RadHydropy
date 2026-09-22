@@ -71,7 +71,9 @@ _validate_snapshot_configuration = validate_snapshot_configuration
 
 
 def _write_runtime_header_attributes(
-    header: Any, ric: Any, cosmological_schema: Any,
+    header: Any,
+    ric: Any,
+    cosmological_schema: Any,
 ) -> None:
     """Write scalar runtime parameters while excluding nested configuration groups."""
     excluded = {
@@ -373,7 +375,10 @@ def _write_fluid_snapshot_data(
 
 
 def write_snapshot_hdf5(
-    ric: Any, ICfilename: Any, *, provenance: Any = None,
+    ric: Any,
+    ICfilename: Any,
+    *,
+    provenance: Any = None,
 ) -> Any:  # noqa: N803
     """Write an already-prepared runtime state to an HDF5 snapshot.
 
@@ -501,7 +506,10 @@ def write_snapshot_hdf5(
 
 
 def writehdf5(
-    ric: Any, ICfilename: Any, *, provenance: Any = None,
+    ric: Any,
+    ICfilename: Any,
+    *,
+    provenance: Any = None,
 ) -> Any:  # noqa: N803
     """Prepare and write an initial-condition HDF5 file.
 
@@ -561,7 +569,10 @@ def _restore_hdf5_header_attributes(par: Any, header: Any) -> Any:
 
 
 def _identify_hdf5_schema(
-    par: Any, header: Any, expected_coordsys: Any, expected_nogrid: Any,
+    par: Any,
+    header: Any,
+    expected_coordsys: Any,
+    expected_nogrid: Any,
 ) -> Any:
     """Validate the canonical header schema and return its representation."""
     coordinate_system = par.simulation.coordinate_system
@@ -606,7 +617,11 @@ def _identify_hdf5_schema(
 
 
 def _synchronize_hdf5_header(
-    par: Any, fluid: Any, header: Any, code_units: Any, cosmological: Any,
+    par: Any,
+    fluid: Any,
+    header: Any,
+    code_units: Any,
+    cosmological: Any,
 ) -> None:
     """Populate typed header values and synchronize the restored runtime clock."""
     metadata_fields = {
@@ -651,7 +666,11 @@ def _synchronize_hdf5_header(
 
 
 def _read_hdf5_header(
-    par: Any, fluid: Any, fic: Any, expected_coordsys: Any, expected_nogrid: Any,
+    par: Any,
+    fluid: Any,
+    fic: Any,
+    expected_coordsys: Any,
+    expected_nogrid: Any,
 ) -> Any:
     """Restore header state and determine the canonical file schema."""
     header = fic["Header"]
@@ -742,7 +761,10 @@ def _read_hdf5_data(
 
 
 def _restore_runtime_state(
-    par: Any, fluid: Any, gdata: Any, canonical_cosmological_schema: Any,
+    par: Any,
+    fluid: Any,
+    gdata: Any,
+    canonical_cosmological_schema: Any,
 ) -> None:
     """Build the typed runtime state after field restoration."""
     if canonical_cosmological_schema:
@@ -800,7 +822,10 @@ def _restore_field_metadata(par: Any, gdata: Any) -> None:
 
 
 def _restore_dark_matter_snapshot(
-    par: Any, dmdata: Any, code_units: Any, schema: Any,
+    par: Any,
+    dmdata: Any,
+    code_units: Any,
+    schema: Any,
 ) -> None:
     """Restore optional dark-matter shell and analysis state."""
     dm_scale_map = {

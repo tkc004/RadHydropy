@@ -1042,7 +1042,7 @@ class Solver:
         )
         first = int(par.mesh.ghost_cells)
         count = int(par.mesh.grid_cells)
-        physical = np.zeros(len(total_thermal), dtype=bool)
+        physical: np.ndarray[Any, Any] = np.zeros(len(total_thermal), dtype=bool)
         physical[first : first + count] = True
         sync = (
             physical & np.isfinite(total_thermal) & (total_thermal > 0.0) & (total_fraction > eta2)
@@ -1546,7 +1546,7 @@ class Solver:
         count = int(par.mesh.grid_cells)
         last = min(first + count, len(density))
         inactive = ~np.isfinite(density) | (density <= density_floor)
-        face_mask = np.zeros(len(density), dtype=bool)
+        face_mask: np.ndarray[Any, Any] = np.zeros(len(density), dtype=bool)
         # Keep gas-vacuum interfaces active: their Riemann flux is what fills
         # the vacuum.  Only a vacuum-vacuum interface should be suppressed.
         # Face i joins cell i-1 (the rolled state) to cell i.
@@ -1638,7 +1638,7 @@ class Solver:
         count = len(mass)
         first = int(par.mesh.ghost_cells) if par is not None else 0
         last = min(first + int(par.mesh.grid_cells), count) if par is not None else count
-        physical = np.zeros(count, dtype=bool)
+        physical: np.ndarray[Any, Any] = np.zeros(count, dtype=bool)
         physical[first:last] = True
         volume = np.asarray(geometry.volume_runtime_code, dtype=float)
         mass_floor = (
@@ -1731,7 +1731,7 @@ class Solver:
         """Limit the spherical pressure-geometry momentum source."""
         momentum = context["momentum"]
         geometry_increment = np.zeros_like(momentum)
-        geometry_fraction = np.ones(len(momentum), dtype=float)
+        geometry_fraction: np.ndarray[Any, Any] = np.ones(len(momentum), dtype=float)
         if geometric_mom is None:
             return geometry_increment, geometry_fraction
         geometry_increment = context["dt"] * np.asarray(geometric_mom, dtype=float)
@@ -1808,7 +1808,7 @@ class Solver:
             )
             return state_mass, state_mom, state_energy, state_angular
 
-        factors = np.ones(len(mass_face), dtype=float)
+        factors: np.ndarray[Any, Any] = np.ones(len(mass_face), dtype=float)
         for _ in range(64):
             state = line_state(factors)
             invalid = ~valid(*state)
@@ -2119,7 +2119,7 @@ class Solver:
             """Solve the invariant-domain quadratics for a face group."""
             current = factors[face_values].copy()
             largest = np.ones_like(current) - current
-            possible = np.ones(len(face_values), dtype=bool)
+            possible: np.ndarray[Any, Any] = np.ones(len(face_values), dtype=bool)
             for side, sign in ((face_values - 1, -1.0), (face_values, 1.0)):
                 physical_side = physical[side]
                 if not np.any(physical_side):
@@ -2323,7 +2323,7 @@ class Solver:
         radius = context["radius"]
         cell_valid = context["cell_valid"]
         count = len(mass)
-        factors = np.zeros(len(mass_face), dtype=float)
+        factors: np.ndarray[Any, Any] = np.zeros(len(mass_face), dtype=float)
         total_mass, total_mom, total_energy, total_angular = (
             self._validate_analytical_recovery_state(
                 context,
@@ -2827,7 +2827,7 @@ class Solver:
         limited_internal_flux = np.asarray(internal_flux, dtype=float) * factors
         first = int(par.mesh.ghost_cells)
         count = int(par.mesh.grid_cells)
-        physical = np.zeros(len(fluid.InternalEnergy_code), dtype=bool)
+        physical: np.ndarray[Any, Any] = np.zeros(len(fluid.InternalEnergy_code), dtype=bool)
         physical[first : first + count] = True
         internal_factors = self._positivity_limited_internal_flux(
             fluid.InternalEnergy_code,

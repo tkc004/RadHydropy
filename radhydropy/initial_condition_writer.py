@@ -210,7 +210,10 @@ class InitialConditionWriter:
         return cls(simulation, provenance=provenance)
 
     def _primitive_field_name(
-        self, values: Any, context: Any, representation: Any = None,
+        self,
+        values: Any,
+        context: Any,
+        representation: Any = None,
     ) -> Any:
         if not hasattr(values, "units"):
             raise TypeError("writer.radarray requires a unit-bearing array")
@@ -492,7 +495,11 @@ class InitialConditionWriter:
         return next((candidate for candidate in candidates if candidate is not None), None)
 
     def _field(
-        self, field_name: str, container: Any, *, required: bool = True,
+        self,
+        field_name: str,
+        container: Any,
+        *,
+        required: bool = True,
     ) -> Any:
         radarray_field = {
             "boundary_comoving_code": "boundary_radarray",

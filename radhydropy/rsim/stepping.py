@@ -47,7 +47,9 @@ def _align_timestep_units(dt: Any, current_time: Any, final_time: Any) -> tuple[
 
 
 def GetStepTime(  # noqa: N802
-    sim: Any, dt: Any = None, final_time: Any = None,
+    sim: Any,
+    dt: Any = None,
+    final_time: Any = None,
 ) -> Any:
     """Return a timestep, clipped to ``final_time`` when supplied."""
     if dt is None:
@@ -555,7 +557,10 @@ def _source_enabled(sim: Any) -> bool:
 
 
 def _capture_hydro_thermal_baseline(
-    sim: Any, mode: str, first: int, last: int,
+    sim: Any,
+    mode: str,
+    first: int,
+    last: int,
 ) -> None:
     if mode == "sources":
         return

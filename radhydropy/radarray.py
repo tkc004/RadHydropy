@@ -281,7 +281,11 @@ class RadArray(unyt.unyt_array):  # type: ignore[misc]
         return ordinary_array.to(units, equivalence=equivalence)
 
     def __array_ufunc__(
-        self, ufunc: Any, method: Any, *inputs: Any, **kwargs: Any,
+        self,
+        ufunc: Any,
+        method: Any,
+        *inputs: Any,
+        **kwargs: Any,
     ) -> Any:
         rad_inputs = [value for value in inputs if isinstance(value, RadArray)]
         _validate_radarray_operands(rad_inputs)
@@ -523,7 +527,11 @@ class RadQuantity(unyt.unyt_quantity):  # type: ignore[misc]
         return ordinary_quantity.to(units, equivalence=equivalence)
 
     def __array_ufunc__(
-        self, ufunc: Any, method: Any, *inputs: Any, **kwargs: Any,
+        self,
+        ufunc: Any,
+        method: Any,
+        *inputs: Any,
+        **kwargs: Any,
     ) -> Any:
         rad_inputs = [value for value in inputs if isinstance(value, (RadArray, RadQuantity))]
         if len(rad_inputs) > 1:

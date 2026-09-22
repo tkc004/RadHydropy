@@ -2528,7 +2528,12 @@ def _fast_sync_state_to_fluid(state: Any, fluid: Any, par: Any) -> Any:
 
 
 def _fast_sync_thermal_state(
-    state: Any, fluid: Any, par: Any, code: Any, interior: Any, active: Any,
+    state: Any,
+    fluid: Any,
+    par: Any,
+    code: Any,
+    interior: Any,
+    active: Any,
 ) -> Any:
     # The source state stores specific energies in physical cgs units (erg/g),
     # while Fluid pressure and Energy use the code velocity unit.
@@ -2584,7 +2589,11 @@ def sync_c2ray_state(state: Any, fluid: Any, par: Any) -> Any:
 
 
 def _try_compton_only_source(
-    state: Any, par: Any, code: Any, source_solver: Any, remaining_s: Any,
+    state: Any,
+    par: Any,
+    code: Any,
+    source_solver: Any,
+    remaining_s: Any,
 ) -> Any:
     """Handle the closed-form Compton-only source path."""
     enabled = all(
@@ -2622,7 +2631,11 @@ def _try_compton_only_source(
 
 
 def _fast_solver_result(
-    par: Any, code: Any, source_steps: Any, source_solver: Any, relative_change: Any,
+    par: Any,
+    code: Any,
+    source_steps: Any,
+    source_solver: Any,
+    relative_change: Any,
 ) -> Any:
     photon_energy = _optional_numeric_value(
         getattr(
@@ -2644,7 +2657,10 @@ def _fast_solver_result(
 
 
 def _adaptive_coupled_source_steps(
-    state: Any, remaining_s: Any, par: Any, source_solver: Any,
+    state: Any,
+    remaining_s: Any,
+    par: Any,
+    source_solver: Any,
 ) -> Any:
     if getattr(par, "radiative_transfer", False):
         return None
@@ -2670,7 +2686,12 @@ def _adaptive_coupled_source_steps(
 
 
 def _try_split_implicit_source(
-    state: Any, initial_state: Any, remaining_s: Any, par: Any, code: Any, source_solver: Any,
+    state: Any,
+    initial_state: Any,
+    remaining_s: Any,
+    par: Any,
+    code: Any,
+    source_solver: Any,
 ) -> Any:
     if source_solver != "split_implicit" or remaining_s <= 0.0:
         return None
@@ -2680,7 +2701,11 @@ def _try_split_implicit_source(
 
 
 def _try_hybrid_explicit_probe(
-    state: Any, remaining_s: Any, par: Any, code: Any, source_solver: Any,
+    state: Any,
+    remaining_s: Any,
+    par: Any,
+    code: Any,
+    source_solver: Any,
 ) -> Any:
     if not (
         source_solver == "hybrid"
@@ -2720,7 +2745,12 @@ def _try_hybrid_explicit_probe(
 
 
 def _try_coupled_source(
-    state: Any, initial_state: Any, remaining_s: Any, par: Any, code: Any, source_solver: Any,
+    state: Any,
+    initial_state: Any,
+    remaining_s: Any,
+    par: Any,
+    code: Any,
+    source_solver: Any,
 ) -> Any:
     if source_solver not in ("hybrid", "coupled_implicit", "trust_region") or remaining_s <= 0.0:
         return None
@@ -2783,7 +2813,11 @@ def _finish_fast_source_update(
 
 
 def apply_thermochemistry_fast(
-    dt: Any, mesh: Any, fluid: Any, par: Any, transport_result: Any = None,
+    dt: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    transport_result: Any = None,
 ) -> Any:
     """Fast source update for RT-coupled thermo-chemistry tests."""
     if not thermochemistry_enabled(fluid, par):
@@ -2900,7 +2934,11 @@ def _run_fast_source_loop(
 
 
 def _fast_transport_step(
-    state: Any, par: Any, code: Any, transport_result: Any, absorbed_integral: Any,
+    state: Any,
+    par: Any,
+    code: Any,
+    transport_result: Any,
+    absorbed_integral: Any,
 ) -> Any:
     """Update photon density and absorption for one source step."""
     absorbed = None
@@ -3070,7 +3108,13 @@ class HydrogenNetwork(ThermochemistryNetwork):
         return thermochemistry_radiation_evolution_enabled(fluid, par)
 
     def advect_ionization_fraction(
-        self: Any, dt: Any, mesh: Any, fluid: Any, par: Any, old_mass: Any, mass_flux: Any,
+        self: Any,
+        dt: Any,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        old_mass: Any,
+        mass_flux: Any,
     ) -> Any:
         return advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux)
 
@@ -3084,7 +3128,11 @@ class HydrogenNetwork(ThermochemistryNetwork):
         return thermal_rate(state, ngamma_cgs_cm3)
 
     def get_timestep(
-        self: Any, state: Any, ngamma_cgs_cm3: Any, remaining_s: Any, dtmax_s: Any,
+        self: Any,
+        state: Any,
+        ngamma_cgs_cm3: Any,
+        remaining_s: Any,
+        dtmax_s: Any,
     ) -> Any:
         return get_timestep(
             state,
@@ -3097,7 +3145,10 @@ class HydrogenNetwork(ThermochemistryNetwork):
         return update_temperature_from_energy(state)
 
     def ionization_fraction_implicit_update(
-        self: Any, state: Any, ngamma_cgs_cm3: Any, dt_s: Any,
+        self: Any,
+        state: Any,
+        ngamma_cgs_cm3: Any,
+        dt_s: Any,
     ) -> Any:
         return ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s)
 
@@ -3108,7 +3159,12 @@ class HydrogenNetwork(ThermochemistryNetwork):
         return get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining)
 
     def apply_fast(
-        self: Any, dt: Any, mesh: Any, fluid: Any, par: Any, transport_result: Any = None,
+        self: Any,
+        dt: Any,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        transport_result: Any = None,
     ) -> Any:
         return apply_thermochemistry_fast(
             dt,

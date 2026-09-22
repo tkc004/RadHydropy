@@ -181,7 +181,10 @@ def CalFluxLimiter(rlim: Any, limiter: str = "minmod") -> Any:  # noqa: N802
 
 
 def extrapolateToFace(  # noqa: N802
-    fluxarray: Any, xb: Any, fgrad: Any, order: int = 1,
+    fluxarray: Any,
+    xb: Any,
+    fgrad: Any,
+    order: int = 1,
 ) -> tuple[Any, Any]:
     """Extrapolate cell-centered values to left and right faces."""
     # numpy roll Rroll, put the right value to this cell
@@ -232,7 +235,10 @@ def CalFluxFromLR(  # noqa: N802, N803
 
 
 def ApplyFluxLimiter(  # noqa: N802
-    q: Any, flux_1: Any, flux_0: Any, limiter: str = "minmod",
+    q: Any,
+    flux_1: Any,
+    flux_0: Any,
+    limiter: str = "minmod",
 ) -> tuple[Any, Any]:
     """Blend first-order and second-order fluxes using a slope limiter."""
     # numpy roll Rroll, put the right value to this cell

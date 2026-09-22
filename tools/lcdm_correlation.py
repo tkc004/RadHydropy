@@ -15,7 +15,7 @@ from typing import Any, cast
 import h5py
 import numpy as np
 
-_trapezoid = getattr(np, "trapezoid", np.trapz)  # noqa: NPY201 - NumPy 1.x compatibility.
+_trapezoid = cast("Any", getattr(np, "trapezoid", getattr(np, "trapz", None)))
 
 try:
     from tools.cosmology import LambdaCDM

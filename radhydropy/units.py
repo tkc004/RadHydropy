@@ -325,7 +325,10 @@ def code_quantity_to_cgs(value: Any, code: Any, scale_key: str) -> Any:
 
 
 def quantity_or_code_to_cgs(
-    value: Any, code: Any, unit: Any, scale_key: str,
+    value: Any,
+    code: Any,
+    unit: Any,
+    scale_key: str,
 ) -> Any:
     """Convert a unitful or code-unit value to a plain CGS array.
 

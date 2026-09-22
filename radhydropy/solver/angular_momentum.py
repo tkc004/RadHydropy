@@ -185,7 +185,7 @@ def _limit_angular_momentum_flux(
     area, boundary, coordinate = _canonical_mesh_geometry(mesh)
     first = int(par.mesh.ghost_cells)
     last = min(first + int(par.mesh.grid_cells), len(mass))
-    physical = np.zeros(len(mass), dtype=bool)
+    physical: np.ndarray[Any, Any] = np.zeros(len(mass), dtype=bool)
     physical[first:last] = True
     mass_flux_area = np.asarray(fluid.Mass_code.flux, dtype=float) * area
     mass_new = mass + dt * (mass_flux_area - ru.periodic_roll(mass_flux_area, -1))
@@ -458,7 +458,7 @@ def _apply_local_angular_energy_fallback(
     )
     first = int(par.mesh.ghost_cells)
     last = min(first + int(par.mesh.grid_cells), len(mass))
-    problematic = np.zeros(len(mass), dtype=bool)
+    problematic: np.ndarray[Any, Any] = np.zeros(len(mass), dtype=bool)
     problematic[first:last] = fraction[first:last] <= threshold
     # Face i bounds cells i-1 and i.
     face_mask = problematic | np.roll(problematic, -1)

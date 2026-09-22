@@ -13,7 +13,9 @@ from radhydropy.units import time_seconds
 
 
 def _static_front_radius_from_state(
-    sim: Any, state: dict[str, Any], neutral_fraction: float = 0.5,
+    sim: Any,
+    state: dict[str, Any],
+    neutral_fraction: float = 0.5,
 ) -> Any:
     ionized = state["xHI"] <= neutral_fraction
     if not np.any(ionized):
@@ -75,7 +77,9 @@ def _snapshot_static_state(sim: Any, state: dict[str, Any], time_s: float) -> di
 
 
 def _initial_static_history(
-    sim: Any, *, include_thermal_history: bool = False,
+    sim: Any,
+    *,
+    include_thermal_history: bool = False,
 ) -> dict[str, Any]:
     history: dict[str, Any] = {
         "time_Myr": [],
@@ -210,7 +214,9 @@ def _store_static_reference_snapshot(
 
 
 def _finish_static_thermochemistry(
-    sim: Any, state: dict[str, Any], time_s: float,
+    sim: Any,
+    state: dict[str, Any],
+    time_s: float,
 ) -> None:
     if getattr(sim.par, "radiative_transfer_temporal_scheme", "c2ray") == "c2ray":
         from radhydropy.thermo_networks import c2ray  # noqa: PLC0415

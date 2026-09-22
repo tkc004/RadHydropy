@@ -13,6 +13,7 @@ where ``ion_stage`` is the number of electrons removed. For example, stage
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -96,7 +97,7 @@ def read_ioneq_file(filename: Path) -> tuple[NDArray[np.float64], NDArray[np.flo
             f"Expected {n_temperature} temperatures, found {log_temperature.size} in {filename}.",
         )
 
-    fractions = np.zeros(
+    fractions: np.ndarray[Any, Any] = np.zeros(
         (n_elements, n_elements + 1, n_temperature),
         dtype=np.float64,
     )

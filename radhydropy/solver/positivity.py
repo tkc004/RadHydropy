@@ -23,7 +23,7 @@ def limit_internal_flux(
     limiter may be more restrictive than the total-energy limiter without
     changing conserved mass, momentum, or total energy.
     """
-    result = np.ones(len(flux), dtype=float)
+    result: np.ndarray[Any, Any] = np.ones(len(flux), dtype=float)
     state = np.asarray(old_internal, dtype=float).copy()
     area = np.asarray(area, dtype=float)
     dt_value = float(np.asarray(dt, dtype=float))

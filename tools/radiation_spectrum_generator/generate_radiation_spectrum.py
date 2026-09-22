@@ -8,7 +8,7 @@ import argparse
 import itertools
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import h5py
 import numpy as np
@@ -30,6 +30,8 @@ from radhydropy.radiation_spectrum import (
     SPECTRUM_DATASET_STAR_RATES,
     SPECTRUM_GROUP,
 )
+
+_trapezoid = cast("Any", getattr(np, "trapezoid", getattr(np, "trapz", None)))
 
 EV_TO_ERG = 1.602176634e-12
 DEFAULT_EDGES_EV = (13.6, 24.6, 54.4, 10_000.0)
@@ -98,13 +100,13 @@ def calculate_groups(
             intensity = blackbody(energy).value * 2.0
         photon_weight = intensity / energy.value
         cross_section = verner96_sigma(energy.value, parameters)
-        norm = np.trapezoid(photon_weight, energy.value)  # type: ignore[attr-defined]
-        norm_energy = np.trapezoid(intensity, energy.value)  # type: ignore[attr-defined]
-        sigma_integral = np.trapezoid(  # type: ignore[attr-defined]
+        norm = _trapezoid(photon_weight, energy.value)
+        norm_energy = _trapezoid(intensity, energy.value)
+        sigma_integral = _trapezoid(
             photon_weight * cross_section,
             energy.value,
         )
-        epsilon_integral = np.trapezoid(  # type: ignore[attr-defined]
+        epsilon_integral = _trapezoid(
             photon_weight * cross_section * (energy.value - threshold_ev),
             energy.value,
         )

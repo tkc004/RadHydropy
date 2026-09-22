@@ -85,7 +85,9 @@ def species_photoionization_rates(ngamma_cgs_cm3: Any, sigma_by_species: Any) ->
 
 
 def species_photoionization_heating(
-    ngamma_cgs_cm3: Any, sigma_by_species: Any, epsilon_by_species: Any,
+    ngamma_cgs_cm3: Any,
+    sigma_by_species: Any,
+    epsilon_by_species: Any,
 ) -> Any:
     rates_cgs_erg_cm3_s = {}
     for species, sigma_input in sigma_by_species.items():
@@ -126,7 +128,10 @@ def _attenuation_mean(tau: Any) -> Any:
 
 
 def _quantity_or_code_to_cgs(
-    value: Any, code_units: Any, cgs_unit: Any, scale_key: str,
+    value: Any,
+    code_units: Any,
+    cgs_unit: Any,
+    scale_key: str,
 ) -> Any:
     if hasattr(value, "to_value"):
         return _as_cgs_float(value, cgs_unit)
@@ -286,7 +291,7 @@ def propagate_causal_cell(
 
 
 def _face_flux_from_rate(face_rate: Any, face_area_cgs_cm2: Any) -> Any:
-    flux = np.zeros(len(face_rate), dtype=float)
+    flux: np.ndarray[Any, Any] = np.zeros(len(face_rate), dtype=float)
     valid = face_area_cgs_cm2 > 0.0
     flux[valid] = face_rate[valid] / face_area_cgs_cm2[valid]
     return flux
@@ -303,7 +308,7 @@ def _trace_cartesian(mesh: Any, optical_depth: Any, boundary_flux: Any, directio
     boundary_flux = _as_cgs_float(boundary_flux, PHOTON_FLUX_UNIT)
 
     if direction >= 0:
-        face_flux = np.empty(ncell + 1, dtype=float)
+        face_flux: np.ndarray[Any, Any] = np.empty(ncell + 1, dtype=float)
         face_flux[0] = boundary_flux
         if ncell > 0:
             face_flux[1:] = boundary_flux * np.cumprod(attenuation)
@@ -330,7 +335,10 @@ def _trace_cartesian(mesh: Any, optical_depth: Any, boundary_flux: Any, directio
 
 
 def _spherical_boundary_rate(
-    face_area: Any, boundary_flux: Any, source_photon_rate: Any, direction: Any,
+    face_area: Any,
+    boundary_flux: Any,
+    source_photon_rate: Any,
+    direction: Any,
 ) -> Any:
     source_rate = _as_cgs_float(source_photon_rate, PHOTON_RATE_UNIT)
     if source_rate != 0.0:
@@ -363,17 +371,17 @@ def _trace_spherical(
     )
 
     if direction >= 0:
-        prefix = np.ones(ncell, dtype=float)
+        prefix: np.ndarray[Any, Any] = np.ones(ncell, dtype=float)
         if ncell > 1:
             prefix[1:] = np.cumprod(attenuation[:-1])
-        face_rate = np.empty(ncell + 1, dtype=float)
+        face_rate: np.ndarray[Any, Any] = np.empty(ncell + 1, dtype=float)
         face_rate[0] = incoming_rate
         face_rate[1:] = incoming_rate * np.cumprod(attenuation)
         cell_density = incoming_rate * prefix * widths * mean_attenuation / volumes / speed_of_light
         absorbed_rate = incoming_rate * prefix * (1.0 - attenuation) / volumes
     else:
-        suffix_face = np.ones(ncell, dtype=float)
-        suffix_cell = np.ones(ncell, dtype=float)
+        suffix_face: np.ndarray[Any, Any] = np.ones(ncell, dtype=float)
+        suffix_cell: np.ndarray[Any, Any] = np.ones(ncell, dtype=float)
         if ncell > 1:
             suffix_face[:-1] = np.cumprod(attenuation[::-1])[::-1]
             suffix_cell[:-1] = np.cumprod(attenuation[::-1])[:-1][::-1]
@@ -541,7 +549,9 @@ def trace_long_characteristics(
 
 
 def _infer_transport_ngroup(
-    cross_sections: Any, boundary_flux: Any, source_photon_rate: Any,
+    cross_sections: Any,
+    boundary_flux: Any,
+    source_photon_rate: Any,
 ) -> Any:
     for sigma in cross_sections.values():
         sigma_array = _as_cgs_array(sigma, CGS_AREA_UNIT)

@@ -629,7 +629,10 @@ def _hhe_derivative(local: Any, photon_density: Any) -> Any:
 
 
 def _hhe_backward_euler_step(
-    local: Any, photon_density: Any, dt_s: Any, par: Any,
+    local: Any,
+    photon_density: Any,
+    dt_s: Any,
+    par: Any,
 ) -> Any:
     """Take one damped-Newton backward-Euler step for one H/He cell."""
     old = np.array(
@@ -698,7 +701,7 @@ def _hhe_finite_difference_jacobian(
     residual: Any,
     dt_s: Any,
 ) -> Any:
-    jacobian = np.empty((4, 4), dtype=float)
+    jacobian: np.ndarray[Any, Any] = np.empty((4, 4), dtype=float)
     for column in range(4):
         perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e-8)
         if column == 3:  # noqa: PLR2004
@@ -787,7 +790,10 @@ def _hhe_group_parameters(state: Any, par: Any) -> Any:
 
 
 def _advance_hydrogen_helium(
-    state: Any, par: Any, dt_s: Any, update_chemistry: Any,
+    state: Any,
+    par: Any,
+    dt_s: Any,
+    update_chemistry: Any,
 ) -> Any:
     """Advance coupled H/He chemistry with causal multigroup C²-Ray transport."""
     geometry = _state_geometry(state, par)
@@ -998,7 +1004,10 @@ def _ensure_fluid_photon_shape(fluid: Any, photon_density: Any, par: Any) -> Non
 
 
 def sync_fluid_photon_density(
-    fluid: Any, photon_density: Any, par: Any, interior: Any,
+    fluid: Any,
+    photon_density: Any,
+    par: Any,
+    interior: Any,
 ) -> None:
     """Write a C²-Ray photon density into the runtime fluid field."""
     _ensure_fluid_photon_shape(fluid, photon_density, par)

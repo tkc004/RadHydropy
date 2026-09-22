@@ -39,7 +39,7 @@ def initialize_hydrostatic_core(solver: Any, mesh: Any, fluid: Any, par: Any) ->
         raise ValueError(
             "radius_core_proper must contain at least one, but not all, resolved cells",
         )
-    core = np.zeros(len(geometry.coordinate_runtime_code), dtype=bool)
+    core: np.ndarray[Any, Any] = np.zeros(len(geometry.coordinate_runtime_code), dtype=bool)
     core[first:last] = core_local
     core_indices = np.flatnonzero(core)
     state = {

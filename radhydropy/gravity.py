@@ -56,7 +56,10 @@ def _as_quantity(value: Any, unit: Any) -> Any:
 
 
 def point_mass_potential(
-    radius: Any, mass: Any, softening: Any = 0.0 * unyt.cm, code_units: Any = None,
+    radius: Any,
+    mass: Any,
+    softening: Any = 0.0 * unyt.cm,
+    code_units: Any = None,
 ) -> Any:
     r"""Return the gravitational potential of a softened point mass."""
     if code_units is None:
