@@ -21,6 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
+    "astropy",
     "pytest",
     "scipy",
 ]
