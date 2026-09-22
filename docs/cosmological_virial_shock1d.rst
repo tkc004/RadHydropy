@@ -81,6 +81,10 @@ are shown from ``example/CosmologicalVirialShock1D``.
      - Short end-to-end gas, dark-matter, and PIE smoke run.
      - ``cosmological_virial_shock1d.py``
      - Correlation table and HM12 metal PIE table; writes ``outputs_virial_shock_smoke``.
+   * - ``cosmological_dark_matter_smoke.yaml``
+     - Fast cosmology-only smoke run with an accelerated collapse and reduced shell count.
+     - ``cosmological_dark_matter_only.py``
+     - Correlation table only; writes ``outputs_correlation_smoke``.
    * - ``cosmological_dark_matter_correlation_z100.yaml``
      - EdS dark-matter correlation control at ``z=100``.
      - ``generate_cosmological_correlation_ic.py`` or ``cosmological_dark_matter_only.py``

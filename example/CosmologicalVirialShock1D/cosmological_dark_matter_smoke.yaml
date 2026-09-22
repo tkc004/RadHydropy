@@ -1,0 +1,68 @@
+par:
+  dark_matter:
+    softening: 10.0
+  simulation:
+    name: CosmologicalDarkMatterSmoke
+    initial_condition_filename: outputs_correlation_smoke/InitialCondition.hdf5
+    coordinate_system: spherical
+    final_time: {value: 1.5, unit: kpc/(km/s)}
+  mesh:
+    ghost_cells: 2
+    grid_cells: 32
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.25
+  boundary:
+    condition: Reflecting
+  timestep:
+    dtmin: 1.0e-12
+    dtmax: {value: 0.1, unit: kpc/(km/s)}
+  output:
+    directory: outputs_correlation_smoke
+    filename_prefix: Output
+    cadence: {value: 0.5, unit: kpc/(km/s)}
+  units:
+    CodeUnits:
+      name: cosmological_dark_matter_smoke_units
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.98847e43
+        UnitLength_in_cgs: 3.085677581e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  cosmology:
+    cosmological: true
+    cosmological_expansion: true
+    supercomoving_coordinates: true
+    cosmology_type: einstein_de_sitter
+    cosmology_t_ref: {value: 14.4, unit: kpc/(km/s)}
+    cosmology_a_ref: 1.0
+  gravity:
+    selfgravity: true
+initial_condition:
+  radius_inner_comoving: {value: 5.0, unit: kpc}
+  radius_outer_comoving: {value: 4000.0, unit: kpc}
+  time_cosmic: {value: 0.01418666885, unit: kpc/(km/s)}
+  radius_perturbation_comoving: {value: 250.0, unit: kpc}
+  target_halo_mass: {value: 1.0e12, unit: Msun}
+  initial_overdensity: 0.1
+  rho_proper_profile: linear_correlation
+  correlation_h: 0.674
+  baryon_fraction: 0.157
+  hydrogen_mass_fraction: 0.76
+  mu: 0.59
+  dark_matter_shells: 64
+  radius_inner_dark_matter_comoving: {value: 0.1, unit: kpc}
+  softening: 10.0
+  specific_angular_momentum: 1500.0
+  dm_specific_angular_momentum: 0.01
+  uv_background_on_redshift: 10.0
+  cie_temperature_proper: {value: 10.0, unit: K}
+example:
+  dm_only_shells: 128
+  dm_density_bins: 32
+  dm_only_density_times: [0.0141867, 0.5, 1.0, 1.5]
+  dm_only_calibration_timestep: 0.002
+  dm_only_supercomoving_timestep: 0.02
+  linear_correlation_table_filename: outputs_correlation/lcdm_linear_correlation.h5

@@ -21,7 +21,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install package and test dependencies
-        run: python -m pip install -e ".[test]"
+        run: python -m pip install -e ".[test,docs]"
 
       - name: Audit all example contracts
         run: python -m pytest -q tests/test_example_alignment.py
@@ -36,3 +36,110 @@ jobs:
           test -s InitialCondition.hdf5
           test -s Output_002.hdf5
           test -s SodShock1D.jpg
+
+      - name: Run the documented Cartesian advection smoke test
+        working-directory: example/Advection1D
+        run: python advection1d.py
+
+      - name: Verify Cartesian advection artifacts
+        working-directory: example/Advection1D
+        run: |
+          test -s InitialCondition.hdf5
+          test -s Output_005.hdf5
+          test -s Advection1D.jpg
+
+      - name: Run the documented spherical advection smoke test
+        working-directory: example/AdvectionSph1D
+        run: python advection_sph1d.py
+
+      - name: Verify spherical advection artifacts
+        working-directory: example/AdvectionSph1D
+        run: |
+          test -s InitialCondition.hdf5
+          test -s Output_008.hdf5
+          test -s AdvectionSph1D.jpg
+
+      - name: Run the documented spherical converging-shock smoke test
+        working-directory: example/SphericalConvergingShock1D
+        run: python spherical_converging_shock1d.py --config spherical_converging_shock1d.yaml
+
+      - name: Verify spherical converging-shock artifacts
+        working-directory: example/SphericalConvergingShock1D
+        run: |
+          test -s InitialCondition.hdf5
+          test -s Output_015.hdf5
+          test -s SphericalConvergingShock1D.jpg
+
+      - name: Run the documented NFW hydrostatic-equilibrium smoke test
+        working-directory: example/NFWHydrostaticEquilibrium1D
+        run: python nfw_hydrostatic_equilibrium1d.py --config nfw_hydrostatic_equilibrium1d.yaml
+
+      - name: Verify NFW hydrostatic-equilibrium artifacts
+        working-directory: example/NFWHydrostaticEquilibrium1D
+        run: |
+          test -s InitialCondition.hdf5
+          test -s Output_001.hdf5
+          test -s NFWHydrostaticEquilibrium1D.jpg
+
+      - name: Run the documented high-Mach vacuum smoke test
+        working-directory: example/HighMachAdvection1D
+        run: |
+          python high_mach_advection1d.py \
+            --config high_mach_vacuum_expansion1d.yaml \
+            --without-dual-energy
+
+      - name: Verify high-Mach vacuum artifacts
+        working-directory: example/HighMachAdvection1D
+        run: |
+          test -s InitialCondition_vacuum.hdf5
+          test -s outputs_high_mach_vacuum_expansion1d_no_dual_energy/Output_016.hdf5
+          test -s outputs_high_mach_vacuum_expansion1d_no_dual_energy/HighMachAdvection1D_EnergyHistory.npz
+          test -s outputs_high_mach_vacuum_expansion1d_no_dual_energy/HighMachAdvection1D_EntropyEvolution.jpg
+
+      - name: Generate the cosmological smoke-test correlation table
+        run: |
+          python -c "from tools.lcdm_correlation import generate_lcdm_correlation_table; generate_lcdm_correlation_table('example/CosmologicalVirialShock1D/outputs_correlation/lcdm_linear_correlation.h5')"
+
+      - name: Run the documented cosmological dark-matter smoke test
+        working-directory: example/CosmologicalVirialShock1D
+        run: |
+          python cosmological_dark_matter_only.py \
+            --config cosmological_dark_matter_smoke.yaml
+
+      - name: Verify cosmological smoke-test artifacts
+        working-directory: example/CosmologicalVirialShock1D
+        run: |
+          test -s outputs_correlation_smoke/CosmologicalDarkMatterOnlyDensityProfiles.npz
+          test -s outputs_correlation_smoke/CosmologicalDarkMatterOnlyDensityProfiles.jpg
+          test -s outputs_correlation_smoke/CosmologicalDarkMatterOnlyVirialRadii.jpg
+
+      - name: Run the documented multifrequency radiative-transfer smoke test
+        working-directory: example/MultiFrequencyRadiativeTransferSph1D
+        run: |
+          python multifrequency_radiative_transfer_sph1d.py \
+            --config multifrequency_radiative_transfer_sph1d.yaml
+
+      - name: Verify radiative-transfer smoke-test artifacts
+        working-directory: example/MultiFrequencyRadiativeTransferSph1D
+        run: |
+          test -s InitialCondition.hdf5
+          test -s Output_000.hdf5
+          test -s MultiFrequencyRadiativeTransferSph1D.jpg
+
+      - name: Run the Dynamic Stromgren photoheating and wind smoke test
+        working-directory: example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D
+        run: |
+          python dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.py \
+            --config dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d_smoke.yaml
+
+      - name: Verify Dynamic Stromgren smoke-test artifacts
+        working-directory: example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D
+        run: |
+          test -s smoke_outputs/InitialCondition.hdf5
+          test -s smoke_outputs/Output_000.hdf5
+          test -s smoke_outputs/Output_001.hdf5
+          test -s smoke_outputs/Output_002.hdf5
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_C2Ray.jpg
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_C2Ray_IFront.jpg
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_PressureRatio.csv
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_PressureRatio.jpg
