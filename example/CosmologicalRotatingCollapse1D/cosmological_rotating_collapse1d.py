@@ -63,14 +63,14 @@ def spherical_centers(boundary_comoving_code):
 def integrate_shell_reference(initial, config, scale_factors):
     """Integrate pressureless physical shell orbits for comparison only."""
     cosmology = config["_code_cosmology"]
-    radius_comoving_code = np.asarray(initial.mesh.x_comoving_code, dtype=float)
+    radius_comoving_code = np.asarray(config["_x_comoving_code"], dtype=float)
+    rho_comoving_code = np.asarray(config["_rho_comoving_code"], dtype=float)
     mass_comoving_code = np.cumsum(
-        np.asarray(initial.fluid.rho_comoving_code, dtype=float)
-        * np.asarray(initial.mesh.volume_comoving_code, dtype=float),
+        rho_comoving_code * np.asarray(config["_volume_comoving_code"], dtype=float),
     )
-    j = np.asarray(initial.fluid.specific_angular_momentum_code, dtype=float)
+    j = np.asarray(config["_specific_angular_momentum_code"], dtype=float)
     initial_tau_supercomoving_code = float(
-        np.asarray(initial.par.tau_supercomoving_code, dtype=float).reshape(-1)[0],
+        np.asarray(config["_initial_tau_supercomoving_code"], dtype=float).reshape(-1)[0],
     )
     cosmic_time_initial = float(
         cosmology.cosmic_time_from_supercomoving(initial_tau_supercomoving_code),
@@ -80,7 +80,7 @@ def integrate_shell_reference(initial, config, scale_factors):
     initial_physical_radius = scale_initial * radius_comoving_code
     initial_physical_velocity = (
         hubble_initial * initial_physical_radius
-        + np.asarray(initial.fluid.vel_supercomoving_code, dtype=float) / scale_initial
+        + np.asarray(config["_vel_supercomoving_code"], dtype=float) / scale_initial
     )
     requested_times = cosmology.t_ref * np.asarray(scale_factors, dtype=float) ** 1.5
     cosmic_times = np.unique(requested_times)
@@ -119,19 +119,19 @@ def integrate_shell_reference(initial, config, scale_factors):
 def integrate_shell_density_reference(initial, config, scale_factors):
     """Return conservative Eulerian density from pressureless shell ODEs."""
     cosmology = config["_code_cosmology"]
-    boundary_comoving_code = np.asarray(initial.mesh.boundary_comoving_code, dtype=float)
-    radius_comoving_code = np.asarray(initial.mesh.x_comoving_code, dtype=float)
-    volume_comoving_code = np.asarray(initial.mesh.volume_comoving_code, dtype=float)
-    shell_mass = np.asarray(initial.fluid.rho_comoving_code, dtype=float) * volume_comoving_code
+    boundary_comoving_code = np.asarray(config["_boundary_comoving_code"], dtype=float)
+    radius_comoving_code = np.asarray(config["_x_comoving_code"], dtype=float)
+    volume_comoving_code = np.asarray(config["_volume_comoving_code"], dtype=float)
+    shell_mass = np.asarray(config["_rho_comoving_code"], dtype=float) * volume_comoving_code
     edge_mass = np.concatenate(([0.0], np.cumsum(shell_mass)))
-    j = np.asarray(initial.fluid.specific_angular_momentum_code, dtype=float)
+    j = np.asarray(config["_specific_angular_momentum_code"], dtype=float)
     edge_j = np.interp(
         edge_mass,
         np.concatenate(([0.0], np.cumsum(shell_mass))),
         np.concatenate(([0.0], j)),
     )
     initial_tau_supercomoving_code = float(
-        np.asarray(initial.par.tau_supercomoving_code, dtype=float).reshape(-1)[0],
+        np.asarray(config["_initial_tau_supercomoving_code"], dtype=float).reshape(-1)[0],
     )
     cosmic_time_initial = float(
         cosmology.cosmic_time_from_supercomoving(initial_tau_supercomoving_code),
@@ -142,9 +142,9 @@ def integrate_shell_density_reference(initial, config, scale_factors):
     initial_edge_velocity = np.interp(
         boundary_comoving_code,
         radius_comoving_code,
-        np.asarray(initial.fluid.vel_supercomoving_code, dtype=float),
+        np.asarray(config["_vel_supercomoving_code"], dtype=float),
         left=0.0,
-        right=float(np.asarray(initial.fluid.vel_supercomoving_code, dtype=float)[-1]),
+        right=float(np.asarray(config["_vel_supercomoving_code"], dtype=float)[-1]),
     )
     initial_physical_velocity = (
         hubble_initial * initial_physical_boundary + initial_edge_velocity / scale_initial
@@ -347,11 +347,13 @@ def run_case(config, label, rotation_factor):
         and np.allclose(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float), initial_tau)
     ):
         raise RuntimeError("cosmological startup clocks disagree after SetInitFluid")
-    sim.par.cosmology = cosmology
+    sim.par.set_cosmology_model(cosmology)
+    sim.par.dark_matter_background_fraction = 0.0
+    sim.par.gas_background_fraction = 1.0
     active = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     target_mass = np.cumsum(
-        np.asarray(initial.fluid.rho_comoving_code, dtype=float)
-        * np.asarray(initial.mesh.volume_comoving_code, dtype=float),
+        np.asarray(case_config["_rho_comoving_code"], dtype=float)
+        * np.asarray(case_config["_volume_comoving_code"], dtype=float),
     )
     history = {
         "a": [],
@@ -416,9 +418,9 @@ def run_case(config, label, rotation_factor):
     enclosed_mass_radius_reference_comoving_code = np.asarray(
         [
             enclosed_radii(
-                initial.mesh.boundary_comoving_code,
+                case_config["_boundary_comoving_code"],
                 reference_density_snapshot,
-                initial.mesh.volume_comoving_code,
+                case_config["_volume_comoving_code"],
                 target_mass,
             )
             for reference_density_snapshot in reference_density

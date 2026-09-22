@@ -69,7 +69,7 @@ class BertschingerBoundarySolver(Solver):
                 getattr(fluid, name)[left] = getattr(fluid, name)[first]
 
         tau = float(np.asarray(fluid.tau_supercomoving_code, dtype=float).reshape(-1)[0])
-        cosmology = par.cosmology
+        cosmology = par.cosmology.model
         time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
         scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
         hubble = float(cosmology.hubble_from_supercomoving(tau))
@@ -145,14 +145,17 @@ def build_initial_condition(config):
     sim.par.cosmological_expansion = True
     sim.par.supercomoving_coordinates = True
     sim.par.cosmological_gravity = True
+    sim.par.dark_matter_background_fraction = 0.0
+    sim.par.gas_background_fraction = 1.0
     sim.par.cosmology_type = "einstein_de_sitter"
     sim.par.cosmology_t_ref = initial_time
     sim.par.cosmology_a_ref = 1.0
-    sim.par.cosmology = EinsteinDeSitter.from_code_units(
+    cosmology = EinsteinDeSitter.from_code_units(
         code_units,
         t_ref=initial_time,
         a_ref=1.0,
     )
+    sim.par.set_cosmology_model(cosmology)
     sim.par.tau_supercomoving_code = np.ones(1) * sim.par.cosmology.model.supercomoving_time(
         initial_time,
     )
@@ -191,7 +194,7 @@ def build_initial_condition(config):
     )
 
     radius_comoving_code = np.asarray(sim.mesh.x_comoving_code, dtype=float)
-    cosmology = sim.par.cosmology
+    cosmology = sim.par.cosmology.model
     scale_factor = float(cosmology.scale_factor(initial_time))
     rho_background = float(cosmology.background_density(initial_time)) * scale_factor**3
     amplitude = float(initial_condition["perturbation_amplitude"])
@@ -289,7 +292,7 @@ def build_initial_condition(config):
 def _similarity_profiles(sim, solution):
     interior = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     tau = float(np.asarray(sim.fluid.tau_supercomoving_code, dtype=float).reshape(-1)[0])
-    cosmology = sim.par.cosmology
+    cosmology = sim.par.cosmology.model
     scale_factor = float(cosmology.scale_factor_from_supercomoving(tau))
     time_cosmic_code = float(cosmology.cosmic_time_from_supercomoving(tau))
     radius_proper_code = scale_factor * np.asarray(sim.mesh.x_comoving_code[interior], dtype=float)
@@ -319,8 +322,8 @@ def _similarity_profiles(sim, solution):
     # The standalone normalization uses M_excess = M_ta at lambda=1.
     # For the scale-free IC, M_excess=(4*pi/3) rho_b(t_i) A, hence
     # r_ta(t_i)=(A/TURNAROUND_MASS)^(1/3), followed by r_ta~t^(8/9).
-    initial_time = float(sim.par.cosmology.t_ref)
-    initial_scale = float(sim.par.cosmology.a_ref)
+    initial_time = float(sim.par.cosmology.model.t_ref)
+    initial_scale = float(sim.par.cosmology.model.a_ref)
     amplitude = float(sim.par.perturbation_amplitude)
     rta_initial = initial_scale * (
         amplitude / solution.mass_out[np.argmin(np.abs(solution.lambda_out - 1.0))]
@@ -429,7 +432,7 @@ def main(config_filename=DEFAULT_CONFIG):
         )
     ):
         raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
-    sim.par.cosmology = initial.par.cosmology
+    sim.par.set_cosmology_model(initial.par.cosmology.model)
     sim.par.gravity = Gravity(
         selfgravity=True,
         cosmological=True,
