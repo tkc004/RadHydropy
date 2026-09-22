@@ -12,6 +12,7 @@ par:
     gamma: 1.6666666666666667
     CFL: 0.2
     order: 0
+    positivity_preserving: false
   boundary:
     condition: Reflecting
   timestep:
