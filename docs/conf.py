@@ -4,14 +4,8 @@
 
 import os
 import sys
-from importlib.metadata import PackageNotFoundError
+from importlib import metadata as package_metadata
 from pathlib import Path
-
-try:
-    from importlib.metadata import version as metadata_version
-except ImportError:  # pragma: no cover
-    from importlib_metadata import version as metadata_version
-
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -23,8 +17,8 @@ author = "Tsang Keung Chan"
 copyright = "2026, Tsang Keung Chan"  # noqa: A001
 
 try:
-    release = metadata_version("radhydropy")
-except PackageNotFoundError:
+    release = package_metadata.version("radhydropy")
+except package_metadata.PackageNotFoundError:
     release = "1.0.0"
 
 extensions = [

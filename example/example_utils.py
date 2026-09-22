@@ -5,6 +5,7 @@
 import csv
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import unyt
@@ -21,7 +22,7 @@ from radhydropy.example_config import _load_yaml_value, _resolve_path
 from radhydropy.rsim import Rsim
 
 
-def _resolve_nested_config_paths(config, config_filename):
+def _resolve_nested_config_paths(config: Any, config_filename: Any) -> Any:
     par = config["par"]
     initial_condition = config["initial_condition"]
     if "mesh" in par and "grid_cells" not in par["mesh"] and "grid_cells" in initial_condition:
@@ -49,7 +50,7 @@ def _resolve_nested_config_paths(config, config_filename):
                 output[key] = _resolve_path(output[key], config_filename.parent)
 
 
-def load_nested_example_config(config_filename):
+def load_nested_example_config(config_filename: Any) -> Any:
     """Load a nested example YAML configuration with unit-aware values.
 
     The returned mapping has separate ``par``, ``initial_condition``, and
@@ -74,7 +75,7 @@ def load_nested_example_config(config_filename):
     }
 
 
-def _require_complete_example_config(config, helper_name):
+def _require_complete_example_config(config: Any, helper_name: Any) -> Any:
     if not isinstance(config, Mapping) or not {
         "par",
         "initial_condition",
@@ -85,12 +86,12 @@ def _require_complete_example_config(config, helper_name):
         )
 
 
-def require_complete_example_config(config, helper_name):
+def require_complete_example_config(config: Any, helper_name: Any) -> Any:
     """Validate the complete nested example configuration."""
     return _require_complete_example_config(config, helper_name)
 
 
-def snapshot_physical_fields(hdf5_filename, config):
+def snapshot_physical_fields(hdf5_filename: Any, config: Any) -> Any:
     """Return radial snapshot fields converted to physical quantities.
 
     The snapshot metadata determines whether conversion is needed. Ordinary
@@ -102,8 +103,8 @@ def snapshot_physical_fields(hdf5_filename, config):
     rio.readhdf5(snapshot.par, snapshot.mesh, snapshot.fluid, str(hdf5_filename))
     par, mesh, fluid = snapshot.par, snapshot.mesh, snapshot.fluid
     first = int(par.mesh.ghost_cells)
-    last = first + int(par.mesh.grid_cells)
-    code_units = par.units.CodeUnits
+    last = first + int(cast("Any", par.mesh.grid_cells))
+    code_units = cast("Any", par.units.CodeUnits)
     if par.supercomoving_coordinates:
         boundary_comoving_code = np.asarray(
             mesh.boundary_comoving_code[first : last + 1],
@@ -125,7 +126,10 @@ def snapshot_physical_fields(hdf5_filename, config):
         tau_supercomoving_code = float(
             np.asarray(fluid.tau_supercomoving_code, dtype=float).flat[0],
         )
-        _, scale_factor, hubble = par.cosmology.model.background_state_from_supercomoving(
+        _, scale_factor, hubble = cast(
+            "Any",
+            par.cosmology.model,
+        ).background_state_from_supercomoving(
             tau_supercomoving_code,
         )
         length_cgs_cm = float(code_units.length_unit.to_value(unyt.cm))
@@ -177,7 +181,7 @@ def snapshot_physical_fields(hdf5_filename, config):
     }
 
 
-def clean_previous_outputs(config):
+def clean_previous_outputs(config: Any) -> Any:
     """Delete stale output files using a complete nested configuration."""
     if not isinstance(config, dict) or "par" not in config:
         raise TypeError("clean_previous_outputs requires a complete example config")
@@ -190,7 +194,7 @@ def clean_previous_outputs(config):
         path.unlink(missing_ok=True)
 
 
-def write_radial_profile_csv(hdf5_filename, config, csv_filename=None):
+def write_radial_profile_csv(hdf5_filename: Any, config: Any, csv_filename: Any = None) -> Any:
     """Write physical radial velocity, hydrogen density, and temperature.
 
     The HDF5 datasets are expected to be ``Data/Boundary``, ``Data/Velocity``,

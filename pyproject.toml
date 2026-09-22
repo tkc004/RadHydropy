@@ -160,6 +160,13 @@ files = [
     "radhydropy/params.py",
     "radhydropy/thermo_networks/hydrogen.py",
     "radhydropy/solver/core.py",
+    "tools/radiation_spectrum_generator/__init__.py",
+    "setup.py",
+    "docs/__init__.py",
+    "docs/conf.py",
+    "example/basic_hydro_utils.py",
+    "example/cosmological_initial_condition.py",
+    "example/example_utils.py",
 ]
 check_untyped_defs = true
 strict = true

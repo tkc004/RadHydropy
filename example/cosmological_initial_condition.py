@@ -3,6 +3,7 @@
 """Shared writer-backed initial-condition builder for cosmological tests."""
 
 import copy
+from typing import Any
 
 import numpy as np
 
@@ -10,7 +11,7 @@ from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.runtime_fields import SUPERCOMOVING_RUNTIME_FIELDS, MeshGeometryState
 
 
-def build_initial_condition(config):
+def build_initial_condition(config: Any) -> Any:
     """Build a cosmological IC through :class:`InitialConditionWriter`."""
     par = config["par"]
     initial_condition = config["initial_condition"]

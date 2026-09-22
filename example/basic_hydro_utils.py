@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Shared canonical IC helpers for the basic hydro examples."""
 
+from typing import Any, cast
+
 import numpy as np
 
 from radhydropy.arrays import as_named_array
@@ -9,7 +11,13 @@ from radhydropy.rsim import Rsim
 from radhydropy.runtime_fields import PROPER_RUNTIME_FIELDS, MeshGeometryState
 
 
-def _validate_active_proper_state(sim, first, last, *, allow_vacuum=False):
+def _validate_active_proper_state(
+    sim: Any,
+    first: Any,
+    last: Any,
+    *,
+    allow_vacuum: Any = False,
+) -> Any:
     """Validate the active proper-code primitive and conserved state."""
     rho_proper_code = np.asarray(sim.fluid.rho_proper_code[first:last], dtype=float)
     vel_proper_code = np.asarray(sim.fluid.vel_proper_code[first:last], dtype=float)
@@ -52,22 +60,22 @@ def _validate_active_proper_state(sim, first, last, *, allow_vacuum=False):
     )
 
 
-def _validate_finite(fields):
+def _validate_finite(fields: Any) -> Any:
     for field_name, field_values in fields:
         if not np.all(np.isfinite(field_values)):
             raise ValueError(f"active {field_name} contains non-finite values")
 
 
 def _validate_primitives(
-    sim,
-    rho_proper_code,
-    vel_proper_code,
-    pre_proper_code,
-    temp_proper_code,
-    mu_dimensionless,
-    volume_proper_code,
-    allow_vacuum,
-):
+    sim: Any,
+    rho_proper_code: Any,
+    vel_proper_code: Any,
+    pre_proper_code: Any,
+    temp_proper_code: Any,
+    mu_dimensionless: Any,
+    volume_proper_code: Any,
+    allow_vacuum: Any,
+) -> Any:
     _validate_finite(
         (
             ("rho_proper_code", rho_proper_code),
@@ -110,13 +118,13 @@ def _validate_primitives(
 
 
 def _validate_conserved(
-    mass_code,
-    momentum_code,
-    energy_code,
-    expected_mass_code,
-    expected_momentum_code,
-    expected_energy_code,
-):
+    mass_code: Any,
+    momentum_code: Any,
+    energy_code: Any,
+    expected_mass_code: Any,
+    expected_momentum_code: Any,
+    expected_energy_code: Any,
+) -> Any:
     _validate_finite(
         (("Mass_code", mass_code), ("Mom_code", momentum_code), ("Energy_code", energy_code)),
     )
@@ -138,16 +146,16 @@ def _validate_conserved(
 
 
 def make_initial_condition(
-    config,
+    config: Any,
     *,
-    boundary_proper_code,
-    rho_proper_code,
-    vel_proper_code,
-    temp_proper_code,
-    mu_dimensionless,
-    area_proper_code=None,
-    allow_vacuum=False,
-):
+    boundary_proper_code: Any,
+    rho_proper_code: Any,
+    vel_proper_code: Any,
+    temp_proper_code: Any,
+    mu_dimensionless: Any,
+    area_proper_code: Any = None,
+    allow_vacuum: Any = False,
+) -> Any:
     """Build a proper-code IC from a complete nested example configuration.
 
     The profile arrays are already in the configured proper-code system.  The
@@ -244,7 +252,7 @@ def make_initial_condition(
     return Rsim.FromComponents(sim.par, sim.mesh, sim.fluid, sim.solver)
 
 
-def finalize_initial_condition(sim, grid_cells, extra_fields=()):
+def finalize_initial_condition(sim: Any, grid_cells: Any, extra_fields: Any = ()) -> Any:
     """Remove setup ghosts before serializing a canonical proper-code IC."""
     first = int(sim.par.mesh.ghost_cells)
     last = first + int(grid_cells)
@@ -282,12 +290,12 @@ def finalize_initial_condition(sim, grid_cells, extra_fields=()):
     return sim
 
 
-def physical_snapshot(config, filename):
+def physical_snapshot(config: Any, filename: Any) -> Any:
     sim = Rsim(config["par"])
     import radhydropy.io as rio  # noqa: PLC0415
 
     rio.readhdf5(sim.par, sim.mesh, sim.fluid, filename)
     first = int(sim.par.mesh.ghost_cells)
-    last = first + int(sim.par.mesh.grid_cells)
+    last = first + int(cast("Any", sim.par.mesh.grid_cells))
     boundary_proper_code = np.asarray(sim.mesh.boundary_proper_code, dtype=float)
     return sim, boundary_proper_code[first : last + 1], slice(first, last)
