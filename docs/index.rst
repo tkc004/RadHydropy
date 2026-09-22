@@ -20,9 +20,18 @@ The package is organized around a small simulation workflow:
    :caption: User Guide
 
    installation
+   getting_started
    quickstart
-   architecture
    parameters
+   example_matrix
+   examples
+   troubleshooting
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Concepts
+
+   architecture
    radarray
    icparams
    initial_conditions
@@ -36,11 +45,12 @@ The package is organized around a small simulation workflow:
    radiative_transfer
    radiation_pressure
    radiation_spectrum_generator
-   examples
-   all_parameters_default
 
 .. toctree::
    :maxdepth: 2
-   :caption: Reference
+   :caption: Developer / Reference
 
+   validation
+   migration_notes
+   all_parameters_default
    api/index

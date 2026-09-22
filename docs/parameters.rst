@@ -30,42 +30,10 @@ Required code units
 
 Every run defines ``par.units.CodeUnits``. The unit system is written into the
 HDF5 initial-condition header and is used to restore typed runtime fields when
-an IC or snapshot is loaded.
+an initial condition or snapshot is loaded.
 
-Physical YAML values use ``{value, unit}`` mappings:
-
-.. code-block:: yaml
-
-   par:
-     simulation:
-       coordinate_system: cartesian
-       final_time: {value: 2.0, unit: s}
-     mesh:
-       grid_cells: 100
-       ghost_cells: 2
-     hydrodynamics:
-       eos_type: polytropic
-       gamma: 1.4
-       CFL: 0.1
-     units:
-       CodeUnits:
-         name: cgs_unit_system
-         InternalUnitSystem:
-           UnitMassInCGS: 1.0
-           UnitLengthInCGS: 1.0
-           UnitVelocityInCGS: 1.0
-           UnitCurrentInCGS: 1.0
-           UnitTempInCGS: 1.0
-
-   initial_condition:
-     grid_cells: 100
-     coordinate_system: cartesian
-     box_size_proper: {value: 1.0, unit: cm}
-     time_proper: {value: 0.0, unit: s}
-     rho_proper: {value: 1.0, unit: g/cm**3}
-     vel_proper: {value: 0.0, unit: cm/s}
-     temperature_proper: {value: 1.0, unit: K}
-     mean_molecular_weight: 1.0
+The canonical nested YAML structure and ``CodeUnits`` example are documented
+in :ref:`canonical-configuration-example`.
 
 Use semantic physical keys such as ``rho_proper``, ``vel_proper``,
 ``temperature_proper``, ``time_cosmic``, and ``radius_outer_comoving``.
@@ -88,7 +56,7 @@ The full field-level reference remains in
      - Purpose
    * - ``par.simulation``
      - ``name``, ``initial_condition_filename``, ``coordinate_system``, ``final_time``
-     - Run identity, geometry, IC path, and stopping time.
+     - Run identity, geometry, initial-condition path, and stopping time.
    * - ``par.mesh``
      - ``grid_cells``, ``ghost_cells``, ``area_proper``
      - Active resolution, ghost zones, and Cartesian cell area.
@@ -198,6 +166,20 @@ Enable long-characteristic radiative transfer:
        radiative_transfer_method: long_characteristics
        radiative_transfer_temporal_scheme: c2ray
        source_photon_rate: {value: 5.0e48, unit: 1/s}
+
+Select source and positivity integration behavior:
+
+.. code-block:: yaml
+
+   par:
+     hydrodynamics:
+       source_integrator: lie       # ``lie`` or ``strang``
+       positivity_factor_method: invariant_domain
+
+``source_integrator`` defaults to ``lie``. ``strang`` is available for the
+hydrodynamic source-splitting path. The positivity limiter defaults to
+``invariant_domain``; ``bisection`` and ``analytical`` remain available for
+compatibility and comparison runs.
 
 Schedule explicit output times:
 

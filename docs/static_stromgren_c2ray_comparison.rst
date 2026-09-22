@@ -39,7 +39,7 @@ global timestep over the 500 Myr run. The 100-step C²-Ray case therefore uses
 the same coarse global cadence as the 100-step instantaneous case, while the
 100,000-step instantaneous case serves as the time-resolution reference.
 
-The runner follows the normal RadHydropy IC-driven workflow: it builds and
+The runner follows the normal RadHydropy initial-condition-driven workflow: it builds and
 writes the initial condition, reloads it through ``Rsim``, initializes the
 mesh and fluid, evolves the static thermochemistry, and saves an HDF5 output
 for every case.

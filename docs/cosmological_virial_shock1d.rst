@@ -94,10 +94,11 @@ work, compression work, shock work, thermochemistry work, boundary exchange,
 and dual-energy recovery events.  This makes a halo-only budget possible even
 when cells cross the evolving halo boundary.
 
-The saved files are:
-
-* :download:`energy audit <../example/CosmologicalVirialShock1D/outputs_correlation_gas/CosmologicalGasCorrelationZ100_EnergyAudit.npz>`
-* :download:`cell and shell history <../example/CosmologicalVirialShock1D/outputs_correlation_gas/CosmologicalGasCorrelationZ100_EnergyByCellAndShell.npz>`
+The run also produces ``CosmologicalGasCorrelationZ100_EnergyAudit.npz`` and
+``CosmologicalGasCorrelationZ100_EnergyByCellAndShell.npz`` when energy
+diagnostics are enabled. These generated audit files are not committed to the
+repository; inspect them in the configured output directory after running the
+workflow.
 
 For an adiabatic run, the thermochemistry source term is zero.  A useful
 global closure check is
@@ -138,24 +139,24 @@ CMB, and thermal coupling:
        compton_cmb_redshift: 100.0
 
 The current comparison output is in
-``outputs_correlation_gas_compton_atomic_aligned_recheck``.  It was evolved
+``outputs_correlation_gas_compton_atomic``.  It was evolved
 from ``z=100`` to ``t=0.9778`` Gyr, corresponding to approximately ``z=4.9``.
 The canonical gas angular-momentum option is disabled by default; it is a
 storage-only experiment and is not part of this spherical calculation.
 
-.. figure:: ../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic_aligned_recheck/CosmologicalGasCorrelationZ100_ComptonAtomic_aligned_recheck_Temperatures.jpg
+.. figure:: ../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic/CosmologicalGasCorrelationZ100_ComptonAtomic_Temperatures.jpg
    :width: 100%
    :alt: Compton and atomic-cooling gas temperature evolution
 
    Temperature evolution with Compton coupling and primordial atomic cooling.
 
-.. figure:: ../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic_aligned_recheck/CosmologicalGasCorrelationZ100_ComptonAtomic_aligned_recheck_Entropy.jpg
+.. figure:: ../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic/CosmologicalGasCorrelationZ100_ComptonAtomic_Entropy.jpg
    :width: 100%
    :alt: Compton and atomic-cooling gas entropy evolution
 
    Entropy evolution with the experimental entropy limiter disabled.
 
-.. figure:: ../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic_aligned_recheck/CosmologicalGasCorrelationZ100_ComptonAtomic_aligned_recheck_Radii.jpg
+.. figure:: ../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic/CosmologicalGasCorrelationZ100_ComptonAtomic_Radii.jpg
    :width: 100%
    :alt: Compton and atomic-cooling virial and shock radii
 
@@ -290,8 +291,9 @@ Per-cell energy balance
 
 The ``_energy_balance`` rerun records the exact hydrodynamic energy increment
 applied to every Eulerian gas cell, in addition to cumulative gravity,
-compression/shock work, and thermochemistry.  Its file is
-:download:`here <../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic_energy_balance/CosmologicalGasCorrelationZ100_ComptonAtomic_energy_balance_EnergyByCellAndShell.npz>`.
+compression/shock work, and thermochemistry. Its generated file is
+``CosmologicalGasCorrelationZ100_ComptonAtomic_energy_balance_EnergyByCellAndShell.npz``
+in the configured ``_energy_balance`` output directory.
 The cell-wise balance is
 
 .. math::
@@ -317,8 +319,9 @@ gravitational evolution; it is not explained by a large cumulative cooling
 sink there.  This is also why a small global thermochemistry energy change can
 coexist with a strongly reduced hot-gas fraction.
 
-The aperture-summed time evolution inside ``2 r_vir(t)`` is plotted in
-:download:`this figure <../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic_energy_balance/CosmologicalGasCorrelationZ100_ComptonAtomic_energy_balance_2RvirEnergyBalance_TimeEvolution.jpg>`.
+The aperture-summed time evolution inside ``2 r_vir(t)`` is plotted in the
+generated ``CosmologicalGasCorrelationZ100_ComptonAtomic_energy_balance_2RvirEnergyBalance_TimeEvolution.jpg``
+file in that output directory.
 The upper horizontal axis gives the corresponding redshift.  The same
 redshift axis is now included on the time-history panels of the density,
 temperature, entropy, mass, radius, and energy-balance figures in the
@@ -327,7 +330,7 @@ At the final snapshot, the aperture contains 68 Eulerian cells and the
 components are ``Delta E=6.13e-3``, hydro ``2.53e-3``, gravitational work
 ``7.77e-3``, and thermochemistry ``-4.18e-3`` code-energy units.  Their sum
 matches ``Delta E``; the residual is ``-3.8e-18``.  The figure shows aperture
-sums, while the downloaded ``EnergyByCellAndShell.npz`` retains the individual
+sums, while the generated ``EnergyByCellAndShell.npz`` retains the individual
 cell histories.
 
 The hydrogen source implementation was independently evaluated using the
@@ -338,11 +341,10 @@ cooling, and must use the evolved residual electron fraction rather than a
 CIE substitute.  The source sign is ``q = -thermal_rate`` because the code's
 thermal source is positive for heating.
 
-The source-aware audit is:
-
-* :download:`aligned output <../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic_aligned_recheck/CosmologicalGasCorrelationZ100_ComptonAtomic_aligned_recheck.npz>`
-* :download:`energy audit <../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic_aligned_recheck/CosmologicalGasCorrelationZ100_ComptonAtomic_aligned_recheck_EnergyAudit.npz>`
-* :download:`cell and shell history <../example/CosmologicalVirialShock1D/outputs_correlation_gas_compton_atomic_aligned_recheck/CosmologicalGasCorrelationZ100_ComptonAtomic_aligned_recheck_EnergyByCellAndShell.npz>`
+The source-aware audit writes an aligned output, energy audit, and cell/shell
+history NPZ file in its configured output directory. These generated audit
+files are intentionally not linked here because they are not committed
+artifacts.
 
 The thermochemistry run closes the conservative energy audit to roundoff when
 the recorded thermochemical source term is included.  Thermochemistry changes

@@ -1,6 +1,9 @@
 Installation
 ============
 
+RadHydropy supports Python 3.10 and newer. A virtual environment is
+recommended for both the runtime and the optional development dependencies.
+
 Install RadHydropy in editable mode while developing:
 
 .. code-block:: bash
@@ -13,7 +16,7 @@ The package requires ``h5py``, ``numpy``, and ``unyt``. Tests additionally use
 .. code-block:: bash
 
    python -m pip install -e ".[test]"
-   pytest
+   python -m pytest
 
 Building The Documentation
 --------------------------

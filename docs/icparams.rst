@@ -1,4 +1,4 @@
-Initial-Condition Parameters
+Initial-condition parameters
 ============================
 
 The ``initial_condition`` block defines the initial fluid state that gets
@@ -25,7 +25,7 @@ Role-specific geometric parameters follow the same convention, for example
 
 Unit-bearing values are written as ``value`` / ``unit`` pairs in YAML. The
 shared ``example_utils.load_nested_example_config`` helper converts them to
-``unyt`` quantities before the IC builder writes the initial-condition file.
+``unyt`` quantities before the initial-condition builder writes the initial-condition file.
 
 Strict unit and naming rules
 ----------------------------
@@ -46,7 +46,7 @@ Do not replace these with bare numeric values or runtime field names such as
 belong to converted Python arrays and HDF5/runtime fields, not unit-bearing
 YAML inputs.
 
-At the IC-builder boundary, convert each quantity to the configured code-unit
+At the initial-condition builder boundary, convert each quantity to the configured code-unit
 scale before assigning NumPy arrays or calling solver/EOS routines:
 
 .. code-block:: python

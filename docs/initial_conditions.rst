@@ -1,11 +1,11 @@
-Initial-Condition Files
+Initial-condition files
 =======================
 
 RadHydropy uses a compact HDF5 layout for initial-condition files. The
 bundled example scripts generate ``InitialCondition.hdf5`` from the nested
 ``initial_condition`` section before launching a run.
 
-File Layout
+File layout
 -----------
 
 Initial-condition files contain two top-level groups:
@@ -51,12 +51,14 @@ snapshot through :func:`radhydropy.io.loadhdf5` with the complete nested
 configuration. The loader uses the header ``CodeUnits`` block to recover the
 runtime unit system and returns typed mesh/fluid fields.
 
-An already assembled typed ``Rsim`` state may still be serialized with
-:func:`radhydropy.io.writehdf5`; this is a separate state-serialization path,
-not the preferred example IC-construction boundary.
+An already assembled typed ``Rsim`` state may still be serialized as an
+initial-condition file with :func:`radhydropy.io.writehdf5`; this is a
+separate state-serialization path, not the preferred example initial-condition
+boundary. For a runtime snapshot, use
+:func:`radhydropy.io.write_snapshot_hdf5` instead.
 
-IC builder contract
--------------------
+Initial-condition builder contract
+----------------------------------
 
 The example-side ``build_initial_condition(config)`` function is the boundary
 between a nested YAML configuration and a typed runtime state. It receives the
@@ -76,8 +78,9 @@ follows this pattern:
    )
 
 Builders that return an already assembled ``Rsim`` state instead use
-``rio.writehdf5(state, filename)``. In both cases the builder receives the
-complete nested configuration; do not project ``config["par"]`` into a flat
+``rio.writehdf5(state, filename)`` for the initial-condition file. In both
+cases the builder receives the complete nested configuration; do not project
+``config["par"]`` into a flat
 initial-condition mapping.
 
 The optional ``provenance`` mapping writes a ``Header/Provenance`` group to
@@ -102,13 +105,13 @@ call site.
 Physical YAML quantities must be converted with ``quantity_to_value`` or
 ``.to_value`` before becoming NumPy arrays—``float(quantity)`` is not a unit
 conversion. Cosmological examples retain their explicit comoving or
-supercomoving representation through IC construction and serialization.
+supercomoving representation through initial-condition construction and serialization.
 
 After construction, write a returned writer with ``writer.write(filename)`` or
 an assembled state with ``radhydropy.io.writehdf5``. For readback, call
 ``radhydropy.io.loadhdf5(config, filename)`` and use its ``*_radarray`` views
 for dimensional mesh and fluid data.
-When a provenance group is present, ``loadhdf5`` restores it as
+When a provenance group is present, ``radhydropy.io.loadhdf5()`` restores it as
 ``par.provenance``; a subsequent snapshot write can reuse that metadata.
 Avoid ad-hoc ``SimpleNamespace``/dynamic containers and direct snapshot
 ``h5py`` reads in active example workflows.

@@ -118,7 +118,8 @@ After the initial-condition file is written, the runner starts the simulation
 through the following high-level sequence:
 
 1. Load the complete nested configuration and construct ``Rsim(config["par"])``.
-2. Load the HDF5 initial condition through ``loadhdf5(config, filename)``.
+2. Load the HDF5 initial condition through
+   ``radhydropy.io.loadhdf5(config, filename)``.
 3. Restore ``CodeUnits`` and field representation metadata from the HDF5
    header.
 4. Build the typed mesh and ghost-cell geometry.
@@ -211,7 +212,7 @@ The output relationship is:
    HDF5 snapshot with CodeUnits and representation metadata
        |
        v
-   loadhdf5(config, filename)
+   radhydropy.io.loadhdf5(config, filename)
        |
        v
    typed RadArray fields → analysis and plots

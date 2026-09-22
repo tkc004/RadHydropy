@@ -1,11 +1,16 @@
-Snapshot Files
+Snapshot files
 ==============
 
 RadHydropy writes simulation output snapshots as HDF5 files with the same core
 layout as the initial-condition file. The filenames usually follow the pattern
 ``Output_*.hdf5``.
 
-File Layout
+The normal runtime path is ``Rsim.RunAll()``, which schedules and writes
+snapshots using ``par.output``. Code that needs to serialize a live runtime
+state directly should call :func:`radhydropy.io.write_snapshot_hdf5`; use
+:func:`radhydropy.io.writehdf5` for an initial-condition file.
+
+File layout
 -----------
 
 Snapshot files contain the following top-level groups:
@@ -46,7 +51,8 @@ Header attributes commonly describe:
 * cumulative diagnostics such as gravity work and hydro-boundary energy.
 
 Not every attribute is present in every file.  Values may be strings,
-scalars, arrays, or serialized mappings, so use ``loadhdf5`` to interpret
+scalars, arrays, or serialized mappings, so use
+``radhydropy.io.loadhdf5()`` to interpret
 them as RadHydropy parameters rather than parsing attributes by hand.
 
 ``Data`` group
@@ -76,7 +82,7 @@ may be ``code`` or ``cgs``; the ``_code`` suffix alone is not a sufficient
 unit declaration.  ``Header.attrs["CodeUnits"]`` supplies the base scales for fields
 stored in code units.
 
-Canonical hydrodynamic IC/snapshot fields normally use
+Canonical hydrodynamic initial-condition and snapshot fields normally use
 ``storage_unit = code`` and store numerical code values directly. Chemistry
 and thermochemistry fields with a documented cgs contract may use
 ``storage_unit = cgs`` instead. The ``_code`` suffix normally agrees with
@@ -182,7 +188,7 @@ datasets present in ``Data`` can be inspected through
 ``snapshot.par.field_metadata``; dark-matter shell datasets are listed in the
 separate ``DarkMatter`` group.
 
-Snapshot Provenance
+Snapshot provenance
 -------------------
 
 Snapshot provenance is optional. When supplied to
@@ -200,7 +206,7 @@ For a running simulation, attach the provenance mapping to
 ``par.provenance`` so numbered snapshot output carries the same reproducibility
 metadata. On readback, the mapping is restored as ``par.provenance``.
 
-Reading Snapshot Files
+Reading snapshot files
 ----------------------
 
 Use :func:`radhydropy.io.loadhdf5` with the complete nested ``config`` to
@@ -261,7 +267,8 @@ For file-layout debugging only, the raw HDF5 groups can be inspected with
 
 Raw ``h5py`` access returns stored numbers and HDF5 metadata; it does not
 construct RadHydropy's units or cosmology-aware arrays.  Use it to inspect a
-file's physical layout, then use ``loadhdf5`` for interpretation and analysis.
+file's physical layout, then use ``radhydropy.io.loadhdf5()`` for interpretation
+and analysis.
 
 Analyzing a snapshot
 --------------------
@@ -324,7 +331,8 @@ that every field with a ``_code`` suffix has the same representation.
 Reading dark-matter shells
 --------------------------
 
-``loadhdf5`` restores a live shell group to ``snapshot.par.dark_matter`` as a
+``radhydropy.io.loadhdf5()`` restores a live shell group to
+``snapshot.par.dark_matter`` as a
 ``DarkMatterShells`` solver object and exposes a separate typed analysis view
 as ``snapshot.dark_matter``. The analysis view uses ``RadArray`` fields even
 though the shells are Lagrangian rather than cell-centered mesh data:

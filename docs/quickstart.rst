@@ -54,10 +54,11 @@ The example lifecycle is:
    Rsim(config["par"]).RunAll() --> Output_*.hdf5
        |
        v
-   loadhdf5(config, snapshot) --> typed runtime state and *_radarray views
+   radhydropy.io.loadhdf5(config, snapshot) --> typed runtime state and *_radarray views
 
-The builder prepares the initial condition; ``Rsim`` evolves it; ``loadhdf5``
-reloads an IC or snapshot for inspection or restart.
+The builder prepares the initial condition; ``Rsim`` evolves it;
+``radhydropy.io.loadhdf5()`` reloads an initial condition or snapshot for
+inspection or restart.
 
 Minimal runner
 --------------
@@ -122,24 +123,8 @@ new diagnostics.
 Configuration rules
 -------------------
 
-Physical YAML values use ``{value, unit}`` mappings:
-
-.. code-block:: yaml
-
-   par:
-     simulation:
-       final_time: {value: 1.0, unit: s}
-     units:
-       CodeUnits:
-         name: cgs_unit_system
-         InternalUnitSystem:
-           UnitMass_in_cgs: 1.0
-           UnitLength_in_cgs: 1.0
-           UnitVelocity_in_cgs: 1.0
-           UnitCurrent_in_cgs: 1.0
-           UnitTemp_in_cgs: 1.0
-   initial_condition:
-     temperature_proper: {value: 1.0e4, unit: K}
+The canonical nested YAML structure and ``CodeUnits`` example are documented
+in :ref:`canonical-configuration-example`.
 
 Use explicit representation names for physical values, such as
 ``rho_proper``, ``temperature_proper``, ``time_cosmic``, and
@@ -149,7 +134,7 @@ conversion.
 
 The most important runtime owners are:
 
-* ``par.simulation``: run name, coordinate system, IC filename, and final time;
+* ``par.simulation``: run name, coordinate system, initial-condition filename, and final time;
 * ``par.mesh``: grid size, ghost cells, and geometry;
 * ``par.hydrodynamics``: EOS, ``gamma``, CFL, and reconstruction ``order``;
 * ``par.boundary``: Cartesian or spherical boundary condition;
@@ -188,6 +173,6 @@ text file whose first non-empty line is the time unit and whose remaining lines
 are output times. Include ``par.simulation.final_time`` when the final state
 should be written.
 
-See :doc:`initial_conditions` for the HDF5 IC contract,
+See :doc:`initial_conditions` for the HDF5 initial-condition contract,
 :doc:`snapshots` for output files, :doc:`parameters` for the complete nested
 runtime reference, and :doc:`examples` for runnable workflows.

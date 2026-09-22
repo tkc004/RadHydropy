@@ -7,7 +7,7 @@ Einstein--de Sitter cosmology.  The interval is scaled to approximately
 1.3 Gyr so the temperature evolution is visible.
 
 The example writes each case with ``InitialConditionWriter``, reloads it with
-``radhydropy.io.loadhdf5``, and runs both a Compton-only case and an
+``radhydropy.io.loadhdf5()``, and runs both a Compton-only case and an
 atomic-cooling-plus-Compton case through ``Rsim.Run(mode="sources")``.  The
 Compton-only history is compared with the analytic EdS temperature equation,
 while the atomic run is shown as a numerical cooling comparison.

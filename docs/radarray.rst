@@ -73,10 +73,10 @@ such as ``boundary_comoving_code``, ``rho_comoving_code``,
 supercomoving representations also requires the matching ``x_comoving_code``
 because the Hubble-flow term depends on position.
 
-Reading values after ``loadhdf5``
----------------------------------
+Reading values after snapshot loading
+-------------------------------------
 
-``loadhdf5`` returns an ``Rsim`` whose mesh and fluid accessors expose actual
+``radhydropy.io.loadhdf5()`` returns an ``Rsim`` whose mesh and fluid accessors expose actual
 ``RadArray`` objects:
 
 .. code-block:: python

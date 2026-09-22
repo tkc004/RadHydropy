@@ -1,5 +1,12 @@
 # CosmologicalVirialShock1D `Rsim.RunAll()` Migration Plan
 
+> **Status: archival — migration complete.**
+>
+> This document records the design and acceptance criteria for the completed
+> migration. It is retained for historical context and is not an active work
+> plan or the authoritative API reference. For current behavior, see
+> `docs/architecture.rst`, `docs/snapshots.rst`, and `docs/validation.rst`.
+
 ## Purpose
 
 Migrate `CosmologicalVirialShock1D` from its example-specific evolution loop to
@@ -15,8 +22,9 @@ The standard runner should own initial-condition loading, runtime setup,
 timestep scheduling, HDF5 output, and simulation completion. The example
 should provide only its cosmological physics hooks and diagnostic analysis.
 
-This plan is intentionally design-only. It records the work for a future
-implementation session.
+The plan was originally design-only. The migration has since been completed;
+the remaining sections describe the former implementation, the intended
+callback contracts, and the historical acceptance criteria.
 
 ## Current situation
 

@@ -30,22 +30,10 @@ curve uses the ionized-gas sound speed at ``10^4 K`` (about 16.6 km s^-1 for
 ``gamma = 5/3`` and ``mu = 0.5``). The central wind changes the gas dynamics
 while the photon source controls the ionization front.
 
-.. figure:: ../example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/DynamicStromgrenSpherePhotoheating1D_IFront.jpg
-   :width: 100%
-   :alt: Stellar-wind photoheated Stromgren sphere ionization-front evolution
-
-   Ionization-front evolution for the photoheated Stromgren sphere with a
-   central stellar wind. The solid curve is the RadHydropy neutral-fraction
-   front; the reference lines show the Stromgren and Spitzer estimates.
-
-.. figure:: ../example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/DynamicStromgrenSpherePhotoheating1D.jpg
-   :width: 100%
-   :alt: Stellar-wind photoheated Stromgren sphere radial profiles
-
-   Final radial profiles at 1 Myr. From top to bottom, the panels show hydrogen
-   number density, radial velocity, neutral hydrogen fraction, pressure, and
-   gas temperature. The wind-driven inner cavity and the photoionized shell
-   are visible in the density, velocity, pressure, and temperature structure.
+The standard non-C²-Ray figures are generated in the example directory when
+the run completes. The repository retains the C²-Ray comparison figures and
+the pressure-ratio and total-energy diagnostics; regenerate the full profile
+figures locally when those outputs are needed.
 
 Run the example from its directory:
 

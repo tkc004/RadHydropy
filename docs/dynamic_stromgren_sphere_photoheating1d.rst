@@ -11,7 +11,7 @@ expansion.
    :width: 100%
    :alt: Call sequence for the dynamic photoheating example
 
-   Call sequence for ``RunAll()`` in the dynamic photoheating example.
+   Call sequence for ``Rsim.RunAll()`` in the dynamic photoheating example.
 
 .. figure:: ../example/DynamicStromgrenSpherePhotoheating1D/DynamicStromgrenSpherePhotoheating1D_IFront.jpg
    :width: 100%
