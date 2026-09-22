@@ -131,6 +131,13 @@ jobs:
         working-directory: example/RadArrayConversion1D
         run: python radarray_conversion1d.py
 
+      - name: Generate the multifrequency H/He spectrum
+        run: |
+          python tools/radiation_spectrum_generator/generate_radiation_spectrum.py \
+            --output tools/radiation_spectrum_generator/radiation_spectrum_BB100000K_5groups_HHe.h5 \
+            --edges 13.6 24.6 35.5 54.4 75.0 50000.0 \
+            --include-helium
+
       - name: Run the documented multifrequency radiative-transfer smoke test
         working-directory: example/MultiFrequencyRadiativeTransferSph1D
         run: |
