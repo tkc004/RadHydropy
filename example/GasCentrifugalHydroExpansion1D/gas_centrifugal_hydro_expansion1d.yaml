@@ -12,7 +12,7 @@ par:
     gamma: 1.4
     order: 0
     CFL: 0.05
-    dual_energy: true
+    dual_energy: false
     gas_angular_momentum: true
     gas_rotational_energy: true
     positivity_preserving: false

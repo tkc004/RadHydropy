@@ -23,6 +23,7 @@ import numpy as np
 import radhydropy.io as rio
 from example import example_utils as eu
 from example.EinsteinDeSitterTopHatGravity1D import tools as et
+from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.gravity import Gravity
 from radhydropy.units import CodeUnits, quantity_to_value
 
@@ -36,7 +37,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config.get("example", {})
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-    cosmology = et.EinsteinDeSitter.from_code_units(
+    cosmology = EinsteinDeSitter.from_code_units(
         units,
         t_ref=quantity_to_value(config["par"]["cosmology"]["cosmology_t_ref"], units.time_unit),
         a_ref=float(config["par"]["cosmology"]["cosmology_a_ref"]),
@@ -73,7 +74,9 @@ def main(config_filename=DEFAULT_CONFIG):
         )
     ):
         raise RuntimeError("supercomoving startup clocks disagree after SetInitFluid")
-    sim.par.cosmology = cosmology
+    sim.par.set_cosmology_model(cosmology)
+    sim.par.dark_matter_background_fraction = 0.0
+    sim.par.gas_background_fraction = 1.0
     sim.par.gravity = Gravity(
         selfgravity=True,
         externalgravity=False,
@@ -89,16 +92,16 @@ def main(config_filename=DEFAULT_CONFIG):
     physical = slice(sim.par.mesh.ghost_cells, sim.par.mesh.ghost_cells + sim.par.mesh.grid_cells)
     radius_comoving_code = np.asarray(sim.mesh.x_comoving_code[physical], dtype=float)
     tau = float(np.asarray(sim.par.tau_supercomoving_code).flat[0])
-    a = sim.par.cosmology.scale_factor_from_supercomoving(tau)
-    time_cosmic_code = sim.par.cosmology.cosmic_time_from_supercomoving(tau)
-    rho_background = sim.par.cosmology.background_density(time_cosmic_code)
+    a = sim.par.cosmology.model.scale_factor_from_supercomoving(tau)
+    time_cosmic_code = sim.par.cosmology.model.cosmic_time_from_supercomoving(tau)
+    rho_background = sim.par.cosmology.model.background_density(time_cosmic_code)
     analytic = et.top_hat_acceleration(
         radius_comoving_code,
         quantity_to_value(initial_condition["radius_perturbation_comoving"], units.length_unit),
         float(initial_condition["overdensity"]),
         rho_background * a**3,
         a,
-        sim.par.cosmology.gravitational_constant,
+        sim.par.cosmology.model.gravitational_constant,
     )
     comparison = slice(1, None)
     error = np.abs(

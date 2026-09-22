@@ -235,7 +235,11 @@ def main(config_filename=CONFIG):
     ode_total_energy = np.sum(reference["energy_proper_code"])
     energy_error = float(abs(saved_total_energy - ode_total_energy))
     energy_scale = max(abs(float(ode_total_energy)), 1.0e-12)
-    if energy_error / energy_scale > 2.0e-3:  # noqa: PLR2004
+    # An isothermal EOS supplies pressure through its temperature closure and
+    # deliberately does not evolve thermal energy.  Its total-energy value is
+    # therefore a diagnostic only; the pressureless shell-energy comparison
+    # is a strict audit for polytropic configurations.
+    if not sim.fluid.eos.is_isothermal and energy_error / energy_scale > 2.0e-3:  # noqa: PLR2004
         raise RuntimeError(
             "hydro expansion total-energy audit failed: relative error %.6g"
             % (energy_error / energy_scale),
