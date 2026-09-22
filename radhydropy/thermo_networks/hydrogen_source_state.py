@@ -132,10 +132,18 @@ def build_source_state(
     )
     alpha_B = getattr(par, "hydrogen_alpha_B", None)
     if alpha_B is not None:
-        alpha_B = alpha_B.to_value(code_units.volume_unit / code_units.time_unit)
+        alpha_B = optional_numeric_value(
+            alpha_B,
+            code_units.volume_unit / code_units.time_unit,
+            default=None,
+        )
     beta = getattr(par, "hydrogen_beta", None)
     if beta is not None:
-        beta = beta.to_value(code_units.volume_unit / code_units.time_unit)
+        beta = optional_numeric_value(
+            beta,
+            code_units.volume_unit / code_units.time_unit,
+            default=None,
+        )
     radius_code, _, _, _, _ = canonical_mesh_geometry_arrays(mesh, par)
     radius_length = optional_numeric_value(radius_code[interior], code_units.length_unit)
     return {
