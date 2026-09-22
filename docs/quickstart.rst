@@ -117,8 +117,29 @@ plain numerical values only at an explicit plotting or numerical boundary:
 
 The canonical runtime fields, such as ``rho_proper_code`` or
 ``rho_comoving_code``, are numerical solver state. Their suffix identifies the
-representation; do not replace it with generic names such as ``density`` in
-new diagnostics.
+representation and the ``_code`` suffix means that the value is expressed in
+the configured internal code units:
+
+* ``proper`` means physical coordinates and physical fluid quantities at the
+  current cosmic time. For example, ``rho_proper_code`` is the proper density
+  in code-density units.
+* ``comoving`` removes the background expansion from coordinates and density.
+  In the cosmological convention used here,
+  ``rho_comoving = a**3 * rho_proper`` and
+  ``rho_proper = rho_comoving / a**3``.
+* ``supercomoving`` is the corresponding transformed representation used for
+  cosmological time, velocity, pressure, and related solver fields. For
+  example, cosmological velocity is stored as
+  ``vel_supercomoving_code`` rather than as a proper velocity.
+
+The typed ``*_radarray`` accessors carry the representation and cosmology
+metadata and can be converted explicitly with methods such as ``to_proper()``
+or ``to_comoving()``. Do not replace representation-specific names with
+generic names such as ``density`` in new diagnostics; doing so can silently
+mix physical and expanding-background variables.
+
+See :doc:`cosmology` for the full coordinate, time, density, velocity, and
+pressure transformations used by cosmological runs.
 
 Configuration rules
 -------------------

@@ -25,3 +25,14 @@ jobs:
 
       - name: Audit all example contracts
         run: python -m pytest -q tests/test_example_alignment.py
+
+      - name: Run the documented Sod shock smoke test
+        working-directory: example/SodShock1D
+        run: python sodshock1d.py
+
+      - name: Verify smoke-test artifacts
+        working-directory: example/SodShock1D
+        run: |
+          test -s InitialCondition.hdf5
+          test -s Output_002.hdf5
+          test -s SodShock1D.jpg

@@ -12,7 +12,7 @@ editable mode:
 
 .. code-block:: bash
 
-   git clone <repository-url>
+   git clone https://github.com/tkc004/RadHydropy.git
    cd RadHydropy
    python -m venv .venv
    source .venv/bin/activate
@@ -24,6 +24,56 @@ Install the optional test and documentation dependencies when developing:
 .. code-block:: bash
 
    python -m pip install -e ".[test,docs]"
+
+Optional physics data
+---------------------
+
+The core solver and the basic examples do not require external data. PIE and
+CHIANTI/CIE examples use large HDF5 tables maintained separately in the
+`RadhydropyData <https://github.com/tkc004/RadhydropyData>`_ repository. The
+tables are stored with Git LFS, so install Git LFS before cloning the data
+repository:
+
+.. code-block:: bash
+
+   cd ..
+   git lfs install
+   git clone https://github.com/tkc004/RadhydropyData.git
+   cd RadhydropyData
+   git lfs pull
+   cd ../RadHydropy
+
+The maintained example configurations conventionally resolve data from
+directories next to the ``RadHydropy`` checkout:
+
+.. code-block:: text
+
+   parent-directory/
+   ├── RadHydropy/
+   ├── metal_pie_table/
+   └── CHIANTI_11.0.2_database/
+
+The PIE tables include ``metal_pie_hm12_total.h5``,
+``metal_pie_hm12_metals.h5``, and ``metal_pie_table_Z1_metals.h5``. CIE
+examples require ``CHIANTI_11.0.2_database/cooling_tables/`` with at least
+``chianti_cie_ion_fractions.h5`` and ``chianti_cooling_table.h5``. If the
+cloned data repository uses a different layout, either copy or link these
+directories beside ``RadHydropy`` or override the YAML paths
+``metal_pie_table_filename``, ``cie_ion_fraction_table``, and
+``cie_cooling_table``. CHIANTI table-generation tools also accept an explicit
+database location through ``XUVTOP`` or ``--xuvtop``.
+
+Verify that Git LFS downloaded real HDF5 files, rather than pointer files,
+before running a data-dependent example:
+
+.. code-block:: bash
+
+   test -s ../metal_pie_table/metal_pie_hm12_total.h5
+   test -s ../CHIANTI_11.0.2_database/cooling_tables/chianti_cie_ion_fractions.h5
+   test -s ../CHIANTI_11.0.2_database/cooling_tables/chianti_cooling_table.h5
+
+See :doc:`thermo_chemistry` for network-specific table parameters and
+:doc:`troubleshooting` for missing-input diagnostics.
 
 First run
 ---------

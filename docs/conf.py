@@ -37,4 +37,8 @@ napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+# The CI linkcheck job is intentionally scoped to internal documentation and
+# local assets. External research/data URLs are checked separately because
+# their availability is outside the repository's control.
+linkcheck_ignore = [r"^https?://"]
 html_theme = "alabaster"

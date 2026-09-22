@@ -25,6 +25,8 @@ The package is organized around a small simulation workflow:
    parameters
    example_matrix
    examples
+   example_catalog
+   reproducibility
    troubleshooting
 
 .. toctree::

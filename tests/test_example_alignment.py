@@ -19,6 +19,7 @@ from example.example_utils import load_nested_example_config
 
 REPO_ROOT = Path(__file__).parents[1]
 EXAMPLE_ROOT = REPO_ROOT / "example"
+EXAMPLE_CATALOG = REPO_ROOT / "docs" / "example_catalog.rst"
 
 # These names are physical quantities in the example configuration contract.
 # Dimensionless thresholds and ratios deliberately do not appear here.
@@ -357,6 +358,23 @@ def test_every_example_yaml_is_a_complete_loadable_config():
                 f"{filename.relative_to(REPO_ROOT)}: incomplete top-level config",
             )
     assert not failures, "\n".join(failures)
+
+
+def test_example_catalog_matches_example_directories():
+    """Keep the complete documentation catalog synchronized with the tree."""
+    directories = {
+        path.name
+        for path in EXAMPLE_ROOT.iterdir()
+        if path.is_dir() and path.name != "__pycache__"
+    }
+    catalog = EXAMPLE_CATALOG.read_text(encoding="utf-8")
+    listed = set(re.findall(r"^\s+\* - ``([^`]+)``\s*$", catalog, re.MULTILINE))
+
+    missing = sorted(directories - listed)
+    stale = sorted(listed - directories)
+    assert not missing and not stale, (
+        f"example catalog mismatch: missing={missing}, stale={stale}"
+    )
 
 
 def test_physical_yaml_values_have_explicit_units():

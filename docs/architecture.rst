@@ -180,6 +180,29 @@ The main execution APIs are:
    Evolve fixed-density thermo-chemistry and radiative-transfer state without
    hydrodynamic fluxes.
 
+Supported versus internal APIs
+------------------------------
+
+Application code and maintained examples should use the following supported
+boundaries:
+
+* ``InitialConditionWriter.write(..., validate=True)`` to validate and write
+  an initial-condition file;
+* ``Rsim.RunAll()`` for a normal configured run and its output schedule;
+* ``radhydropy.io.write_snapshot_hdf5()`` when an already-prepared live state
+  must be serialized directly; and
+* ``radhydropy.io.loadhdf5()`` followed by typed ``RadArray`` fields such as
+  ``snapshot.mesh.boundary_radarray`` and ``snapshot.fluid.rho_radarray`` for
+  snapshot analysis.
+
+The lower-level solver stepping methods, focused HDF5 implementation modules,
+raw dataset names, and direct ``h5py`` reads are implementation or file-layout
+interfaces. They are useful for debugging, specialized integrations, and
+internal tests, but callers should not depend on them for the normal example
+workflow. In particular, use typed ``RadArray`` conversions rather than
+reconstructing units or proper/comoving representations from raw ``*_code``
+datasets.
+
 Representations and units
 -------------------------
 

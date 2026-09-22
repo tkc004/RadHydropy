@@ -8,8 +8,14 @@ sections. It constructs an initial-condition file, runs
 a mandatory ``CodeUnits`` block in ``par.units`` and writes that unit system
 into the HDF5 initial-condition header before the run starts.
 
-Available Examples
-------------------
+Selected Examples
+-----------------
+
+The table below is a curated set of representative examples with explanatory
+descriptions. It is not intended to enumerate every directory under
+``example/``. See the :doc:`example_catalog` for the complete directory
+catalog, including examples that do not yet have a dedicated documentation
+page.
 
 .. list-table::
    :header-rows: 1

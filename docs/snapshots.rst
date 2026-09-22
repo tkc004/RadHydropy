@@ -1,17 +1,19 @@
 Snapshot files
 ==============
 
-RadHydropy writes simulation output snapshots as HDF5 files with the same core
-layout as the initial-condition file. The filenames usually follow the pattern
-``Output_*.hdf5``.
+RadHydropy writes simulation output snapshots as HDF5 files with the same
+representation-aware schema as initial-condition files. The authoritative
+schema table is maintained in :doc:`initial_conditions`; this page focuses on
+snapshot-only behavior, optional runtime state, and analysis-facing restored
+objects. The filenames usually follow the pattern ``Output_*.hdf5``.
 
 The normal runtime path is ``Rsim.RunAll()``, which schedules and writes
 snapshots using ``par.output``. Code that needs to serialize a live runtime
 state directly should call :func:`radhydropy.io.write_snapshot_hdf5`; use
 :func:`radhydropy.io.writehdf5` for an initial-condition file.
 
-File layout
------------
+Snapshot-specific layout
+------------------------
 
 Snapshot files contain the following top-level groups:
 
@@ -145,10 +147,12 @@ The loader returns an ``Rsim`` object. Its main analysis-facing components are:
    Optional typed shell fields such as ``radius_radarray`` and
    ``dark_matter_mass_radarray`` when a ``DarkMatter`` group is present.
 
-Field formats
--------------
+Restored runtime fields
+-----------------------
 
-The canonical field names depend on the coordinate representation:
+The canonical field names listed below are the restored runtime view of the
+schema in :doc:`initial_conditions`, not a second independent file-format
+definition. They depend on the coordinate representation:
 
 .. list-table:: Canonical restored runtime fields
    :header-rows: 1

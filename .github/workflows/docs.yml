@@ -25,3 +25,6 @@ jobs:
 
       - name: Build documentation with warnings treated as errors
         run: python -m sphinx -W --keep-going -b html docs docs/_build/html
+
+      - name: Check documentation links
+        run: python -m sphinx -W --keep-going -b linkcheck docs docs/_build/linkcheck

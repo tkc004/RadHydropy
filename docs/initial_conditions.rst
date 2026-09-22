@@ -1,45 +1,95 @@
 Initial-condition files
 =======================
 
-RadHydropy uses a compact HDF5 layout for initial-condition files. The
-bundled example scripts generate ``InitialCondition.hdf5`` from the nested
-``initial_condition`` section before launching a run.
+RadHydropy uses the same representation-aware HDF5 schema for initial
+conditions and runtime snapshots. The bundled example scripts generate
+``InitialCondition.hdf5`` from the nested ``initial_condition`` section before
+launching a run. The initial-condition file is therefore a valid input to the
+same loader and field-restoration path used for snapshots.
 
 File layout
 -----------
 
-Initial-condition files contain two top-level groups:
+Canonical schema
+~~~~~~~~~~~~~~~~
+
+The following is the authoritative current schema. Names in the ``proper``
+and ``cosmological`` columns are alternatives: a file must use one complete
+representation, not a mixture of both.
+
+.. list-table:: Canonical RadHydropy HDF5 schema
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - Location
+     - Proper-coordinate file
+     - Cosmological file
+   * - Top-level groups
+     - ``Header``, ``Data``; optional ``DarkMatter``
+     - ``Header``, ``Data``; optional ``DarkMatter``
+   * - Header datasets
+     - ``time_proper_code``, ``box_size_proper_code``
+     - ``tau_supercomoving_code``, ``box_size_comoving_code``
+   * - Required header attribute
+     - ``CodeUnits``
+     - ``CodeUnits``
+   * - Header representation attributes
+     - ``CoordinateSystem``, ``GridCells``, ``GhostCells``,
+       ``CoordinateFrame``, ``TimeCoordinate``, and field representation
+       attributes
+     - The same attributes, with cosmology metadata such as
+       ``CosmologyType``, ``ScaleFactor``, and ``CosmicTime``
+   * - Primary ``Data`` fields
+     - ``boundary_proper_code``, ``rho_proper_code``, ``vel_proper_code``,
+       ``temp_proper_code``
+     - ``boundary_comoving_code``, ``rho_comoving_code``,
+       ``vel_supercomoving_code``, ``temp_supercomoving_code``
+   * - Optional ``Data`` fields
+     - Conserved, chemistry, radiation, and diagnostic fields such as
+       ``Mass_code``, ``Energy_code``, ``mu``, ``xHI``, and ``ngamma_code``
+     - The same optional fields, with the applicable representation metadata
+   * - Dataset metadata
+     - ``storage_unit`` and field metadata such as ``quantity``,
+       ``representation``, and ``coordinate_frame``
+     - The same metadata, including cosmology conversion information
+   * - Optional provenance
+     - ``Header/Provenance``
+     - ``Header/Provenance``
+
+``CodeUnits`` is stored as a ``Header`` attribute, not as a dataset. The
+loader requires it when reading code-unit fields. Dataset metadata is
+authoritative for interpreting stored values; the ``_code`` suffix alone does
+not define a unit.
+
+``Header`` stores scalar runtime and cosmology metadata as attributes. The
+time and box-size datasets identify the representation, while the field names
+in ``Data`` identify the representation of mesh and fluid arrays. Optional
+``DarkMatter`` contains live-shell state when that physics module is enabled;
+its datasets and typed analysis views are documented in :doc:`snapshots`.
+
+Initial-condition files contain the common top-level groups:
 
 * ``Header``
 * ``Data``
 
-The ``Header`` group stores:
+Each dataset carries a ``storage_unit`` attribute. Canonical hydrodynamic
+fields normally use ``storage_unit = code``; fields with a documented physical
+storage contract may use ``storage_unit = cgs``. On load, canonical fields are
+restored as explicitly named runtime arrays such as
+``fluid.rho_proper_code`` or ``fluid.rho_comoving_code``.
 
-* ``Coordinate_System``
-* ``Number_Grids``
-* ``Time``
-* ``BoxSize``
-* ``CodeUnits``
+Legacy format
+~~~~~~~~~~~~~
 
-The ``Data`` group stores:
-
-* ``Boundary``
-* ``Density``
-* ``Velocity``
-* ``Temperature``
-* ``Mol_weight``
-* ``NeutralFraction`` when hydrogen thermo-chemistry is enabled
-* ``PhotonNumberDensity`` when radiative transfer is enabled
-
-Unit-bearing datasets store the unit string in a ``units`` attribute.
-
-When ``CodeUnits`` is enabled, RadHydropy writes fields such as ``Density`` in
-their stored physical units and converts them back into code-unit numeric
-arrays when the file is loaded. In practice this means fields are read back as
-explicitly named arrays such as ``fluid.rho_proper_code`` or
-``fluid.rho_comoving_code`` in the runtime code-unit system. The loader
-requires ``Header.attrs["CodeUnits"]`` to be present and raises an error if it
-is missing.
+Older files may contain generic names such as ``Coordinate_System``,
+``Number_Grids``, ``Time``, ``BoxSize``, ``Boundary``, ``Density``,
+``Velocity``, or ``Temperature``. These names are retained here only to help
+identify historical files; they are not part of the current schema. The
+current loader deliberately rejects generic header names (for example
+``time_code`` or ``box_size_code``) and generic data names (for example
+``rho_code`` or ``pre_code``) because they do not state whether values are
+proper, comoving, or supercomoving. Regenerate such files with
+``InitialConditionWriter`` or migrate them before loading.
 
 Reading and Writing
 -------------------
@@ -123,4 +173,6 @@ The example YAML files typically point
 ``par.simulation.initial_condition_filename`` at a file named
 ``InitialCondition.hdf5`` inside the example directory. The same file layout is
 used by the output snapshot reader, so an output file can be reloaded with the
-same HDF5 structure.
+same HDF5 structure. For the full ``Header``, ``Data``, and ``DarkMatter``
+field details, see :doc:`snapshots`; this page defines which parts apply to
+initial conditions as well as snapshots.
