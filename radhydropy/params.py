@@ -53,6 +53,7 @@ refparams = {
     "gamma": 1.4,  # for polytropic, the polytropic index
     "temperature_proper": 2.7 * unyt.K,  # default gas/background temperature
     "hydro_integrator": "euler",
+    "source_integrator": "lie",
     "initial_time": None,
     "time_proper_code": 0.0 * unyt.s,
     "timesim": 2.0 * unyt.s,  # final simulation time

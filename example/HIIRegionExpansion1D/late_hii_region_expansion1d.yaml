@@ -12,6 +12,7 @@ par:
     gamma: 1.0
     CFL: 0.5
     order: 1
+    source_integrator: lie
     positivity_preserving: false
     dual_energy: false
   boundary:
