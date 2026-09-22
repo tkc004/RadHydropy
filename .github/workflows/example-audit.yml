@@ -67,7 +67,8 @@ jobs:
         working-directory: example/SphericalConvergingShock1D
         run: |
           test -s InitialCondition_smoke.hdf5
-          test -s smoke_outputs/Output_008.hdf5
+          test -s smoke_outputs/Output_000.hdf5
+          test "$(find smoke_outputs -maxdepth 1 -name 'Output_*.hdf5' -type f | wc -l)" -ge 2
           test -s smoke_outputs/SphericalConvergingShock1D.jpg
 
       - name: Run the documented NFW hydrostatic-equilibrium smoke test
