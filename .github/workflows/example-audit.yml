@@ -113,6 +113,46 @@ jobs:
           test -s outputs_correlation_smoke/CosmologicalDarkMatterOnlyDensityProfiles.jpg
           test -s outputs_correlation_smoke/CosmologicalDarkMatterOnlyVirialRadii.jpg
 
+      - name: Run the cosmological Sod shock smoke test
+        working-directory: example/CosmologicalSodShock1D
+        run: |
+          python cosmological_sod_shock1d.py \
+            --config cosmological_sod_shock1d_smoke.yaml
+
+      - name: Verify cosmological Sod smoke-test artifacts
+        working-directory: example/CosmologicalSodShock1D
+        run: |
+          test -s smoke_outputs/InitialCondition.hdf5
+          test -s smoke_outputs/Output_003.hdf5
+          test -s smoke_outputs/CosmologicalSodShock1D.jpg
+
+      - name: Fetch the external HM12 PIE table for the PIE shock smoke test
+        run: |
+          git lfs install
+          git clone --depth 1 https://github.com/tkc004/RadhydropyData.git ../RadhydropyData
+          git -C ../RadhydropyData lfs pull
+          ln -s RadhydropyData/metal_pie_table ../metal_pie_table
+          test -s ../metal_pie_table/metal_pie_hm12_total.h5
+
+      - name: Run the PIE radiative shock-tube smoke test
+        working-directory: example/PIERadiativeShockTube1D
+        run: |
+          python pie_radiative_shock_tube_1d.py \
+            --config pie_radiative_shock_tube_1d_smoke.yaml
+
+      - name: Verify PIE radiative shock smoke-test artifacts
+        working-directory: example/PIERadiativeShockTube1D
+        run: |
+          test -s smoke_outputs/PIERadiativeShockTube1D.jpg
+          test -s smoke_outputs/PIERadiativeShockTube1D_ShockReport.txt
+          test -s smoke_outputs/PIE_Z1_nH1e-3/InitialCondition_PIE_Z1_nH1e-3.hdf5
+          test -s smoke_outputs/PIE_Z1_nH1e-3/Output_PIE_Z1_nH1e-3_004.hdf5
+          test -s smoke_outputs/adiabatic_control/Output_adiabatic_control_004.hdf5
+
+      - name: Run the RadArray conversion smoke test
+        working-directory: example/RadArrayConversion1D
+        run: python radarray_conversion1d.py
+
       - name: Run the documented multifrequency radiative-transfer smoke test
         working-directory: example/MultiFrequencyRadiativeTransferSph1D
         run: |
@@ -143,3 +183,37 @@ jobs:
           test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_C2Ray_IFront.jpg
           test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_PressureRatio.csv
           test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_PressureRatio.jpg
+
+      - name: Run the Dynamic Stromgren radiation-pressure smoke test
+        working-directory: example/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D
+        run: |
+          python dynamic_stromgren_sphere_photoheating20pc_radiation_pressure1d.py \
+            --config dynamic_stromgren_sphere_photoheating20pc_radiation_pressure1d_smoke.yaml
+
+      - name: Verify radiation-pressure smoke-test artifacts
+        working-directory: example/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D
+        run: |
+          test -s smoke_outputs/InitialCondition_RadiationPressure.hdf5
+          test -s smoke_outputs/Output_RadiationPressure_000.hdf5
+          test -s smoke_outputs/Output_RadiationPressure_001.hdf5
+          test -s smoke_outputs/Output_RadiationPressure_002.hdf5
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D.jpg
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D_IFront.jpg
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D_Momentum.jpg
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D_PressureRatio.csv
+          test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D_PressureRatio.jpg
+
+      - name: Run the Static Stromgren C2-Ray comparison smoke test
+        working-directory: example/StaticStromgrenC2RayComparison
+        run: |
+          python static_stromgren_c2ray_comparison.py \
+            --config static_stromgren_c2ray_comparison_smoke.yaml
+
+      - name: Verify Static Stromgren comparison artifacts
+        working-directory: example/StaticStromgrenC2RayComparison
+        run: |
+          test -s comparison_smoke/StaticStromgrenC2RayComparison_IFront.jpg
+          test -s comparison_smoke/StaticStromgrenC2RayComparison_IFront.csv
+          test -s comparison_smoke/comparison_runs/c2ray_20/InitialCondition.hdf5
+          test -s comparison_smoke/comparison_runs/c2ray_20/Output_000.hdf5
+          test -s comparison_smoke/comparison_runs/instantaneous_500/Output_000.hdf5

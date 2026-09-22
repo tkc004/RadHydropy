@@ -22,6 +22,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest",
+    "scipy",
 ]
 quality = [
     "mypy>=1.10",

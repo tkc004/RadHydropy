@@ -46,13 +46,14 @@ def _run_case(
     hydrogen_number_density_cgs_cm3,
     table,
     *,
+    output_root,
     adiabatic=False,
 ):
 
     config["par"]["thermochemistry"]
     initial = config["initial_condition"]
     case_config = copy.deepcopy(config)
-    output_dir = EXAMPLE_DIR / "outputs" / label
+    output_dir = Path(output_root) / label
     output_dir.mkdir(parents=True, exist_ok=True)
     case_config["par"]["simulation"]["name"] = label
     case_config["par"]["simulation"]["initial_condition_filename"] = str(
@@ -282,12 +283,19 @@ def main(config_filename=DEFAULT_CONFIG):
     table = MetalPIETable(table_path)
     if not table.is_hm12_uv_background:
         raise ValueError("the example requires an HM12 UV-background table")
-    cases = [
-        ("PIE_Z1_nH1e-3", 1.0, 1.0e-3, False),
-        ("PIE_Z0p1_nH1e-3", 0.1, 1.0e-3, False),
-        ("PIE_Z1_nH1e-2", 1.0, 1.0e-2, False),
-        ("adiabatic_control", 1.0, 1.0e-3, True),
-    ]
+    all_cases = {
+        "PIE_Z1_nH1e-3": (1.0, 1.0e-3, False),
+        "PIE_Z0p1_nH1e-3": (0.1, 1.0e-3, False),
+        "PIE_Z1_nH1e-2": (1.0, 1.0e-2, False),
+        "adiabatic_control": (1.0, 1.0e-3, True),
+    }
+    requested_cases = config["example"].get("cases")
+    case_labels = list(all_cases) if requested_cases is None else list(requested_cases)
+    unknown_cases = sorted(set(case_labels) - set(all_cases))
+    if unknown_cases:
+        raise ValueError(f"unknown PIE shock cases: {unknown_cases}")
+    cases = [(label, *all_cases[label]) for label in case_labels]
+    output_root = Path(config["par"]["output"]["directory"])
     results = []
     for label, metallicity, hydrogen_number_density_cgs_cm3, adiabatic in cases:
         result = _run_case(
@@ -296,12 +304,13 @@ def main(config_filename=DEFAULT_CONFIG):
             metallicity,
             hydrogen_number_density_cgs_cm3,
             table,
+            output_root=output_root,
             adiabatic=adiabatic,
         )
         if adiabatic:
             result["metallicity"] = 0.0
         results.append(_shock_diagnostics(result, table, config))
-    report = EXAMPLE_DIR / "PIERadiativeShockTube1D_ShockReport.txt"
+    report = output_root / "PIERadiativeShockTube1D_ShockReport.txt"
     with report.open("w", encoding="utf-8") as handle:
         handle.write(
             "case metallicity shock_position_kpc upstream_velocity_km_s "
@@ -324,7 +333,7 @@ def main(config_filename=DEFAULT_CONFIG):
                     result["cooling_length_measured_cm"] / KPC_CM,
                 ),
             )
-    _plot(results, EXAMPLE_DIR / "PIERadiativeShockTube1D.jpg")
+    _plot(results, output_root / "PIERadiativeShockTube1D.jpg")
     for _result in results:
         pass
 

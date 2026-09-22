@@ -100,6 +100,19 @@ def _plot(histories, config, filename):
         "instantaneous_10000": ("tab:green", "--", "Instantaneous (10,000 steps)"),
         "instantaneous_100000": ("tab:purple", "--", "Instantaneous (100,000 steps)"),
     }
+    fallback_colors = ("tab:blue", "tab:orange", "tab:green", "tab:purple")
+    for index, label in enumerate(histories):
+        if label in styles:
+            continue
+        if label.startswith("c2ray_"):
+            steps = int(label.removeprefix("c2ray_"))
+            styles[label] = ("tab:red", "-", f"C²-Ray ({steps:,} steps)")
+        elif label.startswith("instantaneous_"):
+            steps = int(label.removeprefix("instantaneous_"))
+            color = fallback_colors[index % len(fallback_colors)]
+            styles[label] = (color, "--", f"Instantaneous ({steps:,} steps)")
+        else:
+            raise ValueError(f"unsupported comparison history label: {label}")
     for label, history in histories.items():
         color, linestyle, legend = styles[label]
         ax.plot(
@@ -110,7 +123,16 @@ def _plot(histories, config, filename):
             ls=linestyle,
             label=legend,
         )
-    reference = histories["instantaneous_100000"]
+    instantaneous_labels = [
+        label for label in histories if label.startswith("instantaneous_")
+    ]
+    if not instantaneous_labels:
+        raise ValueError("comparison requires at least one instantaneous history")
+    reference_label = max(
+        instantaneous_labels,
+        key=lambda label: int(label.removeprefix("instantaneous_")),
+    )
+    reference = histories[reference_label]
     reference_time_proper_Myr = np.asarray(reference["time_proper_Myr"])
     reference_radius_proper_kpc = np.asarray(reference["front_radius_proper_kpc"])
     for label, history in histories.items():

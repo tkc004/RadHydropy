@@ -1,0 +1,55 @@
+par:
+  simulation:
+    name: PIERadiativeShockTube1D_Smoke
+    initial_condition_filename: smoke_outputs/InitialCondition.hdf5
+    coordinate_system: cartesian
+    final_time: {value: 2.0, unit: Myr}
+  mesh:
+    grid_cells: 64
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.6666666666666667
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: Periodic
+  timestep:
+    dtmin: {value: 1.0, unit: yr}
+    dtmax: {value: 0.05, unit: Myr}
+  thermochemistry:
+    thermochemistry_network: pie_uvbg_cooling
+    metal_pie_enabled: true
+    metal_pie_table_filename: ../../../metal_pie_table/metal_pie_hm12_total.h5
+    metal_pie_redshift: 0.0
+    metal_pie_photoheating_max_density_cgs_cm3: 50.0
+    metallicity: 1.0
+    hydrogen_mass_fraction: 0.76
+    cooling_safety_factor: 0.05
+    cooling_temperature_floor: {value: 100.0, unit: K}
+  radiation:
+    radiative_transfer: false
+  output:
+    directory: smoke_outputs
+    filename_prefix: Output
+    cadence: {value: 0.5, unit: Myr}
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+initial_condition:
+  grid_cells: 64
+  coordinate_system: cartesian
+  box_size_proper: {value: 2.0, unit: kpc}
+  time_proper: {value: 0.0, unit: Myr}
+  hydrogen_number_density: {value: 1.0e-3, unit: cm**-3}
+  vel_collision_proper: {value: 100.0, unit: km/s}
+  temperature_proper: {value: 1.0e4, unit: K}
+  mean_molecular_weight: 0.62
+example:
+  cases: [PIE_Z1_nH1e-3, adiabatic_control]
