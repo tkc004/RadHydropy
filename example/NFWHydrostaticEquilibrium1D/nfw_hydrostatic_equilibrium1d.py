@@ -43,6 +43,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
     par = config["par"]
     initial_condition = config["initial_condition"]
+    Path(par["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     code_units = CodeUnits.from_mapping(par["units"]["CodeUnits"])
     halo = et.nfw_halo_parameters(

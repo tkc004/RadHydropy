@@ -3,7 +3,7 @@ par:
     name: DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D_Smoke
     initial_condition_filename: smoke_outputs/InitialCondition.hdf5
     coordinate_system: spherical
-    final_time: {value: 0.2, unit: Myr}
+    final_time: {value: 0.05, unit: Myr}
   mesh:
     grid_cells: 64
     ghost_cells: 4
@@ -20,7 +20,7 @@ par:
     dtmin: {value: 1.0e-10, unit: Myr}
     dtmax: {value: 0.01, unit: Myr}
     hydrogen_source_CFL: 10000.0
-    hydrogen_source_dtmin: {value: 1.0e-20, unit: Myr}
+    hydrogen_source_dtmin: {value: 1.0e-8, unit: Myr}
   output:
     directory: smoke_outputs
     filename_prefix: Output_RadiationPressure

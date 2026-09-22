@@ -44,6 +44,14 @@ def test_fluid_setup_records_selected_runtime_state():
     assert runtime_fields(par).density == "rho_proper_code"
 
 
+def test_set_fluid_time_accepts_one_element_clock_arrays():
+    fluid = Fluid()
+
+    fluid.SetFluidTime(np.array([1.25]))
+
+    assert fluid.time_proper_code == 1.25  # noqa: PLR2004
+
+
 def test_fluid_primitive_updates_reject_unconfigured_runtime_representation():
     fluid = Fluid()
     fluid.eos = EOS("polytropic", gamma=5.0 / 3.0)

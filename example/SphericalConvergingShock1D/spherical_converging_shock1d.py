@@ -116,6 +116,7 @@ def run(config_filename=DEFAULT_CONFIG, riemann_solver=None, dual_energy=None):
     if dual_energy is not None:
         config["par"]["hydrodynamics"]["dual_energy"] = dual_energy
     output = config["par"]["output"]
+    Path(output["directory"]).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     config["_code_units"] = units

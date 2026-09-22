@@ -1,0 +1,56 @@
+par:
+  simulation:
+    name: SphericalConvergingShock1D_Smoke
+    initial_condition_filename: InitialCondition_smoke.hdf5
+    coordinate_system: spherical
+    final_time: {value: 0.8, unit: s}
+  mesh:
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.4
+    CFL: 0.1
+    order: 1
+    riemann_solver: Rusanov
+    dual_energy: true
+    dual_energy_eta1: 1.0e-3
+    dual_energy_eta2: 1.0e-1
+    dual_energy_consistency_factor: 1.0e-1
+    dual_energy_pressure_selection: switch
+    dual_energy_pressure_floor: 1.0e-20
+    cfl_density_floor: 1.0e-12
+    temperature_jump_error_threshold: 1.0e12
+  boundary:
+    condition: Reflecting
+  timestep:
+    dtmin: {value: 9.0e-9, unit: s}
+    dtmax: {value: 2.0e-3, unit: s}
+  output:
+    directory: smoke_outputs
+    filename_prefix: Output
+    cadence: {value: 0.1, unit: s}
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+
+initial_condition:
+  grid_cells: 128
+  coordinate_system: spherical
+  radius_inner_proper: {value: 1.0e-2, unit: cm}
+  radius_outer_proper: {value: 1.0, unit: cm}
+  time_proper: {value: 0.0, unit: s}
+  rho_proper: {value: 1.0, unit: g/cm**3}
+  temperature_proper: {value: 1.0e-10, unit: K}
+  mean_molecular_weight: 1.0
+  vel_proper: {value: -1.0, unit: cm/s}
+
+example:
+  plot_filename: SphericalConvergingShock1D.jpg

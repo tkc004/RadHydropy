@@ -21,6 +21,7 @@ from example.DynamicStromgrenSpherePhotoheating1D.tools import (
 write_initial_condition = base_tools.write_initial_condition
 build_static_problem = base_tools.build_static_problem
 output_files = base_tools.output_files
+to_myr = base_tools.to_myr
 load_history_from_outputs = base_tools.load_history_from_outputs
 load_output_state = base_tools.load_output_state
 save_front_plot = base_tools.save_front_plot

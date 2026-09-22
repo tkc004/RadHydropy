@@ -1,0 +1,51 @@
+par:
+  simulation:
+    name: NFWHydrostaticEquilibrium1D_Smoke
+    initial_condition_filename: InitialCondition_smoke.hdf5
+    coordinate_system: spherical
+    final_time: {value: 2.0e5, unit: yr}
+  mesh:
+    grid_cells: 64
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: isothermal
+    gamma: 1.6666666666666667
+    CFL: 0.2
+    order: 0
+  boundary:
+    condition: Reflecting
+  timestep:
+    dtmin: {value: 1.0e2, unit: yr}
+    dtmax: {value: 1.0e5, unit: yr}
+  output:
+    directory: smoke_outputs
+    filename_prefix: Output
+    time_list_filename: nfw_hydrostatic_equilibrium1d_output_times_smoke.txt
+  units:
+    CodeUnits:
+      name: galactic_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0e8
+        UnitLength_in_cgs: 3.08567758e21
+        UnitVelocity_in_cgs: 1.0e5
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+  diagnostics:
+    verbose: 0
+
+initial_condition:
+  box_size_proper: {value: 10.0, unit: kpc}
+  time_proper: {value: 0.0, unit: yr}
+  radius_inner_proper: {value: 0.1, unit: kpc}
+  radius_outer_proper: {value: 9.6, unit: kpc}
+  halo_mass: {value: 1.0e8, unit: Msun}
+  concentration: 10.0
+  redshift: 0.0
+  overdensity: 200.0
+  h0: {value: 70.0, unit: km/(s*Mpc)}
+  gas_fraction: 0.157
+  mu: 0.59
+  rho_reference_proper: {value: 1.0e-27, unit: g/cm**3}
+  temperature_proper: {value: 1.0, unit: K}
+
+example: {}

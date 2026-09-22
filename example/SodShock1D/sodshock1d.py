@@ -40,6 +40,7 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     if riemann_solver is not None:
         config["par"]["hydrodynamics"]["riemann_solver"] = riemann_solver
     output = config["par"]["output"]
+    Path(output["directory"]).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
 

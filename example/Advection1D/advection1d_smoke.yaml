@@ -1,0 +1,48 @@
+par:
+  simulation:
+    name: advection1d_smoke
+    initial_condition_filename: InitialCondition_smoke.hdf5
+    coordinate_system: cartesian
+    final_time: {value: 0.2, unit: s}
+  mesh:
+    ghost_cells: 5
+    grid_cells: 64
+    area_proper: {value: 1.0, unit: cm**2}
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.4
+    CFL: 0.1
+    order: 0
+  boundary:
+    condition: Periodic
+  output:
+    directory: smoke_outputs
+    filename_prefix: Output
+    cadence: {value: 0.1, unit: s}
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+
+initial_condition:
+  grid_cells: 64
+  coordinate_system: cartesian
+  box_size_proper: {value: 1.0, unit: cm}
+  time_proper: {value: 0.0, unit: s}
+  rho_proper: {value: 1.0, unit: g/cm**3}
+  vel_proper: {value: 1.0, unit: cm/s}
+  temperature_proper: {value: 1.0e-10, unit: K}
+  mean_molecular_weight: 1.0
+
+example:
+  plot:
+    filename: Advection1D.jpg
+    markevery: 10
+  output_indices: [0, 1]

@@ -1,0 +1,49 @@
+par:
+  simulation:
+    name: advection1d_smoke
+    initial_condition_filename: InitialCondition_smoke.hdf5
+    coordinate_system: spherical
+    final_time: {value: 0.2, unit: s}
+  mesh:
+    ghost_cells: 2
+  hydrodynamics:
+    eos_type: polytropic
+    gamma: 1.4
+    CFL: 0.1
+    order: 0
+    dual_energy: true
+    positivity_factor_method: invariant_domain
+    cfl_density_floor: 9.3e-20
+  boundary:
+    condition: OpenSph
+  output:
+    directory: smoke_outputs
+    filename_prefix: Output
+    cadence: {value: 0.1, unit: s}
+  diagnostics:
+    verbose: 0
+  units:
+    CodeUnits:
+      name: cgs_unit_system
+      InternalUnitSystem:
+        UnitMass_in_cgs: 1.0
+        UnitLength_in_cgs: 1.0
+        UnitVelocity_in_cgs: 1.0
+        UnitCurrent_in_cgs: 1.0
+        UnitTemp_in_cgs: 1.0
+
+initial_condition:
+  grid_cells: 128
+  coordinate_system: spherical
+  box_size_proper: {value: 4.0, unit: cm}
+  time_proper: {value: 0.0, unit: s}
+  temperature_proper: {value: 0.0, unit: K}
+  mean_molecular_weight: 1.0
+  vel_proper: {value: 1.0, unit: cm/s}
+  rho_proper: {value: 1.0, unit: g/cm**3}
+
+example:
+  plot:
+    filename: AdvectionSph1D.jpg
+    markevery: 10
+  output_indices: [0, 1]

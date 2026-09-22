@@ -581,10 +581,12 @@ class Fluid:
                     "unit-bearing fluid time requires EOS code units",
                 )
             time_proper_code = float(
-                np.asarray(time_proper_code.to_value(code_units.time_unit)),
+                np.asarray(time_proper_code.to_value(code_units.time_unit)).reshape(-1)[0],
             )
         else:
-            time_proper_code = float(np.asarray(time_proper_code, dtype=float))
+            time_proper_code = float(
+                np.asarray(time_proper_code, dtype=float).reshape(-1)[0],
+            )
         fields = self.runtime_fields
         if fields is None:
             self.time_proper_code = time_proper_code

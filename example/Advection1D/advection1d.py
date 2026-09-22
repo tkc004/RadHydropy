@@ -37,6 +37,7 @@ def main(config_filename=DEFAULT_CONFIG):
     config = eu.load_nested_example_config(config_filename)
 
     exampleparams = config["example"]
+    Path(config["par"]["output"]["directory"]).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
     code_units_obj = CodeUnits.from_mapping(
         config["par"]["units"]["CodeUnits"],

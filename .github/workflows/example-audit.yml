@@ -28,58 +28,58 @@ jobs:
 
       - name: Run the documented Sod shock smoke test
         working-directory: example/SodShock1D
-        run: python sodshock1d.py
+        run: python sodshock1d.py --config sodshock1d_smoke.yaml
 
       - name: Verify smoke-test artifacts
         working-directory: example/SodShock1D
         run: |
-          test -s InitialCondition.hdf5
-          test -s Output_002.hdf5
-          test -s SodShock1D.jpg
+          test -s InitialCondition_smoke.hdf5
+          test -s smoke_outputs/Output_001.hdf5
+          test -s smoke_outputs/SodShock1D.jpg
 
       - name: Run the documented Cartesian advection smoke test
         working-directory: example/Advection1D
-        run: python advection1d.py
+        run: python advection1d.py --config advection1d_smoke.yaml
 
       - name: Verify Cartesian advection artifacts
         working-directory: example/Advection1D
         run: |
-          test -s InitialCondition.hdf5
-          test -s Output_005.hdf5
-          test -s Advection1D.jpg
+          test -s InitialCondition_smoke.hdf5
+          test -s smoke_outputs/Output_001.hdf5
+          test -s smoke_outputs/Advection1D.jpg
 
       - name: Run the documented spherical advection smoke test
         working-directory: example/AdvectionSph1D
-        run: python advection_sph1d.py
+        run: python advection_sph1d.py --config advectionSph1d_smoke.yaml
 
       - name: Verify spherical advection artifacts
         working-directory: example/AdvectionSph1D
         run: |
-          test -s InitialCondition.hdf5
-          test -s Output_008.hdf5
-          test -s AdvectionSph1D.jpg
+          test -s InitialCondition_smoke.hdf5
+          test -s smoke_outputs/Output_001.hdf5
+          test -s smoke_outputs/AdvectionSph1D.jpg
 
       - name: Run the documented spherical converging-shock smoke test
         working-directory: example/SphericalConvergingShock1D
-        run: python spherical_converging_shock1d.py --config spherical_converging_shock1d.yaml
+        run: python spherical_converging_shock1d.py --config spherical_converging_shock1d_smoke.yaml
 
       - name: Verify spherical converging-shock artifacts
         working-directory: example/SphericalConvergingShock1D
         run: |
-          test -s InitialCondition.hdf5
-          test -s Output_015.hdf5
-          test -s SphericalConvergingShock1D.jpg
+          test -s InitialCondition_smoke.hdf5
+          test -s smoke_outputs/Output_008.hdf5
+          test -s smoke_outputs/SphericalConvergingShock1D.jpg
 
       - name: Run the documented NFW hydrostatic-equilibrium smoke test
         working-directory: example/NFWHydrostaticEquilibrium1D
-        run: python nfw_hydrostatic_equilibrium1d.py --config nfw_hydrostatic_equilibrium1d.yaml
+        run: python nfw_hydrostatic_equilibrium1d.py --config nfw_hydrostatic_equilibrium1d_smoke.yaml
 
       - name: Verify NFW hydrostatic-equilibrium artifacts
         working-directory: example/NFWHydrostaticEquilibrium1D
         run: |
-          test -s InitialCondition.hdf5
-          test -s Output_001.hdf5
-          test -s NFWHydrostaticEquilibrium1D.jpg
+          test -s InitialCondition_smoke.hdf5
+          test -s smoke_outputs/Output_001.hdf5
+          test -s smoke_outputs/NFWHydrostaticEquilibrium1D.jpg
 
       - name: Run the documented high-Mach vacuum smoke test
         working-directory: example/HighMachAdvection1D
