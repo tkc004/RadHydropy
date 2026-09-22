@@ -4,6 +4,7 @@
 
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
+from typing import Any
 
 import numpy as np
 import unyt
@@ -19,7 +20,7 @@ from radhydropy.units import (
 )
 
 
-def Callreadhdf5(sim):  # noqa: N802
+def Callreadhdf5(sim: Any) -> None:  # noqa: N802
     """Read the configured initial-condition HDF5 file."""
     sim.require_code_units()
     rio.readhdf5(
@@ -68,17 +69,17 @@ def Callreadhdf5(sim):  # noqa: N802
     sim.fluid.SetFluidTime(getattr(sim.par, time_field))
 
 
-def SetMesh(sim):  # noqa: N802
+def SetMesh(sim: Any) -> None:  # noqa: N802
     """Initialize mesh geometry and ghost cells."""
     sim.mesh.SetUpMesh(sim.par)
 
 
-def SetFluid(sim):  # noqa: N802
+def SetFluid(sim: Any) -> None:  # noqa: N802
     """Initialize fluid ghost cells and pressure."""
     sim.fluid.SetUpFluid(sim.par, mesh=sim.mesh)
 
 
-def SetInitFluid(sim):  # noqa: N802
+def SetInitFluid(sim: Any) -> None:  # noqa: N802
     """Apply initial boundaries and populate conserved variables."""
     sim.ConvertParametersToCodeUnits()
     if getattr(sim.par, "supercomoving_coordinates", False):
@@ -121,7 +122,7 @@ def SetInitFluid(sim):  # noqa: N802
         sim.solver.ApplyRadiativeTransfer(sim.mesh, sim.fluid, sim.par)
 
 
-def ConvertParametersToCodeUnits(sim):  # noqa: N802
+def ConvertParametersToCodeUnits(sim: Any) -> None:  # noqa: N802
     """Convert only the runtime parameters into the internal unit system."""
     code = sim.require_code_units()
     if getattr(sim, "runtime_parameters_converted_to_code_units", False):
@@ -252,7 +253,7 @@ def ConvertParametersToCodeUnits(sim):  # noqa: N802
     sim.runtime_parameters_converted_to_code_units = True
 
 
-def _require_unitless_runtime_parameters(sim):
+def _require_unitless_runtime_parameters(sim: Any) -> None:
     """Fail fast if any unitful value leaked into runtime parameters.
 
     ``par_config`` and ``nested_par_config`` are deliberately excluded because
@@ -260,8 +261,8 @@ def _require_unitless_runtime_parameters(sim):
     output.  ``units`` is also excluded because it contains the code-unit
     definitions themselves.
     """
-    leaked = []
-    visited = set()
+    leaked: list[str] = []
+    visited: set[int] = set()
 
     for name, value in vars(sim.par).items():
         if name in {
@@ -288,7 +289,9 @@ def _require_unitless_runtime_parameters(sim):
         )
 
 
-def _visit_runtime_value(value, path, visited, leaked):
+def _visit_runtime_value(
+    value: Any, path: str, visited: set[int], leaked: list[str],
+) -> None:
     """Collect paths containing unit-bearing values in a runtime object."""
     if value is None or id(value) in visited:
         return
@@ -310,13 +313,17 @@ def _visit_runtime_value(value, path, visited, leaked):
         _visit_runtime_object(value, path, visited, leaked)
 
 
-def _visit_runtime_mapping(value, path, visited, leaked):
+def _visit_runtime_mapping(
+    value: Mapping[Any, Any], path: str, visited: set[int], leaked: list[str],
+) -> None:
     for name, child in value.items():
         if name not in {"CodeUnits", "unit_system"}:
             _visit_runtime_value(child, f"{path}.{name}", visited, leaked)
 
 
-def _visit_runtime_dataclass(value, path, visited, leaked):
+def _visit_runtime_dataclass(
+    value: Any, path: str, visited: set[int], leaked: list[str],
+) -> None:
     for field in fields(value):
         if field.name not in {"CodeUnits", "unit_system", "model"}:
             _visit_runtime_value(
@@ -327,17 +334,29 @@ def _visit_runtime_dataclass(value, path, visited, leaked):
             )
 
 
-def _visit_runtime_sequence(value, path, visited, leaked):
+def _visit_runtime_sequence(
+    value: list[Any] | tuple[Any, ...] | set[Any],
+    path: str,
+    visited: set[int],
+    leaked: list[str],
+) -> None:
     for index, child in enumerate(value):
         _visit_runtime_value(child, f"{path}[{index}]", visited, leaked)
 
 
-def _visit_runtime_array(value, path, visited, leaked):
+def _visit_runtime_array(
+    value: np.ndarray[Any, Any],
+    path: str,
+    visited: set[int],
+    leaked: list[str],
+) -> None:
     for index, child in np.ndenumerate(value):
         _visit_runtime_value(child, f"{path}{index}", visited, leaked)
 
 
-def _visit_runtime_object(value, path, visited, leaked):
+def _visit_runtime_object(
+    value: Any, path: str, visited: set[int], leaked: list[str],
+) -> None:
     excluded = {
         "par_config",
         "nested_par_config",
@@ -351,7 +370,7 @@ def _visit_runtime_object(value, path, visited, leaked):
             _visit_runtime_value(child, f"{path}.{name}", visited, leaked)
 
 
-def _require_code_units(sim):
+def _require_code_units(sim: Any) -> Any:
     """Return the active code-unit system or fail fast during startup."""
     code = getattr(getattr(sim.par, "units", None), "CodeUnits", None)
     if code is None:

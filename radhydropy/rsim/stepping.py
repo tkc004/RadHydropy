@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Rsim execution subsystem helpers."""
 
+from typing import Any
+
 import numpy as np
 
 import radhydropy.thermo_chemistry as rtc
@@ -14,7 +16,7 @@ from radhydropy.runtime_fields import (
 )
 
 
-def _apply_dark_matter_timestep_limit(sim, dt):
+def _apply_dark_matter_timestep_limit(sim: Any, dt: Any) -> Any:
     gravity = getattr(sim.par, "gravity", None)
     dark_matter = getattr(gravity, "dark_matter", None)
     if dark_matter is None or not getattr(sim.par, "dark_matter_global_timestep_limit", True):
@@ -31,7 +33,7 @@ def _apply_dark_matter_timestep_limit(sim, dt):
     return dt
 
 
-def _align_timestep_units(dt, current_time, final_time):
+def _align_timestep_units(dt: Any, current_time: Any, final_time: Any) -> tuple[Any, Any]:
     if final_time is not None:
         if hasattr(final_time, "units"):
             target_units = final_time.units
@@ -44,7 +46,9 @@ def _align_timestep_units(dt, current_time, final_time):
     return current_time, dt
 
 
-def GetStepTime(sim, dt=None, final_time=None):  # noqa: N802
+def GetStepTime(  # noqa: N802
+    sim: Any, dt: Any = None, final_time: Any = None,
+) -> Any:
     """Return a timestep, clipped to ``final_time`` when supplied."""
     if dt is None:
         dt = sim.solver.GetTimeStep(sim.mesh, sim.fluid, sim.par)
@@ -58,7 +62,7 @@ def GetStepTime(sim, dt=None, final_time=None):  # noqa: N802
     return dt
 
 
-def PrepareConservedStep(sim, fluid=None):  # noqa: N802
+def PrepareConservedStep(sim: Any, fluid: Any = None) -> None:  # noqa: N802
     """Apply boundaries and refresh conserved variables before a step."""
     if fluid is None:
         fluid = sim.fluid
@@ -70,7 +74,7 @@ def PrepareConservedStep(sim, fluid=None):  # noqa: N802
     )
 
 
-def AdvanceHydroFluxes(sim, dt, fluid=None):  # noqa: N802
+def AdvanceHydroFluxes(sim: Any, dt: Any, fluid: Any = None) -> tuple[Any, Any]:  # noqa: N802
     """Advance the Euler flux update and return mass data for scalar advection."""
     if fluid is None:
         fluid = sim.fluid
@@ -201,7 +205,7 @@ def AdvanceHydroFluxes(sim, dt, fluid=None):  # noqa: N802
     return old_mass, mass_flux
 
 
-def _sync_hydro_state(sim, fluid=None):
+def _sync_hydro_state(sim: Any, fluid: Any = None) -> None:
     """Refresh primitive and conserved variables after a hydro update."""
     if fluid is None:
         fluid = sim.fluid
@@ -224,13 +228,13 @@ def _sync_hydro_state(sim, fluid=None):
 
 
 def _hydro_step_once(
-    sim,
-    dt,
-    fluid=None,
+    sim: Any,
+    dt: Any,
+    fluid: Any = None,
     *,
-    advect_chemistry=True,
-    apply_gravity=True,
-):
+    advect_chemistry: bool = True,
+    apply_gravity: bool = True,
+) -> dict[str, Any]:
     """Advance one explicit hydro step on the supplied fluid state."""
     if fluid is None:
         fluid = sim.fluid
@@ -252,12 +256,12 @@ def _hydro_step_once(
 
 
 def _hydro_step_ssprk2(
-    sim,
-    dt,
+    sim: Any,
+    dt: Any,
     *,
-    advect_chemistry=True,
-    apply_gravity=True,
-):
+    advect_chemistry: bool = True,
+    apply_gravity: bool = True,
+) -> dict[str, Any]:
     """Advance hydro variables with the SSPRK2 strong-stability-preserving scheme."""
     initial_state = sim.clone_fluid()
     stage1 = sim.clone_fluid()
@@ -305,13 +309,13 @@ def _hydro_step_ssprk2(
 
 
 def Step(  # noqa: N802
-    sim,
-    dt=None,
-    mode="hydro_sources",
+    sim: Any,
+    dt: Any = None,
+    mode: str = "hydro_sources",
     *,
-    advect_chemistry=True,
-    hydro_integrator="euler",
-):
+    advect_chemistry: bool = True,
+    hydro_integrator: str = "euler",
+) -> dict[str, Any]:
     """Advance one canonical simulation step in the requested mode."""
     source_integrator = _validate_step_options(sim, mode, hydro_integrator)
     dt = sim.GetStepTime(dt=dt)
@@ -474,10 +478,17 @@ def Step(  # noqa: N802
     return result
 
 
-def _apply_source_step(sim, dt, mode, first, last, temperature_before):
+def _apply_source_step(
+    sim: Any,
+    dt: Any,
+    mode: str,
+    first: int,
+    last: int,
+    temperature_before: Any,
+) -> int:
     """Apply thermochemistry, radiation pressure, and source diagnostics."""
-    energy_before_by_cell = None
-    energy_before = None
+    energy_before_by_cell: Any = None
+    energy_before: Any = None
     if mode == "hydro_sources":
         energy_before_by_cell = np.asarray(
             sim.fluid.Energy_code[first:last],
@@ -527,12 +538,12 @@ def _apply_source_step(sim, dt, mode, first, last, temperature_before):
     return int(source_result.get("source_steps", 0))
 
 
-def _check_ssprk2_step(sim, temperature_before):
+def _check_ssprk2_step(sim: Any, temperature_before: Any) -> None:
     diagnostics.check_conserved_energy_admissibility(sim, stage="hydro flux update")
     diagnostics.check_temperature_jump(sim, temperature_before, stage="hydro")
 
 
-def _source_enabled(sim):
+def _source_enabled(sim: Any) -> bool:
     return bool(
         getattr(sim.par, "gravity", None) is not None
         or getattr(sim.par, "externalgravity", False)
@@ -543,7 +554,9 @@ def _source_enabled(sim):
     )
 
 
-def _capture_hydro_thermal_baseline(sim, mode, first, last):
+def _capture_hydro_thermal_baseline(
+    sim: Any, mode: str, first: int, last: int,
+) -> None:
     if mode == "sources":
         return
     mass_before = np.asarray(sim.fluid.Mass_code[first:last], dtype=float)
@@ -555,7 +568,7 @@ def _capture_hydro_thermal_baseline(sim, mode, first, last):
         sim.thermal_energy_before_hydro = energy_before - kinetic_before
 
 
-def _validate_step_options(sim, mode, hydro_integrator):
+def _validate_step_options(sim: Any, mode: str, hydro_integrator: str) -> str:
     """Validate step mode/integrator combinations and return source splitting."""
     valid_modes = ("hydro", "hydro_sources", "sources")
     if mode not in valid_modes:

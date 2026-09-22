@@ -10,6 +10,7 @@ the boundary as real ``unyt`` quantities.
 """
 
 from dataclasses import dataclass, fields
+from typing import Any
 
 import numpy as np
 
@@ -21,7 +22,10 @@ class UnitBoundaryError(ValueError):
     """Raised when a value crosses a unit boundary with the wrong type."""
 
 
-def _plain_array(name, value):
+Array = np.ndarray[Any, Any]
+
+
+def _plain_array(name: str, value: Any) -> Any:
     if value is None:
         return None
     if hasattr(value, "units") or hasattr(value, "to_value"):
@@ -38,7 +42,7 @@ def _plain_array(name, value):
     return as_named_array(array)
 
 
-def _cgs_array(name, value):
+def _cgs_array(name: str, value: Any) -> Any:
     if value is None:
         return None
     if hasattr(value, "units") or hasattr(value, "to_value"):
@@ -52,7 +56,7 @@ def _cgs_array(name, value):
     return array.copy()
 
 
-def _physical_value(name, value, unit):
+def _physical_value(name: str, value: Any, unit: Any) -> Any:
     if value is None:
         return None
     if not hasattr(value, "to_value"):
@@ -68,7 +72,7 @@ def _physical_value(name, value, unit):
     return result.copy()
 
 
-def _validate_fields(instance, converter):
+def _validate_fields(instance: Any, converter: Any) -> None:
     for field in fields(instance):
         value = getattr(instance, field.name)
         if value is not None:
@@ -79,20 +83,20 @@ def _validate_fields(instance, converter):
 class ProperCodeState:
     """Numeric non-cosmological runtime fluid state in proper code units."""
 
-    rho_proper_code: np.ndarray
-    vel_proper_code: np.ndarray
-    temp_proper_code: np.ndarray
-    pre_proper_code: np.ndarray | None = None
-    specific_energy_proper_code: np.ndarray | None = None
-    Mass_code: np.ndarray | None = None
-    Mom_code: np.ndarray | None = None
-    Energy_code: np.ndarray | None = None
-    ngamma_code: np.ndarray | None = None
-    mu_dimensionless: np.ndarray | None = None
-    xHI_dimensionless: np.ndarray | None = None
+    rho_proper_code: Array
+    vel_proper_code: Array
+    temp_proper_code: Array
+    pre_proper_code: Array | None = None
+    specific_energy_proper_code: Array | None = None
+    Mass_code: Array | None = None
+    Mom_code: Array | None = None
+    Energy_code: Array | None = None
+    ngamma_code: Array | None = None
+    mu_dimensionless: Array | None = None
+    xHI_dimensionless: Array | None = None
     time_proper_code: float | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         _validate_fields(self, _plain_array)
 
 
@@ -100,20 +104,20 @@ class ProperCodeState:
 class SupercomovingCodeState:
     """Numeric cosmological runtime fluid state in supercomoving code units."""
 
-    rho_comoving_code: np.ndarray
-    vel_supercomoving_code: np.ndarray
-    temp_supercomoving_code: np.ndarray
-    pre_supercomoving_code: np.ndarray | None = None
-    specific_energy_supercomoving_code: np.ndarray | None = None
-    Mass_code: np.ndarray | None = None
-    Mom_code: np.ndarray | None = None
-    Energy_code: np.ndarray | None = None
-    ngamma_code: np.ndarray | None = None
-    mu_dimensionless: np.ndarray | None = None
-    xHI_dimensionless: np.ndarray | None = None
+    rho_comoving_code: Array
+    vel_supercomoving_code: Array
+    temp_supercomoving_code: Array
+    pre_supercomoving_code: Array | None = None
+    specific_energy_supercomoving_code: Array | None = None
+    Mass_code: Array | None = None
+    Mom_code: Array | None = None
+    Energy_code: Array | None = None
+    ngamma_code: Array | None = None
+    mu_dimensionless: Array | None = None
+    xHI_dimensionless: Array | None = None
     tau_supercomoving_code: float | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         _validate_fields(self, _plain_array)
 
 
@@ -121,38 +125,38 @@ class SupercomovingCodeState:
 class CgsSourceState:
     """Numeric cgs source state consumed by physics kernels."""
 
-    boundary_cgs_cm: np.ndarray
-    volume_cgs_cm3: np.ndarray
-    rho_cgs_g_cm3: np.ndarray
-    velocity_cgs_cm_s: np.ndarray
-    temperature_cgs_K: np.ndarray
-    specific_energy_cgs_erg_g: np.ndarray
-    pressure_cgs_erg_cm3: np.ndarray | None = None
-    ngamma_cgs_cm3: np.ndarray | None = None
-    xHI_dimensionless: np.ndarray | None = None
-    mu_dimensionless: np.ndarray | None = None
+    boundary_cgs_cm: Array
+    volume_cgs_cm3: Array
+    rho_cgs_g_cm3: Array
+    velocity_cgs_cm_s: Array
+    temperature_cgs_K: Array
+    specific_energy_cgs_erg_g: Array
+    pressure_cgs_erg_cm3: Array | None = None
+    ngamma_cgs_cm3: Array | None = None
+    xHI_dimensionless: Array | None = None
+    mu_dimensionless: Array | None = None
     time_cgs_s: float | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         _validate_fields(self, _cgs_array)
 
 
 def proper_code_state_from_physical(
     *,
     code_units: CodeUnits,
-    rho_unyt,
-    vel_unyt,
-    temp_unyt,
-    pre_unyt=None,
-    specific_energy_unyt=None,
-    Mass_unyt=None,  # noqa: N803
-    Mom_unyt=None,  # noqa: N803
-    Energy_unyt=None,  # noqa: N803
-    ngamma_unyt=None,
-    mu_dimensionless=None,
-    xHI_dimensionless=None,  # noqa: N803
-    time_unyt=None,
-):
+    rho_unyt: Any,
+    vel_unyt: Any,
+    temp_unyt: Any,
+    pre_unyt: Any = None,
+    specific_energy_unyt: Any = None,
+    Mass_unyt: Any = None,  # noqa: N803
+    Mom_unyt: Any = None,  # noqa: N803
+    Energy_unyt: Any = None,  # noqa: N803
+    ngamma_unyt: Any = None,
+    mu_dimensionless: Any = None,
+    xHI_dimensionless: Any = None,  # noqa: N803
+    time_unyt: Any = None,
+) -> ProperCodeState:
     """Convert physical ``unyt`` quantities into strict code arrays."""
     if not isinstance(code_units, CodeUnits):
         raise UnitBoundaryError("code_units must be a CodeUnits instance")
@@ -181,9 +185,9 @@ def cgs_source_state_from_code(
     *,
     code_units: CodeUnits,
     fluid: ProperCodeState | SupercomovingCodeState,
-    boundary_code,
-    volume_code,
-):
+    boundary_code: Any,
+    volume_code: Any,
+) -> CgsSourceState:
     """Build a typed cgs source state from numeric runtime arrays."""
     if isinstance(fluid, ProperCodeState):
         density = fluid.rho_proper_code

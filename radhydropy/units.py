@@ -4,6 +4,7 @@
 
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Any
 
 import numpy as np
 import unyt
@@ -23,13 +24,13 @@ CGS_RATE_UNIT = 1.0 / unyt.s
 CGS_PHOTON_FLUX_UNIT = 1.0 / (CGS_AREA_UNIT * unyt.s)
 
 
-def _as_cgs_float(value, unit):
+def _as_cgs_float(value: Any, unit: Any) -> float:
     if hasattr(value, "to_value"):
         return float(value.to_value(unit))
     return float(value)
 
 
-def _code_units(par):
+def _code_units(par: Any) -> Any:
     units = getattr(par, "units", None)
     if units is not None and getattr(units, "CodeUnits", None) is not None:
         return units.CodeUnits
@@ -156,7 +157,7 @@ _CODE_UNIT_GROUPS = (
 )
 
 
-def to_quantity(value, unit):
+def to_quantity(value: Any, unit: Any) -> Any:
     """Convert a quantity-like value to the supplied unit."""
     if value is None:
         return None
@@ -168,7 +169,7 @@ def to_quantity(value, unit):
 _to_code_quantity = to_quantity
 
 
-def code_units_from_system(code):
+def code_units_from_system(code: Any) -> dict[str, Any]:
     """Return the core unit mapping used for runtime conversions."""
     return {
         "length": code.unit_system["length"],
@@ -182,7 +183,7 @@ def code_units_from_system(code):
     }
 
 
-def quantity_to_value(value, unit):
+def quantity_to_value(value: Any, unit: Any) -> Any:
     """Return a plain NumPy array in the requested unit.
 
     When ``value`` carries units, it is converted to the supplied unit and the
@@ -196,7 +197,7 @@ def quantity_to_value(value, unit):
     return np.asarray(value, dtype=float)
 
 
-def to_unit_value(value, unit):
+def to_unit_value(value: Any, unit: Any) -> Any:
     """Return a plain NumPy array expressed in the supplied unit.
 
     Quantity-like inputs are converted to the supplied unit and stripped of
@@ -213,7 +214,7 @@ def to_unit_value(value, unit):
     return np.asarray(value, dtype=float)
 
 
-def from_unit_value(value, unit):
+def from_unit_value(value: Any, unit: Any) -> Any:
     """Return a plain NumPy array converted from the supplied unit scale.
 
     Quantity-like inputs are converted to the supplied unit and stripped of
@@ -230,7 +231,7 @@ def from_unit_value(value, unit):
     return np.asarray(value, dtype=float)
 
 
-def apply_code_unit_specs(obj, specs, units):
+def apply_code_unit_specs(obj: Any, specs: Any, units: Any) -> None:
     """Apply code-unit conversions for each named attribute in ``specs``."""
     for attr, unit_key in specs:
         parameter_values = getattr(obj, "_parameter_values", None)
@@ -257,7 +258,7 @@ def apply_code_unit_specs(obj, specs, units):
             parameter_values[attr] = value
 
 
-def time_seconds(value, code_units=None):
+def time_seconds(value: Any, code_units: Any = None) -> float:
     """Return a time value in seconds as a float."""
     if hasattr(value, "to_value"):
         return float(np.ravel(value.to_value(unyt.s))[0])
@@ -266,14 +267,14 @@ def time_seconds(value, code_units=None):
     return float(np.asarray(value, dtype=float))
 
 
-def time_code_value(value, code_units):
+def time_code_value(value: Any, code_units: Any) -> float:
     """Return a time value in code units as a float."""
     if hasattr(value, "to_value"):
         return float(np.asarray(value.to_value(code_units.time_unit), dtype=float))
     return float(np.asarray(value, dtype=float))
 
 
-def code_unit_scales(code):
+def code_unit_scales(code: Any) -> Any:
     """Return cgs scale factors for the supplied code-unit system."""
     if code is None:
         return None
@@ -315,7 +316,7 @@ def code_unit_scales(code):
     }
 
 
-def code_quantity_to_cgs(value, code, scale_key):
+def code_quantity_to_cgs(value: Any, code: Any, scale_key: str) -> Any:
     """Convert a code-unit quantity or float to a cgs float array."""
     scales = code_unit_scales(code)
     if scales is None:
@@ -323,7 +324,9 @@ def code_quantity_to_cgs(value, code, scale_key):
     return np.asarray(value, dtype=float) * scales[scale_key]
 
 
-def quantity_or_code_to_cgs(value, code, unit, scale_key):
+def quantity_or_code_to_cgs(
+    value: Any, code: Any, unit: Any, scale_key: str,
+) -> Any:
     """Convert a unitful or code-unit value to a plain CGS array.
 
     Runtime parameters may still be unyt quantities at source-state
@@ -336,7 +339,7 @@ def quantity_or_code_to_cgs(value, code, unit, scale_key):
     return np.asarray(code_quantity_to_cgs(value, code, scale_key), dtype=float)
 
 
-def cgs_quantity_to_code(value, code, scale_key):
+def cgs_quantity_to_code(value: Any, code: Any, scale_key: str) -> Any:
     """Convert a cgs float quantity to code units."""
     scales = code_unit_scales(code)
     if scales is None:
@@ -344,7 +347,7 @@ def cgs_quantity_to_code(value, code, scale_key):
     return np.asarray(value, dtype=float) / scales[scale_key]
 
 
-def _gravitational_constant_code(code_units):
+def _gravitational_constant_code(code_units: Any) -> Any:
     """Return the gravitational constant in the supplied code units."""
     if code_units is None:
         raise ValueError("gravity helpers require code_units")
@@ -355,21 +358,21 @@ def _gravitational_constant_code(code_units):
     )
 
 
-def _potential_unit(code_units):
+def _potential_unit(code_units: Any) -> Any:
     """Return the gravitational potential unit for the supplied code system."""
     if code_units is None:
         return unyt.cm**2 / unyt.s**2
     return code_units.velocity_unit**2
 
 
-def _acceleration_unit(code_units):
+def _acceleration_unit(code_units: Any) -> Any:
     """Return the gravitational acceleration unit for the supplied code system."""
     if code_units is None:
         return unyt.cm / unyt.s**2
     return code_units.length_unit / code_units.time_unit**2
 
 
-def photon_number_density(ngamma_cgs_cm3):
+def photon_number_density(ngamma_cgs_cm3: Any) -> Any:
     if ngamma_cgs_cm3 is None:
         return 0.0 * PHOTON_DENSITY_UNIT
     if hasattr(ngamma_cgs_cm3, "to"):
@@ -377,7 +380,7 @@ def photon_number_density(ngamma_cgs_cm3):
     return np.asarray(ngamma_cgs_cm3, dtype=float) * PHOTON_DENSITY_UNIT
 
 
-def _as_photon_flux(value):
+def _as_photon_flux(value: Any) -> Any:
     if value is None:
         return 0.0 * PHOTON_FLUX_UNIT
     if hasattr(value, "to"):
@@ -385,7 +388,7 @@ def _as_photon_flux(value):
     return np.asarray(value, dtype=float) * PHOTON_FLUX_UNIT
 
 
-def _as_photon_rate(value):
+def _as_photon_rate(value: Any) -> Any:
     if value is None:
         return 0.0 * PHOTON_RATE_UNIT
     if hasattr(value, "to"):
@@ -393,7 +396,7 @@ def _as_photon_rate(value):
     return np.asarray(value, dtype=float) * PHOTON_RATE_UNIT
 
 
-def _optional_photon_quantity(value, default, units):
+def _optional_photon_quantity(value: Any, default: Any, units: Any) -> Any:
     if value is None:
         value = default
     if hasattr(value, "to"):
@@ -414,11 +417,11 @@ class CodeUnits:
     unit_system: unyt.unit_systems.UnitSystem
 
     @property
-    def time_in_cgs(self):
+    def time_in_cgs(self) -> float:
         return self.length_in_cgs / self.velocity_in_cgs
 
     @cached_property
-    def unit_conversion(self):
+    def unit_conversion(self) -> Any:
         """Cached numeric conversion factors for the runtime solver.
 
         Configuration and output may use unyt quantities, but the inner
@@ -428,95 +431,95 @@ class CodeUnits:
         return code_unit_scales(self)
 
     @property
-    def mass_unit(self):
+    def mass_unit(self) -> Any:
         return self.mass_in_cgs * unyt.g
 
     @property
-    def length_unit(self):
+    def length_unit(self) -> Any:
         return self.length_in_cgs * unyt.cm
 
     @property
-    def time_unit(self):
+    def time_unit(self) -> Any:
         return self.time_in_cgs * unyt.s
 
     @property
-    def velocity_unit(self):
+    def velocity_unit(self) -> Any:
         return self.velocity_in_cgs * unyt.cm / unyt.s
 
     @property
-    def current_unit(self):
+    def current_unit(self) -> Any:
         return self.current_in_cgs * unyt.A
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> Any:
         return self.temperature_in_cgs * unyt.K
 
     @property
-    def area_unit(self):
+    def area_unit(self) -> Any:
         return self.length_unit**2
 
     @property
-    def volume_unit(self):
+    def volume_unit(self) -> Any:
         return self.length_unit**3
 
     @property
-    def density_unit(self):
+    def density_unit(self) -> Any:
         return self.mass_unit / self.volume_unit
 
     @property
-    def pressure_unit(self):
+    def pressure_unit(self) -> Any:
         return self.mass_unit / (self.length_unit * self.time_unit**2)
 
     @property
-    def energy_unit(self):
+    def energy_unit(self) -> Any:
         return self.mass_unit * self.velocity_unit**2
 
     @property
-    def specific_energy_unit(self):
+    def specific_energy_unit(self) -> Any:
         return self.energy_unit / self.mass_unit
 
     @property
-    def momentum_unit(self):
+    def momentum_unit(self) -> Any:
         return self.mass_unit * self.velocity_unit
 
     @property
-    def mass_flux_unit(self):
+    def mass_flux_unit(self) -> Any:
         return self.mass_unit / (self.length_unit**2 * self.time_unit)
 
     @property
-    def momentum_flux_unit(self):
+    def momentum_flux_unit(self) -> Any:
         return self.pressure_unit
 
     @property
-    def energy_flux_unit(self):
+    def energy_flux_unit(self) -> Any:
         return self.energy_unit / (self.length_unit**2 * self.time_unit)
 
     @property
-    def number_density_unit(self):
+    def number_density_unit(self) -> Any:
         return 1.0 / self.volume_unit
 
     @property
-    def proton_mass_code(self):
+    def proton_mass_code(self) -> float:
         return float(unyt.mp.to_value(self.mass_unit))
 
     @property
-    def boltzmann_code(self):
+    def boltzmann_code(self) -> float:
         return float(unyt.kb.to_value(self.energy_unit / self.temperature_unit))
 
     @property
-    def speed_of_light_code(self):
+    def speed_of_light_code(self) -> float:
         return float(unyt.c.to_value(self.velocity_unit))
 
-    def to_value(self, quantity, unit):
+    def to_value(self, quantity: Any, unit: Any) -> Any:
         if hasattr(quantity, "to_value"):
             return np.asarray(quantity.to_value(unit), dtype=float)
         return np.asarray(quantity, dtype=float)
 
-    def from_value(self, values, unit):
+    def from_value(self, values: Any, unit: Any) -> Any:
         return np.asarray(values, dtype=float) * unit
 
     @classmethod
-    def from_mapping(cls, mapping=None, name="code"):
+    def from_mapping(cls, mapping: Any = None, name: str = "code") -> "CodeUnits":
         """Build a code-unit system from a YAML block or a UnitSystem."""
         if isinstance(mapping, cls):
             return mapping
@@ -578,7 +581,7 @@ class CodeUnits:
             current_mks_unit=current_in_cgs * unyt.A,
         )
         return cls(
-            name=internal.get("name", data.get("name", name)),
+            name=str(internal.get("name", data.get("name", name))),
             mass_in_cgs=mass_in_cgs,
             length_in_cgs=length_in_cgs,
             velocity_in_cgs=velocity_in_cgs,
@@ -587,7 +590,7 @@ class CodeUnits:
             unit_system=unit_system,
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "InternalUnitSystem": {

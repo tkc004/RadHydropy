@@ -2,13 +2,22 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Radiation source orchestration for the hydrodynamics solver."""
 
+from typing import Any
+
 import numpy as np
 
 from radhydropy.constants import SPEED_OF_LIGHT_CGS
 from radhydropy.units import _code_units, code_unit_scales
 
 
-def apply_radiation_pressure(solver, dt, mesh, fluid, par, source_result):
+def apply_radiation_pressure(
+    solver: Any,
+    dt: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    source_result: Any,
+) -> int:
     """Apply photon momentum deposition to the conserved gas state."""
     if not getattr(par, "radiation_pressure", False):
         return 0

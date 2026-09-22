@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Mesh construction utilities for one-dimensional simulations."""
 
+from typing import Any
+
 import numpy as np
 
 from radhydropy.arrays import as_named_array
@@ -17,12 +19,25 @@ class Mesh:
     physical cell-face locations before :meth:`SetUpMesh` is called.
     """
 
-    def __init__(self):
-        self.runtime_fields = None
-        self.geometry_state = None
-        self.par = None
+    boundary_comoving_code: Any
+    width_comoving_code: Any
+    coordinate_inverse_comoving_code: Any
+    x_comoving_code: Any
+    area_comoving_code: Any
+    volume_comoving_code: Any
+    boundary_proper_code: Any
+    width_proper_code: Any
+    coordinate_inverse_proper_code: Any
+    x_proper_code: Any
+    area_proper_code: Any
+    volume_proper_code: Any
 
-    def SetUpMesh(self, par):  # noqa: N802
+    def __init__(self) -> None:
+        self.runtime_fields: Any = None
+        self.geometry_state: Any = None
+        self.par: Any = None
+
+    def SetUpMesh(self, par: Any) -> None:  # noqa: N802
         """Build ghost cells and geometric factors from run parameters.
 
         Parameters
@@ -43,7 +58,7 @@ class Mesh:
             return self._set_up_proper_mesh(par)
         return self._set_up_supercomoving_mesh(par)
 
-    def _set_up_supercomoving_mesh(self, par):
+    def _set_up_supercomoving_mesh(self, par: Any) -> None:
         """Initialize a comoving mesh using supercomoving runtime names."""
         code_units = _code_units(par)
         if code_units is None:
@@ -104,7 +119,9 @@ class Mesh:
         if np.any(self.volume_comoving_code == 0.0) or np.any(np.isnan(self.volume_comoving_code)):
             raise ValueError("volume vanished")
 
-    def _set_up_supercomoving_geometry(self, par, code_units, nogrid, noghost):
+    def _set_up_supercomoving_geometry(
+        self, par: Any, code_units: Any, nogrid: int, noghost: int,
+    ) -> None:
         if self.coordsys == "cartesian":
             if not hasattr(par.mesh, "area_proper"):
                 raise AttributeError("par.mesh.area_proper is required for a cartesian mesh")
@@ -140,7 +157,7 @@ class Mesh:
                 self.x_comoving_code[index] = 0.75 * boundary[index + 1]
                 self.area_comoving_code[index] = 0.0
 
-    def _set_up_proper_mesh(self, par):
+    def _set_up_proper_mesh(self, par: Any) -> None:
         """Initialize a proper-code mesh from explicit proper fields."""
         code_units = _code_units(par)
         if code_units is None:
@@ -202,7 +219,13 @@ class Mesh:
         ):
             raise ValueError("volume vanished")
 
-    def _set_up_proper_geometry(self, par, code_units, boundary_proper_code, width_proper_code):
+    def _set_up_proper_geometry(
+        self,
+        par: Any,
+        code_units: Any,
+        boundary_proper_code: Any,
+        width_proper_code: Any,
+    ) -> None:
         if par.simulation.coordinate_system == "cartesian":
             if not hasattr(par.mesh, "area_proper"):
                 raise AttributeError("par.mesh.area_proper is required for a cartesian mesh")

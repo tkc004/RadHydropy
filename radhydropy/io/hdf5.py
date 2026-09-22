@@ -4,6 +4,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -69,7 +70,9 @@ _GENERIC_PRIMITIVE_DATASETS = frozenset(
 _validate_snapshot_configuration = validate_snapshot_configuration
 
 
-def _write_runtime_header_attributes(header, ric, cosmological_schema):
+def _write_runtime_header_attributes(
+    header: Any, ric: Any, cosmological_schema: Any,
+) -> None:
     """Write scalar runtime parameters while excluding nested configuration groups."""
     excluded = {
         "dark_matter",
@@ -103,7 +106,13 @@ def _write_runtime_header_attributes(header, ric, cosmological_schema):
         header.attrs[key] = _header_attr_value(value)
 
 
-def _write_dark_matter_snapshot(fic, ric, code_units, output_time, cosmological_schema):
+def _write_dark_matter_snapshot(
+    fic: Any,
+    ric: Any,
+    code_units: Any,
+    output_time: Any,
+    cosmological_schema: Any,
+) -> None:
     dark_matter = getattr(ric.par, "dark_matter", None)
     if dark_matter is None:
         dark_matter = getattr(getattr(ric.par, "gravity", None), "dark_matter", None)
@@ -149,16 +158,16 @@ def _write_dark_matter_snapshot(fic, ric, code_units, output_time, cosmological_
 
 
 def _write_primary_fluid_snapshot_data(
-    gdata,
-    ric,
-    code_units,
-    output_time,
-    cosmological_schema,
-    boundary_runtime_code,
-    density_runtime_code,
-    velocity_runtime_code,
-    temperature_runtime_code,
-):
+    gdata: Any,
+    ric: Any,
+    code_units: Any,
+    output_time: Any,
+    cosmological_schema: Any,
+    boundary_runtime_code: Any,
+    density_runtime_code: Any,
+    velocity_runtime_code: Any,
+    temperature_runtime_code: Any,
+) -> None:
     """Write the mesh coordinates and primary fluid runtime fields."""
     boundary_name = "boundary_comoving_code" if cosmological_schema else "boundary_proper_code"
     density_name = "rho_comoving_code" if cosmological_schema else "rho_proper_code"
@@ -254,7 +263,7 @@ def _write_primary_fluid_snapshot_data(
     )
 
 
-def _write_optional_conserved_fluid_data(gdata, ric, code_units):
+def _write_optional_conserved_fluid_data(gdata: Any, ric: Any, code_units: Any) -> None:
     """Write optional conserved fluid fields."""
     if hasattr(ric.fluid, "specific_angular_momentum_code"):
         _write_quantity(
@@ -292,7 +301,7 @@ def _write_optional_conserved_fluid_data(gdata, ric, code_units):
         )
 
 
-def _write_fluid_composition_data(gdata, ric, code_units):
+def _write_fluid_composition_data(gdata: Any, ric: Any, code_units: Any) -> None:
     """Write composition and radiation fields attached to the fluid state."""
     gdata.create_dataset("mu", data=np.asarray(ric.fluid.mu))
     if hasattr(ric.fluid, "xHI"):
@@ -316,7 +325,7 @@ def _write_fluid_composition_data(gdata, ric, code_units):
         )
 
 
-def _mark_physical_fluid_datasets(gdata):
+def _mark_physical_fluid_datasets(gdata: Any) -> None:
     """Mark optional datasets as physical in cosmological snapshots."""
     excluded = {
         "boundary_comoving_code",
@@ -329,7 +338,7 @@ def _mark_physical_fluid_datasets(gdata):
             dataset.attrs["representation"] = "physical"
 
 
-def _write_optional_fluid_snapshot_data(gdata, ric, code_units):
+def _write_optional_fluid_snapshot_data(gdata: Any, ric: Any, code_units: Any) -> None:
     """Write optional conserved, composition, radiation, and metadata fields."""
     _write_optional_conserved_fluid_data(gdata, ric, code_units)
     _write_fluid_composition_data(gdata, ric, code_units)
@@ -338,16 +347,16 @@ def _write_optional_fluid_snapshot_data(gdata, ric, code_units):
 
 
 def _write_fluid_snapshot_data(
-    gdata,
-    ric,
-    code_units,
-    output_time,
-    cosmological_schema,
-    boundary_runtime_code,
-    density_runtime_code,
-    velocity_runtime_code,
-    temperature_runtime_code,
-):
+    gdata: Any,
+    ric: Any,
+    code_units: Any,
+    output_time: Any,
+    cosmological_schema: Any,
+    boundary_runtime_code: Any,
+    density_runtime_code: Any,
+    velocity_runtime_code: Any,
+    temperature_runtime_code: Any,
+) -> None:
     """Write all mesh and fluid datasets in a snapshot."""
     _write_primary_fluid_snapshot_data(
         gdata,
@@ -363,7 +372,9 @@ def _write_fluid_snapshot_data(
     _write_optional_fluid_snapshot_data(gdata, ric, code_units)
 
 
-def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
+def write_snapshot_hdf5(
+    ric: Any, ICfilename: Any, *, provenance: Any = None,
+) -> Any:  # noqa: N803
     """Write an already-prepared runtime state to an HDF5 snapshot.
 
     The output file contains a ``Header`` group for metadata and a ``Data``
@@ -489,7 +500,9 @@ def write_snapshot_hdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
         )
 
 
-def writehdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
+def writehdf5(
+    ric: Any, ICfilename: Any, *, provenance: Any = None,
+) -> Any:  # noqa: N803
     """Prepare and write an initial-condition HDF5 file.
 
     Representation-aware IC values are prepared by the shared
@@ -503,7 +516,7 @@ def writehdf5(ric, ICfilename, *, provenance=None):  # noqa: N803
     ).write(ICfilename)
 
 
-def _restore_hdf5_scalar_attributes(par, header):
+def _restore_hdf5_scalar_attributes(par: Any, header: Any) -> None:
     """Restore scalar header attributes and nested mesh metadata."""
     for key, value in header.attrs.items():
         restored = _restore_header_attr_value(value)
@@ -525,7 +538,7 @@ def _restore_hdf5_scalar_attributes(par, header):
         par.simulation.coordinate_system = header.attrs["CoordinateSystem"]
 
 
-def _restore_hdf5_header_attributes(par, header):
+def _restore_hdf5_header_attributes(par: Any, header: Any) -> Any:
     """Restore code units, scalar attributes, and cosmology metadata."""
     if "CodeUnits" not in header.attrs:
         raise ValueError(
@@ -547,7 +560,9 @@ def _restore_hdf5_header_attributes(par, header):
     return code_units
 
 
-def _identify_hdf5_schema(par, header, expected_coordsys, expected_nogrid):
+def _identify_hdf5_schema(
+    par: Any, header: Any, expected_coordsys: Any, expected_nogrid: Any,
+) -> Any:
     """Validate the canonical header schema and return its representation."""
     coordinate_system = par.simulation.coordinate_system
     if expected_coordsys is not None and coordinate_system != expected_coordsys:
@@ -590,7 +605,9 @@ def _identify_hdf5_schema(par, header, expected_coordsys, expected_nogrid):
     return cosmological
 
 
-def _synchronize_hdf5_header(par, fluid, header, code_units, cosmological):
+def _synchronize_hdf5_header(
+    par: Any, fluid: Any, header: Any, code_units: Any, cosmological: Any,
+) -> None:
     """Populate typed header values and synchronize the restored runtime clock."""
     metadata_fields = {
         "CoordinateFrame": "coordinate_frame",
@@ -633,7 +650,9 @@ def _synchronize_hdf5_header(par, fluid, header, code_units, cosmological):
     setattr(fluid, time_field, runtime_time)
 
 
-def _read_hdf5_header(par, fluid, fic, expected_coordsys, expected_nogrid):
+def _read_hdf5_header(
+    par: Any, fluid: Any, fic: Any, expected_coordsys: Any, expected_nogrid: Any,
+) -> Any:
     """Restore header state and determine the canonical file schema."""
     header = fic["Header"]
     code_units = _restore_hdf5_header_attributes(par, header)
@@ -642,7 +661,15 @@ def _read_hdf5_header(par, fluid, fic, expected_coordsys, expected_nogrid):
     return header, code_units, cosmological
 
 
-def _read_hdf5_data(par, mesh, fluid, fic, header, code_units, canonical_cosmological_schema):
+def _read_hdf5_data(
+    par: Any,
+    mesh: Any,
+    fluid: Any,
+    fic: Any,
+    header: Any,
+    code_units: Any,
+    canonical_cosmological_schema: Any,
+) -> None:
     """Restore canonical datasets, runtime views, and optional dark matter."""
     gdata = fic["Data"]
     generic_data_names = _GENERIC_PRIMITIVE_DATASETS.intersection(gdata.keys())
@@ -714,7 +741,9 @@ def _read_hdf5_data(par, mesh, fluid, fic, header, code_units, canonical_cosmolo
         _restore_dark_matter_snapshot(par, fic["DarkMatter"], code_units, schema)
 
 
-def _restore_runtime_state(par, fluid, gdata, canonical_cosmological_schema):
+def _restore_runtime_state(
+    par: Any, fluid: Any, gdata: Any, canonical_cosmological_schema: Any,
+) -> None:
     """Build the typed runtime state after field restoration."""
     if canonical_cosmological_schema:
         fluid.runtime_fields = SUPERCOMOVING_RUNTIME_FIELDS
@@ -746,7 +775,7 @@ def _restore_runtime_state(par, fluid, gdata, canonical_cosmological_schema):
     )
 
 
-def _validate_cosmological_data(gdata):
+def _validate_cosmological_data(gdata: Any) -> None:
     """Require the primary fields in a cosmological restart."""
     if "boundary_comoving_code" not in gdata:
         raise ValueError("canonical cosmological HDF5 file is missing Data/boundary_comoving_code")
@@ -755,7 +784,7 @@ def _validate_cosmological_data(gdata):
             raise ValueError(f"canonical cosmological HDF5 file is missing Data/{name}")
 
 
-def _restore_field_metadata(par, gdata):
+def _restore_field_metadata(par: Any, gdata: Any) -> None:
     """Restore dataset metadata without exposing HDF5 objects."""
     if hasattr(par, "code_state"):
         _ = par.code_state
@@ -770,7 +799,9 @@ def _restore_field_metadata(par, gdata):
     }
 
 
-def _restore_dark_matter_snapshot(par, dmdata, code_units, schema):
+def _restore_dark_matter_snapshot(
+    par: Any, dmdata: Any, code_units: Any, schema: Any,
+) -> None:
     """Restore optional dark-matter shell and analysis state."""
     dm_scale_map = {
         "Radius": "length_cgs_cm",
@@ -797,7 +828,7 @@ def _restore_dark_matter_snapshot(par, dmdata, code_units, schema):
     )
 
 
-def readhdf5(par, mesh, fluid, ICfilename):  # noqa: N803
+def readhdf5(par: Any, mesh: Any, fluid: Any, ICfilename: Any) -> None:  # noqa: N803
     """Read a RadHydropy HDF5 file into parameter, mesh, and fluid objects.
 
     Canonical representation-specific datasets are restored into the runtime
@@ -819,7 +850,7 @@ def readhdf5(par, mesh, fluid, ICfilename):  # noqa: N803
         return
 
 
-def loadhdf5(config, ICfilename):  # noqa: N803
+def loadhdf5(config: Any, ICfilename: Any) -> Any:  # noqa: N803
     """Construct and load an ``Rsim`` from a nested configuration.
 
     Parameters

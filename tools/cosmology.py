@@ -8,6 +8,7 @@ select ``cosmology_type='lambda_cdm'`` for a flat matter--Lambda model.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -16,7 +17,9 @@ _SECONDS_PER_GYR = 365.25 * 24.0 * 3600.0 * 1.0e9
 _G_MPC_cgs_KMS_MSUN = 4.300917270e-9
 
 
-def _validate_flat_parameters(omega_m, omega_lambda):
+def _validate_flat_parameters(
+    omega_m: float, omega_lambda: float,
+) -> tuple[float, float]:
     omega_m = float(omega_m)
     omega_lambda = float(omega_lambda)
     if omega_m <= 0.0 or omega_lambda < 0.0:
@@ -32,55 +35,55 @@ class EinsteinDeSitter:
 
     h0: float = 70.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.h0 <= 0.0:
             raise ValueError("h0 must be positive")
 
     @property
-    def hubble_0(self):
+    def hubble_0(self) -> float:
         return float(self.h0)
 
     @property
-    def age_0(self):
+    def age_0(self) -> float:
         return 2.0 / (3.0 * self.hubble_0_gyr)
 
     @property
-    def hubble_0_gyr(self):
+    def hubble_0_gyr(self) -> float:
         return self.hubble_0 / _cgs_KM_PER_MPC * _SECONDS_PER_GYR
 
-    def scale_factor(self, cosmic_time):
+    def scale_factor(self, cosmic_time: Any) -> Any:
         time = np.asarray(cosmic_time, dtype=float)
         if np.any(time <= 0.0):
             raise ValueError("cosmic time must be positive")
         return (time / self.age_0) ** (2.0 / 3.0)
 
-    def cosmic_time_from_scale_factor(self, scale_factor):
+    def cosmic_time_from_scale_factor(self, scale_factor: Any) -> Any:
         scale_factor = np.asarray(scale_factor, dtype=float)
         if np.any(scale_factor <= 0.0):
             raise ValueError("scale factor must be positive")
         return self.age_0 * scale_factor**1.5
 
-    def hubble(self, cosmic_time):
+    def hubble(self, cosmic_time: Any) -> Any:
         return self.hubble_0 / self.scale_factor(cosmic_time) ** 1.5
 
-    def critical_density(self, cosmic_time):
+    def critical_density(self, cosmic_time: Any) -> Any:
         h = self.hubble(cosmic_time)
         return 3.0 * h**2 / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN)
 
-    def matter_density(self, cosmic_time):
+    def matter_density(self, cosmic_time: Any) -> Any:
         return self.critical_density(cosmic_time)
 
-    def dark_energy_density(self, cosmic_time):
+    def dark_energy_density(self, cosmic_time: Any) -> Any:
         return np.zeros_like(np.asarray(cosmic_time, dtype=float))
 
-    def background_density(self, cosmic_time):
+    def background_density(self, cosmic_time: Any) -> Any:
         return self.matter_density(cosmic_time)
 
-    def redshift(self, cosmic_time):
+    def redshift(self, cosmic_time: Any) -> Any:
         return 1.0 / self.scale_factor(cosmic_time) - 1.0
 
     @property
-    def type_name(self):
+    def type_name(self) -> str:
         return "einstein_de_sitter"
 
 
@@ -92,21 +95,21 @@ class LambdaCDM:
     omega_m: float = 0.3
     omega_lambda: float = 0.7
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.h0 <= 0.0:
             raise ValueError("h0 must be positive")
         _validate_flat_parameters(self.omega_m, self.omega_lambda)
 
     @property
-    def hubble_0(self):
+    def hubble_0(self) -> float:
         return float(self.h0)
 
     @property
-    def hubble_0_gyr(self):
+    def hubble_0_gyr(self) -> float:
         return self.hubble_0 / _cgs_KM_PER_MPC * _SECONDS_PER_GYR
 
     @property
-    def age_0(self):
+    def age_0(self) -> float:
         return (
             2.0
             * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m))
@@ -115,7 +118,7 @@ class LambdaCDM:
             else 2.0 / (3.0 * self.hubble_0_gyr)
         )
 
-    def scale_factor(self, cosmic_time):
+    def scale_factor(self, cosmic_time: Any) -> Any:
         time = np.asarray(cosmic_time, dtype=float)
         if np.any(time <= 0.0):
             raise ValueError("cosmic time must be positive")
@@ -126,7 +129,7 @@ class LambdaCDM:
             else (time / self.age_0) ** (2.0 / 3.0)
         )
 
-    def cosmic_time_from_scale_factor(self, scale_factor):
+    def cosmic_time_from_scale_factor(self, scale_factor: Any) -> Any:
         scale_factor = np.asarray(scale_factor, dtype=float)
         if np.any(scale_factor <= 0.0):
             raise ValueError("scale factor must be positive")
@@ -140,15 +143,15 @@ class LambdaCDM:
             )
         )
 
-    def hubble(self, cosmic_time):
+    def hubble(self, cosmic_time: Any) -> Any:
         a = self.scale_factor(cosmic_time)
         return self.hubble_0 * np.sqrt(self.omega_m / a**3 + self.omega_lambda)
 
-    def critical_density(self, cosmic_time):
+    def critical_density(self, cosmic_time: Any) -> Any:
         h = self.hubble(cosmic_time)
         return 3.0 * h**2 / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN)
 
-    def matter_density(self, cosmic_time):
+    def matter_density(self, cosmic_time: Any) -> Any:
         return (
             3.0
             * self.hubble_0**2
@@ -157,24 +160,26 @@ class LambdaCDM:
             / self.scale_factor(cosmic_time) ** 3
         )
 
-    def dark_energy_density(self, cosmic_time):
+    def dark_energy_density(self, cosmic_time: Any) -> Any:
         return np.full_like(
             np.asarray(cosmic_time, dtype=float),
             3.0 * self.hubble_0**2 * self.omega_lambda / (8.0 * np.pi * _G_MPC_cgs_KMS_MSUN),
         )
 
-    def background_density(self, cosmic_time):
+    def background_density(self, cosmic_time: Any) -> Any:
         return self.matter_density(cosmic_time)
 
-    def redshift(self, cosmic_time):
+    def redshift(self, cosmic_time: Any) -> Any:
         return 1.0 / self.scale_factor(cosmic_time) - 1.0
 
     @property
-    def type_name(self):
+    def type_name(self) -> str:
         return "lambda_cdm"
 
 
-def make_cosmology(cosmology_type="einstein_de_sitter", **kwargs):
+def make_cosmology(
+    cosmology_type: str | None = "einstein_de_sitter", **kwargs: Any,
+) -> EinsteinDeSitter | LambdaCDM:
     """Construct an EdS or flat ΛCDM cosmology; EdS is the default."""
     if cosmology_type in (None, "einstein_de_sitter", "EinsteinDeSitter", "eds"):
         return EinsteinDeSitter(**kwargs)

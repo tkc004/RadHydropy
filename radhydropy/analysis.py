@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Plotting helpers for RadHydropy outputs."""
 
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
 import unyt
@@ -13,7 +15,13 @@ from radhydropy.runtime_fields import (
 from radhydropy.units import code_unit_scales
 
 
-def rplot1d(rsim, yquan=None, showfig=1, showhalf=0, **kwargs):
+def rplot1d(
+    rsim: Any,
+    yquan: str | None = None,
+    showfig: int = 1,
+    showhalf: int = 0,
+    **kwargs: Any,
+) -> None:
     """Plot a one-dimensional fluid quantity against cell-center position.
 
     Parameters

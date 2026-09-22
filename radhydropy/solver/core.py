@@ -2,9 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Finite-volume hydrodynamics solver operations."""
 
+# The solver preserves its historical public CamelCase entry points.
+# ruff: noqa: N802
+
 import logging
 import math
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 
@@ -36,10 +40,10 @@ _GEOMETRY_FACTOR_TOLERANCE = 1.0e-13
 # The paired-face positivity recovery path calls ``cell_valid`` many times.
 # Keep this scalar constant out of that hot loop; constructing a NumPy finfo
 # object for every trial is unnecessary overhead.
-_FLOAT_TINY = np.finfo(float).tiny
+_FLOAT_TINY: float = float(np.finfo(float).tiny)
 
 
-def _positive_quadratic_root(a, b, c):
+def _positive_quadratic_root(a: Any, b: Any, c: Any) -> Any:
     """Return the smallest nonnegative root of ``a*x²+b*x+c``."""
     if abs(a) <= _FLOAT_TINY:
         if b >= 0.0:
@@ -64,22 +68,22 @@ def _positive_quadratic_root(a, b, c):
 
 
 def _analytical_face_increment_limit(
-    faces,
-    face,
-    max_increment,
-    total_mass,
-    total_mom,
-    total_energy,
-    delta_mass,
-    delta_mom,
-    delta_energy,
-    physical,
-    mass_floor,
-    energy_floor,
-    total_angular,
-    radius,
-    delta_angular,
-):
+    faces: Any,
+    face: Any,
+    max_increment: Any,
+    total_mass: Any,
+    total_mom: Any,
+    total_energy: Any,
+    delta_mass: Any,
+    delta_mom: Any,
+    delta_energy: Any,
+    physical: Any,
+    mass_floor: Any,
+    energy_floor: Any,
+    total_angular: Any,
+    radius: Any,
+    delta_angular: Any,
+) -> Any:
     largest = max_increment
     for index, sign in zip(faces, (-1.0, 1.0), strict=True):
         if not physical[index]:
@@ -125,13 +129,19 @@ def _analytical_face_increment_limit(
     return largest
 
 
-def _bounded_face_mass_increment(dm, max_increment, mass0, mass_limit):
+def _bounded_face_mass_increment(dm: Any, max_increment: Any, mass0: Any, mass_limit: Any) -> Any:
     if dm < 0.0:
         return min(max_increment, (mass0 - mass_limit) / -dm)
     return max_increment
 
 
-def _store_radiative_transfer_result(result, fluid, density_runtime_code, interior, scales):
+def _store_radiative_transfer_result(
+    result: Any,
+    fluid: Any,
+    density_runtime_code: Any,
+    interior: Any,
+    scales: Any,
+) -> Any:
     photon_density_code = (
         np.asarray(result.cell_photon_density, dtype=float) / scales["number_density_cgs_cm3"]
     )
@@ -145,15 +155,15 @@ def _store_radiative_transfer_result(result, fluid, density_runtime_code, interi
 
 
 def _trace_radiative_transfer(
-    par,
-    mesh,
-    fluid,
-    code_units,
-    scales,
-    density_runtime_code,
-    interior,
-    submesh,
-):
+    par: Any,
+    mesh: Any,
+    fluid: Any,
+    code_units: Any,
+    scales: Any,
+    density_runtime_code: Any,
+    interior: Any,
+    submesh: Any,
+) -> Any:
     absorber = {
         "HI": (
             getattr(par, "hydrogen_mass_fraction", 1.0)
@@ -184,7 +194,14 @@ def _trace_radiative_transfer(
     )
 
 
-def _trace_multigroup(par, mesh, code_units, submesh, absorber, group_edges_eV):
+def _trace_multigroup(
+    par: Any,
+    mesh: Any,
+    code_units: Any,
+    submesh: Any,
+    absorber: Any,
+    group_edges_eV: Any,
+) -> Any:
     sigma_groups = getattr(par, "radiation_group_sigma_gamma", None)
     if sigma_groups is None:
         sigma_groups = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
@@ -223,7 +240,7 @@ def _trace_multigroup(par, mesh, code_units, submesh, absorber, group_edges_eV):
     )
 
 
-def _trace_single_group(par, mesh, code_units, submesh, absorber):
+def _trace_single_group(par: Any, mesh: Any, code_units: Any, submesh: Any, absorber: Any) -> Any:
     sigma_value = getattr(par, "hydrogen_sigma_gamma", DEFAULT_SIGMA_GAMMA_CGS_CM2)
     boundary_value = rrt.parameter_value(par, "radiative_transfer_boundary_flux", 0.0)
     source_value = rrt.parameter_value(par, "source_photon_rate", 0.0)
@@ -246,7 +263,7 @@ def _trace_single_group(par, mesh, code_units, submesh, absorber):
     )
 
 
-def _radiative_value(value, code_units, target_unit, code_unit_name):
+def _radiative_value(value: Any, code_units: Any, target_unit: Any, code_unit_name: Any) -> Any:
     if hasattr(value, "to_value"):
         return _as_cgs_float(value, target_unit)
     return code_quantity_to_cgs(value, code_units, code_unit_name)
@@ -255,7 +272,7 @@ def _radiative_value(value, code_units, target_unit, code_unit_name):
 class Solver:
     """Advance one-dimensional Euler equations on a RadHydropy mesh."""
 
-    def __init__(self) -> None:
+    def __init__(self: Any) -> None:
         self.dual_energy_pressure_fallback_count = 0
         self.dual_energy_synchronization_count = 0
         self.dual_energy_floor_count = 0
@@ -277,14 +294,14 @@ class Solver:
         self.last_centrifugal_source_factors = None
         self.centrifugal_source_limited_count = 0
 
-    def _safe_divide(self, numerator, denominator):
+    def _safe_divide(self: Any, numerator: Any, denominator: Any) -> Any:
         return ru.SafeDivide(numerator, denominator)
 
-    def safe_divide(self, numerator, denominator):
+    def safe_divide(self: Any, numerator: Any, denominator: Any) -> Any:
         """Safely divide solver arrays for extracted solver components."""
         return self._safe_divide(numerator, denominator)
 
-    def _geometry_state(self, mesh, par):
+    def _geometry_state(self: Any, mesh: Any, par: Any) -> Any:
         """Return the representation-selected typed mesh geometry."""
         if par is None:
             par = getattr(mesh, "par", getattr(mesh, "_par", None))
@@ -303,18 +320,18 @@ class Solver:
             volume_runtime_code=volume,
         )
 
-    def geometry_state(self, mesh, par):
+    def geometry_state(self: Any, mesh: Any, par: Any) -> Any:
         """Return the selected mesh geometry for solver components."""
         return self._geometry_state(mesh, par)
 
-    def _fluid_primitive_state(self, fluid, par):
+    def _fluid_primitive_state(self: Any, fluid: Any, par: Any) -> Any:
         """Return the typed representation-selected primitive arrays."""
         runtime_state = getattr(fluid, "runtime_state", None)
         if runtime_state is None:
             raise ValueError("solver requires typed fluid runtime state")
         return runtime_state
 
-    def _active_primitive_arrays(self, fluid, par):
+    def _active_primitive_arrays(self: Any, fluid: Any, par: Any) -> Any:
         """Return the active representation's primitive runtime arrays.
 
         The Euler kernels are representation-neutral.  This is the single
@@ -324,25 +341,25 @@ class Solver:
         primitive = self._fluid_primitive_state(fluid, par)
         return select_fluid_primitive_arrays(primitive, par)[:4]
 
-    def active_primitive_arrays(self, fluid, par):
+    def active_primitive_arrays(self: Any, fluid: Any, par: Any) -> Any:
         """Return the active primitive arrays for solver components."""
         return self._active_primitive_arrays(fluid, par)
 
-    def _interior_slice(self, par):
+    def _interior_slice(self: Any, par: Any) -> Any:
         first = int(par.mesh.ghost_cells)
         return slice(
             first,
             first + int(par.mesh.grid_cells),
         )
 
-    def interior_slice(self, par):
+    def interior_slice(self: Any, par: Any) -> Any:
         """Return the active-cell slice for solver components."""
         return self._interior_slice(par)
 
-    def _thermochemistry_enabled(self, fluid, par):
+    def _thermochemistry_enabled(self: Any, fluid: Any, par: Any) -> Any:
         return rtc.thermochemistry_enabled(fluid, par)
 
-    def _thermochemistry_radiation_enabled(self, fluid, par):
+    def _thermochemistry_radiation_enabled(self: Any, fluid: Any, par: Any) -> Any:
         return (
             self._thermochemistry_enabled(fluid, par)
             and (
@@ -352,7 +369,7 @@ class Solver:
             and hasattr(fluid, "ngamma_code")
         )
 
-    def ApplyRadiativeTransfer(self, mesh, fluid, par):  # noqa: N802
+    def ApplyRadiativeTransfer(self: Any, mesh: Any, fluid: Any, par: Any) -> Any:
         """Refresh photon density from the shared radiative-transfer solver."""
         if not getattr(par, "radiative_transfer", False):
             return None
@@ -398,7 +415,7 @@ class Solver:
             submesh,
         )
 
-    def _spherical_origin_face_index(self, mesh):
+    def _spherical_origin_face_index(self: Any, mesh: Any) -> Any:
         if getattr(mesh, "coordsys", None) != "spherical":
             return None
         boundary = np.asarray(
@@ -413,7 +430,7 @@ class Solver:
             return int(origin_faces[0])
         return None
 
-    def _zero_spherical_origin_flux(self, mesh, fluid):
+    def _zero_spherical_origin_flux(self: Any, mesh: Any, fluid: Any) -> Any:
         origin_face = self._spherical_origin_face_index(mesh)
         if origin_face is None:
             return
@@ -425,144 +442,144 @@ class Solver:
         if hasattr(fluid, "rotational_energy_flux"):
             fluid.rotational_energy_flux[origin_face] = 0.0
 
-    def zero_spherical_origin_flux(self, mesh, fluid):
+    def zero_spherical_origin_flux(self: Any, mesh: Any, fluid: Any) -> Any:
         """Zero the flux through a spherical origin face."""
         return self._zero_spherical_origin_flux(mesh, fluid)
 
     @staticmethod
-    def _hydrostatic_core_enabled(par):
+    def _hydrostatic_core_enabled(par: Any) -> Any:
         from .hydrostatic import hydrostatic_core_enabled  # noqa: PLC0415
 
         return hydrostatic_core_enabled(par)
 
-    def InitializeHydrostaticCore(self, mesh, fluid, par):  # noqa: N802
+    def InitializeHydrostaticCore(self: Any, mesh: Any, fluid: Any, par: Any) -> Any:
         from .hydrostatic import initialize_hydrostatic_core  # noqa: PLC0415
 
         return initialize_hydrostatic_core(self, mesh, fluid, par)
 
-    def ApplyHydrostaticCore(self, mesh, fluid, par):  # noqa: N802
+    def ApplyHydrostaticCore(self: Any, mesh: Any, fluid: Any, par: Any) -> Any:
         from .hydrostatic import apply_hydrostatic_core  # noqa: PLC0415
 
         return apply_hydrostatic_core(self, mesh, fluid, par)
 
-    def _apply_hydrostatic_core_flux(self, fluid, par):
+    def _apply_hydrostatic_core_flux(self: Any, fluid: Any, par: Any) -> Any:
         from .hydrostatic import apply_hydrostatic_core_flux  # noqa: PLC0415
 
         return apply_hydrostatic_core_flux(self, fluid, par)
 
-    def apply_hydrostatic_core_flux(self, fluid, par):
+    def apply_hydrostatic_core_flux(self: Any, fluid: Any, par: Any) -> Any:
         """Apply hydrostatic-core flux corrections."""
         return self._apply_hydrostatic_core_flux(fluid, par)
 
-    def _boundary_field_names(self, *args, **kwargs):
+    def _boundary_field_names(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _boundary_field_names  # noqa: PLC0415
 
         return _boundary_field_names(self, *args, **kwargs)
 
-    def boundary_field_names(self, *args, **kwargs):
+    def boundary_field_names(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Return fields participating in boundary updates."""
         return self._boundary_field_names(*args, **kwargs)
 
-    def _copy_boundary_state(self, *args, **kwargs):
+    def _copy_boundary_state(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _copy_boundary_state  # noqa: PLC0415
 
         return _copy_boundary_state(self, *args, **kwargs)
 
-    def copy_boundary_state(self, *args, **kwargs):
+    def copy_boundary_state(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Copy a prepared boundary state into ghost cells."""
         return self._copy_boundary_state(*args, **kwargs)
 
-    def _boundary_state(self, *args, **kwargs):
+    def _boundary_state(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _boundary_state  # noqa: PLC0415
 
         return _boundary_state(self, *args, **kwargs)
 
-    def boundary_state(self, *args, **kwargs):
+    def boundary_state(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Build a boundary state from a fluid slice."""
         return self._boundary_state(*args, **kwargs)
 
-    def _to_code_number_density(self, *args, **kwargs):
+    def _to_code_number_density(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _to_code_number_density  # noqa: PLC0415
 
         return _to_code_number_density(self, *args, **kwargs)
 
-    def to_code_number_density(self, *args, **kwargs):
+    def to_code_number_density(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Convert an injected photon number density to code units."""
         return self._to_code_number_density(*args, **kwargs)
 
-    def _apply_periodic_boundary(self, *args, **kwargs):
+    def _apply_periodic_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _apply_periodic_boundary  # noqa: PLC0415
 
         return _apply_periodic_boundary(self, *args, **kwargs)
 
-    def apply_periodic_boundary(self, *args, **kwargs):
+    def apply_periodic_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply periodic ghost-cell values."""
         return self._apply_periodic_boundary(*args, **kwargs)
 
-    def _apply_open_boundary(self, *args, **kwargs):
+    def _apply_open_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _apply_open_boundary  # noqa: PLC0415
 
         return _apply_open_boundary(self, *args, **kwargs)
 
-    def apply_open_boundary(self, *args, **kwargs):
+    def apply_open_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply open ghost-cell values."""
         return self._apply_open_boundary(*args, **kwargs)
 
-    def _apply_reflecting_boundary(self, *args, **kwargs):
+    def _apply_reflecting_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _apply_reflecting_boundary  # noqa: PLC0415
 
         return _apply_reflecting_boundary(self, *args, **kwargs)
 
-    def apply_reflecting_boundary(self, *args, **kwargs):
+    def apply_reflecting_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply reflecting ghost-cell values."""
         return self._apply_reflecting_boundary(*args, **kwargs)
 
-    def _apply_spherical_inner_boundary(self, *args, **kwargs):
+    def _apply_spherical_inner_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _apply_spherical_inner_boundary  # noqa: PLC0415
 
         return _apply_spherical_inner_boundary(self, *args, **kwargs)
 
-    def apply_spherical_inner_boundary(self, *args, **kwargs):
+    def apply_spherical_inner_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply the inner spherical ghost-cell boundary."""
         return self._apply_spherical_inner_boundary(*args, **kwargs)
 
-    def _apply_open_spherical_boundary(self, *args, **kwargs):
+    def _apply_open_spherical_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _apply_open_spherical_boundary  # noqa: PLC0415
 
         return _apply_open_spherical_boundary(self, *args, **kwargs)
 
-    def apply_open_spherical_boundary(self, *args, **kwargs):
+    def apply_open_spherical_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply an open spherical boundary."""
         return self._apply_open_spherical_boundary(*args, **kwargs)
 
-    def _apply_inflow_spherical_boundary(self, *args, **kwargs):
+    def _apply_inflow_spherical_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _apply_inflow_spherical_boundary  # noqa: PLC0415
 
         return _apply_inflow_spherical_boundary(self, *args, **kwargs)
 
-    def apply_inflow_spherical_boundary(self, *args, **kwargs):
+    def apply_inflow_spherical_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply an inflow spherical boundary."""
         return self._apply_inflow_spherical_boundary(*args, **kwargs)
 
-    def _apply_outflow_spherical_boundary(self, *args, **kwargs):
+    def _apply_outflow_spherical_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _apply_outflow_spherical_boundary  # noqa: PLC0415
 
         return _apply_outflow_spherical_boundary(self, *args, **kwargs)
 
-    def apply_outflow_spherical_boundary(self, *args, **kwargs):
+    def apply_outflow_spherical_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply an outflow spherical boundary."""
         return self._apply_outflow_spherical_boundary(*args, **kwargs)
 
-    def _apply_wind_spherical_boundary(self, *args, **kwargs):
+    def _apply_wind_spherical_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .boundary_conditions import _apply_wind_spherical_boundary  # noqa: PLC0415
 
         return _apply_wind_spherical_boundary(self, *args, **kwargs)
 
-    def apply_wind_spherical_boundary(self, *args, **kwargs):
+    def apply_wind_spherical_boundary(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply a wind spherical boundary."""
         return self._apply_wind_spherical_boundary(*args, **kwargs)
 
-    def SetPrimitive(self, mesh, fluid, par=None, verbose=None):  # noqa: N802
+    def SetPrimitive(self: Any, mesh: Any, fluid: Any, par: Any = None, verbose: Any = None) -> Any:
         """Update primitive variables from conserved quantities."""
         if verbose is None:
             verbose = 0
@@ -808,12 +825,12 @@ class Solver:
 
     @staticmethod
     def _apply_primitive_pressure_floor(
-        pressure_runtime_code,
-        density_runtime_code,
-        numerical_vacuum,
-        fluid,
-        par,
-    ):
+        pressure_runtime_code: Any,
+        density_runtime_code: Any,
+        numerical_vacuum: Any,
+        fluid: Any,
+        par: Any,
+    ) -> Any:
         invalid_pressure = np.logical_or(
             pressure_runtime_code <= 0.0,
             np.isnan(pressure_runtime_code),
@@ -837,11 +854,11 @@ class Solver:
             pressure_runtime_code[invalid_pressure & ~numerical_vacuum] = 0.0
         pressure_runtime_code[numerical_vacuum] = 0.0
 
-    def SetConserved(self, mesh, fluid, verbose=None):  # noqa: N802
+    def SetConserved(self: Any, mesh: Any, fluid: Any, verbose: Any = None) -> Any:
         """Update conserved mass, momentum, and energy from primitive variables."""
         if verbose is None:
             verbose = 0
-        par = getattr(mesh, "par", getattr(mesh, "_par", None))
+        par: Any = getattr(mesh, "par", getattr(mesh, "_par", None))
         self._validate_dual_energy_compatibility(fluid, par)
         (
             rho_runtime_code,
@@ -959,13 +976,13 @@ class Solver:
 
     @staticmethod
     def _restore_conserved_totals(
-        fluid,
-        par,
-        old_total_energy,
-        old_total_mass,
-        old_total_momentum,
-        old_angular_momentum,
-    ):
+        fluid: Any,
+        par: Any,
+        old_total_energy: Any,
+        old_total_mass: Any,
+        old_total_momentum: Any,
+        old_angular_momentum: Any,
+    ) -> Any:
         if (
             old_total_energy is None
             and old_total_mass is None
@@ -976,7 +993,7 @@ class Solver:
         first = int(par.mesh.ghost_cells)
         count = int(par.mesh.grid_cells)
 
-        def active_values(values):
+        def active_values(values: Any) -> Any:
             return values if values.size == count else values[first : first + count]
 
         if old_total_energy is not None:
@@ -990,13 +1007,13 @@ class Solver:
             )
 
     def _synchronize_dual_internal_energy(
-        self,
-        mesh,
-        fluid,
-        par,
-        old_internal,
-        dual_energy,
-    ):
+        self: Any,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        old_internal: Any,
+        dual_energy: Any,
+    ) -> Any:
         if not (
             dual_energy and old_internal is not None and getattr(fluid.eos, "is_polytropic", False)
         ):
@@ -1034,7 +1051,12 @@ class Solver:
         self.dual_energy_synchronization_count += int(np.count_nonzero(sync))
 
     @staticmethod
-    def _capture_conserved_state(fluid, rho_runtime_code, density_floor, dual_energy):
+    def _capture_conserved_state(
+        fluid: Any,
+        rho_runtime_code: Any,
+        density_floor: Any,
+        dual_energy: Any,
+    ) -> Any:
         old_internal = (
             np.asarray(fluid.InternalEnergy_code, dtype=float).copy()
             if dual_energy and hasattr(fluid, "InternalEnergy_code")
@@ -1090,9 +1112,9 @@ class Solver:
             old_conserved,
         )
 
-    def SetGradient(self, mesh, fluid):  # noqa: N802
+    def SetGradient(self: Any, mesh: Any, fluid: Any) -> Any:
         """Calculate centered gradients for density, velocity, and pressure."""
-        par = getattr(mesh, "par", getattr(mesh, "_par", None))
+        par: Any = getattr(mesh, "par", getattr(mesh, "_par", None))
         width_runtime_code = self._geometry_state(mesh, par).width_runtime_code
         self._fluid_primitive_state(fluid, par)
         periodic = (
@@ -1128,7 +1150,12 @@ class Solver:
                 )
 
     @staticmethod
-    def _periodic_physical_gradient(quantity, width_runtime_code, first, count):
+    def _periodic_physical_gradient(
+        quantity: Any,
+        width_runtime_code: Any,
+        first: Any,
+        count: Any,
+    ) -> Any:
         """Build periodic gradients from physical cells and mirror ghosts."""
         values = np.asarray(quantity, dtype=float)
         last = first + count
@@ -1148,36 +1175,42 @@ class Solver:
         return as_named_array(gradient)
 
     @staticmethod
-    def _positivity_limited_internal_flux(old_internal, flux, area, dt, physical):
+    def _positivity_limited_internal_flux(
+        old_internal: Any,
+        flux: Any,
+        area: Any,
+        dt: Any,
+        physical: Any,
+    ) -> Any:
         from .positivity import limit_internal_flux  # noqa: PLC0415
 
         return limit_internal_flux(old_internal, flux, area, dt, physical)
 
     @staticmethod
     @staticmethod
-    def _cfl_density_floor(*args, **kwargs):
+    def _cfl_density_floor(*args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _cfl_density_floor  # noqa: PLC0415
 
         return _cfl_density_floor(*args, **kwargs)
 
     @staticmethod
-    def cfl_density_floor(*args, **kwargs):
+    def cfl_density_floor(*args: Any, **kwargs: Any) -> Any:
         """Return the configured density floor for solver components."""
         return Solver._cfl_density_floor(*args, **kwargs)
 
     @staticmethod
     @staticmethod
-    def _dual_energy_enabled(*args, **kwargs):
+    def _dual_energy_enabled(*args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _dual_energy_enabled  # noqa: PLC0415
 
         return _dual_energy_enabled(*args, **kwargs)
 
     @staticmethod
-    def dual_energy_enabled(*args, **kwargs):
+    def dual_energy_enabled(*args: Any, **kwargs: Any) -> Any:
         """Return whether dual-energy evolution is enabled."""
         return Solver._dual_energy_enabled(*args, **kwargs)
 
-    def _validate_dual_energy_compatibility(self, fluid, par):
+    def _validate_dual_energy_compatibility(self: Any, fluid: Any, par: Any) -> Any:
         if (
             par is not None
             and self._dual_energy_enabled(par)
@@ -1190,77 +1223,77 @@ class Solver:
 
     @staticmethod
     @staticmethod
-    def _rotational_energy_enabled(*args, **kwargs):
+    def _rotational_energy_enabled(*args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _rotational_energy_enabled  # noqa: PLC0415
 
         return _rotational_energy_enabled(*args, **kwargs)
 
     @staticmethod
-    def rotational_energy_enabled(*args, **kwargs):
+    def rotational_energy_enabled(*args: Any, **kwargs: Any) -> Any:
         """Return whether rotational energy is enabled."""
         return Solver._rotational_energy_enabled(*args, **kwargs)
 
     @staticmethod
     @staticmethod
-    def _gravity_potential_energy_enabled(*args, **kwargs):
+    def _gravity_potential_energy_enabled(*args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _gravity_potential_energy_enabled  # noqa: PLC0415
 
         return _gravity_potential_energy_enabled(*args, **kwargs)
 
     @staticmethod
-    def gravity_potential_energy_enabled(*args, **kwargs):
+    def gravity_potential_energy_enabled(*args: Any, **kwargs: Any) -> Any:
         """Return whether gravitational potential energy is enabled."""
         return Solver._gravity_potential_energy_enabled(*args, **kwargs)
 
-    def _gravity_potential(self, *args, **kwargs):
+    def _gravity_potential(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _gravity_potential  # noqa: PLC0415
 
         return _gravity_potential(self, *args, **kwargs)
 
-    def gravity_potential(self, *args, **kwargs):
+    def gravity_potential(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Return cell-centered gravitational potential values."""
         return self._gravity_potential(*args, **kwargs)
 
-    def _gravity_potential_faces(self, *args, **kwargs):
+    def _gravity_potential_faces(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _gravity_potential_faces  # noqa: PLC0415
 
         return _gravity_potential_faces(self, *args, **kwargs)
 
-    def gravity_potential_faces(self, *args, **kwargs):
+    def gravity_potential_faces(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Return face-centered gravitational potential values."""
         return self._gravity_potential_faces(*args, **kwargs)
 
-    def _rotational_energy_density(self, *args, **kwargs):
+    def _rotational_energy_density(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _rotational_energy_density  # noqa: PLC0415
 
         return _rotational_energy_density(self, *args, **kwargs)
 
-    def rotational_energy_density(self, *args, **kwargs):
+    def rotational_energy_density(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Return the rotational kinetic-energy density."""
         return self._rotational_energy_density(*args, **kwargs)
 
-    def _rotational_energy_from_conserved(self, *args, **kwargs):
+    def _rotational_energy_from_conserved(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _rotational_energy_from_conserved  # noqa: PLC0415
 
         return _rotational_energy_from_conserved(self, *args, **kwargs)
 
-    def rotational_energy_from_conserved(self, *args, **kwargs):
+    def rotational_energy_from_conserved(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Return rotational energy reconstructed from conserved state."""
         return self._rotational_energy_from_conserved(*args, **kwargs)
 
     @staticmethod
     @staticmethod
-    def _dual_energy_eta(*args, **kwargs):
+    def _dual_energy_eta(*args: Any, **kwargs: Any) -> Any:
         from .dual_energy import _dual_energy_eta  # noqa: PLC0415
 
         return _dual_energy_eta(*args, **kwargs)
 
     @staticmethod
-    def dual_energy_eta(*args, **kwargs):
+    def dual_energy_eta(*args: Any, **kwargs: Any) -> Any:
         """Return a dual-energy limiter parameter."""
         return Solver._dual_energy_eta(*args, **kwargs)
 
-    def _apply_low_density_face_mask(self, fluid, par, order):
+    def _apply_low_density_face_mask(self: Any, fluid: Any, par: Any, order: Any) -> Any:
         """Make below-floor reconstructed states vacuum-safe.
 
         This is a numerical mask only: cell-centred conserved mass and density
@@ -1289,11 +1322,11 @@ class Solver:
                 velocity[inactive] = 0.0
                 pressure[inactive] = 0.0
 
-    def apply_low_density_face_mask(self, fluid, par, order):
+    def apply_low_density_face_mask(self: Any, fluid: Any, par: Any, order: Any) -> Any:
         """Apply vacuum-safe values to reconstructed low-density faces."""
         return self._apply_low_density_face_mask(fluid, par, order)
 
-    def SetConservedDensityFlux(self, fluid, par=None):  # noqa: N802
+    def SetConservedDensityFlux(self: Any, fluid: Any, par: Any = None) -> Any:
         """Store Euler fluxes and conserved densities on fluid arrays."""
         density_code, velocity_code, pressure_code, _ = self._active_primitive_arrays(fluid, par)
         (
@@ -1307,39 +1340,39 @@ class Solver:
 
     @staticmethod
     @staticmethod
-    def _set_angular_momentum_flux(*args, **kwargs):
+    def _set_angular_momentum_flux(*args: Any, **kwargs: Any) -> Any:
         from .angular_momentum import _set_angular_momentum_flux  # noqa: PLC0415
 
         return _set_angular_momentum_flux(*args, **kwargs)
 
-    def set_angular_momentum_flux(self, *args, **kwargs):
+    def set_angular_momentum_flux(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Construct the optional angular-momentum face flux."""
         return self._set_angular_momentum_flux(*args, **kwargs)
 
-    def _limit_angular_momentum_flux(self, *args, **kwargs):
+    def _limit_angular_momentum_flux(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .angular_momentum import _limit_angular_momentum_flux  # noqa: PLC0415
 
         return _limit_angular_momentum_flux(self, *args, **kwargs)
 
-    def _set_rotational_energy_flux(self, *args, **kwargs):
+    def _set_rotational_energy_flux(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .angular_momentum import _set_rotational_energy_flux  # noqa: PLC0415
 
         return _set_rotational_energy_flux(self, *args, **kwargs)
 
-    def set_rotational_energy_flux(self, *args, **kwargs):
+    def set_rotational_energy_flux(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Construct the optional rotational-energy face flux."""
         return self._set_rotational_energy_flux(*args, **kwargs)
 
-    def _apply_local_angular_energy_fallback(self, *args, **kwargs):
+    def _apply_local_angular_energy_fallback(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .angular_momentum import _apply_local_angular_energy_fallback  # noqa: PLC0415
 
         return _apply_local_angular_energy_fallback(self, *args, **kwargs)
 
-    def apply_local_angular_energy_fallback(self, *args, **kwargs):
+    def apply_local_angular_energy_fallback(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply the local angular-energy admissibility fallback."""
         return self._apply_local_angular_energy_fallback(*args, **kwargs)
 
-    def SetFaceLR(self, mesh, fluid, boundcond, order=0):  # noqa: N802
+    def SetFaceLR(self: Any, mesh: Any, fluid: Any, boundcond: Any, order: Any = 0) -> Any:
         """Construct left and right states at cell faces.
 
         ``order=0`` uses piecewise constant states. ``order=1`` applies a
@@ -1349,7 +1382,12 @@ class Solver:
 
         return set_face_lr(self, mesh, fluid, order=order)
 
-    def _apply_cosmological_background_boundary_face(self, mesh, fluid, order):
+    def _apply_cosmological_background_boundary_face(
+        self: Any,
+        mesh: Any,
+        fluid: Any,
+        order: Any,
+    ) -> Any:
         """Replace the outer face states with the homogeneous EdS state."""
         par = getattr(mesh, "par", getattr(mesh, "_par", None))
         if par is None or not getattr(
@@ -1404,33 +1442,64 @@ class Solver:
                 fluid.specific_angular_momentum_code.R.first[outer_face] = angular_momentum
                 fluid.specific_angular_momentum_code.L.first[outer_face] = angular_momentum
 
-    def apply_cosmological_background_boundary_face(self, mesh, fluid, order):
+    def apply_cosmological_background_boundary_face(
+        self: Any,
+        mesh: Any,
+        fluid: Any,
+        order: Any,
+    ) -> Any:
         """Apply the cosmological background state to the outer face."""
         return self._apply_cosmological_background_boundary_face(mesh, fluid, order)
 
     @staticmethod
-    def _vacuum_safe_primitive_state(rho, vel, pre):
+    def _vacuum_safe_primitive_state(rho: Any, vel: Any, pre: Any) -> Any:
         from .fluxes import vacuum_safe_primitive_state  # noqa: PLC0415
 
         return vacuum_safe_primitive_state(rho, vel, pre)
 
     @staticmethod
-    def vacuum_safe_primitive_state(rho, vel, pre):
+    def vacuum_safe_primitive_state(rho: Any, vel: Any, pre: Any) -> Any:
         """Return vacuum-safe primitive states for a Riemann solve."""
         return Solver._vacuum_safe_primitive_state(rho, vel, pre)
 
     @staticmethod
-    def _hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):  # noqa: N803
+    def _hllc_flux(
+        rho_L: Any,
+        vel_L: Any,
+        pre_L: Any,
+        rho_R: Any,
+        vel_R: Any,
+        pre_R: Any,
+        gamma: Any,
+    ) -> Any:
         from .fluxes import hllc_flux  # noqa: PLC0415
 
         return hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma)
 
     @staticmethod
-    def hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma):  # noqa: N803
+    def hllc_flux(
+        rho_L: Any,
+        vel_L: Any,
+        pre_L: Any,
+        rho_R: Any,
+        vel_R: Any,
+        pre_R: Any,
+        gamma: Any,
+    ) -> Any:
         """Compute the HLLC interface flux."""
         return Solver._hllc_flux(rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, gamma)
 
-    def _interface_fluxes(self, fluid, rho_L, vel_L, pre_L, rho_R, vel_R, pre_R, method):  # noqa: N803
+    def _interface_fluxes(
+        self: Any,
+        fluid: Any,
+        rho_L: Any,
+        vel_L: Any,
+        pre_L: Any,
+        rho_R: Any,
+        vel_R: Any,
+        pre_R: Any,
+        method: Any,
+    ) -> Any:
         from .fluxes import interface_fluxes  # noqa: PLC0415
 
         return interface_fluxes(
@@ -1444,13 +1513,20 @@ class Solver:
             method,
         )
 
-    def SetFluxOnFace(self, fluid, boundcond, order=0, par=None, method="Rusanov"):  # noqa: N802
+    def SetFluxOnFace(
+        self: Any,
+        fluid: Any,
+        boundcond: Any,
+        order: Any = 0,
+        par: Any = None,
+        method: Any = "Rusanov",
+    ) -> Any:
         """Calculate mass, momentum, and energy fluxes at interfaces."""
         from .fluxes import set_flux_on_face  # noqa: PLC0415
 
         return set_flux_on_face(self, fluid, par=par, order=order, method=method)
 
-    def _apply_low_density_flux_mask(self, fluid, par):
+    def _apply_low_density_flux_mask(self: Any, fluid: Any, par: Any) -> Any:
         """Block hydro flux through numerical-vacuum active cells.
 
         The CFL and face-state masks prevent a low-density cell from setting
@@ -1480,21 +1556,21 @@ class Solver:
         for flux in (fluid.Mass_code.flux, fluid.Mom_code.flux, fluid.Energy_code.flux):
             flux[face_mask] = 0.0
 
-    def apply_low_density_flux_mask(self, fluid, par):
+    def apply_low_density_flux_mask(self: Any, fluid: Any, par: Any) -> Any:
         """Block flux through cells below the configured density floor."""
         return self._apply_low_density_flux_mask(fluid, par)
 
     @staticmethod
     def _positive_conserved_state(
-        mass,
-        momentum,
-        energy,
-        mass_floor=0.0,
-        energy_floor=0.0,
-        relative_tolerance=1.0e-12,
-        angular_momentum=None,
-        radius=None,
-    ):
+        mass: Any,
+        momentum: Any,
+        energy: Any,
+        mass_floor: Any = 0.0,
+        energy_floor: Any = 0.0,
+        relative_tolerance: Any = 1e-12,
+        angular_momentum: Any = None,
+        radius: Any = None,
+    ) -> Any:
         from .positivity import positive_conserved_state  # noqa: PLC0415
 
         return positive_conserved_state(
@@ -1509,17 +1585,17 @@ class Solver:
         )
 
     def _apply_unlimited_face_fluxes(
-        self,
-        fluid,
-        dt,
-        mesh,
-        par,
-        mass_face,
-        mom_face,
-        energy_face,
-        geometric_mom=None,
-        angular_face=None,
-    ):
+        self: Any,
+        fluid: Any,
+        dt: Any,
+        mesh: Any,
+        par: Any,
+        mass_face: Any,
+        mom_face: Any,
+        energy_face: Any,
+        geometric_mom: Any = None,
+        angular_face: Any = None,
+    ) -> Any:
         """Apply face corrections without the positivity limiter."""
         dt_value = float(np.asarray(dt, dtype=float))
         geometry = self._geometry_state(mesh, par)
@@ -1542,7 +1618,7 @@ class Solver:
         self.last_face_limiter_factors = np.ones_like(np.asarray(mass_face, dtype=float))
         return 1.0
 
-    def _positivity_context(self, fluid, mesh, par, dt):
+    def _positivity_context(self: Any, fluid: Any, mesh: Any, par: Any, dt: Any) -> Any:
         """Build arrays and predicates shared by face-flux recovery."""
         dt_value = float(np.asarray(dt, dtype=float))
         mass = np.asarray(fluid.Mass_code, dtype=float).copy()
@@ -1587,7 +1663,12 @@ class Solver:
         if angular is not None:
             angular[vacuum] = 0.0
 
-        def valid(mass_value, momentum_value, energy_value, angular_value=None):
+        def valid(
+            mass_value: Any,
+            momentum_value: Any,
+            energy_value: Any,
+            angular_value: Any = None,
+        ) -> Any:
             result = self._positive_conserved_state(
                 mass_value,
                 momentum_value,
@@ -1601,7 +1682,13 @@ class Solver:
             result[~physical] = True
             return result
 
-        def cell_valid(index, mass_value, momentum_value, energy_value, angular_value=None):
+        def cell_valid(
+            index: Any,
+            mass_value: Any,
+            momentum_value: Any,
+            energy_value: Any,
+            angular_value: Any = None,
+        ) -> Any:
             if not (
                 math.isfinite(mass_value)
                 and math.isfinite(momentum_value)
@@ -1640,7 +1727,7 @@ class Solver:
             "cell_valid": cell_valid,
         }
 
-    def _limit_geometry_momentum(self, context, geometric_mom):
+    def _limit_geometry_momentum(self: Any, context: Any, geometric_mom: Any) -> Any:
         """Limit the spherical pressure-geometry momentum source."""
         momentum = context["momentum"]
         geometry_increment = np.zeros_like(momentum)
@@ -1684,16 +1771,16 @@ class Solver:
         return geometry_increment, geometry_fraction
 
     def _recover_invariant_domain_faces(
-        self,
-        context,
-        mass_face,
-        delta_mass,
-        delta_mom,
-        delta_energy,
-        delta_angular,
-        geometry_increment,
-        geometry_fraction,
-    ):
+        self: Any,
+        context: Any,
+        mass_face: Any,
+        delta_mass: Any,
+        delta_mom: Any,
+        delta_energy: Any,
+        delta_angular: Any,
+        geometry_increment: Any,
+        geometry_fraction: Any,
+    ) -> Any:
         """Recover face fluxes with vectorized invariant-domain bisection."""
         mass = context["mass"]
         momentum = context["momentum"]
@@ -1707,7 +1794,7 @@ class Solver:
                 "hydro state is outside positivity domain before invariant-domain face recovery",
             )
 
-        def line_state(scale):
+        def line_state(scale: Any) -> Any:
             face_mass = delta_mass * scale
             face_mom = delta_mom * scale
             face_energy = delta_energy * scale
@@ -1743,7 +1830,15 @@ class Solver:
             )
         return (*line_state(factors), factors)
 
-    def _repair_wind_reservoir(self, fluid, par, context, mass, momentum, energy):
+    def _repair_wind_reservoir(
+        self: Any,
+        fluid: Any,
+        par: Any,
+        context: Any,
+        mass: Any,
+        momentum: Any,
+        energy: Any,
+    ) -> Any:
         """Restore a WindSph floor using the imposed wind state."""
         boundary = getattr(par, "boundary", None)
         if boundary is None or getattr(boundary, "condition", None) != "WindSph":
@@ -1794,12 +1889,12 @@ class Solver:
             required_energy = context["energy_floor"][index]
 
             def reservoir_valid(
-                delta_mass,
-                base_mass=base_mass,
-                base_momentum=base_momentum,
-                base_energy=base_energy,
-                required_energy=required_energy,
-            ):
+                delta_mass: Any,
+                base_mass: Any = base_mass,
+                base_momentum: Any = base_momentum,
+                base_energy: Any = base_energy,
+                required_energy: Any = required_energy,
+            ) -> Any:
                 trial_mass = base_mass + delta_mass
                 trial_momentum = base_momentum + delta_mass * wind_velocity
                 trial_energy = base_energy + delta_mass * wind_specific_energy
@@ -1829,27 +1924,27 @@ class Solver:
         return mass, momentum, energy
 
     def _analytical_scalar_validators(
-        self,
+        self: Any,
         *,
-        factors,
-        total_mass,
-        total_mom,
-        total_energy,
-        total_angular,
-        delta_mass,
-        delta_mom,
-        delta_energy,
-        delta_angular,
-        physical,
-        mass_floor,
-        energy_floor,
-        radius,
-        cell_valid,
-        count,
-    ):
+        factors: Any,
+        total_mass: Any,
+        total_mom: Any,
+        total_energy: Any,
+        total_angular: Any,
+        delta_mass: Any,
+        delta_mom: Any,
+        delta_energy: Any,
+        delta_angular: Any,
+        physical: Any,
+        mass_floor: Any,
+        energy_floor: Any,
+        radius: Any,
+        cell_valid: Any,
+        count: Any,
+    ) -> Any:
         """Build scalar paired-face admissibility and root validators."""
 
-        def adjacent_valid(face, factor):
+        def adjacent_valid(face: Any, factor: Any) -> Any:
             """Check only the two cells changed by one face trial."""
             left = (face - 1) % count
             right = face
@@ -1888,7 +1983,7 @@ class Solver:
                     return False
             return True
 
-        def analytical_adjacent_factor(face, current):
+        def analytical_adjacent_factor(face: Any, current: Any) -> Any:
             """Return a quadratic admissible factor, or ``None``."""
             left = (face - 1) % count
             right = face
@@ -1920,33 +2015,33 @@ class Solver:
         return adjacent_valid, analytical_adjacent_factor
 
     def _analytical_batch_validators(
-        self,
+        self: Any,
         *,
-        factors,
-        total_mass,
-        total_mom,
-        total_energy,
-        total_angular,
-        delta_mass,
-        delta_mom,
-        delta_energy,
-        physical,
-        mass_floor,
-        energy_floor,
-        radius,
-        relative_tolerance,
-        delta_angular,
-        count,
-    ):
+        factors: Any,
+        total_mass: Any,
+        total_mom: Any,
+        total_energy: Any,
+        total_angular: Any,
+        delta_mass: Any,
+        delta_mom: Any,
+        delta_energy: Any,
+        physical: Any,
+        mass_floor: Any,
+        energy_floor: Any,
+        radius: Any,
+        relative_tolerance: Any,
+        delta_angular: Any,
+        count: Any,
+    ) -> Any:
         """Build vectorized paired-face admissibility and root validators."""
 
         def batch_cell_valid(
-            mass_value,
-            momentum_value,
-            energy_value,
-            indices,
-            angular_value=None,
-        ):
+            mass_value: Any,
+            momentum_value: Any,
+            energy_value: Any,
+            indices: Any,
+            angular_value: Any = None,
+        ) -> Any:
             """Vectorized admissibility check for disjoint face pairs."""
             mass_limit = mass_floor[indices]
             energy_limit = energy_floor[indices]
@@ -1985,7 +2080,7 @@ class Solver:
                 )
             return result
 
-        def batch_adjacent_valid(face_values, factor_values):
+        def batch_adjacent_valid(face_values: Any, factor_values: Any) -> Any:
             """Check a disjoint face group without scalar callbacks."""
             left = (face_values - 1) % count
             right = face_values
@@ -2020,7 +2115,7 @@ class Solver:
                 )
             )
 
-        def batch_analytical_factors(face_values):
+        def batch_analytical_factors(face_values: Any) -> Any:
             """Solve the invariant-domain quadratics for a face group."""
             current = factors[face_values].copy()
             largest = np.ones_like(current) - current
@@ -2109,11 +2204,11 @@ class Solver:
         return batch_cell_valid, batch_adjacent_valid, batch_analytical_factors
 
     def _validate_analytical_recovery_state(
-        self,
-        context,
-        geometry_increment,
-        geometry_fraction,
-    ):
+        self: Any,
+        context: Any,
+        geometry_increment: Any,
+        geometry_fraction: Any,
+    ) -> Any:
         mass = context["mass"]
         momentum = context["momentum"]
         energy = context["energy"]
@@ -2153,14 +2248,14 @@ class Solver:
 
     @staticmethod
     def _analytical_face_factor(
-        face,
-        current,
-        adjacent_valid,
-        analytical_adjacent_factor,
-        factor_method,
-        recovery_iterations,
-        factor_tolerance,
-    ):
+        face: Any,
+        current: Any,
+        adjacent_valid: Any,
+        analytical_adjacent_factor: Any,
+        factor_method: Any,
+        recovery_iterations: Any,
+        factor_tolerance: Any,
+    ) -> Any:
         if adjacent_valid(face, 1.0):
             return 1.0
         if factor_method == "analytical":
@@ -2180,19 +2275,19 @@ class Solver:
 
     @staticmethod
     def _apply_analytical_face(
-        face,
-        accepted,
-        factors,
-        total_mass,
-        total_mom,
-        total_energy,
-        total_angular,
-        delta_mass,
-        delta_mom,
-        delta_energy,
-        delta_angular,
-        count,
-    ):
+        face: Any,
+        accepted: Any,
+        factors: Any,
+        total_mass: Any,
+        total_mom: Any,
+        total_energy: Any,
+        total_angular: Any,
+        delta_mass: Any,
+        delta_mom: Any,
+        delta_energy: Any,
+        delta_angular: Any,
+        count: Any,
+    ) -> Any:
         increment = accepted - factors[face]
         left = (face - 1) % count
         right = face
@@ -2209,17 +2304,17 @@ class Solver:
         return increment
 
     def _recover_analytical_faces(
-        self,
-        context,
-        par,
-        mass_face,
-        delta_mass,
-        delta_mom,
-        delta_energy,
-        delta_angular,
-        geometry_increment,
-        geometry_fraction,
-    ):
+        self: Any,
+        context: Any,
+        par: Any,
+        mass_face: Any,
+        delta_mass: Any,
+        delta_mom: Any,
+        delta_energy: Any,
+        delta_angular: Any,
+        geometry_increment: Any,
+        geometry_fraction: Any,
+    ) -> Any:
         """Recover paired face factors with sequential analytical limiting."""
         mass = context["mass"]
         physical = context["physical"]
@@ -2299,17 +2394,17 @@ class Solver:
         return total_mass, total_mom, total_energy, total_angular, factors
 
     def _positivity_limited_face_fluxes(
-        self,
-        fluid,
-        dt,
-        mesh,
-        par,
-        mass_face,
-        mom_face,
-        energy_face,
-        geometric_mom=None,
-        angular_face=None,
-    ):
+        self: Any,
+        fluid: Any,
+        dt: Any,
+        mesh: Any,
+        par: Any,
+        mass_face: Any,
+        mom_face: Any,
+        energy_face: Any,
+        geometric_mom: Any = None,
+        angular_face: Any = None,
+    ) -> Any:
         """Apply a local invariant-domain limiter to paired face fluxes.
 
         A global multiplier is especially damaging for cold, nearly
@@ -2444,20 +2539,20 @@ class Solver:
         self.last_face_limiter_factors = factors
         return float(np.min(factors)) if factors.size else 1.0
 
-    def positivity_limited_face_fluxes(self, *args, **kwargs):
+    def positivity_limited_face_fluxes(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Apply the positivity-preserving face-flux limiter."""
         return self._positivity_limited_face_fluxes(*args, **kwargs)
 
     @property
-    def last_face_limiter_factors(self):
+    def last_face_limiter_factors(self: Any) -> Any:
         """Return the most recent per-face positivity limiter factors."""
         return getattr(self, "_last_face_limiter_factors", None)
 
     @last_face_limiter_factors.setter
-    def last_face_limiter_factors(self, factors):
+    def last_face_limiter_factors(self: Any, factors: Any) -> Any:
         self._last_face_limiter_factors = factors
 
-    def _apply_wind_reservoir_flux(self, dt, mesh, fluid, par):
+    def _apply_wind_reservoir_flux(self: Any, dt: Any, mesh: Any, fluid: Any, par: Any) -> Any:
         """Restore rejected WindSph boundary flux as one coupled parcel."""
         if par is None or getattr(getattr(par, "boundary", None), "condition", None) != "WindSph":
             return 0.0
@@ -2558,14 +2653,14 @@ class Solver:
 
     @staticmethod
     def _minimum_wind_energy_repair(
-        base_mass,
-        base_momentum,
-        base_energy,
-        correction_mass,
-        velocity_wind,
-        wind_specific_energy,
-    ):
-        def reservoir_valid(delta_mass):
+        base_mass: Any,
+        base_momentum: Any,
+        base_energy: Any,
+        correction_mass: Any,
+        velocity_wind: Any,
+        wind_specific_energy: Any,
+    ) -> Any:
+        def reservoir_valid(delta_mass: Any) -> Any:
             trial_mass = base_mass + delta_mass
             trial_momentum = base_momentum + delta_mass * velocity_wind
             trial_energy = base_energy + delta_mass * wind_specific_energy
@@ -2587,7 +2682,15 @@ class Solver:
                 low = middle
         return high
 
-    def SetInterFaceFlux(self, mesh, fluid, boundcond, method="Rusanov", verbose=None, order=0):  # noqa: N802
+    def SetInterFaceFlux(
+        self: Any,
+        mesh: Any,
+        fluid: Any,
+        boundcond: Any,
+        method: Any = "Rusanov",
+        verbose: Any = None,
+        order: Any = 0,
+    ) -> Any:
         """Set interface fluxes using GLF, Rusanov, or HLLC fluxes."""
         from .flux_pipeline import set_interface_flux  # noqa: PLC0415
 
@@ -2601,13 +2704,13 @@ class Solver:
             order=order,
         )
 
-    def _prepare_flux_updates(self, mesh, fluid, par):
+    def _prepare_flux_updates(self: Any, mesh: Any, fluid: Any, par: Any) -> Any:
         # Shift the face fluxes so each cell receives the net in-flow minus
         # out-flow through its two bounding faces.
         geometry = self._geometry_state(mesh, par)
         area_runtime_code = geometry.area_runtime_code
         pressure_runtime_code = None
-        velocity_runtime_code = None
+        velocity_runtime_code: Any = None
         if getattr(mesh, "coordsys", None) == "spherical" or (
             self._dual_energy_enabled(par) and hasattr(fluid, "InternalEnergy_code")
         ):
@@ -2703,17 +2806,17 @@ class Solver:
         }
 
     def _update_dual_energy_from_flux(
-        self,
-        dt,
-        mesh,
-        fluid,
-        par,
-        old_mass_for_internal,
-        area_runtime_code,
-        pressure_runtime_code,
-        internal_flux,
-        face_velocity,
-    ):
+        self: Any,
+        dt: Any,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        old_mass_for_internal: Any,
+        area_runtime_code: Any,
+        pressure_runtime_code: Any,
+        internal_flux: Any,
+        face_velocity: Any,
+    ) -> Any:
         # Couple the dual-energy advection to the same face coefficients
         # used by the conservative update.  Applying the minimum face
         # coefficient globally defeats the purpose of the local limiter.
@@ -2907,7 +3010,7 @@ class Solver:
             np.maximum(candidate_internal, 0.0),
         )
 
-    def AddFluxes(self, dt: float, mesh, fluid, boundcond):  # noqa: N802
+    def AddFluxes(self: Any, dt: float, mesh: Any, fluid: Any, boundcond: Any) -> Any:
         """Apply interface fluxes to conserved quantities and advance time."""
         old_mass_for_internal = np.asarray(fluid.Mass_code, dtype=float).copy()
         par = getattr(mesh, "par", getattr(mesh, "_par", None))
@@ -2956,21 +3059,29 @@ class Solver:
         else:
             fluid.time_proper_code += dt
 
-    def _gravity_model(self, *args, **kwargs):
+    def _gravity_model(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .gravity_sources import _gravity_model  # noqa: PLC0415
 
         return _gravity_model(self, *args, **kwargs)
 
-    def gravity_model(self, *args, **kwargs):
+    def gravity_model(self: Any, *args: Any, **kwargs: Any) -> Any:
         """Return the configured gravity model."""
         return self._gravity_model(*args, **kwargs)
 
-    def ApplyGravity(self, *args, **kwargs):  # noqa: N802
+    def ApplyGravity(self: Any, *args: Any, **kwargs: Any) -> Any:
         from .gravity_sources import ApplyGravity  # noqa: PLC0415
 
         return ApplyGravity(self, *args, **kwargs)
 
-    def AdvectIonizationFraction(self, dt, mesh, fluid, par, old_mass, mass_flux):  # noqa: N802
+    def AdvectIonizationFraction(
+        self: Any,
+        dt: Any,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        old_mass: Any,
+        mass_flux: Any,
+    ) -> Any:
         """Advect the chemistry fraction consistently with the mass flux."""
         return rtc.advect_ionization_fraction(
             dt,
@@ -2981,11 +3092,18 @@ class Solver:
             mass_flux,
         )
 
-    def GetSourceTimestepFast(self, mesh, fluid, par, remaining):  # noqa: N802
+    def GetSourceTimestepFast(self: Any, mesh: Any, fluid: Any, par: Any, remaining: Any) -> Any:
         """Return a source substep for RT-coupled heating/chemistry."""
         return rtc.get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining)
 
-    def ApplyThermochemistryFast(self, dt, mesh, fluid, par, transport_result=None):  # noqa: N802
+    def ApplyThermochemistryFast(
+        self: Any,
+        dt: Any,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        transport_result: Any = None,
+    ) -> Any:
         """Fast source update for RT-coupled thermo-chemistry tests."""
         return rtc.apply_thermochemistry_fast(
             dt,
@@ -2995,7 +3113,14 @@ class Solver:
             transport_result=transport_result,
         )
 
-    def ApplyRadiationPressure(self, dt, mesh, fluid, par, source_result):  # noqa: N802
+    def ApplyRadiationPressure(
+        self: Any,
+        dt: Any,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        source_result: Any,
+    ) -> Any:
         """Apply momentum from photons consumed by the thermo-chemistry step."""
         from .radiation import apply_radiation_pressure  # noqa: PLC0415
 
@@ -3008,13 +3133,13 @@ class Solver:
             source_result,
         )
 
-    def SetBoundary(self, mesh, fluid, par):  # noqa: N802
+    def SetBoundary(self: Any, mesh: Any, fluid: Any, par: Any) -> Any:
         """Fill ghost cells according to the selected boundary condition."""
         from .boundaries import set_boundary  # noqa: PLC0415
 
         return set_boundary(self, mesh, fluid, par)
 
-    def GetTimeStep(self, mesh, fluid, par, CFL=None):  # noqa: N802, N803
+    def GetTimeStep(self: Any, mesh: Any, fluid: Any, par: Any, CFL: Any = None) -> Any:
         """Return a CFL-limited timestep in the active time coordinate."""
         from .timestep import get_time_step  # noqa: PLC0415
 

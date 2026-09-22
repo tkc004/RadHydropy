@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Gravity helpers for optional self-gravity and external potentials."""
 
+from typing import Any
+
 import numpy as np
 import unyt
 
@@ -15,7 +17,7 @@ from radhydropy.units import (
 )
 
 
-def _canonical_mesh_geometry_arrays(mesh, par):
+def _canonical_mesh_geometry_arrays(mesh: Any, par: Any) -> tuple[Any, Any, Any, Any, Any]:
     """Return geometry arrays through an explicit proper/comoving branch."""
     geometry = mesh.geometry_state
     if getattr(par, "supercomoving_coordinates", False):
@@ -35,25 +37,27 @@ def _canonical_mesh_geometry_arrays(mesh, par):
     )
 
 
-def _require_code_units(code_units):
+def _require_code_units(code_units: Any) -> Any:
     if code_units is None:
         raise ValueError("gravity helpers require code_units")
     return code_units
 
 
-def _cosmology_model(cosmology):
+def _cosmology_model(cosmology: Any) -> Any:
     """Resolve the structured cosmology container to its background model."""
     model = getattr(cosmology, "model", None)
     return model if model is not None else cosmology
 
 
-def _as_quantity(value, unit):
+def _as_quantity(value: Any, unit: Any) -> Any:
     if hasattr(value, "to_value"):
         return np.asarray(value.to_value(unit), dtype=float) * unit
     return np.asarray(value, dtype=float) * unit
 
 
-def point_mass_potential(radius, mass, softening=0.0 * unyt.cm, code_units=None):
+def point_mass_potential(
+    radius: Any, mass: Any, softening: Any = 0.0 * unyt.cm, code_units: Any = None,
+) -> Any:
     r"""Return the gravitational potential of a softened point mass."""
     if code_units is None:
         radius_q = _as_quantity(radius, unyt.cm)
@@ -72,12 +76,12 @@ def point_mass_potential(radius, mass, softening=0.0 * unyt.cm, code_units=None)
 
 
 def singular_isothermal_potential(
-    radius,
-    sigma,
-    reference_radius=1.0 * unyt.cm,
-    softening=0.0 * unyt.cm,
-    code_units=None,
-):
+    radius: Any,
+    sigma: Any,
+    reference_radius: Any = 1.0 * unyt.cm,
+    softening: Any = 0.0 * unyt.cm,
+    code_units: Any = None,
+) -> Any:
     r"""Return the potential for a singular isothermal sphere."""
     if code_units is None:
         radius_q = _as_quantity(radius, unyt.cm)
@@ -98,12 +102,12 @@ def singular_isothermal_potential(
 
 
 def nfw_potential(
-    radius,
-    rho_s,
-    r_s,
-    softening=0.0 * unyt.cm,
-    code_units=None,
-):
+    radius: Any,
+    rho_s: Any,
+    r_s: Any,
+    softening: Any = 0.0 * unyt.cm,
+    code_units: Any = None,
+) -> Any:
     r"""Return the gravitational potential for an NFW halo."""
     if code_units is None:
         radius_q = _as_quantity(radius, unyt.cm)
@@ -150,19 +154,19 @@ class Gravity:
 
     def __init__(
         self,
-        selfgravity=0,
-        externalgravity=0,
-        potential=None,
-        coordinate=None,
-        acceleration=None,
-        code_units=None,
-        selfgravity_softening=0.0,
-        selfgravity_boundary_acceleration=0.0,
-        dark_matter=None,
+        selfgravity: Any = 0,
+        externalgravity: Any = 0,
+        potential: Any = None,
+        coordinate: Any = None,
+        acceleration: Any = None,
+        code_units: Any = None,
+        selfgravity_softening: Any = 0.0,
+        selfgravity_boundary_acceleration: Any = 0.0,
+        dark_matter: Any = None,
         *,
-        cosmological=False,
-        cosmology=None,
-    ):
+        cosmological: bool = False,
+        cosmology: Any = None,
+    ) -> None:
         self.selfgravity = bool(selfgravity)
         self.externalgravity = bool(externalgravity)
         self.potential = potential
@@ -175,23 +179,23 @@ class Gravity:
         self.cosmological = bool(cosmological)
         self.cosmology = cosmology
 
-    def has_external_field(self):
+    def has_external_field(self) -> bool:
         """Return ``True`` when an external field has been configured."""
         return self.externalgravity and (
             self.potential is not None or self.acceleration is not None
         )
 
-    def set_potential(self, potential, coordinate=None):
+    def set_potential(self, potential: Any, coordinate: Any = None) -> None:
         """Update the stored gravitational potential."""
         self.potential = potential
         if coordinate is not None:
             self.coordinate = coordinate
 
-    def set_acceleration(self, acceleration):
+    def set_acceleration(self, acceleration: Any) -> None:
         """Update the stored gravitational acceleration."""
         self.acceleration = acceleration
 
-    def _tabulated_quantity(self, values, coordinate, label):
+    def _tabulated_quantity(self, values: Any, coordinate: Any, label: str) -> Any:
         """Interpolate a tabulated quantity onto the requested coordinates."""
         code_units = _require_code_units(_code_units(self))
         if coordinate is None:
@@ -213,7 +217,7 @@ class Gravity:
             raise ValueError(f"{label} requires tabulated values with the same shape as coordinate")
         return np.interp(coordinate, grid, values)
 
-    def potential_on(self, coordinate):
+    def potential_on(self, coordinate: Any) -> Any:
         """Return the external gravitational potential on ``coordinate``."""
         code_units = _require_code_units(_code_units(self))
         if self.potential is None:
@@ -222,7 +226,7 @@ class Gravity:
             return quantity_to_value(self.potential(coordinate), _potential_unit(code_units))
         return self._tabulated_quantity(self.potential, coordinate, "potential")
 
-    def acceleration_on(self, coordinate):
+    def acceleration_on(self, coordinate: Any) -> Any:
         """Return the gravitational acceleration on ``coordinate``."""
         code_units = _require_code_units(_code_units(self))
         if self.acceleration is not None:
@@ -246,7 +250,7 @@ class Gravity:
         gradient = np.gradient(potential, coord)
         return -gradient
 
-    def potential_on_mesh(self, mesh):
+    def potential_on_mesh(self, mesh: Any) -> Any:
         """Return the potential evaluated on a mesh coordinate array."""
         if not hasattr(mesh, "geometry_state"):
             raise AttributeError("mesh does not provide typed geometry state")
@@ -257,7 +261,7 @@ class Gravity:
             )[0],
         )
 
-    def self_acceleration_on_mesh(self, mesh, rho, par):
+    def self_acceleration_on_mesh(self, mesh: Any, rho: Any, par: Any) -> Any:
         """Return the gas self-gravity acceleration on a one-dimensional mesh.
 
         Spherical meshes use the enclosed gas mass. Cartesian meshes use the
@@ -337,7 +341,7 @@ class Gravity:
 
         raise ValueError(f"self-gravity is not implemented for {mesh.coordsys!r} meshes")
 
-    def cosmological_acceleration_on_mesh(self, mesh, rho, par):
+    def cosmological_acceleration_on_mesh(self, mesh: Any, rho: Any, par: Any) -> Any:
         """Return supercomoving acceleration from enclosed density contrast.
 
         The mesh coordinate is comoving radius ``x`` and ``rho`` is comoving
@@ -447,7 +451,7 @@ class Gravity:
             result[first + origin[0]] = 0.0
         return result
 
-    def acceleration_on_mesh(self, mesh, rho=None, par=None):
+    def acceleration_on_mesh(self, mesh: Any, rho: Any = None, par: Any = None) -> Any:
         """Return the total external plus self-gravity acceleration."""
         coordinate = _canonical_mesh_geometry_arrays(
             mesh,
@@ -469,7 +473,7 @@ class Gravity:
             total += self.dark_matter_acceleration_on_mesh(mesh, rho, par)
         return total
 
-    def dark_matter_acceleration_on_mesh(self, mesh, rho, par):
+    def dark_matter_acceleration_on_mesh(self, mesh: Any, rho: Any, par: Any) -> Any:
         """Return the acceleration from live dark-matter shells."""
         if self.dark_matter is None:
             return np.zeros_like(_canonical_mesh_geometry_arrays(mesh, par)[0], dtype=float)
@@ -491,13 +495,13 @@ class Gravity:
 
     def advance_dark_matter(
         self,
-        dt,
-        mesh,
-        rho,
-        par,
-        crossing_safety_factor=0.1,
-        tau_supercomoving_code=None,
-    ):
+        dt: Any,
+        mesh: Any,
+        rho: Any,
+        par: Any,
+        crossing_safety_factor: float = 0.1,
+        tau_supercomoving_code: Any = None,
+    ) -> Any:
         """Advance live dark-matter shells using the current gas mass field.
 
         ``tau_supercomoving_code`` is the current supercomoving time. Fluid-coupled
@@ -512,10 +516,11 @@ class Gravity:
         # cached piecewise-constant profile at the current shell radii.
         if rho is None:
 
-            def gas_mass(radius):
+            def gas_mass(radius: Any) -> Any:
                 return np.zeros_like(np.asarray(radius), dtype=float)
         else:
             gas_mass = prepare_enclosed_gas_mass(mesh, rho, par)
+        background_mass: Any = None
         if self.cosmological:
             cosmology = _cosmology_model(self.cosmology or getattr(par, "cosmology", None))
             if cosmology is None or not getattr(par, "supercomoving_coordinates", False):
@@ -547,12 +552,11 @@ class Gravity:
             # Re-evaluate the homogeneous mass at the shell radius used by
             # each kick.  Passing a frozen array here applies the old-radius
             # background after the drift and corrupts linear growth.
-            def background_mass(radius):
+            def background_mass(radius: Any) -> Any:
                 return 4.0 * np.pi / 3.0 * background_density * np.asarray(radius) ** 3
         else:
             scale_factor = 1.0
             scale_factor_start = 1.0
-            background_mass = None
         return self.dark_matter.step(
             dt,
             crossing_safety_factor=crossing_safety_factor,
@@ -569,6 +573,6 @@ class Gravity:
             include_shell_mass_with_fixed=self.cosmological,
         )
 
-    def force_density_on_mesh(self, mesh, rho):
+    def force_density_on_mesh(self, mesh: Any, rho: Any) -> Any:
         """Return the gravitational force density ``rho * g`` on a mesh."""
         return np.asarray(rho, dtype=float) * self.acceleration_on_mesh(mesh)

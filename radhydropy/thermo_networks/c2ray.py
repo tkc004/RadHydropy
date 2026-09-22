@@ -15,6 +15,7 @@ instantaneous path remains available when explicitly selected.
 import warnings
 from dataclasses import dataclass
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 import unyt
@@ -43,15 +44,15 @@ from radhydropy.units import (
 class C2RayResult:
     """Result of one causal C2-Ray source step."""
 
-    photon_density: np.ndarray
-    absorbed_photon_rate: np.ndarray
-    outgoing_photon_rate: np.ndarray
-    mean_neutral_fraction: np.ndarray
-    converged: np.ndarray
-    iterations: np.ndarray
+    photon_density: Any
+    absorbed_photon_rate: Any
+    outgoing_photon_rate: Any
+    mean_neutral_fraction: Any
+    converged: Any
+    iterations: Any
 
 
-def _group_parameters(par):
+def _group_parameters(par: Any) -> Any:
     radiation = getattr(par, "radiation", None)
     edges = getattr(par, "radiation_group_edges_eV", None)
     if edges is None:
@@ -97,7 +98,7 @@ def _group_parameters(par):
     return sigma, epsilon, boundary_flux, source_rate
 
 
-def _group_species_parameters(par, radiation, edges):
+def _group_species_parameters(par: Any, radiation: Any, edges: Any) -> Any:
     if edges is None:
         return (
             1,
@@ -130,7 +131,7 @@ def _group_species_parameters(par, radiation, edges):
     return edges.size - 1, sigma, epsilon
 
 
-def _group_flux_parameters(par, radiation):
+def _group_flux_parameters(par: Any, radiation: Any) -> Any:
     boundary_flux = _first_configured(
         getattr(par, "radiative_transfer_boundary_flux_groups", None),
         getattr(par, "radiative_transfer_boundary_flux", None),
@@ -144,11 +145,11 @@ def _group_flux_parameters(par, radiation):
     return boundary_flux, source_rate
 
 
-def _first_configured(*values):
+def _first_configured(*values: Any) -> Any:
     return next(value for value in values if value is not None)
 
 
-def _state_geometry(state, par):
+def _state_geometry(state: Any, par: Any) -> Any:
     """Build shared RT geometry from a C²-Ray source state."""
     boundary_cgs_cm = np.asarray(state["boundary_cgs_cm"], dtype=float)
     volume_cgs_cm3 = np.asarray(state["volume_cgs_cm3"], dtype=float)
@@ -162,7 +163,7 @@ def _state_geometry(state, par):
     return rrt.build_transport_geometry(mesh, mesh.coordsys)
 
 
-def _source_rates(par, face_area):
+def _source_rates(par: Any, face_area: Any) -> Any:
     sigma, epsilon, boundary_flux, source_rate = _group_parameters(par)
     direction = 1 if getattr(par, "radiative_transfer_direction", 1) >= 0 else -1
     source_face = 0 if direction > 0 else -1
@@ -177,28 +178,28 @@ def _source_rates(par, face_area):
     return sigma, epsilon, incoming, direction
 
 
-def _cell_order(ncell, direction):
+def _cell_order(ncell: int, direction: Any) -> Any:
     return range(ncell) if direction > 0 else range(ncell - 1, -1, -1)
 
 
-def _cell_values(value, ncell):
+def _cell_values(value: Any, ncell: int) -> Any:
     array = np.asarray(value, dtype=float)
     if array.ndim == 0:
         return np.full(ncell, float(array), dtype=float)
     return array
 
 
-def trace_initial_state(state, par):
+def trace_initial_state(state: Any, par: Any) -> Any:
     """Trace the current state without changing its chemistry."""
     return _advance(state, par, dt_s=0.0, update_chemistry=False)
 
 
-def advance_state(state, par, dt_s):
+def advance_state(state: Any, par: Any, dt_s: Any) -> Any:
     """Advance one hydrogen source step using strict causal C2-Ray ordering."""
     return _advance(state, par, float(dt_s), update_chemistry=True)
 
 
-def _front_radius_kpc(state, neutral_fraction=0.5):
+def _front_radius_kpc(state: Any, neutral_fraction: Any = 0.5) -> float:
     ionized = np.asarray(state["xHI"]) <= neutral_fraction
     if not np.any(ionized):
         return 0.0
@@ -213,7 +214,7 @@ def _front_radius_kpc(state, neutral_fraction=0.5):
     return float(radius[left] + weight * (radius[right] - radius[left]))
 
 
-def _recombination_rate(state, par):
+def _recombination_rate(state: Any, par: Any) -> float:
     alpha = state.get("alpha_B_cgs_cm3_s", getattr(par, "hydrogen_alpha_B", None))
     if alpha is None:
         alpha = hydrogen.cgs_alpha_B(state["temperature_cgs_K"])
@@ -227,10 +228,19 @@ def _recombination_rate(state, par):
     )
 
 
-def _append_history(history, state, ngamma_cgs_cm3, time_s, recombined, source_rate_s):
+def _append_history(
+    history: Any,
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    time_s: Any,
+    recombined: Any,
+    source_rate_s: Any,
+) -> None:
     ionized = 1.0 - state["xHI"]
-    ionized_atoms = np.sum(ionized * state["nH_cgs_cm3"] * state["volume_cgs_cm3"])
-    volume_photons = np.sum(ngamma_cgs_cm3 * state["volume_cgs_cm3"])
+    ionized_atoms: Any = np.sum(
+        ionized * state["nH_cgs_cm3"] * state["volume_cgs_cm3"],
+    )
+    volume_photons: Any = np.sum(ngamma_cgs_cm3 * state["volume_cgs_cm3"])
     history["time_Myr"].append(time_s / (1.0 * unyt.Myr).to_value(unyt.s))
     history["front_radius_kpc"].append(_front_radius_kpc(state))
     history["injected_photons"].append(source_rate_s * time_s)
@@ -250,15 +260,15 @@ def _append_history(history, state, ngamma_cgs_cm3, time_s, recombined, source_r
 
 
 def evolve_static_state(
-    state,
-    par,
-    final_time_s,
-    dtmax_s,
-    source_rate_s=0.0,
+    state: Any,
+    par: Any,
+    final_time_s: Any,
+    dtmax_s: Any,
+    source_rate_s: Any = 0.0,
     *,
-    include_thermal_history=False,
-    reference_time_s=None,
-):
+    include_thermal_history: Any = False,
+    reference_time_s: Any = None,
+) -> Any:
     """Evolve a fixed-density hydrogen state with causal C²-Ray transport."""
     initial = trace_initial_state(state, par)
     ngamma_cgs_cm3 = (
@@ -267,7 +277,7 @@ def evolve_static_state(
         else initial.photon_density
     )
     state["ngamma_cgs_cm3"] = ngamma_cgs_cm3
-    history = {
+    history: dict[str, Any] = {
         "time_Myr": [],
         "front_radius_kpc": [],
         "injected_photons": [],
@@ -317,7 +327,7 @@ def evolve_static_state(
     return history
 
 
-def _advance(state, par, dt_s, update_chemistry):
+def _advance(state: Any, par: Any, dt_s: Any, update_chemistry: Any) -> Any:
     network = getattr(par, "thermochemistry_network", "hydrogen")
     if network == "hydrogen_helium":
         return _advance_hydrogen_helium(state, par, dt_s, update_chemistry)
@@ -438,29 +448,29 @@ def _advance(state, par, dt_s, update_chemistry):
 
 
 def _advance_hydrogen_cell(
-    geometry,
-    incoming,
-    cell,
-    direction,
-    hydrogen_density,
-    initial_fraction,
-    width,
-    volume,
-    sigma,
-    alpha,
-    beta,
-    recombination,
-    collisional,
-    dt_s,
-    update_chemistry,
-    max_iterations,
-    tolerance,
-    relaxation,
-):
+    geometry: Any,
+    incoming: Any,
+    cell: int,
+    direction: Any,
+    hydrogen_density: Any,
+    initial_fraction: Any,
+    width: Any,
+    volume: Any,
+    sigma: Any,
+    alpha: Any,
+    beta: Any,
+    recombination: Any,
+    collisional: Any,
+    dt_s: Any,
+    update_chemistry: Any,
+    max_iterations: int,
+    tolerance: Any,
+    relaxation: Any,
+) -> Any:
     xmean = initial_fraction
     xfinal = initial_fraction
     cell_converged = not update_chemistry or dt_s == 0.0
-    cell_transport = None
+    cell_transport: Any = None
     iteration_range = range(1, max_iterations + 1) if update_chemistry else range(1)
     iteration = 0
     for _iteration in iteration_range:
@@ -499,17 +509,17 @@ def _advance_hydrogen_cell(
 
 
 def _update_hydrogen_thermal_state(
-    state,
-    par,
-    temperature,
-    mean_fraction,
-    photon_density,
-    sigma,
-    epsilon,
-    recombination,
-    collisional,
-    dt_s,
-):
+    state: Any,
+    par: Any,
+    temperature: Any,
+    mean_fraction: Any,
+    photon_density: Any,
+    sigma: Any,
+    epsilon: Any,
+    recombination: Any,
+    collisional: Any,
+    dt_s: Any,
+) -> None:
     thermal_rate = hydrogen.cgs_source_thermal_rate(
         state["rho_cgs_g_cm3"],
         temperature,
@@ -548,7 +558,7 @@ def _update_hydrogen_thermal_state(
         hydrogen.update_temperature_from_energy(state)
 
 
-def _hhe_cell_state(state, cell):
+def _hhe_cell_state(state: Any, cell: int) -> Any:
     """Extract a one-cell H/He source state for the local implicit solve."""
     local = dict(state)
     for key in (
@@ -563,7 +573,7 @@ def _hhe_cell_state(state, cell):
     return local
 
 
-def _hhe_project(values):
+def _hhe_project(values: Any) -> Any:
     """Project Newton variables onto the physical H/He state domain."""
     projected = np.asarray(values, dtype=float).copy()
     projected[0] = np.clip(projected[0], 1.0e-12, 1.0 - 1.0e-12)
@@ -577,7 +587,7 @@ def _hhe_project(values):
     return projected
 
 
-def _hhe_set_trial(local, values):
+def _hhe_set_trial(local: Any, values: Any) -> None:
     """Set a bounded H/He Newton trial and refresh its thermodynamic closure."""
     xhi, xhei, xheiii, energy = _hhe_project(values)
     local["xHI"][:] = xhi
@@ -587,7 +597,7 @@ def _hhe_set_trial(local, values):
     hydrogen_helium.update_temperature_from_energy(local)
 
 
-def _hhe_derivative(local, photon_density):
+def _hhe_derivative(local: Any, photon_density: Any) -> Any:
     """Return d(xHI,xHeI,xHeIII,u)/dt for one H/He cell.
 
     ``hydrogen_helium.rates`` includes the optional metal PIE closure in the
@@ -618,7 +628,9 @@ def _hhe_derivative(local, photon_density):
     )
 
 
-def _hhe_backward_euler_step(local, photon_density, dt_s, par):
+def _hhe_backward_euler_step(
+    local: Any, photon_density: Any, dt_s: Any, par: Any,
+) -> Any:
     """Take one damped-Newton backward-Euler step for one H/He cell."""
     old = np.array(
         [
@@ -678,7 +690,14 @@ def _hhe_backward_euler_step(local, photon_density, dt_s, par):
     return trial, False
 
 
-def _hhe_finite_difference_jacobian(local, photon_density, trial, old, residual, dt_s):
+def _hhe_finite_difference_jacobian(
+    local: Any,
+    photon_density: Any,
+    trial: Any,
+    old: Any,
+    residual: Any,
+    dt_s: Any,
+) -> Any:
     jacobian = np.empty((4, 4), dtype=float)
     for column in range(4):
         perturbation = max(abs(trial[column]) * 1.0e-6, 1.0e-8)
@@ -696,21 +715,30 @@ def _hhe_finite_difference_jacobian(local, photon_density, trial, old, residual,
     return jacobian
 
 
-def _hhe_damped_newton_step(local, photon_density, trial, old, residual, scales, correction, dt_s):
-    residual_norm = np.max(np.abs(residual) / scales)
+def _hhe_damped_newton_step(
+    local: Any,
+    photon_density: Any,
+    trial: Any,
+    old: Any,
+    residual: Any,
+    scales: Any,
+    correction: Any,
+    dt_s: Any,
+) -> Any:
+    residual_norm: Any = np.max(np.abs(residual) / scales)
     damping = 1.0
     for _ in range(12):
         candidate = _hhe_project(trial + damping * correction)
         _hhe_set_trial(local, candidate)
         candidate_residual = candidate - old - dt_s * _hhe_derivative(local, photon_density)
-        candidate_norm = np.max(np.abs(candidate_residual) / scales)
+        candidate_norm: Any = np.max(np.abs(candidate_residual) / scales)
         if np.isfinite(candidate_norm) and candidate_norm < residual_norm:
             return candidate, True
         damping *= 0.5
     return trial, False
 
 
-def _hhe_backward_euler(local, photon_density, dt_s, par):
+def _hhe_backward_euler(local: Any, photon_density: Any, dt_s: Any, par: Any) -> Any:
     """Advance one H/He cell, substepping only when the implicit solve needs it.
 
     The causal transport remains cell-by-cell, while this local fallback keeps
@@ -745,7 +773,7 @@ def _hhe_backward_euler(local, photon_density, dt_s, par):
     return values, False
 
 
-def _hhe_group_parameters(state, par):
+def _hhe_group_parameters(state: Any, par: Any) -> Any:
     sigma = {
         species: np.asarray(values, dtype=float)
         for species, values in state["sigma_gamma_cgs_cm2"].items()
@@ -758,7 +786,9 @@ def _hhe_group_parameters(state, par):
     return sigma, epsilon, boundary_flux, source_rate
 
 
-def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
+def _advance_hydrogen_helium(
+    state: Any, par: Any, dt_s: Any, update_chemistry: Any,
+) -> Any:
     """Advance coupled H/He chemistry with causal multigroup C²-Ray transport."""
     geometry = _state_geometry(state, par)
     sigma_species, _epsilon_species, boundary_flux, source_rate = _hhe_group_parameters(
@@ -814,7 +844,7 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
         xhei_mean = xhei_initial[cell]
         xheiii_mean = xheiii_initial[cell]
         local = _hhe_cell_state(state, cell)
-        cell_transport = None
+        cell_transport: Any = None
         cell_converged = not update_chemistry or dt_s == 0.0
         iteration_range = range(1, max_iterations + 1) if update_chemistry else range(1)
         iteration = 0
@@ -917,7 +947,7 @@ def _advance_hydrogen_helium(state, par, dt_s, update_chemistry):
     )
 
 
-def apply_fast(dt, mesh, fluid, par):
+def apply_fast(dt: Any, mesh: Any, fluid: Any, par: Any) -> Any:
     """Apply one strict C2-Ray source step to the fast hydrogen state."""
     network = getattr(par, "thermochemistry_network", "hydrogen")
     if network == "hydrogen_helium":
@@ -938,7 +968,7 @@ def apply_fast(dt, mesh, fluid, par):
         hydrogen_helium.apply_state(state, fluid, par)
     else:
         hydrogen.sync_c2ray_state(state, fluid, par)
-    energy = getattr(par, "ionizing_photon_energy_cgs_erg", None)
+    energy: Any = getattr(par, "ionizing_photon_energy_cgs_erg", None)
     if energy is None:
         energy = getattr(par, "hydrogen_photon_energy", 0.0)
     if hasattr(energy, "to_value"):
@@ -951,7 +981,7 @@ def apply_fast(dt, mesh, fluid, par):
     }
 
 
-def _ensure_fluid_photon_shape(fluid, photon_density, par):
+def _ensure_fluid_photon_shape(fluid: Any, photon_density: Any, par: Any) -> None:
     """Resize the runtime photon field when a spectrum changes group count."""
     target = np.shape(photon_density)
     if np.shape(getattr(fluid, "ngamma_code", None)) == target:
@@ -967,7 +997,9 @@ def _ensure_fluid_photon_shape(fluid, photon_density, par):
     )
 
 
-def sync_fluid_photon_density(fluid, photon_density, par, interior):
+def sync_fluid_photon_density(
+    fluid: Any, photon_density: Any, par: Any, interior: Any,
+) -> None:
     """Write a C²-Ray photon density into the runtime fluid field."""
     _ensure_fluid_photon_shape(fluid, photon_density, par)
     code = _code_units(par)

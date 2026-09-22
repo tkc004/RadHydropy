@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Numerical and thermodynamic helper functions."""
 
+from typing import Any
+
 import numpy as np
 import unyt
 
 from radhydropy.arrays import as_named_array
 
 
-def periodic_roll(values, shift):
+def periodic_roll(values: Any, shift: int) -> Any:
     """Return a 1D periodic shift without calling ``np.roll``."""
     out = np.empty_like(values)
     if out.size == 0:
@@ -23,7 +25,7 @@ def periodic_roll(values, shift):
     return out
 
 
-def SafeDivide(numerator, denominator):  # noqa: N802
+def SafeDivide(numerator: Any, denominator: Any) -> Any:  # noqa: N802
     """Divide two ``unyt`` quantities and return zero where the denominator is zero."""
     if hasattr(numerator, "units") or hasattr(denominator, "units"):
         numerator_value, denominator_value = np.broadcast_arrays(
@@ -56,7 +58,7 @@ def SafeDivide(numerator, denominator):  # noqa: N802
     return as_named_array(quotient)
 
 
-def CalPressure(rho, temp, mu):  # noqa: N802
+def CalPressure(rho: Any, temp: Any, mu: Any) -> Any:  # noqa: N802
     """Calculate ideal-gas pressure from density, temperature, and molecular weight."""
     if hasattr(rho, "units") or hasattr(temp, "units"):
         return rho / (mu * unyt.mp) * unyt.kb * temp
@@ -65,7 +67,7 @@ def CalPressure(rho, temp, mu):  # noqa: N802
     )
 
 
-def CalTemperature(rho, pressure, mu):  # noqa: N802
+def CalTemperature(rho: Any, pressure: Any, mu: Any) -> Any:  # noqa: N802
     """Calculate ideal-gas temperature from density, pressure, and molecular weight."""
     if not (hasattr(rho, "units") or hasattr(pressure, "units")):
         return (
@@ -77,12 +79,12 @@ def CalTemperature(rho, pressure, mu):  # noqa: N802
     return (pressure_over_rho * (mu * unyt.mp) / unyt.kb).to(unyt.K)
 
 
-def CalEnergyDensity(pressure, gamma):  # noqa: N802
+def CalEnergyDensity(pressure: Any, gamma: Any) -> Any:  # noqa: N802
     """Calculate thermal energy density for a polytropic gas."""
     return pressure / (gamma - 1.0)
 
 
-def CalSoundSpeed(pressure, rho, gamma):  # noqa: N802
+def CalSoundSpeed(pressure: Any, rho: Any, gamma: Any) -> Any:  # noqa: N802
     """Calculate adiabatic sound speed and zero invalid values."""
     if not (hasattr(pressure, "units") or hasattr(rho, "units")):
         pressure_over_rho = SafeDivide(pressure, rho)
@@ -95,7 +97,7 @@ def CalSoundSpeed(pressure, rho, gamma):  # noqa: N802
     return soundspeed
 
 
-def CheckParamDimen(params):  # noqa: N802
+def CheckParamDimen(params: Any) -> bool | str:  # noqa: N802
     """Validate known dimensional parameters.
 
     Returns ``True`` when all recognized parameters have compatible dimensions;
@@ -118,7 +120,7 @@ def CheckParamDimen(params):  # noqa: N802
     return True
 
 
-def CheckDimension(a, dimcheck):  # noqa: N802
+def CheckDimension(a: Any, dimcheck: Any) -> None:  # noqa: N802
     """Raise a ``unyt`` error if ``a`` is not dimensionally compatible."""
     if not hasattr(a, "units"):
         return
@@ -129,17 +131,17 @@ def CheckDimension(a, dimcheck):  # noqa: N802
     del _validated
 
 
-def gaussian(x, mu, sig):
+def gaussian(x: Any, mu: Any, sig: Any) -> Any:
     """Evaluate a normalized one-dimensional Gaussian profile."""
     return np.exp(-0.5 * np.power(x - mu, 2.0) / np.power(sig, 2.0)) / (np.sqrt(2.0 * np.pi) * sig)
 
 
-def gaussiansph(r, sig):
+def gaussiansph(r: Any, sig: Any) -> Any:
     """Evaluate a normalized spherical Gaussian profile."""
     return np.exp(-0.5 * np.power(r, 2.0) / np.power(sig, 2.0)) / (np.sqrt(2.0 * np.pi) * sig) ** 3
 
 
-def CalGradient(quan, width_runtime_code):  # noqa: N802
+def CalGradient(quan: Any, width_runtime_code: Any) -> Any:  # noqa: N802
     """Calculate a centered periodic gradient."""
     # only work for periodic boundary condition!
     return (periodic_roll(quan, -1) - periodic_roll(quan, 1)) / (2.0 * width_runtime_code)
@@ -155,7 +157,7 @@ def CalInterFaceFluxGLF(flux_L: float, flux_R: float, q_L: float, q_R: float, cm
     return InterFaceFlux
 
 
-def CalFluxLimiter(rlim, limiter="minmod"):  # noqa: N802
+def CalFluxLimiter(rlim: Any, limiter: str = "minmod") -> Any:  # noqa: N802
     """Calculate a slope limiter from the ratio of neighboring gradients."""
     if limiter == "minmod":
         firststep = np.minimum(np.ones(len(rlim)), rlim)
@@ -178,7 +180,9 @@ def CalFluxLimiter(rlim, limiter="minmod"):  # noqa: N802
     return philim
 
 
-def extrapolateToFace(fluxarray: float, xb: float, fgrad: float, order=1):  # noqa: N802
+def extrapolateToFace(  # noqa: N802
+    fluxarray: Any, xb: Any, fgrad: Any, order: int = 1,
+) -> tuple[Any, Any]:
     """Extrapolate cell-centered values to left and right faces."""
     # numpy roll Rroll, put the right value to this cell
     if order == 0:
@@ -194,7 +198,7 @@ def extrapolateToFace(fluxarray: float, xb: float, fgrad: float, order=1):  # no
     return flux_L, flux_R
 
 
-def GetFQ(rho, vel, pre, gamma):  # noqa: N802
+def GetFQ(rho: Any, vel: Any, pre: Any, gamma: Any) -> tuple[Any, ...]:  # noqa: N802
     """Return Euler fluxes and conserved densities for mass, momentum, and energy."""
     Fmass = rho * vel
     qmass = rho
@@ -207,7 +211,16 @@ def GetFQ(rho, vel, pre, gamma):  # noqa: N802
     return Fmass, qmass, Fmom, qmom, FEn, qEn
 
 
-def CalFluxFromLR(rho_L, rho_R, u_L, u_R, p_L, p_R, gamma, cmax):  # noqa: N802, N803
+def CalFluxFromLR(  # noqa: N802, N803
+    rho_L: Any,
+    rho_R: Any,
+    u_L: Any,
+    u_R: Any,
+    p_L: Any,
+    p_R: Any,
+    gamma: Any,
+    cmax: Any,
+) -> tuple[Any, Any, Any]:
     """Calculate Rusanov/GLF fluxes from left and right primitive states."""
     Fmass_L, qmass_L, Fmom_L, qmom_L, FEn_L, qEn_L = GetFQ(rho_L, u_L, p_L, gamma)
     Fmass_R, qmass_R, Fmom_R, qmom_R, FEn_R, qEn_R = GetFQ(rho_R, u_R, p_R, gamma)
@@ -218,7 +231,9 @@ def CalFluxFromLR(rho_L, rho_R, u_L, u_R, p_L, p_R, gamma, cmax):  # noqa: N802,
     return Mass_flux, Mom_flux, Energy_flux
 
 
-def ApplyFluxLimiter(q, flux_1, flux_0, limiter="minmod"):  # noqa: N802
+def ApplyFluxLimiter(  # noqa: N802
+    q: Any, flux_1: Any, flux_0: Any, limiter: str = "minmod",
+) -> tuple[Any, Any]:
     """Blend first-order and second-order fluxes using a slope limiter."""
     # numpy roll Rroll, put the right value to this cell
     q_l1 = periodic_roll(q, 1)

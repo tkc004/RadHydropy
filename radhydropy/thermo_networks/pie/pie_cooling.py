@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Non-RT photoionization-equilibrium cooling with a fixed UV background."""
 
+from typing import Any
+
 import numpy as np
 
 from radhydropy.constants import BOLTZMANN_CONSTANT_CGS, PROTON_MASS_CGS
@@ -23,22 +25,22 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
     name = "pie_uvbg_cooling"
     scalar_fields = ()
 
-    def enabled(self, fluid, par):
+    def enabled(self, fluid: Any, par: Any) -> bool:
         return bool(
             getattr(par, "metal_pie_enabled", False)
             and getattr(par, "metal_pie_table", None) is not None,
         )
 
-    def radiation_enabled(self, fluid, par):
+    def radiation_enabled(self, fluid: Any, par: Any) -> bool:
         return False
 
-    def radiation_evolution_enabled(self, fluid, par):
+    def radiation_evolution_enabled(self, fluid: Any, par: Any) -> bool:
         return False
 
-    def advect_ionization_fraction(self, *args, **kwargs):
+    def advect_ionization_fraction(self, *args: Any, **kwargs: Any) -> None:
         return None
 
-    def source_state(self, mesh, fluid, par):
+    def source_state(self, mesh: Any, fluid: Any, par: Any) -> Any:
         table = getattr(par, "metal_pie_table", None)
         if table is None:
             raise ValueError("pie_uvbg_cooling requires metal_pie_table")
@@ -70,10 +72,10 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         )
         return state
 
-    def ionization_fraction_rate(self, state, ngamma_cgs_cm3):
+    def ionization_fraction_rate(self, state: dict[str, Any], ngamma_cgs_cm3: Any) -> Any:
         return np.zeros_like(state["temperature_cgs_K"])
 
-    def thermal_rate(self, state, ngamma_cgs_cm3):
+    def thermal_rate(self, state: dict[str, Any], ngamma_cgs_cm3: Any) -> Any:
         nH = state["rho_cgs_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS
         heating, cooling = state["par"].metal_pie_table.rates(
             state["temperature_cgs_K"],
@@ -94,23 +96,33 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
             )
         return heating - cooling
 
-    def get_timestep(self, state, ngamma_cgs_cm3, remaining_s, dtmax_s):
+    def get_timestep(
+        self,
+        state: dict[str, Any],
+        ngamma_cgs_cm3: Any,
+        remaining_s: Any,
+        dtmax_s: Any,
+    ) -> tuple[float, Any]:
         rate = self.thermal_rate(state, ngamma_cgs_cm3)
         thermal_density = state["specific_energy_cgs_erg_g"] * state["rho_cgs_g_cm3"]
         cooling_time = thermal_density / np.maximum(np.abs(rate), 1.0e-99)
-        candidate = np.min(state["cooling_safety_factor"] * cooling_time)
+        candidate: Any = np.min(state["cooling_safety_factor"] * cooling_time)
         return min(float(remaining_s), float(dtmax_s), float(candidate)), rate
 
-    def update_temperature_from_energy(self, state):
+    def update_temperature_from_energy(self, state: dict[str, Any]) -> None:
         _update_temperature(state)
 
-    def ionization_fraction_implicit_update(self, state, ngamma_cgs_cm3, dt_s):
+    def ionization_fraction_implicit_update(
+        self, state: dict[str, Any], ngamma_cgs_cm3: Any, dt_s: Any,
+    ) -> None:
         return None
 
-    def apply_state(self, state, fluid, par):
+    def apply_state(self, state: dict[str, Any], fluid: Any, par: Any) -> None:
         return None
 
-    def get_source_timestep_fast(self, mesh, fluid, par, remaining):
+    def get_source_timestep_fast(
+        self, mesh: Any, fluid: Any, par: Any, remaining: Any,
+    ) -> tuple[Any, Any]:
         state = self.source_state(mesh, fluid, par)
         code = state["code"]
         remaining_s = (
@@ -126,14 +138,22 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         ), rate
 
     @staticmethod
-    def _energy_at_temperature(state, temperature_cgs_K):  # noqa: N803
+    def _energy_at_temperature(
+        state: dict[str, Any], temperature_cgs_K: Any,
+    ) -> Any:  # noqa: N803
         return (
             BOLTZMANN_CONSTANT_CGS
             * np.asarray(temperature_cgs_K, dtype=float)
             / ((state["gamma"] - 1.0) * state["mu"] * PROTON_MASS_CGS)
         )
 
-    def _implicit_energy_step(self, state, old_energy, dt_s, floor_cgs_K):  # noqa: N803
+    def _implicit_energy_step(
+        self,
+        state: dict[str, Any],
+        old_energy: Any,
+        dt_s: Any,
+        floor_cgs_K: Any,
+    ) -> tuple[Any, Any]:  # noqa: N803
         """Solve one backward-Euler thermal step with vectorized bisection."""
         table = state["par"].metal_pie_table
         lower_cgs_K = max(float(floor_cgs_K), 10.0 ** float(table.log_temperature[0]))
@@ -142,7 +162,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         upper = np.full_like(old_energy, upper_cgs_K, dtype=float)
         rho = np.maximum(state["rho_cgs_g_cm3"], 1.0e-99)
 
-        def residual(temperature):
+        def residual(temperature: Any) -> Any:
             trial = dict(state)
             trial["temperature_cgs_K"] = temperature
             rate = self.thermal_rate(trial, None)
@@ -196,7 +216,13 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         trial_energy = np.maximum(trial_energy, floor_energy)
         return trial_energy, successful
 
-    def _implicit_converged_step(self, state, old_energy, dt_s, floor_cgs_K):  # noqa: N803
+    def _implicit_converged_step(
+        self,
+        state: dict[str, Any],
+        old_energy: Any,
+        dt_s: Any,
+        floor_cgs_K: Any,
+    ) -> tuple[Any, Any]:  # noqa: N803
         """Compare a full implicit step with two implicit half steps."""
         full_energy, full_ok = self._implicit_energy_step(
             state,
@@ -233,11 +259,23 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         )
         return half_energy, converged
 
-    def implicit_converged_step(self, state, old_energy, dt_s, floor_cgs_K):  # noqa: N803
+    def implicit_converged_step(
+        self,
+        state: dict[str, Any],
+        old_energy: Any,
+        dt_s: Any,
+        floor_cgs_K: Any,
+    ) -> tuple[Any, Any]:  # noqa: N803
         """Perform one converged implicit thermal update."""
         return self._implicit_converged_step(state, old_energy, dt_s, floor_cgs_K)
 
-    def _explicit_fallback_step(self, state, old_energy, remaining_s, floor_cgs_K):  # noqa: N803
+    def _explicit_fallback_step(
+        self,
+        state: dict[str, Any],
+        old_energy: Any,
+        remaining_s: Any,
+        floor_cgs_K: Any,
+    ) -> tuple[Any, Any]:  # noqa: N803
         """Advance one chunk with the existing cooling-time subcycling."""
         state["specific_energy_cgs_erg_g"] = old_energy.copy()
         _update_temperature(state)
@@ -255,7 +293,7 @@ class PIEUVBGCoolingNetwork(ThermochemistryNetwork):
         )
         return state["specific_energy_cgs_erg_g"].copy(), dt_s
 
-    def apply_fast(self, dt, mesh, fluid, par):
+    def apply_fast(self, dt: Any, mesh: Any, fluid: Any, par: Any) -> int:
         state = self.source_state(mesh, fluid, par)
         code = state["code"]
         remaining_s = float(to_unit_value(dt, code.time_unit)) * state["source_scale_factor"] ** 2

@@ -4,6 +4,7 @@
 
 import hashlib
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -16,13 +17,13 @@ except ImportError:  # pragma: no cover - optional dependency shape
     SympyBasic = None
 
 
-def _provenance_quantity_value(value):
+def _provenance_quantity_value(value: Any) -> dict[str, Any]:
     numeric_value = np.asarray(value.value)
     numeric_value = numeric_value.item() if numeric_value.ndim == 0 else numeric_value.tolist()
     return {"value": numeric_value, "unit": str(value.units)}
 
 
-def _provenance_mapping_value(value):
+def _provenance_mapping_value(value: Any) -> dict[str, Any]:
     return {
         str(key): _provenance_yaml_value(item)
         for key, item in value.items()
@@ -30,12 +31,13 @@ def _provenance_mapping_value(value):
     }
 
 
-def _provenance_sequence_value(value):
+def _provenance_sequence_value(value: Any) -> list[Any]:
     return [_provenance_yaml_value(item) for item in value]
 
 
-def _provenance_yaml_value(value):
+def _provenance_yaml_value(value: Any) -> Any:
     """Convert nested configuration values into YAML-safe values."""
+    converted: Any
     if isinstance(value, unyt.array.unyt_array):
         converted = _provenance_quantity_value(value)
     elif isinstance(value, dict):
@@ -53,7 +55,7 @@ def _provenance_yaml_value(value):
     return converted
 
 
-def _provenance_yaml_text(value):
+def _provenance_yaml_text(value: Any) -> Any:
     if isinstance(value, bytes):
         return value.decode("utf-8")
     if isinstance(value, str):
@@ -65,7 +67,7 @@ def _provenance_yaml_text(value):
     )
 
 
-def _write_provenance(header, provenance):
+def _write_provenance(header: Any, provenance: Any) -> None:
     """Write reproducibility metadata under ``Header/Provenance``."""
     if provenance is None:
         return
@@ -107,12 +109,12 @@ def _write_provenance(header, provenance):
             provenance_group.attrs[key] = _header_attr_value(provenance[key])
 
 
-def _read_provenance(header):
+def _read_provenance(header: Any) -> Any:
     if "Provenance" not in header:
         return None
     group = header["Provenance"]
 
-    def decode(value):
+    def decode(value: Any) -> Any:
         return value.decode("utf-8") if isinstance(value, bytes) else value
 
     provenance = {
@@ -125,14 +127,14 @@ def _read_provenance(header):
     return provenance
 
 
-def _yaml_quantity_value(value):
+def _yaml_quantity_value(value: Any) -> dict[str, Any]:
     raw_value = np.asarray(value.to_value(value.units))
     if raw_value.shape == () or raw_value.size == 1:
         return {"value": float(raw_value.reshape(-1)[0]), "unit": str(value.units)}
     return {"value": raw_value.tolist(), "unit": str(value.units)}
 
 
-def _yaml_object_value(value):
+def _yaml_object_value(value: Any) -> dict[str, Any]:
     return {
         key: _yaml_config_value(item)
         for key, item in vars(value).items()
@@ -140,7 +142,7 @@ def _yaml_object_value(value):
     }
 
 
-def _yaml_scalar_value(value):
+def _yaml_scalar_value(value: Any) -> tuple[bool, Any]:
     if isinstance(value, np.generic):
         return True, value.item()
     if isinstance(value, unyt.unit_object.Unit):
@@ -154,21 +156,21 @@ def _yaml_scalar_value(value):
     return False, value
 
 
-def _yaml_array_value(value):
+def _yaml_array_value(value: Any) -> Any:
     if value.shape == () or value.size == 1:
         return value.reshape(-1)[0].item()
     return value.tolist()
 
 
-def _yaml_mapping_value(value):
+def _yaml_mapping_value(value: Any) -> dict[str, Any]:
     return {str(key): _yaml_config_value(item) for key, item in value.items()}
 
 
-def _yaml_sequence_value(value):
+def _yaml_sequence_value(value: Any) -> list[Any]:
     return [_yaml_config_value(item) for item in value]
 
 
-def _yaml_config_value(value):
+def _yaml_config_value(value: Any) -> Any:
     """Convert a value to a YAML config friendly representation."""
     handled, scalar = _yaml_scalar_value(value)
     if handled:
@@ -190,12 +192,14 @@ def _yaml_config_value(value):
     return converted
 
 
-def parameter_tree(value):
+def parameter_tree(value: Any) -> Any:
     """Convert an arbitrary value into a YAML-safe, human-readable object."""
     return _yaml_config_value(value)
 
 
-def _used_parameters_payload(par_config=None, initial_condition=None, existing=None):
+def _used_parameters_payload(
+    par_config: Any = None, initial_condition: Any = None, existing: Any = None,
+) -> dict[str, Any]:
     payload = {}
     if isinstance(existing, dict):
         payload.update(existing)
@@ -218,7 +222,9 @@ def _used_parameters_payload(par_config=None, initial_condition=None, existing=N
     return payload
 
 
-def update_used_parameters_yaml(path, par_config=None, initial_condition=None):
+def update_used_parameters_yaml(
+    path: Any, par_config: Any = None, initial_condition: Any = None,
+) -> Any:
     """Create or update a config-style ``used_parameters.yaml`` file."""
     path = Path(path)
     existing = {}
@@ -240,7 +246,7 @@ def update_used_parameters_yaml(path, par_config=None, initial_condition=None):
     return path
 
 
-def write_used_parameters(path, par):
+def write_used_parameters(path: Any, par: Any) -> Any:
     """Write the active runtime parameters to a YAML file."""
     path = Path(path)
     nested_par_config = getattr(par, "nested_par_config", None)
@@ -288,17 +294,17 @@ def write_used_parameters(path, par):
     return path
 
 
-def _yaml_dump_value(value):
+def _yaml_dump_value(value: Any) -> Any:
     return yaml.safe_dump(value, sort_keys=True, default_flow_style=False)
 
 
-def _header_array_value(tree):
+def _header_array_value(tree: Any) -> Any:
     if tree.dtype == object or tree.dtype.kind == "U":
         return _yaml_dump_value(tree.tolist())
     return tree
 
 
-def _header_sequence_value(tree):
+def _header_sequence_value(tree: Any) -> Any:
     scalar_items = all(
         isinstance(item, (str, bytes, int, float, bool, np.generic)) for item in tree
     )
@@ -310,9 +316,10 @@ def _header_sequence_value(tree):
     return array
 
 
-def _header_attr_value(value):
+def _header_attr_value(value: Any) -> Any:
     """Convert a runtime parameter into an HDF5-attribute-friendly value."""
     tree = parameter_tree(value)
+    converted: Any
     if tree is None:
         converted = _yaml_dump_value(None)
     elif isinstance(tree, (str, bytes, int, float, bool)):
@@ -328,13 +335,13 @@ def _header_attr_value(value):
     return converted
 
 
-def _restore_header_array(value):
+def _restore_header_array(value: Any) -> Any:
     if value.shape == ():
         return _restore_header_attr_value(value.item())
     return np.asarray([_restore_header_attr_value(item) for item in value.tolist()])
 
 
-def _restore_header_string(value):
+def _restore_header_string(value: str) -> Any:
     try:
         loaded = yaml.safe_load(value)
     except yaml.YAMLError:
@@ -344,7 +351,7 @@ def _restore_header_string(value):
     return _restore_header_attr_value(loaded)
 
 
-def _restore_header_mapping(value):
+def _restore_header_mapping(value: dict[str, Any]) -> Any:
     if {"value", "unit"} <= value.keys():
         restored_value = _restore_header_attr_value(value["value"])
         unit = unyt.Unit(value["unit"])
@@ -354,7 +361,7 @@ def _restore_header_mapping(value):
     return {key: _restore_header_attr_value(item) for key, item in value.items()}
 
 
-def _restore_header_attr_value(value):
+def _restore_header_attr_value(value: Any) -> Any:
     """Convert a stored HDF5 header attribute back into a Python value."""
     if isinstance(value, bytes):
         value = value.decode("utf-8")

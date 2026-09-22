@@ -4,6 +4,7 @@
 
 from dataclasses import dataclass
 from functools import cache, lru_cache
+from typing import Any
 
 import numpy as np
 
@@ -11,23 +12,24 @@ from radhydropy.constants import GRAVITATIONAL_CONSTANT_CGS
 
 
 @cache
-def _legendre_quadrature(order):
-    return np.polynomial.legendre.leggauss(order)
+def _legendre_quadrature(order: int) -> Any:
+    leggauss: Any = np.polynomial.legendre.leggauss
+    return leggauss(order)
 
 
 @lru_cache(maxsize=4096)
 def _lambda_cdm_cosmic_time_from_supercomoving_scalar(
-    value,
-    t_ref,
-    a_ref,
-    omega_m,
-    omega_lambda,
-    hubble_ref,
-):
+    value: Any,
+    t_ref: float,
+    a_ref: float,
+    omega_m: float,
+    omega_lambda: float,
+    hubble_ref: float,
+) -> float:
     """Invert one Lambda-CDM supercomoving time without caching an instance."""
     value = float(value)
 
-    def tau_integral(u):
+    def tau_integral(u: Any) -> Any:
         nodes, weights = _legendre_quadrature(48)
         lo, hi = (u, 1.0) if u < 1.0 else (1.0, u)
         mid, half = (lo + hi) / 2.0, (hi - lo) / 2.0
@@ -35,9 +37,10 @@ def _lambda_cdm_cosmic_time_from_supercomoving_scalar(
         integral = half * np.sum(
             weights / (values**1.5 * np.sqrt(omega_m + omega_lambda * values**3)),
         )
-        return -integral if u < 1.0 else integral
+        return float(-integral if u < 1.0 else integral)
 
-    lo, hi = np.finfo(float).tiny, 1.0
+    lo: float = float(np.finfo(float).tiny)
+    hi: float = 1.0
     if value >= 0.0:
         while tau_integral(hi) < value:
             hi *= 2.0
@@ -64,7 +67,7 @@ def _lambda_cdm_cosmic_time_from_supercomoving_scalar(
             / (3.0 * hubble_ref * np.sqrt(omega_lambda))
             * np.arcsinh(np.sqrt(omega_lambda / omega_m) * u**1.5)
         )
-    return t_ref - age_ref + age
+    return float(t_ref - age_ref + age)
 
 
 @dataclass(frozen=True)
@@ -80,7 +83,9 @@ class EinsteinDeSitter:
     gravitational_constant: float = 1.0
 
     @classmethod
-    def from_code_units(cls, code_units, t_ref=1.0, a_ref=1.0):
+    def from_code_units(
+        cls: Any, code_units: Any, t_ref: Any = 1.0, a_ref: Any = 1.0,
+    ) -> Any:
         """Construct the background using the code-unit gravitational constant."""
         g_code = (
             GRAVITATIONAL_CONSTANT_CGS
@@ -89,35 +94,35 @@ class EinsteinDeSitter:
         )
         return cls(t_ref=float(t_ref), a_ref=float(a_ref), gravitational_constant=float(g_code))
 
-    def _validate_time(self, time):
+    def _validate_time(self, time: Any) -> Any:
         time = np.asarray(time, dtype=float)
         if np.any(time <= 0.0):
             raise ValueError("Einstein-de Sitter cosmic time must be positive")
         return time
 
-    def scale_factor(self, time):
+    def scale_factor(self, time: Any) -> Any:
         """Return ``a(t)`` normalized to ``a_ref`` at ``t_ref``."""
         time = self._validate_time(time)
         return self.a_ref * (time / self.t_ref) ** (2.0 / 3.0)
 
-    def hubble(self, time):
+    def hubble(self, time: Any) -> Any:
         """Return the Hubble parameter ``H(t)`` in inverse code time."""
         time = self._validate_time(time)
         return 2.0 / (3.0 * time)
 
-    def cosmic_time_from_scale_factor(self, scale_factor):
+    def cosmic_time_from_scale_factor(self, scale_factor: Any) -> Any:
         """Return cosmic time for a supplied scale factor."""
         scale_factor = np.asarray(scale_factor, dtype=float)
         if np.any(scale_factor <= 0.0):
             raise ValueError("scale factor must be positive")
         return self.t_ref * (scale_factor / self.a_ref) ** 1.5
 
-    def background_density(self, time):
+    def background_density(self, time: Any) -> Any:
         """Return the homogeneous EdS density in code mass/length cubed."""
         time = self._validate_time(time)
         return 1.0 / (6.0 * np.pi * self.gravitational_constant * time**2)
 
-    def supercomoving_time(self, time):
+    def supercomoving_time(self, time: Any) -> Any:
         """Return ``tau`` defined by ``d tau = d t / a(t)**2``.
 
         The origin is chosen at ``t_ref``.  This finite offset is convenient
@@ -126,7 +131,7 @@ class EinsteinDeSitter:
         time = self._validate_time(time)
         return 3.0 * self.t_ref / self.a_ref**2 * (1.0 - (time / self.t_ref) ** (-1.0 / 3.0))
 
-    def cosmic_time_from_supercomoving(self, tau):
+    def cosmic_time_from_supercomoving(self, tau: Any) -> Any:
         """Invert :meth:`supercomoving_time`."""
         tau = np.asarray(tau, dtype=float)
         scale = 3.0 * self.t_ref / self.a_ref**2
@@ -134,42 +139,42 @@ class EinsteinDeSitter:
             raise ValueError("supercomoving time is outside the EdS domain")
         return self.t_ref * (1.0 - tau / scale) ** (-3.0)
 
-    def scale_factor_from_supercomoving(self, tau):
+    def scale_factor_from_supercomoving(self, tau: Any) -> Any:
         """Return ``a`` directly from supercomoving time."""
         return self.scale_factor(self.cosmic_time_from_supercomoving(tau))
 
-    def hubble_from_supercomoving(self, tau):
+    def hubble_from_supercomoving(self, tau: Any) -> Any:
         """Return the physical Hubble parameter at supercomoving time ``tau``."""
         return self.hubble(self.cosmic_time_from_supercomoving(tau))
 
-    def background_state_from_supercomoving(self, tau):
+    def background_state_from_supercomoving(self, tau: Any) -> Any:
         """Return ``(cosmic_time, scale_factor, hubble)`` at ``tau``."""
         cosmic_time = self.cosmic_time_from_supercomoving(tau)
         scale_factor = self.scale_factor(cosmic_time)
         return cosmic_time, scale_factor, 2.0 / (3.0 * cosmic_time)
 
-    def physical_radius(self, x, tau):
+    def physical_radius(self, x: Any, tau: Any) -> Any:
         """Convert comoving radius ``x`` to proper radius."""
         return self.scale_factor_from_supercomoving(tau) * np.asarray(x, dtype=float)
 
-    def physical_density(self, varrho, tau):
+    def physical_density(self, varrho: Any, tau: Any) -> Any:
         """Convert comoving density to proper density."""
         a = self.scale_factor_from_supercomoving(tau)
         return np.asarray(varrho, dtype=float) / a**3
 
-    def physical_pressure(self, pressure, tau, gamma):
+    def physical_pressure(self, pressure: Any, tau: Any, gamma: Any) -> Any:
         """Convert supercomoving pressure to proper pressure."""
         a = self.scale_factor_from_supercomoving(tau)
         return np.asarray(pressure, dtype=float) / a ** (3.0 * gamma)
 
-    def physical_velocity(self, x, velocity, tau):
+    def physical_velocity(self, x: Any, velocity: Any, tau: Any) -> Any:
         """Convert supercomoving velocity to proper velocity."""
         a = self.scale_factor_from_supercomoving(tau)
         hubble = self.hubble_from_supercomoving(tau)
         return hubble * a * np.asarray(x, dtype=float) + np.asarray(velocity, dtype=float) / a
 
     @property
-    def type_name(self):
+    def type_name(self) -> str:
         return "einstein_de_sitter"
 
 
@@ -196,14 +201,14 @@ class LambdaCDM:
 
     @classmethod
     def from_code_units(
-        cls,
-        code_units,
-        t_ref=1.0,
-        a_ref=1.0,
-        omega_m=0.3,
-        omega_lambda=0.7,
-        hubble_ref=None,
-    ):
+        cls: Any,
+        code_units: Any,
+        t_ref: Any = 1.0,
+        a_ref: Any = 1.0,
+        omega_m: Any = 0.3,
+        omega_lambda: Any = 0.7,
+        hubble_ref: Any = None,
+    ) -> Any:
         g_code = (
             GRAVITATIONAL_CONSTANT_CGS
             * code_units.mass_in_cgs
@@ -218,7 +223,7 @@ class LambdaCDM:
             gravitational_constant=float(g_code),
         )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.t_ref <= 0.0 or self.a_ref <= 0.0:
             raise ValueError("LambdaCDM reference time and scale factor must be positive")
         if self.omega_m <= 0.0 or self.omega_lambda < 0.0:
@@ -229,19 +234,19 @@ class LambdaCDM:
             raise ValueError("LambdaCDM hubble_ref must be positive")
 
     @property
-    def _hubble_ref(self):
+    def _hubble_ref(self) -> float:
         if self.hubble_ref is not None:
             return self.hubble_ref
         if self.omega_lambda == 0.0:
             return 2.0 / (3.0 * self.t_ref)
-        return (
+        return float(
             2.0
             * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m))
-            / (3.0 * self.t_ref * np.sqrt(self.omega_lambda))
+            / (3.0 * self.t_ref * np.sqrt(self.omega_lambda)),
         )
 
     @property
-    def effective_hubble_ref(self):
+    def effective_hubble_ref(self) -> float:
         """Return the Hubble parameter at the reference scale factor.
 
         When ``hubble_ref`` is omitted, the value is derived from the
@@ -249,27 +254,27 @@ class LambdaCDM:
         """
         return self._hubble_ref
 
-    def _validate_time(self, time):
+    def _validate_time(self, time: Any) -> Any:
         time = np.asarray(time, dtype=float)
         if np.any(time <= self._big_bang_time):
             raise ValueError("LambdaCDM cosmic time must be after the big bang")
         return time
 
     @property
-    def _age_ref(self):
+    def _age_ref(self) -> float:
         if self.omega_lambda == 0.0:
             return 2.0 / (3.0 * self._hubble_ref)
-        return (
+        return float(
             2.0
             * np.arcsinh(np.sqrt(self.omega_lambda / self.omega_m))
-            / (3.0 * self._hubble_ref * np.sqrt(self.omega_lambda))
+            / (3.0 * self._hubble_ref * np.sqrt(self.omega_lambda)),
         )
 
     @property
-    def _big_bang_time(self):
+    def _big_bang_time(self) -> float:
         return self.t_ref - self._age_ref
 
-    def scale_factor(self, time):
+    def scale_factor(self, time: Any) -> Any:
         age = self._validate_time(time) - self._big_bang_time
         if self.omega_lambda == 0.0:
             return self.a_ref * (age / self._age_ref) ** (2.0 / 3.0)
@@ -278,12 +283,12 @@ class LambdaCDM:
             2.0 / 3.0
         )
 
-    def hubble(self, time):
+    def hubble(self, time: Any) -> Any:
         a = self.scale_factor(time)
         ratio = self.a_ref / a
         return self._hubble_ref * np.sqrt(self.omega_m * ratio**3 + self.omega_lambda)
 
-    def cosmic_time_from_scale_factor(self, scale_factor):
+    def cosmic_time_from_scale_factor(self, scale_factor: Any) -> Any:
         """Return cosmic time for a supplied scale factor."""
         scale_factor = np.asarray(scale_factor, dtype=float)
         if np.any(scale_factor <= 0.0):
@@ -291,7 +296,7 @@ class LambdaCDM:
         u = scale_factor / self.a_ref
         return np.vectorize(self._time_from_u, otypes=[float])(u)
 
-    def background_density(self, time):
+    def background_density(self, time: Any) -> Any:
         a = self.scale_factor(time)
         return (
             3.0
@@ -301,7 +306,7 @@ class LambdaCDM:
             * (self.a_ref / a) ** 3
         )
 
-    def supercomoving_time(self, time):
+    def supercomoving_time(self, time: Any) -> Any:
         """Return ``tau`` with ``d tau = d t / a(t)**2`` and ``tau(t_ref)=0``."""
         a = self.scale_factor(self._validate_time(time))
         u = np.asarray(a / self.a_ref, dtype=float)
@@ -309,7 +314,7 @@ class LambdaCDM:
             self.a_ref**2 * self._hubble_ref
         )
 
-    def cosmic_time_from_supercomoving(self, tau):
+    def cosmic_time_from_supercomoving(self, tau: Any) -> Any:
         tau = np.asarray(tau, dtype=float)
         target = tau * self.a_ref**2 * self._hubble_ref
         return np.vectorize(
@@ -324,7 +329,7 @@ class LambdaCDM:
             otypes=[float],
         )(target)
 
-    def _tau_integral(self, u):
+    def _tau_integral(self, u: Any) -> Any:
         nodes, weights = _legendre_quadrature(48)
         lo, hi = (u, 1.0) if u < 1.0 else (1.0, u)
         mid, half = (lo + hi) / 2.0, (hi - lo) / 2.0
@@ -336,7 +341,7 @@ class LambdaCDM:
         )
         return -integral if u < 1.0 else integral
 
-    def _time_from_u(self, u):
+    def _time_from_u(self, u: Any) -> Any:
         if self.omega_lambda == 0.0:
             age = self._age_ref * u**1.5
         else:
@@ -347,13 +352,13 @@ class LambdaCDM:
             )
         return self._big_bang_time + age
 
-    def scale_factor_from_supercomoving(self, tau):
+    def scale_factor_from_supercomoving(self, tau: Any) -> Any:
         return self.scale_factor(self.cosmic_time_from_supercomoving(tau))
 
-    def hubble_from_supercomoving(self, tau):
+    def hubble_from_supercomoving(self, tau: Any) -> Any:
         return self.hubble(self.cosmic_time_from_supercomoving(tau))
 
-    def background_state_from_supercomoving(self, tau):
+    def background_state_from_supercomoving(self, tau: Any) -> Any:
         """Return ``(cosmic_time, scale_factor, hubble)`` at ``tau``."""
         cosmic_time = self.cosmic_time_from_supercomoving(tau)
         scale_factor = self.scale_factor(cosmic_time)
@@ -361,18 +366,18 @@ class LambdaCDM:
         hubble = self._hubble_ref * np.sqrt(self.omega_m * ratio**3 + self.omega_lambda)
         return cosmic_time, scale_factor, hubble
 
-    def physical_radius(self, x, tau):
+    def physical_radius(self, x: Any, tau: Any) -> Any:
         return self.scale_factor_from_supercomoving(tau) * np.asarray(x, dtype=float)
 
-    def physical_density(self, varrho, tau):
+    def physical_density(self, varrho: Any, tau: Any) -> Any:
         a = self.scale_factor_from_supercomoving(tau)
         return np.asarray(varrho, dtype=float) / a**3
 
-    def physical_pressure(self, pressure, tau, gamma):
+    def physical_pressure(self, pressure: Any, tau: Any, gamma: Any) -> Any:
         a = self.scale_factor_from_supercomoving(tau)
         return np.asarray(pressure, dtype=float) / a ** (3.0 * gamma)
 
-    def physical_velocity(self, x, velocity, tau):
+    def physical_velocity(self, x: Any, velocity: Any, tau: Any) -> Any:
         a = self.scale_factor_from_supercomoving(tau)
         return (
             self.hubble_from_supercomoving(tau) * a * np.asarray(x, dtype=float)
@@ -380,5 +385,5 @@ class LambdaCDM:
         )
 
     @property
-    def type_name(self):
+    def type_name(self) -> str:
         return "lambda_cdm"

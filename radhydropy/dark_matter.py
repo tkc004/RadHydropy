@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Spherical collisionless dark-matter shell dynamics."""
 
+from typing import Any
+
 import numpy as np
 
 from radhydropy.units import _code_units, _gravitational_constant_code, quantity_to_value
@@ -18,12 +20,12 @@ class DarkMatterSnapshot:
     def __init__(
         self,
         *,
-        radius_radarray,
-        radial_velocity_radarray,
-        dark_matter_mass_radarray,
-        specific_angular_momentum_radarray,
-        softening_radquantity,
-    ):
+        radius_radarray: Any,
+        radial_velocity_radarray: Any,
+        dark_matter_mass_radarray: Any,
+        specific_angular_momentum_radarray: Any,
+        softening_radquantity: Any,
+    ) -> None:
         self.radius_radarray = radius_radarray
         self.radial_velocity_radarray = radial_velocity_radarray
         self.dark_matter_mass_radarray = dark_matter_mass_radarray
@@ -31,7 +33,7 @@ class DarkMatterSnapshot:
         self.softening_radquantity = softening_radquantity
 
     @property
-    def number_of_shells(self):
+    def number_of_shells(self) -> int:
         """Number of shells in the restored snapshot."""
         return int(self.radius_radarray.size)
 
@@ -44,7 +46,7 @@ class EnclosedGasMassProfile:
     only evaluate the partial-cell contribution for each new shell radius.
     """
 
-    def __init__(self, mesh, rho, par):
+    def __init__(self, mesh: Any, rho: Any, par: Any) -> None:
         code_units = _code_units(par)
         if code_units is None:
             raise ValueError("gas mass coupling requires configured code units")
@@ -90,7 +92,7 @@ class EnclosedGasMassProfile:
         shell_mass = self.density * shell_volume
         self.prefix = np.concatenate(([0.0], np.cumsum(shell_mass)))
 
-    def __call__(self, radius):
+    def __call__(self, radius: Any) -> Any:
         radius = np.asarray(radius, dtype=float)
         clipped = np.clip(radius, self.inner[0], self.outer[-1])
         cell = np.searchsorted(self.outer, clipped, side="right")
@@ -105,28 +107,28 @@ class EnclosedGasMassProfile:
         )
 
 
-def prepare_enclosed_gas_mass(mesh, rho, par):
+def prepare_enclosed_gas_mass(mesh: Any, rho: Any, par: Any) -> Any:
     """Build a reusable enclosed-gas-mass profile for one hydro state."""
     return EnclosedGasMassProfile(mesh, rho, par)
 
 
-def enclosed_gas_mass(mesh, rho, radius, par):
+def enclosed_gas_mass(mesh: Any, rho: Any, radius: Any, par: Any) -> Any:
     """Return spherical gas mass enclosed by arbitrary code-unit radii."""
     return EnclosedGasMassProfile(mesh, rho, par)(radius)
 
 
 def _configure_dark_matter_shell_options(
-    shell_state,
-    angular_momentum,
-    softening,
-    fixed_enclosed_mass,
-    central_core_radius,
-    core_absorption_velocity,
-    core_absorption_energy,
-    length,
-    velocity_unit,
-    mass_unit,
-):
+    shell_state: Any,
+    angular_momentum: Any,
+    softening: Any,
+    fixed_enclosed_mass: Any,
+    central_core_radius: Any,
+    core_absorption_velocity: Any,
+    core_absorption_energy: Any,
+    length: Any,
+    velocity_unit: Any,
+    mass_unit: Any,
+) -> None:
     if angular_momentum is None:
         angular_momentum = np.zeros_like(shell_state.radius)
     shell_state.angular_momentum = np.asarray(
@@ -160,7 +162,7 @@ def _configure_dark_matter_shell_options(
     )
 
 
-def _validate_dark_matter_shell_arrays(shell_state):
+def _validate_dark_matter_shell_arrays(shell_state: Any) -> None:
     if not (
         shell_state.radius.ndim
         == shell_state.velocity.ndim
@@ -192,18 +194,18 @@ class DarkMatterShells:
 
     def __init__(
         self,
-        radius,
-        velocity,
-        mass,
-        angular_momentum=None,
-        softening=0.0,
-        fixed_enclosed_mass=None,
-        central_core_radius=0.0,
-        core_absorption_velocity=0.0,
-        core_absorption_energy=0.0,
-        code_units=None,
-        shell_id=None,
-    ):
+        radius: Any,
+        velocity: Any,
+        mass: Any,
+        angular_momentum: Any = None,
+        softening: Any = 0.0,
+        fixed_enclosed_mass: Any = None,
+        central_core_radius: Any = 0.0,
+        core_absorption_velocity: Any = 0.0,
+        core_absorption_energy: Any = 0.0,
+        code_units: Any = None,
+        shell_id: Any = None,
+    ) -> None:
         self.CodeUnits = code_units
         if code_units is None:
             raise ValueError("dark-matter shells require code_units")
@@ -213,6 +215,13 @@ class DarkMatterShells:
         self.radius = np.asarray(quantity_to_value(radius, length), dtype=float).copy()
         self.velocity = np.asarray(quantity_to_value(velocity, velocity_unit), dtype=float).copy()
         self.mass = np.asarray(quantity_to_value(mass, mass_unit), dtype=float).copy()
+        self.angular_momentum: Any = np.empty_like(self.radius)
+        self.softening: Any = 0.0
+        self.fixed_enclosed_mass: Any = None
+        self.central_core_radius: Any = 0.0
+        self.core_absorption_velocity: Any = 0.0
+        self.core_absorption_energy: Any = 0.0
+        self.central_core_mass: Any = 0.0
         if shell_id is not None:
             self.shell_id = np.asarray(shell_id).copy()
             if self.shell_id.ndim != 1 or self.shell_id.size != self.radius.size:
@@ -245,14 +254,14 @@ class DarkMatterShells:
         self.sort_by_radius()
 
     @property
-    def number_of_shells(self):
-        return self.radius.size
+    def number_of_shells(self) -> int:
+        return int(self.radius.size)
 
     @property
-    def total_mass(self):
+    def total_mass(self) -> float:
         return float(np.sum(self.mass))
 
-    def sort_by_radius(self):
+    def sort_by_radius(self) -> Any:
         """Sort shells by radius while preserving shell identities."""
         if self.radius.size < 2 or np.all(self.radius[1:] >= self.radius[:-1]):  # noqa: PLR2004
             return np.arange(self.radius.size)
@@ -267,18 +276,18 @@ class DarkMatterShells:
         self._enclosed_mass_cache = None
         return order
 
-    def _mass_prefix(self):
+    def _mass_prefix(self) -> Any:
         """Return the cached cumulative shell-mass prefix."""
         if self._mass_prefix_cache is None:
             self._mass_prefix_cache = np.concatenate(([0.0], np.cumsum(self.mass)))
         return self._mass_prefix_cache
 
     @property
-    def mass_prefix_cache(self):
+    def mass_prefix_cache(self) -> Any:
         """Return the cached cumulative shell-mass array, if available."""
         return self._mass_prefix_cache
 
-    def enclosed_mass(self, radius=None):
+    def enclosed_mass(self, radius: Any = None) -> Any:
         """Return enclosed shell mass using half the mass at a shell radius."""
         if radius is None:
             if self._enclosed_mass_cache is not None:
@@ -308,7 +317,7 @@ class DarkMatterShells:
         result = result + 0.5 * (prefix[right] - prefix[left])
         return np.asarray(result, dtype=float)
 
-    def _enclosed_mass_at_current_positions(self, radius):
+    def _enclosed_mass_at_current_positions(self, radius: Any) -> Any:
         """Return shell mass enclosed at post-drift shell positions.
 
         During ``step`` candidate positions can be temporarily out of order
@@ -331,7 +340,9 @@ class DarkMatterShells:
         result[order] = sorted_result
         return result
 
-    def gravitating_enclosed_mass(self, radius=None, *, include_shell_mass_with_fixed=False):
+    def gravitating_enclosed_mass(
+        self, radius: Any = None, *, include_shell_mass_with_fixed: Any = False,
+    ) -> Any:
         """Return dynamic plus configured fixed enclosed mass."""
         if radius is None:
             dynamic = self.enclosed_mass()
@@ -358,14 +369,14 @@ class DarkMatterShells:
 
     def acceleration(
         self,
-        gas_enclosed_mass=None,
-        background_enclosed_mass=None,
-        scale_factor=1.0,
+        gas_enclosed_mass: Any = None,
+        background_enclosed_mass: Any = None,
+        scale_factor: Any = 1.0,
         *,
-        cosmological=False,
-        include_shell_mass_with_fixed=False,
-        allow_unsorted=False,
-    ):
+        cosmological: Any = False,
+        include_shell_mass_with_fixed: Any = False,
+        allow_unsorted: Any = False,
+    ) -> Any:
         """Return shell gravity and angular-momentum accelerations.
 
         In cosmological supercomoving coordinates, ``gas_enclosed_mass`` and
@@ -418,7 +429,7 @@ class DarkMatterShells:
         )
         return gravity + centrifugal
 
-    def crossing_timestep(self, safety_factor=0.1):
+    def crossing_timestep(self, safety_factor: Any = 0.1) -> float:
         """Return a timestep that stops before the first predicted crossing."""
         if self.number_of_shells < 2:  # noqa: PLR2004
             return np.inf
@@ -441,7 +452,7 @@ class DarkMatterShells:
             return np.inf
         return float(safety_factor * np.min(candidates))
 
-    def _resolve_coincident_crossings(self):
+    def _resolve_coincident_crossings(self) -> None:
         """Exchange states for shells that meet while moving through one another."""
         if self.number_of_shells < 2:  # noqa: PLR2004
             return
@@ -458,7 +469,7 @@ class DarkMatterShells:
         pairs = np.flatnonzero((separation <= tolerance) & (closing_speed > 0.0))
         self._exchange_shell_states(pairs)
 
-    def _exchange_shell_states(self, pairs):
+    def _exchange_shell_states(self, pairs: Any) -> None:
         """Exchange state across the supplied neighboring crossing pairs."""
         pairs = np.asarray(pairs, dtype=int)
         if pairs.size == 0:
@@ -495,7 +506,7 @@ class DarkMatterShells:
             self._mass_prefix_cache = None
             self._enclosed_mass_cache = None
 
-    def _crossing_event_pairs(self, crossing_dt):
+    def _crossing_event_pairs(self, crossing_dt: Any) -> Any:
         """Return pairs whose predicted crossing is the current event."""
         separation = self.radius[1:] - self.radius[:-1]
         closing_speed = self.velocity[:-1] - self.velocity[1:]
@@ -511,7 +522,7 @@ class DarkMatterShells:
         event = closing & (separation <= crossing_dt * closing_speed * (1.0 + 1.0e-12))
         return np.flatnonzero(event)
 
-    def _reflect_at_origin(self):
+    def _reflect_at_origin(self) -> None:
         """Reflect shells that crossed the spherical coordinate origin."""
         crossed = self.radius < 0.0
         reflection_count = int(np.count_nonzero(crossed))
@@ -528,15 +539,15 @@ class DarkMatterShells:
 
     def _absorb_into_core(
         self,
-        radius,
-        velocity,
-        scale_factor=1.0,
-        gas_enclosed_mass=None,
-        background_enclosed_mass=None,
+        radius: Any,
+        velocity: Any,
+        scale_factor: Any = 1.0,
+        gas_enclosed_mass: Any = None,
+        background_enclosed_mass: Any = None,
         *,
-        cosmological=False,
-        include_shell_mass_with_fixed=True,
-    ):
+        cosmological: Any = False,
+        include_shell_mass_with_fixed: Any = True,
+    ) -> Any:
         """Absorb energetically bound shells that enter the unresolved core."""
         if self.central_core_radius <= 0.0 or self.number_of_shells == 0:
             return 0.0
@@ -604,19 +615,19 @@ class DarkMatterShells:
 
     def _advance_substep(
         self,
-        substep,
-        elapsed,
-        dt,
-        scale_factor,
-        scale_factor_end,
-        event_pairs,
-        batched_crossing,
-        gas_enclosed_mass,
-        background_enclosed_mass,
-        cosmological,
-        include_shell_mass_with_fixed,
-        state_callback,
-    ):
+        substep: Any,
+        elapsed: Any,
+        dt: Any,
+        scale_factor: Any,
+        scale_factor_end: Any,
+        event_pairs: Any,
+        batched_crossing: Any,
+        gas_enclosed_mass: Any,
+        background_enclosed_mass: Any,
+        cosmological: Any,
+        include_shell_mass_with_fixed: Any,
+        state_callback: Any,
+    ) -> Any:
         fraction_start = elapsed / dt
         fraction_end = (elapsed + substep) / dt
         a_start = float(scale_factor) + fraction_start * (
@@ -681,18 +692,18 @@ class DarkMatterShells:
 
     def step(
         self,
-        dt,
-        crossing_safety_factor=0.1,
-        crossing_batch_fraction=0.0,
-        gas_enclosed_mass=None,
-        background_enclosed_mass=None,
-        scale_factor=1.0,
-        scale_factor_end=None,
+        dt: Any,
+        crossing_safety_factor: Any = 0.1,
+        crossing_batch_fraction: Any = 0.0,
+        gas_enclosed_mass: Any = None,
+        background_enclosed_mass: Any = None,
+        scale_factor: Any = 1.0,
+        scale_factor_end: Any = None,
         *,
-        cosmological=False,
-        include_shell_mass_with_fixed=False,
-        state_callback=None,
-    ):
+        cosmological: Any = False,
+        include_shell_mass_with_fixed: Any = False,
+        state_callback: Any = None,
+    ) -> Any:
         """Advance one kick-drift-kick step, limiting ``dt`` before crossing.
 
         If supplied, ``state_callback`` is called after every accepted
@@ -769,7 +780,7 @@ class DarkMatterShells:
         self.total_crossing_event_count += crossing_event_count
         return dt
 
-    def specific_energy(self):
+    def specific_energy(self) -> Any:
         """Return a diagnostic specific energy for each shell.
 
         The potential uses the enclosed half-shell mass and is intended for

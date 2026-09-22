@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Typed code-to-cgs source-state construction for hydrogen chemistry."""
 
+from typing import Any
+
 import numpy as np
 import unyt
 
@@ -22,19 +24,19 @@ from radhydropy.state_boundaries import (
 
 
 def build_source_state(
-    mesh,
-    fluid,
-    par,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
     *,
-    code_units,
-    cgs_source_state_from_code,
-    canonical_fluid_primitive_arrays,
-    canonical_mesh_geometry_arrays,
-    fast_source_scaling,
-    optional_numeric_value,
-    parameter_value,
-    interior_slice,
-):
+    code_units: Any,
+    cgs_source_state_from_code: Any,
+    canonical_fluid_primitive_arrays: Any,
+    canonical_mesh_geometry_arrays: Any,
+    fast_source_scaling: Any,
+    optional_numeric_value: Any,
+    parameter_value: Any,
+    interior_slice: Any,
+) -> dict[str, Any]:
     """Build the hydrogen source state at the explicit cgs boundary."""
     if code_units is None:
         raise ValueError("hydrogen thermo-chemistry requires configured code units")

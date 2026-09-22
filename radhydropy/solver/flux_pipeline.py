@@ -3,6 +3,7 @@
 """Interface-flux orchestration for the finite-volume solver."""
 
 import logging
+from typing import Any
 
 import numpy as np
 
@@ -11,14 +12,14 @@ from radhydropy.diagnostic_logging import log_diagnostic
 
 
 def set_interface_flux(
-    solver,
-    mesh,
-    fluid,
-    boundcond,
-    method="Rusanov",
-    verbose=None,
-    order=0,
-):
+    solver: Any,
+    mesh: Any,
+    fluid: Any,
+    boundcond: Any,
+    method: str = "Rusanov",
+    verbose: Any = None,
+    order: int = 0,
+) -> None:
     """Construct primary and optional interface fluxes."""
     if verbose is None:
         verbose = 0

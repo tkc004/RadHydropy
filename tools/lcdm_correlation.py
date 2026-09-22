@@ -33,7 +33,7 @@ except ModuleNotFoundError:
         ) from None
     _COSMOLOGY_MODULE = importlib.util.module_from_spec(_COSMOLOGY_SPEC)
     _COSMOLOGY_SPEC.loader.exec_module(_COSMOLOGY_MODULE)
-    LambdaCDM = cast("Any", _COSMOLOGY_MODULE.LambdaCDM)
+    LambdaCDM = cast("Any", _COSMOLOGY_MODULE.LambdaCDM)  # type: ignore[misc]
 
 
 def _validate_lcdm_parameters(

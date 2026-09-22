@@ -5,6 +5,7 @@
 import copy
 import warnings
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import unyt
@@ -575,7 +576,12 @@ class Par:
 
     """
 
-    def __init__(self, params) -> None:
+    def __getattr__(self, name: str) -> Any:
+        """Resolve dynamically defaulted flat parameters for typed callers."""
+        values = self.__dict__.get("_parameter_values", {})
+        return values.get(name)
+
+    def __init__(self, params: Any) -> None:
         params = self._validate_mapping(params)
         self.nested_par_config = (
             copy.deepcopy(params)
@@ -603,7 +609,11 @@ class Par:
         params = self._flatten_nested_parameters(params)
         self._validate_keys(params)
         self.par_config = dict(params)
-        self._parameter_values = {}
+        self._parameter_values: dict[str, Any] = {}
+        self.gravity: Any = None
+        self.radiation_group_sigma_gamma: Any = None
+        self.radiation_group_epsilon_gamma: Any = None
+        self.star_emission_rates: Any = None
         missing_keys = self._apply_defaults(params)
         self._initialize_parameter_groups()
         self._initialize_units(params)
@@ -613,13 +623,13 @@ class Par:
         self._warn_defaulted_parameters(missing_keys)
 
     @staticmethod
-    def _validate_mapping(params):
+    def _validate_mapping(params: Any) -> Any:
         if not hasattr(params, "items"):
             raise TypeError("run parameters must be supplied as a mapping")
         return params
 
     @staticmethod
-    def _flatten_nested_parameters(params):
+    def _flatten_nested_parameters(params: Any) -> Any:
         """Translate the nested YAML shape into internal input names."""
         if not any(
             isinstance(params.get(group), dict)
@@ -898,13 +908,13 @@ class Par:
         return flattened
 
     @staticmethod
-    def _validate_keys(params):
+    def _validate_keys(params: Any) -> None:
         unknown_keys = sorted(set(params) - set(refparams))
         if unknown_keys:
             formatted = ", ".join(repr(key) for key in unknown_keys)
             raise ValueError(f"unknown run parameter(s): {formatted}")
 
-    def _apply_defaults(self, params):
+    def _apply_defaults(self, params: Any) -> Any:
         missing_keys = []
         nested_keys = {
             "nogrid",
@@ -938,14 +948,14 @@ class Par:
                 missing_keys.append((key, default))
         return missing_keys
 
-    def _parameter(self, name, default=None):
+    def _parameter(self, name: str, default: Any = None) -> Any:
         return self._parameter_values.get(name, default)
 
-    def parameter(self, name, default=None):
+    def parameter(self, name: str, default: Any = None) -> Any:
         """Return a normalized parameter value by name."""
         return self._parameter(name, default)
 
-    def _initialize_parameter_groups(self):
+    def _initialize_parameter_groups(self) -> None:
         self._sync_hydrodynamics_parameters()
         self._sync_boundary_parameters()
         self._sync_timestep_parameters()
@@ -975,7 +985,7 @@ class Par:
         )
         self._sync_radiation_parameters()
 
-    def _sync_hydrodynamics_parameters(self):
+    def _sync_hydrodynamics_parameters(self) -> None:
         self.hydrodynamics = HydrodynamicsParameters(
             eos_type=self.EOStype,
             gamma=self._parameter("gamma"),
@@ -997,7 +1007,7 @@ class Par:
             angular_momentum_flux_scheme=self.angular_momentum_flux_scheme,
         )
 
-    def _sync_boundary_parameters(self):
+    def _sync_boundary_parameters(self) -> None:
         self.boundary = BoundaryParameters(
             condition=self._parameter("boundcond"),
             vel_inflow_proper=self._parameter("vel_inflow_proper"),
@@ -1013,7 +1023,7 @@ class Par:
             ),
         )
 
-    def _sync_timestep_parameters(self):
+    def _sync_timestep_parameters(self) -> None:
         self.timestep = TimestepParameters(
             dtmin=self._parameter("dtmin"),
             dtmax=self._parameter("dtmax"),
@@ -1025,7 +1035,7 @@ class Par:
             relaxation_damping_time=self.relaxation_damping_time,
         )
 
-    def _sync_thermochemistry_parameters(self):
+    def _sync_thermochemistry_parameters(self) -> None:
         self.thermochemistry = ThermochemistryParameters(
             network=self.thermochemistry_network,
             cie_cooling=self.cie_cooling,
@@ -1050,7 +1060,7 @@ class Par:
             hydrogen_source_solver=self.hydrogen_source_solver,
         )
 
-    def _sync_gravity_parameters(self):
+    def _sync_gravity_parameters(self) -> None:
         model = self.gravity if self.gravity is not None else None
         self.gravity = GravityParameters(
             selfgravity=self.selfgravity,
@@ -1065,7 +1075,7 @@ class Par:
             model=model,
         )
 
-    def _sync_output_parameters(self):
+    def _sync_output_parameters(self) -> None:
         self.output = OutputParameters(
             directory=self.outdir,
             filename_prefix=self.outfileprefix,
@@ -1073,7 +1083,7 @@ class Par:
             time_list_filename=self.outputtimefilename,
         )
 
-    def _sync_simulation_parameters(self):
+    def _sync_simulation_parameters(self) -> None:
         self.simulation = SimulationParameters(
             name=self.simname,
             initial_condition_filename=self.ICfilename,
@@ -1091,11 +1101,11 @@ class Par:
             temperature_representation=self.temperature_representation,
         )
 
-    def sync_simulation_parameters(self):
+    def sync_simulation_parameters(self) -> None:
         """Refresh the public simulation-parameter group from flat values."""
         self._sync_simulation_parameters()
 
-    def _sync_diagnostics_parameters(self):
+    def _sync_diagnostics_parameters(self) -> None:
         self.diagnostics = DiagnosticsParameters(
             verbose=self.verbose,
             energy_diagnostics=self.energy_diagnostics,
@@ -1104,18 +1114,18 @@ class Par:
             plot_exclude_outer_cells=getattr(self, "plot_exclude_outer_cells", 0),
         )
 
-    def _sync_mesh_parameters(self):
+    def _sync_mesh_parameters(self) -> None:
         self.mesh = MeshParameters(
             ghost_cells=self._parameter("noghost"),
             area_proper=self.area_proper,
             grid_cells=self._parameter("nogrid"),
         )
 
-    def sync_mesh_parameters(self):
+    def sync_mesh_parameters(self) -> None:
         """Refresh the public mesh-parameter group from flat values."""
         self._sync_mesh_parameters()
 
-    def _sync_chemistry_parameters(self):
+    def _sync_chemistry_parameters(self) -> None:
         self.chemistry = ChemistryParameters(
             key=self.chemistry_key,
             hydrogen_mass_fraction=self.hydrogen_mass_fraction,
@@ -1147,7 +1157,7 @@ class Par:
             beta=self.hydrogen_beta,
         )
 
-    def _sync_angular_momentum_parameters(self):
+    def _sync_angular_momentum_parameters(self) -> None:
         self.angular_momentum = AngularMomentumParameters(
             enabled=self.gas_angular_momentum,
             rotational_energy=self.gas_rotational_energy,
@@ -1158,7 +1168,7 @@ class Par:
             outflow=self.specific_angular_momentum_outflow,
         )
 
-    def _sync_dark_matter_parameters(self):
+    def _sync_dark_matter_parameters(self) -> None:
         self.dark_matter_config = DarkMatterParameters(
             crossing_safety_factor=self.dark_matter_crossing_safety_factor,
             crossing_batch_fraction=self.dark_matter_crossing_batch_fraction,
@@ -1167,7 +1177,7 @@ class Par:
             softening=self.dark_matter_softening,
         )
 
-    def _sync_dual_energy_parameters(self):
+    def _sync_dual_energy_parameters(self) -> None:
         self.dual_energy_config = DualEnergyParameters(
             enabled=self.dual_energy,
             eta1=self.dual_energy_eta1,
@@ -1178,7 +1188,7 @@ class Par:
             pressure_floor=self.dual_energy_pressure_floor,
         )
 
-    def _sync_positivity_parameters(self):
+    def _sync_positivity_parameters(self) -> None:
         self.positivity = PositivityParameters(
             enabled=self.positivity_preserving,
             factor_method=self.positivity_factor_method,
@@ -1186,7 +1196,7 @@ class Par:
             energy_floor=self.positivity_energy_floor,
         )
 
-    def _sync_radiation_parameters(self):
+    def _sync_radiation_parameters(self) -> None:
         self.radiation = RadiationParameters(
             spectrum_filename=self.radiation_spectrum_filename,
             spectrum_total_photon_rate=self.spectrum_total_photon_rate,
@@ -1240,7 +1250,7 @@ class Par:
             metal_pie_redshift=self.metal_pie_redshift,
         )
 
-    def _initialize_units(self, params):
+    def _initialize_units(self, params: Any) -> None:
         code_units_value = self._parameter("CodeUnits")
         if code_units_value is None:
             raise ValueError(
@@ -1248,7 +1258,7 @@ class Par:
             )
         self.set_code_units(CodeUnits.from_mapping(code_units_value))
 
-    def set_code_units(self, code_units):
+    def set_code_units(self, code_units: Any) -> None:
         """Update the unit system stored in the nested units group."""
         self.unit_system = code_units.unit_system
         self.CodeUnits = code_units
@@ -1257,7 +1267,7 @@ class Par:
             unit_system=self.unit_system,
         )
 
-    def _configure_cosmology(self):
+    def _configure_cosmology(self) -> None:
         if not self.cosmological_expansion:
             return
         supported = (None, "einstein_de_sitter", "lambda_cdm")
@@ -1290,7 +1300,7 @@ class Par:
             self.pressure_representation = "supercomoving"
             self.temperature_representation = "supercomoving"
 
-    def _load_optional_physics(self, params):
+    def _load_optional_physics(self, params: Any) -> None:
         if params.get("radiation_spectrum_filename") is not None:
             self.load_radiation_spectrum(params.get("outdir"))
         if params.get("metal_pie_enabled", False) and params.get("metal_pie_table_filename"):
@@ -1308,7 +1318,7 @@ class Par:
         self._sync_radiation_parameters()
         self._sync_thermochemistry_parameters()
 
-    def _warn_defaulted_parameters(self, missing_keys):
+    def _warn_defaulted_parameters(self, missing_keys: Any) -> None:
         if int(self.verbose) <= 0:
             return
         for key, value in missing_keys:
@@ -1318,7 +1328,7 @@ class Par:
                 stacklevel=3,
             )
 
-    def load_radiation_spectrum(self, base_directory=None):
+    def load_radiation_spectrum(self, base_directory: Any = None) -> None:
         """Load the configured HDF5 spectrum into runtime parameters."""
         spectrum_filename = getattr(self, "radiation_spectrum_filename", None)
         if spectrum_filename is None:
@@ -1338,7 +1348,7 @@ class Par:
         ) / (unyt.cm**2 * unyt.s)
         self._sync_radiation_parameters()
 
-    def _apply_radiation_spectrum_units(self):
+    def _apply_radiation_spectrum_units(self) -> None:
         if self.radiation_group_sigma_gamma is not None:
             self.radiation_group_sigma_gamma = self.radiation_group_sigma_gamma * unyt.cm**2
         if self.radiation_group_epsilon_gamma is not None:
@@ -1351,13 +1361,14 @@ class Par:
             if getattr(self, epsilon_name, None) is not None:
                 setattr(self, epsilon_name, getattr(self, epsilon_name) * unyt.erg)
 
-    def _spectrum_rates_and_energies(self):
-        power_unit = self.units.CodeUnits.energy_unit / self.units.CodeUnits.time_unit
+    def _spectrum_rates_and_energies(self) -> Any:
+        code_units: Any = self.units.CodeUnits
+        power_unit = code_units.energy_unit / code_units.time_unit
         rates = np.asarray(self.star_emission_rates, dtype=float) * power_unit
         energies = np.asarray(self.ionizing_photon_energy_cgs_erg, dtype=float) * unyt.erg
         return rates, energies
 
-    def _rescale_spectrum_rates(self, rates, energies):
+    def _rescale_spectrum_rates(self, rates: Any, energies: Any) -> Any:
         total_rate = getattr(self, "spectrum_total_photon_rate", None)
         if total_rate is None:
             return rates
@@ -1376,10 +1387,11 @@ class Par:
         self.star_emission_rates = np.array(self.star_emission_rates, dtype=float)
         self.star_emission_rates[1:] *= target_rate_s / current_rate_s
         self.par_config["star_emission_rates"] = self.star_emission_rates
-        power_unit = self.units.CodeUnits.energy_unit / self.units.CodeUnits.time_unit
+        code_units: Any = self.units.CodeUnits
+        power_unit = code_units.energy_unit / code_units.time_unit
         return self.star_emission_rates * power_unit
 
-    def load_metal_pie_table(self, base_directory=None):
+    def load_metal_pie_table(self, base_directory: Any = None) -> None:
         filename = resolve_spectrum_filename(
             self.metal_pie_table_filename,
             base_directory,
@@ -1387,6 +1399,6 @@ class Par:
         self.metal_pie_table = MetalPIETable(filename)
         self._sync_radiation_parameters()
 
-    def set_cosmology_model(self, model):
+    def set_cosmology_model(self, model: Any) -> None:
         """Update the cosmology model while retaining structured settings."""
         self.cosmology.model = model

@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Boundary-condition orchestration for the hydrodynamics solver."""
 
+from typing import Any
+
 from radhydropy.units import code_unit_scales
 
 
-def set_boundary(solver, mesh, fluid, par):
+def set_boundary(solver: Any, mesh: Any, fluid: Any, par: Any) -> None:
     """Fill ghost cells according to the configured boundary condition."""
     if getattr(fluid, "runtime_fields", None) is None:
         raise ValueError("boundary update requires configured fluid runtime state")

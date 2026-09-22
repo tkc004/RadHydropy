@@ -3,6 +3,7 @@
 """Collisional-ionization-equilibrium radiative cooling network."""
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import unyt
@@ -21,10 +22,10 @@ from radhydropy.thermo_networks.hydrogen import (
 )
 from radhydropy.units import _code_units, from_unit_value, to_unit_value
 
-_TABLE_CACHE = {}
+_TABLE_CACHE: dict[tuple[Path, ...], CIETable] = {}
 
 
-def _default_table_paths():
+def _default_table_paths() -> tuple[Path, Path, Path]:
     module_path = Path(__file__).resolve()
     candidates = (
         module_path.parents[4] / "CHIANTI_11.0.2_database",
@@ -38,7 +39,7 @@ def _default_table_paths():
     )
 
 
-def _get_table(par):
+def _get_table(par: Any) -> CIETable:
     defaults = _default_table_paths()
     paths = tuple(
         Path(value if value is not None else default).expanduser().resolve()
@@ -54,7 +55,7 @@ def _get_table(par):
     return _TABLE_CACHE[paths]
 
 
-def _state(mesh, fluid, par):
+def _state(mesh: Any, fluid: Any, par: Any) -> dict[str, Any]:
     code = _code_units(par)
     if code is None:
         raise ValueError("CIE cooling requires configured code units")
@@ -124,7 +125,7 @@ def _state(mesh, fluid, par):
     }
 
 
-def _update_temperature(state):
+def _update_temperature(state: dict[str, Any]) -> None:
     state["temperature_cgs_K"] = np.maximum(
         state["specific_energy_cgs_erg_g"]
         * (state["gamma"] - 1.0)
@@ -139,19 +140,19 @@ class CIECoolingNetwork(ThermochemistryNetwork):
     name = "cie_cooling"
     scalar_fields = ()
 
-    def enabled(self, fluid, par):
+    def enabled(self, fluid: Any, par: Any) -> bool:
         return bool(getattr(par, "cie_cooling", False))
 
-    def radiation_enabled(self, fluid, par):
+    def radiation_enabled(self, fluid: Any, par: Any) -> bool:
         return False
 
-    def radiation_evolution_enabled(self, fluid, par):
+    def radiation_evolution_enabled(self, fluid: Any, par: Any) -> bool:
         return False
 
-    def advect_ionization_fraction(self, *args, **kwargs):
+    def advect_ionization_fraction(self, *args: Any, **kwargs: Any) -> None:
         return None
 
-    def source_state(self, mesh, fluid, par):
+    def source_state(self, mesh: Any, fluid: Any, par: Any) -> dict[str, Any]:
         state = _state(mesh, fluid, par)
         state.update(
             par=par,
@@ -166,10 +167,10 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         )
         return state
 
-    def ionization_fraction_rate(self, state, ngamma_cgs_cm3):
+    def ionization_fraction_rate(self, state: dict[str, Any], ngamma_cgs_cm3: Any) -> Any:
         return np.zeros_like(state["temperature_cgs_K"])
 
-    def thermal_rate(self, state, ngamma_cgs_cm3):
+    def thermal_rate(self, state: dict[str, Any], ngamma_cgs_cm3: Any) -> Any:
         table = _get_table(state["par"])
         metallicity = state["metallicity"]
         nH = state["rho_cgs_g_cm3"] * state["hydrogen_mass_fraction"] / PROTON_MASS_CGS
@@ -183,7 +184,13 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             cmb_temperature_0_cgs_K=state.get("cmb_temperature_0_cgs_K", 2.7255),
         )
 
-    def get_timestep(self, state, ngamma_cgs_cm3, remaining_s, dtmax_s):
+    def get_timestep(
+        self,
+        state: dict[str, Any],
+        ngamma_cgs_cm3: Any,
+        remaining_s: Any,
+        dtmax_s: Any,
+    ) -> tuple[float, Any]:
         rate = self.thermal_rate(state, ngamma_cgs_cm3)
         thermal_density = state["specific_energy_cgs_erg_g"] * state["rho_cgs_g_cm3"]
         cooling_time = np.divide(
@@ -192,19 +199,23 @@ class CIECoolingNetwork(ThermochemistryNetwork):
         )
         cooling_time = np.where(state["active"], cooling_time, np.inf)
         safety = float(state["cooling_safety_factor"])
-        candidate = np.min(safety * cooling_time)
+        candidate: Any = np.min(safety * cooling_time)
         return min(float(remaining_s), float(dtmax_s), candidate), rate
 
-    def update_temperature_from_energy(self, state):
+    def update_temperature_from_energy(self, state: dict[str, Any]) -> None:
         _update_temperature(state)
 
-    def ionization_fraction_implicit_update(self, state, ngamma_cgs_cm3, dt_s):
+    def ionization_fraction_implicit_update(
+        self, state: dict[str, Any], ngamma_cgs_cm3: Any, dt_s: Any,
+    ) -> None:
         return None
 
-    def apply_state(self, state, fluid, par):
+    def apply_state(self, state: dict[str, Any], fluid: Any, par: Any) -> None:
         return None
 
-    def get_source_timestep_fast(self, mesh, fluid, par, remaining):
+    def get_source_timestep_fast(
+        self, mesh: Any, fluid: Any, par: Any, remaining: Any,
+    ) -> tuple[Any, Any]:
         state = _state(mesh, fluid, par)
         state.update(
             par=par,
@@ -225,7 +236,7 @@ class CIECoolingNetwork(ThermochemistryNetwork):
             code.time_unit,
         ), rate
 
-    def apply_fast(self, dt, mesh, fluid, par):
+    def apply_fast(self, dt: Any, mesh: Any, fluid: Any, par: Any) -> int:
         state = _state(mesh, fluid, par)
         _, _, _, _, volume_runtime_code = _canonical_mesh_geometry_arrays(mesh, par)
         fields = runtime_fields(par)

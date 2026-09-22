@@ -7,6 +7,8 @@ element conservation.  It uses the shared multigroup radiation field and a
 local implicit Euler/fixed-point substep with an explicit small-change path.
 """
 
+from typing import Any
+
 import numpy as np
 
 import radhydropy.radiative_transfer as rrt
@@ -36,58 +38,58 @@ from radhydropy.units import (
 )
 
 
-def _alpha_heii(T):  # noqa: N803
+def _alpha_heii(T: Any) -> Any:  # noqa: N803
     """He II radiative recombination, Hummer & Storey (1998)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.26e-14 * (570670.0 / T) ** 0.750
 
 
-def _alpha_heii_dielectronic(T):  # noqa: N803
+def _alpha_heii_dielectronic(T: Any) -> Any:  # noqa: N803
     """He II dielectronic recombination, Aldrovandi & Pequignot (1973)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.9e-3 * T**-1.5 * np.exp(-4.7e5 / T) * (1.0 + 0.3 * np.exp(-9.4e4 / T))
 
 
-def _alpha_heiii(T):  # noqa: N803
+def _alpha_heiii(T: Any) -> Any:  # noqa: N803
     """He III case-B recombination, Hui & Gnedin (1997)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     lam = 1263030.0 / T
     return 5.506e-14 * lam**1.5 * (1.0 + (460960.0 / T) ** 0.407) ** -2.242
 
 
-def _beta_hei(T):  # noqa: N803
+def _beta_hei(T: Any) -> Any:  # noqa: N803
     """He I collisional ionization, Theuns et al. (1998)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     return 4.76e-11 * np.sqrt(T) * np.exp(-285335.4 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _beta_heii(T):  # noqa: N803
+def _beta_heii(T: Any) -> Any:  # noqa: N803
     """He II collisional ionization, Theuns et al. (1998)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.14e-11 * np.sqrt(T) * np.exp(-631515.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_ion_hei(T):  # noqa: N803
+def _gamma_ion_hei(T: Any) -> Any:  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.88e-21 * np.sqrt(T) * np.exp(-285335.4 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_ion_heii(T):  # noqa: N803
+def _gamma_ion_heii(T: Any) -> Any:  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 9.90e-22 * np.sqrt(T) * np.exp(-631515.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_line_hei(T):  # noqa: N803
+def _gamma_line_hei(T: Any) -> Any:  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 9.10e-27 * T**-0.1687 * np.exp(-13179.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_line_heii(T):  # noqa: N803
+def _gamma_line_heii(T: Any) -> Any:  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 5.54e-17 * T**-0.397 * np.exp(-473638.0 / T) / (1.0 + np.sqrt(T / 1.0e5))
 
 
-def _gamma_rec_heii(T, case="B"):  # noqa: N803
+def _gamma_rec_heii(T: Any, case: Any = "B") -> Any:  # noqa: N803
     """He II recombination cooling, using k_B T alpha (Hummer & Storey)."""
     alpha = _alpha_heii(T)
     if case.upper() == "A":
@@ -95,7 +97,7 @@ def _gamma_rec_heii(T, case="B"):  # noqa: N803
     return BOLTZMANN_CONSTANT_CGS * np.asarray(T, float) * alpha
 
 
-def _gamma_rec_heiii(T, case="B"):  # noqa: N803
+def _gamma_rec_heiii(T: Any, case: Any = "B") -> Any:  # noqa: N803
     """He III recombination cooling, Hui & Gnedin (1997)."""
     T = np.maximum(np.asarray(T, float), 1.0)
     lam = 1263030.0 / T
@@ -104,24 +106,24 @@ def _gamma_rec_heiii(T, case="B"):  # noqa: N803
     return 2.748e-29 * T * lam**1.970 * (1.0 + (lam / 2.250) ** 0.376) ** -3.720
 
 
-def _gamma_dielectronic_heii(T):  # noqa: N803
+def _gamma_dielectronic_heii(T: Any) -> Any:  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.24e-13 * T**-1.5 * np.exp(-4.7e5 / T) * (1.0 + 0.3 * np.exp(-9.4e4 / T))
 
 
-def _gamma_bremsstrahlung(T):  # noqa: N803
+def _gamma_bremsstrahlung(T: Any) -> Any:  # noqa: N803
     T = np.maximum(np.asarray(T, float), 1.0)
     return 1.42e-27 * np.sqrt(T) * (1.1 + 0.34 * np.exp(-((5.5 - np.log10(T)) ** 2) / 3.0))
 
 
-def _state_density(state):
+def _state_density(state: Any) -> Any:
     rho = state["rho_cgs_g_cm3"]
     nH = state["hydrogen_mass_fraction"] * rho / PROTON_MASS_CGS
     nHe = state["helium_mass_fraction"] * rho / (4.0 * PROTON_MASS_CGS)
     return nH, nHe
 
 
-def _closure(state):
+def _closure(state: Any) -> None:
     nH, nHe = _state_density(state)
     xHI, xHeI, xHeIII = state["xHI"], state["xHeI"], state["xHeIII"]
     xHII = 1.0 - xHI
@@ -133,7 +135,7 @@ def _closure(state):
     state["mu"] = state["rho_cgs_g_cm3"] / np.maximum(PROTON_MASS_CGS * nt, 1.0e-99)
 
 
-def _rates(state, ngamma_cgs_cm3):
+def _rates(state: Any, ngamma_cgs_cm3: Any) -> Any:
     _closure(state)
     nH, nHe = _state_density(state)
     T = state["temperature_cgs_K"]
@@ -228,7 +230,7 @@ def _rates(state, ngamma_cgs_cm3):
     )
 
 
-def source_state(mesh, fluid, par):
+def source_state(mesh: Any, fluid: Any, par: Any) -> Any:
     code = _code_units(par)
     if code is None:
         raise ValueError("hydrogen/helium thermo-chemistry requires configured code units")
@@ -421,20 +423,22 @@ def source_state(mesh, fluid, par):
     return state
 
 
-def ionization_fraction_rate(state, ngamma_cgs_cm3):
+def ionization_fraction_rate(state: Any, ngamma_cgs_cm3: Any) -> Any:
     dHI, dHeI, dHeIII, _ = _rates(state, ngamma_cgs_cm3)
     return np.maximum(np.abs(dHI), np.maximum(np.abs(dHeI), np.abs(dHeIII)))
 
 
-def thermal_rate(state, ngamma_cgs_cm3):
+def thermal_rate(state: Any, ngamma_cgs_cm3: Any) -> Any:
     return _rates(state, ngamma_cgs_cm3)[3]
 
 
-def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s):
+def get_timestep(
+    state: Any, ngamma_cgs_cm3: Any, remaining_s: Any, dtmax_s: Any,
+) -> Any:
     d_hi, d_hei, d_heiii, thermal = _rates(state, ngamma_cgs_cm3)
     if state.get("coupled_implicit", True):
         return min(float(remaining_s), float(dtmax_s)), thermal
-    candidates = []
+    candidates: list[Any] = []
     for fraction, rate in (
         (state["xHI"], d_hi),
         (state["xHeI"], d_hei),
@@ -465,7 +469,7 @@ def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s):
     return min(float(remaining_s), float(dtmax_s), 0.1 * chem), thermal
 
 
-def update_temperature_from_energy(state):
+def update_temperature_from_energy(state: Any) -> Any:
     _closure(state)
     state["temperature_cgs_K"] = np.maximum(
         (state["gamma"] - 1.0)
@@ -477,7 +481,9 @@ def update_temperature_from_energy(state):
     )
 
 
-def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s):
+def ionization_fraction_implicit_update(
+    state: Any, ngamma_cgs_cm3: Any, dt_s: Any,
+) -> Any:
     old = np.array([state["xHI"], state["xHeI"], state["xHeIII"]])
     trial = old.copy()
     for _ in range(12):
@@ -492,7 +498,7 @@ def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s):
     _closure(state)
 
 
-def coupled_implicit_update(state, ngamma_cgs_cm3, dt_s):
+def coupled_implicit_update(state: Any, ngamma_cgs_cm3: Any, dt_s: Any) -> Any:
     """Implicitly update ion fractions and thermal energy together."""
     active = np.asarray(
         state.get("active", np.asarray(state["rho_cgs_g_cm3"]) > 0.0),
@@ -529,7 +535,7 @@ def coupled_implicit_update(state, ngamma_cgs_cm3, dt_s):
     update_temperature_from_energy(state)
 
 
-def apply_state(state, fluid, par):
+def apply_state(state: Any, fluid: Any, par: Any) -> None:
     i = state["interior"]
     code = _code_units(par)
     fields = runtime_fields(par)
@@ -591,43 +597,59 @@ class HydrogenHeliumNetwork(ThermochemistryNetwork):
     name = "hydrogen_helium"
     scalar_fields = ("xHI", "xHeI", "xHeII", "xHeIII")
 
-    def enabled(self, fluid, par):
+    def enabled(self, fluid: Any, par: Any) -> Any:
         return bool(getattr(par, "hydrogen_chemistry", True))
 
-    def radiation_enabled(self, fluid, par):
+    def radiation_enabled(self, fluid: Any, par: Any) -> Any:
         return bool(getattr(par, "radiative_transfer", False))
 
-    def radiation_evolution_enabled(self, fluid, par):
+    def radiation_evolution_enabled(self, fluid: Any, par: Any) -> Any:
         return False
 
-    def advect_ionization_fraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
+    def advect_ionization_fraction(
+        self,
+        dt: Any,
+        mesh: Any,
+        fluid: Any,
+        par: Any,
+        old_mass: Any,
+        mass_flux: Any,
+    ) -> Any:
         return 0
 
-    def source_state(self, mesh, fluid, par):
+    def source_state(self, mesh: Any, fluid: Any, par: Any) -> Any:
         return source_state(mesh, fluid, par)
 
-    def ionization_fraction_rate(self, state, ngamma_cgs_cm3):
+    def ionization_fraction_rate(self, state: Any, ngamma_cgs_cm3: Any) -> Any:
         return ionization_fraction_rate(state, ngamma_cgs_cm3)
 
-    def thermal_rate(self, state, ngamma_cgs_cm3):
+    def thermal_rate(self, state: Any, ngamma_cgs_cm3: Any) -> Any:
         return thermal_rate(state, ngamma_cgs_cm3)
 
-    def get_timestep(self, state, ngamma_cgs_cm3, remaining_s, dtmax_s):
+    def get_timestep(
+        self, state: Any, ngamma_cgs_cm3: Any, remaining_s: Any, dtmax_s: Any,
+    ) -> Any:
         return get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s)
 
-    def update_temperature_from_energy(self, state):
+    def update_temperature_from_energy(self, state: Any) -> Any:
         return update_temperature_from_energy(state)
 
-    def ionization_fraction_implicit_update(self, state, ngamma_cgs_cm3, dt_s):
+    def ionization_fraction_implicit_update(
+        self, state: Any, ngamma_cgs_cm3: Any, dt_s: Any,
+    ) -> Any:
         return ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s)
 
-    def coupled_implicit_update(self, state, ngamma_cgs_cm3, dt_s):
+    def coupled_implicit_update(
+        self, state: Any, ngamma_cgs_cm3: Any, dt_s: Any,
+    ) -> Any:
         return coupled_implicit_update(state, ngamma_cgs_cm3, dt_s)
 
-    def apply_state(self, state, fluid, par):
+    def apply_state(self, state: Any, fluid: Any, par: Any) -> Any:
         return apply_state(state, fluid, par)
 
-    def get_source_timestep_fast(self, mesh, fluid, par, remaining):
+    def get_source_timestep_fast(
+        self, mesh: Any, fluid: Any, par: Any, remaining: Any,
+    ) -> Any:
         state = source_state(mesh, fluid, par)
         code = _code_units(par)
         physical_remaining_s = (
@@ -644,7 +666,7 @@ class HydrogenHeliumNetwork(ThermochemistryNetwork):
             code.time_unit,
         )
 
-    def apply_fast(self, dt, mesh, fluid, par):
+    def apply_fast(self, dt: Any, mesh: Any, fluid: Any, par: Any) -> Any:
         raise NotImplementedError("hydrogen_helium uses the static local subcycle path")
 
 

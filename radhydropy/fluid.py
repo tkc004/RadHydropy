@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Fluid state container and primitive thermodynamic updates."""
 
+from typing import Any
+
 import numpy as np
 import unyt
 
@@ -28,7 +30,7 @@ from radhydropy.units import (
 # set up fluid properties
 
 
-def _pad_proper_fluid_fields(fluid, par, code_units):
+def _pad_proper_fluid_fields(fluid: Any, par: Any, code_units: Any) -> None:
     """Add ghost cells and optional proper-code radiation fields."""
     noghost = int(par.mesh.ghost_cells)
     defaults = (
@@ -74,7 +76,7 @@ def _pad_proper_fluid_fields(fluid, par, code_units):
         )
 
 
-def _proper_photon_density(par, code_units):
+def _proper_photon_density(par: Any, code_units: Any) -> float:
     return float(
         np.asarray(
             quantity_to_value(
@@ -85,7 +87,7 @@ def _proper_photon_density(par, code_units):
     )
 
 
-def _pad_photon_density(fluid, par, code_units, noghost):
+def _pad_photon_density(fluid: Any, par: Any, code_units: Any, noghost: int) -> None:
     values = np.asarray(fluid.ngamma_code, dtype=float)
     initial = _proper_photon_density(par, code_units)
     if values.ndim == 2:  # noqa: PLR2004
@@ -96,7 +98,7 @@ def _pad_photon_density(fluid, par, code_units, noghost):
         fluid.ngamma_code = as_named_array(np.concatenate((ghost, values, ghost)))
 
 
-def _prepare_helium_fractions(fluid, par):
+def _prepare_helium_fractions(fluid: Any, par: Any) -> None:
     """Create or normalize helium ion fractions for the helium network."""
     if getattr(par, "thermochemistry_network", "hydrogen") != "hydrogen_helium":
         return
@@ -119,8 +121,31 @@ class Fluid:
     quantities are converted at setup and source-state boundaries.
     """
 
+    eos: Any
+    CodeUnits: Any
+    runtime_fields: Any
+    runtime_state: Any
+    rho_proper_code: Any
+    vel_proper_code: Any
+    temp_proper_code: Any
+    pre_proper_code: Any
+    rho_comoving_code: Any
+    vel_supercomoving_code: Any
+    temp_supercomoving_code: Any
+    pre_supercomoving_code: Any
+    mu: Any
+    xHI: Any
+    xHeI: Any
+    xHeII: Any
+    xHeIII: Any
+    eth_code: Any
+    cs_code: Any
+    ngamma_code: Any
+    specific_angular_momentum_code: Any
+    tau_supercomoving_code: Any
+
     # import mesh and EOS information into Fluid
-    def __init__(self):
+    def __init__(self) -> None:
         # The concrete representation-specific clock is installed by the
         # runtime setup.  Proper-code is the non-cosmological default for a
         # bare container used before parameterized setup.
@@ -128,14 +153,14 @@ class Fluid:
         self.runtime_fields = None
         self.runtime_state = None
 
-    def configure_runtime_fields(self, par):
+    def configure_runtime_fields(self, par: Any) -> Any:
         """Select and validate the canonical field contract for this run."""
         fields = runtime_fields(par)
         self.runtime_fields = fields
         require_runtime_fields(self, fields, "fluid")
         return fields
 
-    def _refresh_runtime_state(self):
+    def _refresh_runtime_state(self) -> None:
         """Refresh the typed representation state after a primitive update."""
         if self.runtime_fields is None:
             return
@@ -170,12 +195,12 @@ class Fluid:
             xHI_dimensionless=getattr(self, "xHI", None),
         )
 
-    def refresh_runtime_state(self):
+    def refresh_runtime_state(self) -> None:
         """Refresh the typed runtime state after a primitive update."""
         return self._refresh_runtime_state()
 
     @property
-    def code_state(self):
+    def code_state(self) -> Any:
         """Return the current runtime arrays as a validated typed state.
 
         The property is deliberately constructed on access so it cannot become
@@ -212,7 +237,7 @@ class Fluid:
                 if self.runtime_fields is PROPER_RUNTIME_FIELDS
                 else SupercomovingCodeState
             )
-            state_kwargs = {
+            state_kwargs: dict[str, Any] = {
                 "specific_energy_proper_code"
                 if self.runtime_fields is PROPER_RUNTIME_FIELDS
                 else "specific_energy_supercomoving_code": specific_energy_code,
@@ -244,7 +269,7 @@ class Fluid:
             "fluid must have a representation-specific typed runtime state",
         )
 
-    def SetPressure(self):  # noqa: N802
+    def SetPressure(self) -> None:  # noqa: N802
         """Set gas pressure from density, temperature, and mean molecular weight."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             self.pre_proper_code = as_named_array(
@@ -268,7 +293,7 @@ class Fluid:
             )
         self._refresh_runtime_state()
 
-    def SetEnergyDensity(self):  # noqa: N802
+    def SetEnergyDensity(self) -> None:  # noqa: N802
         """Set thermal energy density from pressure and the fluid EOS."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             pressure = self.pre_proper_code
@@ -280,7 +305,7 @@ class Fluid:
             )
         self.eth_code = self.eos.thermal_energy_density(pressure)
 
-    def SetSoundSpeed(self):  # noqa: N802
+    def SetSoundSpeed(self) -> None:  # noqa: N802
         """Set adiabatic sound speed from pressure, density, and the fluid EOS."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             density = self.rho_proper_code
@@ -301,14 +326,18 @@ class Fluid:
             mu=self.mu,
         )
 
-    def SetHydrogenMu(self, hydrogen_mass_fraction=1.0):  # noqa: N802
+    def SetHydrogenMu(self, hydrogen_mass_fraction: Any = 1.0) -> None:  # noqa: N802
         """Set mean molecular weight from hydrogen neutral fraction."""
         self.mu = rh.mean_molecular_weight_mu(
             self.xHI,
             hydrogen_mass_fraction=hydrogen_mass_fraction,
         )
 
-    def SetHydrogenHeliumMu(self, hydrogen_mass_fraction=0.75, helium_mass_fraction=0.25):  # noqa: N802
+    def SetHydrogenHeliumMu(  # noqa: N802
+        self,
+        hydrogen_mass_fraction: Any = 0.75,
+        helium_mass_fraction: Any = 0.25,
+    ) -> None:
         xHI = np.asarray(self.xHI, dtype=float)
         np.asarray(self.xHeI, dtype=float)
         xHeII = np.asarray(self.xHeII, dtype=float)
@@ -333,7 +362,7 @@ class Fluid:
             np.asarray(density, dtype=float) / (unyt.mp.to_value(unyt.g) * np.maximum(nt, 1.0e-99)),
         )
 
-    def SetUpFluid(self, par, mesh=None):  # noqa: N802
+    def SetUpFluid(self, par: Any, mesh: Any = None) -> Any:  # noqa: N802
         """Normalize primitive quantities into code units, append ghost cells, and
         initialize pressure.
 
@@ -355,7 +384,7 @@ class Fluid:
             return self._set_up_proper_fluid(par, code_units)
         return self._set_up_supercomoving_fluid(par, code_units)
 
-    def _set_up_supercomoving_fluid(self, par, code_units):
+    def _set_up_supercomoving_fluid(self, par: Any, code_units: Any) -> None:
         """Initialize a cosmological fluid using canonical fields."""
         required = (
             "rho_comoving_code",
@@ -429,7 +458,7 @@ class Fluid:
             )
         self.SetPressure()
 
-    def _set_up_proper_fluid(self, par, code_units):
+    def _set_up_proper_fluid(self, par: Any, code_units: Any) -> None:
         """Initialize a non-cosmological fluid using canonical proper fields.
 
         Input quantities may carry physical units at this boundary.  All
@@ -511,7 +540,7 @@ class Fluid:
                 )
         self.SetPressure()
 
-    def SetTemperature(self):  # noqa: N802
+    def SetTemperature(self) -> None:  # noqa: N802
         """Set gas temperature from density, pressure, and mean molecular weight."""
         if self.runtime_fields is PROPER_RUNTIME_FIELDS:
             self.temp_proper_code = as_named_array(
@@ -535,7 +564,7 @@ class Fluid:
             )
         self._refresh_runtime_state()
 
-    def SetFluidTime(self, time_proper_code):  # noqa: N802
+    def SetFluidTime(self, time_proper_code: Any) -> None:  # noqa: N802
         """Set the current numeric proper-code fluid time.
 
         Physical time quantities are accepted only at this input boundary and

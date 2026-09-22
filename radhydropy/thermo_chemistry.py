@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Dispatcher for pluggable thermo-chemistry networks."""
 
+from typing import Any
+
 from radhydropy.thermo_networks import (
     CIECoolingNetwork,
     HydrogenHeliumNetwork,
@@ -17,12 +19,12 @@ _NETWORKS = {
 }
 
 
-def available_networks():
+def available_networks() -> tuple[str, ...]:
     """Return the names of available thermo-chemistry networks."""
     return tuple(sorted(_NETWORKS))
 
 
-def get_network(par):
+def get_network(par: Any) -> Any:
     """Return the thermo-chemistry network selected by the run parameters."""
     network_name = getattr(par, "thermochemistry_network", "hydrogen")
     try:
@@ -37,19 +39,21 @@ def get_network(par):
     return network_class()
 
 
-def thermochemistry_enabled(fluid, par):
+def thermochemistry_enabled(fluid: Any, par: Any) -> Any:
     return get_network(par).enabled(fluid, par)
 
 
-def thermochemistry_radiation_enabled(fluid, par):
+def thermochemistry_radiation_enabled(fluid: Any, par: Any) -> Any:
     return get_network(par).radiation_enabled(fluid, par)
 
 
-def thermochemistry_radiation_evolution_enabled(fluid, par):
+def thermochemistry_radiation_evolution_enabled(fluid: Any, par: Any) -> Any:
     return get_network(par).radiation_evolution_enabled(fluid, par)
 
 
-def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
+def advect_ionization_fraction(
+    dt: Any, mesh: Any, fluid: Any, par: Any, old_mass: Any, mass_flux: Any,
+) -> Any:
     """Advect chemistry scalars consistently with the mass flux."""
     return get_network(par).advect_ionization_fraction(
         dt,
@@ -61,22 +65,28 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
     )
 
 
-def source_state(mesh, fluid, par):
+def source_state(mesh: Any, fluid: Any, par: Any) -> Any:
     """Return a thermo-chemistry source state for the selected network."""
     return get_network(par).source_state(mesh, fluid, par)
 
 
-def ionization_fraction_rate(state, ngamma_cgs_cm3, par):
+def ionization_fraction_rate(state: Any, ngamma_cgs_cm3: Any, par: Any) -> Any:
     """Return the selected network's chemistry fraction rate."""
     return get_network(par).ionization_fraction_rate(state, ngamma_cgs_cm3)
 
 
-def thermal_rate(state, ngamma_cgs_cm3, par):
+def thermal_rate(state: Any, ngamma_cgs_cm3: Any, par: Any) -> Any:
     """Return the selected network's thermal source rate."""
     return get_network(par).thermal_rate(state, ngamma_cgs_cm3)
 
 
-def get_timestep(state, ngamma_cgs_cm3, par, remaining_s, dtmax_s):
+def get_timestep(
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    par: Any,
+    remaining_s: Any,
+    dtmax_s: Any,
+) -> Any:
     """Return a source substep for the selected network."""
     return get_network(par).get_timestep(
         state,
@@ -86,14 +96,16 @@ def get_timestep(state, ngamma_cgs_cm3, par, remaining_s, dtmax_s):
     )
 
 
-def update_temperature_from_energy(state):
+def update_temperature_from_energy(state: Any) -> Any:
     """Update temperature from source-state energy for the selected network."""
     if "helium_mass_fraction" in state:
         return HydrogenHeliumNetwork().update_temperature_from_energy(state)
     return HydrogenNetwork().update_temperature_from_energy(state)
 
 
-def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
+def ionization_fraction_implicit_update(
+    state: Any, ngamma_cgs_cm3: Any, dt_s: Any, par: Any,
+) -> Any:
     """Implicitly update chemistry fractions for the selected network."""
     return get_network(par).ionization_fraction_implicit_update(
         state,
@@ -102,7 +114,9 @@ def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
     )
 
 
-def coupled_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
+def coupled_implicit_update(
+    state: Any, ngamma_cgs_cm3: Any, dt_s: Any, par: Any,
+) -> Any:
     network = get_network(par)
     if hasattr(network, "coupled_implicit_update"):
         return network.coupled_implicit_update(state, ngamma_cgs_cm3, dt_s)
@@ -110,17 +124,25 @@ def coupled_implicit_update(state, ngamma_cgs_cm3, dt_s, par):
     return None
 
 
-def apply_state(state, fluid, par):
+def apply_state(state: Any, fluid: Any, par: Any) -> Any:
     """Copy a thermo-chemistry source state back to the fluid."""
     return get_network(par).apply_state(state, fluid, par)
 
 
-def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
+def get_thermochemistry_source_timestep_fast(
+    mesh: Any, fluid: Any, par: Any, remaining: Any,
+) -> Any:
     """Return a fast source substep for the selected network."""
     return get_network(par).get_source_timestep_fast(mesh, fluid, par, remaining)
 
 
-def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
+def apply_thermochemistry_fast(
+    dt: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    transport_result: Any = None,
+) -> Any:
     """Apply the selected network's fast thermo-chemistry source update."""
     if (
         getattr(par, "radiative_transfer", False)
@@ -151,15 +173,15 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
 
 
 def evolve_static_source_state(
-    state,
-    par,
-    final_time_s,
-    dtmax_s,
-    source_rate_s=0.0,
+    state: Any,
+    par: Any,
+    final_time_s: Any,
+    dtmax_s: Any,
+    source_rate_s: Any = 0.0,
     *,
-    include_thermal_history=False,
-    reference_time_s=None,
-):
+    include_thermal_history: bool = False,
+    reference_time_s: Any = None,
+) -> Any:
     """Evolve a fixed-density source state with the selected RT scheme."""
     scheme = getattr(par, "radiative_transfer_temporal_scheme", "c2ray")
     if scheme == "c2ray":

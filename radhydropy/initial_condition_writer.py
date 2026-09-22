@@ -3,6 +3,7 @@
 """Shared RadArray-to-runtime initial-condition writer boundary."""
 
 import warnings
+from typing import Any
 
 import numpy as np
 
@@ -21,11 +22,11 @@ from radhydropy.runtime_fields import (
 class _InitialConditionFieldGroup:
     """Small typed assignment facade used by ``InitialConditionWriter``."""
 
-    def __init__(self, writer, allowed_fields):
+    def __init__(self, writer: Any, allowed_fields: Any) -> None:
         object.__setattr__(self, "_writer", writer)
         object.__setattr__(self, "_allowed_fields", frozenset(allowed_fields))
 
-    def __setattr__(self, field_name, value):
+    def __setattr__(self, field_name: str, value: Any) -> None:
         if field_name.startswith("_"):
             object.__setattr__(self, field_name, value)
             return
@@ -35,7 +36,7 @@ class _InitialConditionFieldGroup:
             raise AttributeError(f"unsupported initial-condition field {field_name!r}")
         self._writer.set_field(field_name, value)
 
-    def __getattr__(self, field_name):
+    def __getattr__(self, field_name: str) -> Any:
         if field_name in self._allowed_fields:
             try:
                 return self._writer._fields[field_name]
@@ -54,17 +55,17 @@ class InitialConditionWriter:
 
     def __init__(
         self,
-        simulation=None,
+        simulation: Any = None,
         *,
-        par_config=None,
-        code_units=None,
-        ic_config=None,
-        box_size=None,
-        cosmology_context=None,
-        scale_factor=None,
-        hubble_parameter_km_s_Mpc=None,  # noqa: N803
-        provenance=None,
-    ):
+        par_config: Any = None,
+        code_units: Any = None,
+        ic_config: Any = None,
+        box_size: Any = None,
+        cosmology_context: Any = None,
+        scale_factor: Any = None,
+        hubble_parameter_km_s_Mpc: Any = None,  # noqa: N803
+        provenance: Any = None,
+    ) -> None:
         if simulation is None:
             simulation = self._simulation_from_config(par_config)
         self.simulation = simulation
@@ -94,7 +95,7 @@ class InitialConditionWriter:
         self.ic_config = ic_config
         self.provenance = provenance
         self.box_size = box_size
-        self._fields = {}
+        self._fields: dict[str, Any] = {}
         if code_units is not None:
             actual_code_units = self.code_units
             for name in (
@@ -176,7 +177,7 @@ class InitialConditionWriter:
         )
 
     @staticmethod
-    def _simulation_from_config(par_config):
+    def _simulation_from_config(par_config: Any) -> Any:
         if par_config is None:
             raise TypeError(
                 "InitialConditionWriter requires simulation or par_config",
@@ -184,7 +185,7 @@ class InitialConditionWriter:
         return Rsim(par_config)
 
     @staticmethod
-    def _cosmological_schema(simulation):
+    def _cosmological_schema(simulation: Any) -> bool:
         """Return whether ICs use comoving/supercomoving representations."""
         par = simulation.par
         cosmology = getattr(par, "cosmology", None)
@@ -205,14 +206,16 @@ class InitialConditionWriter:
         return bool(cosmological and supercomoving)
 
     @classmethod
-    def from_rsim(cls, simulation, *, provenance=None):
+    def from_rsim(cls, simulation: Any, *, provenance: Any = None) -> Any:
         return cls(simulation, provenance=provenance)
 
-    def _primitive_field_name(self, values, context, representation=None):
+    def _primitive_field_name(
+        self, values: Any, context: Any, representation: Any = None,
+    ) -> Any:
         if not hasattr(values, "units"):
             raise TypeError("writer.radarray requires a unit-bearing array")
         cosmological_schema = self._cosmological_schema(self.simulation)
-        field_names = (
+        field_names: tuple[str, ...] = (
             (
                 "boundary_comoving_code",
                 "rho_comoving_code",
@@ -305,7 +308,13 @@ class InitialConditionWriter:
             )
         return matching_fields[0]
 
-    def radarray(self, values, *, field_name=None, representation="proper"):
+    def radarray(
+        self,
+        values: Any,
+        *,
+        field_name: Any = None,
+        representation: str = "proper",
+    ) -> Any:
         """Create a ``RadArray`` from a unit-bearing array.
 
         Primitive IC fields are inferred from their dimensions and the
@@ -403,7 +412,7 @@ class InitialConditionWriter:
         )
 
     @staticmethod
-    def _to_code_values(value, code_unit):
+    def _to_code_values(value: Any, code_unit: Any) -> Any:
         """Convert a unit-bearing value to numerical values in ``code_unit``."""
         if not hasattr(value, "to_value"):
             raise TypeError("writer requires a unit-bearing value")
@@ -412,7 +421,7 @@ class InitialConditionWriter:
             dtype=float,
         ) / float(code_unit.value)
 
-    def radquantity(self, value):
+    def radquantity(self, value: Any) -> Any:
         """Create a ``RadQuantity`` from a unit-bearing primitive scalar."""
         context = self._context(self.simulation)
         if context is None:
@@ -439,12 +448,18 @@ class InitialConditionWriter:
             cosmology=context,
         )
 
-    def set_field(self, field_name, value):
+    def set_field(self, field_name: str, value: Any) -> Any:
         """Register one canonical IC field for conversion at write time."""
         self._fields[field_name] = value
         return self
 
-    def _resolve_field_value(self, field_name, container, radarray_field, source_field):
+    def _resolve_field_value(
+        self,
+        field_name: str,
+        container: Any,
+        radarray_field: Any,
+        source_field: Any,
+    ) -> Any:
         value = self._fields.get(field_name)
         if value is None and field_name in ("ngamma_proper_code", "ngamma_comoving_code"):
             value = getattr(container, "ngamma_code", None)
@@ -476,7 +491,9 @@ class InitialConditionWriter:
         )
         return next((candidate for candidate in candidates if candidate is not None), None)
 
-    def _field(self, field_name, container, *, required=True):
+    def _field(
+        self, field_name: str, container: Any, *, required: bool = True,
+    ) -> Any:
         radarray_field = {
             "boundary_comoving_code": "boundary_radarray",
             "boundary_proper_code": "boundary_radarray",
@@ -510,7 +527,7 @@ class InitialConditionWriter:
         return value
 
     @staticmethod
-    def _context(simulation, field_value=None):
+    def _context(simulation: Any, field_value: Any = None) -> Any:
         context = getattr(simulation.par, "cosmology_context", None)
         if context is None and isinstance(field_value, (RadArray, RadQuantity)):
             context = field_value.cosmology
@@ -533,7 +550,7 @@ class InitialConditionWriter:
         return context
 
     @staticmethod
-    def _code_values(value):
+    def _code_values(value: Any) -> Any:
         if isinstance(value, (RadArray, RadQuantity)):
             return np.asarray(value.value, dtype=float)
         if hasattr(value, "units"):
@@ -543,7 +560,14 @@ class InitialConditionWriter:
         return np.asarray(value, dtype=float)
 
     @classmethod
-    def _convert(cls, value, target_field, *, context, x_comoving_code=None):
+    def _convert(
+        cls,
+        value: Any,
+        target_field: str,
+        *,
+        context: Any,
+        x_comoving_code: Any = None,
+    ) -> Any:
         del context
         if not isinstance(value, (RadArray, RadQuantity)):
             return cls._code_values(value)
@@ -569,21 +593,21 @@ class InitialConditionWriter:
         return np.asarray(converted.value, dtype=float)
 
     @staticmethod
-    def _validate_finite_fields(fields):
+    def _validate_finite_fields(fields: Any) -> None:
         for field_name, field_values in fields:
             if not np.all(np.isfinite(field_values)):
                 raise ValueError(f"active {field_name} contains non-finite values")
 
     @staticmethod
     def _validate_active_primitive_state(
-        fluid,
-        rho_proper_code,
-        vel_proper_code,
-        pre_proper_code,
-        temp_proper_code,
-        mu_dimensionless,
-        volume_proper_code,
-    ):
+        fluid: Any,
+        rho_proper_code: Any,
+        vel_proper_code: Any,
+        pre_proper_code: Any,
+        temp_proper_code: Any,
+        mu_dimensionless: Any,
+        volume_proper_code: Any,
+    ) -> None:
         InitialConditionWriter._validate_finite_fields(
             (
                 ("rho_proper_code", rho_proper_code),
@@ -616,14 +640,14 @@ class InitialConditionWriter:
 
     @staticmethod
     def _validate_active_conserved_state(
-        fluid,
-        first,
-        last,
-        rho_proper_code,
-        vel_proper_code,
-        pre_proper_code,
-        volume_proper_code,
-    ):
+        fluid: Any,
+        first: int,
+        last: int,
+        rho_proper_code: Any,
+        vel_proper_code: Any,
+        pre_proper_code: Any,
+        volume_proper_code: Any,
+    ) -> None:
         expected_mass_code = rho_proper_code * volume_proper_code
         expected_mom_code = expected_mass_code * vel_proper_code
         expected_energy_code = (
@@ -653,7 +677,7 @@ class InitialConditionWriter:
                 raise ValueError(message)
 
     @staticmethod
-    def _validate_active_proper_state(simulation, first, last):
+    def _validate_active_proper_state(simulation: Any, first: int, last: int) -> None:
         """Validate the active proper-code primitive and conserved state."""
         fluid = simulation.fluid
         mesh = simulation.mesh
@@ -687,7 +711,13 @@ class InitialConditionWriter:
             volume_proper_code,
         )
 
-    def _prepare_geometry(self, mesh, par, boundary_values, cosmological_schema):
+    def _prepare_geometry(
+        self,
+        mesh: Any,
+        par: Any,
+        boundary_values: Any,
+        cosmological_schema: Any,
+    ) -> Any:
         width_values = np.diff(boundary_values)
         x_values = 0.5 * (boundary_values[:-1] + boundary_values[1:])
         geometry_state = getattr(mesh, "geometry_state", None)
@@ -731,18 +761,18 @@ class InitialConditionWriter:
 
     def _initialize_solver_state(
         self,
-        simulation,
-        source_ngamma_values,
-        specific_angular_momentum_values,
-        source_pressure,
-        pressure_field,
-        density_field,
-        velocity_field,
-        temperature_field,
-        cosmological_schema,
-        active_count,
-        validate,
-    ):
+        simulation: Any,
+        source_ngamma_values: Any,
+        specific_angular_momentum_values: Any,
+        source_pressure: Any,
+        pressure_field: str,
+        density_field: str,
+        velocity_field: str,
+        temperature_field: str,
+        cosmological_schema: Any,
+        active_count: int,
+        validate: Any,
+    ) -> Any:
         par = simulation.par
         mesh = simulation.mesh
         fluid = simulation.fluid
@@ -814,17 +844,17 @@ class InitialConditionWriter:
 
     @staticmethod
     def _trim_solver_fields(
-        fluid,
-        density_field,
-        velocity_field,
-        temperature_field,
-        pressure_field,
-        cosmological_schema,
-        active_count,
-        ghost_cells,
-        first,
-        last,
-    ):
+        fluid: Any,
+        density_field: str,
+        velocity_field: str,
+        temperature_field: str,
+        pressure_field: str,
+        cosmological_schema: Any,
+        active_count: int,
+        ghost_cells: int,
+        first: int,
+        last: int,
+    ) -> None:
         fluid_fields = {
             density_field,
             velocity_field,
@@ -857,18 +887,18 @@ class InitialConditionWriter:
 
     def _finalize_runtime_state(
         self,
-        simulation,
-        cosmological_schema,
-        x_values,
-        boundary_values,
-        width_values,
-        area_values,
-        volume_values,
-        density_values,
-        velocity_values,
-        pressure_values,
-        temperature_values,
-    ):
+        simulation: Any,
+        cosmological_schema: Any,
+        x_values: Any,
+        boundary_values: Any,
+        width_values: Any,
+        area_values: Any,
+        volume_values: Any,
+        density_values: Any,
+        velocity_values: Any,
+        pressure_values: Any,
+        temperature_values: Any,
+    ) -> None:
         par = simulation.par
         mesh = simulation.mesh
         fluid = simulation.fluid
@@ -953,7 +983,13 @@ class InitialConditionWriter:
         )
         par.simulation.box_size_proper_code = float(boundary_values[-1])
 
-    def _prepare_optional_fields(self, fluid, context, cosmological_schema, density_values):
+    def _prepare_optional_fields(
+        self,
+        fluid: Any,
+        context: Any,
+        cosmological_schema: Any,
+        density_values: Any,
+    ) -> Any:
         ngamma_field = "ngamma_comoving_code" if cosmological_schema else "ngamma_proper_code"
         source_ngamma = self._field(ngamma_field, fluid, required=False)
         source_ngamma_values = None
@@ -981,7 +1017,7 @@ class InitialConditionWriter:
             specific_values = np.asarray(specific_values, dtype=float).copy()
         return source_ngamma_values, specific_values
 
-    def _convert_angular_momentum(self, value, context):
+    def _convert_angular_momentum(self, value: Any, context: Any) -> Any:
         if hasattr(value, "units") and not isinstance(value, (RadArray, RadQuantity)):
             code_unit = _code_unit_for_spec(
                 self.code_units,
@@ -990,7 +1026,7 @@ class InitialConditionWriter:
             return np.asarray(value.to_value(code_unit.units), dtype=float) / float(code_unit.value)
         return self._convert(value, "specific_angular_momentum_code", context=context)
 
-    def prepare(self, *, validate=False):
+    def prepare(self, *, validate: bool = False) -> Any:
         """Convert fields and create canonical typed runtime state.
 
         Set ``validate=True`` to run the active proper-code consistency
@@ -1127,7 +1163,7 @@ class InitialConditionWriter:
         )
         return simulation
 
-    def write(self, filename, *, validate=False):
+    def write(self, filename: Any, *, validate: bool = False) -> Any:
         """Prepare and write the state, optionally validating active cells."""
         from radhydropy import io  # noqa: PLC0415
 

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Compton heating and cooling from an isotropic CMB background."""
 
+from typing import Any
+
 import numpy as np
 import unyt
 
@@ -21,13 +23,13 @@ RADIATION_DENSITY_CONSTANT_CGS = float(
 
 
 def cmb_compton_rate(
-    temperature_cgs_K,  # noqa: N803
-    electron_density_cgs_cm3,
+    temperature_cgs_K: Any,  # noqa: N803
+    electron_density_cgs_cm3: Any,
     *,
-    enabled=False,
-    redshift=0.0,
-    cmb_temperature_0_cgs_K=2.7255,  # noqa: N803
-):
+    enabled: bool = False,
+    redshift: float = 0.0,
+    cmb_temperature_0_cgs_K: float = 2.7255,  # noqa: N803
+) -> Any:
     """Return CMB Compton heating/cooling in ``erg cm^-3 s^-1``.
 
     A positive result heats the gas.  The source is disabled unless

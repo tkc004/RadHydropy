@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Rsim execution subsystem helpers."""
 
+from typing import Any, cast
+
 import numpy as np
 import unyt
 
@@ -10,7 +12,9 @@ import radhydropy.thermo_chemistry as rtc
 from radhydropy.units import time_seconds
 
 
-def _static_front_radius_from_state(sim, state, neutral_fraction=0.5):
+def _static_front_radius_from_state(
+    sim: Any, state: dict[str, Any], neutral_fraction: float = 0.5,
+) -> Any:
     ionized = state["xHI"] <= neutral_fraction
     if not np.any(ionized):
         return 0.0
@@ -29,18 +33,18 @@ def _static_front_radius_from_state(sim, state, neutral_fraction=0.5):
 
 
 def _append_static_history(
-    sim,
-    history,
-    state,
-    ngamma_cgs_cm3,
-    time_s,
-    recombined_photons,
-    source_rate_s,
-    seconds_to_myr,
-):
+    sim: Any,
+    history: dict[str, Any],
+    state: dict[str, Any],
+    ngamma_cgs_cm3: Any,
+    time_s: float,
+    recombined_photons: Any,
+    source_rate_s: Any,
+    seconds_to_myr: float,
+) -> None:
     ionized = 1.0 - state["xHI"]
-    ionized_atoms = np.sum(ionized * state["nH_cgs_cm3"] * state["volume_cgs_cm3"])
-    volume_photons = np.sum(ngamma_cgs_cm3 * state["volume_cgs_cm3"])
+    ionized_atoms: Any = np.sum(ionized * state["nH_cgs_cm3"] * state["volume_cgs_cm3"])
+    volume_photons: Any = np.sum(ngamma_cgs_cm3 * state["volume_cgs_cm3"])
     history["time_Myr"].append(time_s * seconds_to_myr)
     history["front_radius_kpc"].append(sim.static_front_radius_from_state(state))
     history["injected_photons"].append(source_rate_s * time_s)
@@ -53,7 +57,7 @@ def _append_static_history(
     if "mean_ionized_temp_cgs_K" in history:
         ionized_weight = 1.0 - state["xHI"]
         if np.sum(ionized_weight) > 0.0:
-            mean_temp = np.sum(ionized_weight * state["temperature_cgs_K"]) / np.sum(
+            mean_temp: Any = np.sum(ionized_weight * state["temperature_cgs_K"]) / np.sum(
                 ionized_weight,
             )
         else:
@@ -61,7 +65,7 @@ def _append_static_history(
         history["mean_ionized_temp_cgs_K"].append(float(mean_temp))
 
 
-def _snapshot_static_state(sim, state, time_s):
+def _snapshot_static_state(sim: Any, state: dict[str, Any], time_s: float) -> dict[str, Any]:
     return {
         "time_Myr": time_s / (1.0 * unyt.Myr).to_value(unyt.s),
         "radius_kpc": state["radius_kpc"].copy(),
@@ -70,8 +74,10 @@ def _snapshot_static_state(sim, state, time_s):
     }
 
 
-def _initial_static_history(sim, *, include_thermal_history=False):
-    history = {
+def _initial_static_history(
+    sim: Any, *, include_thermal_history: bool = False,
+) -> dict[str, Any]:
+    history: dict[str, Any] = {
         "time_Myr": [],
         "front_radius_kpc": [],
         "injected_photons": [],
@@ -85,7 +91,7 @@ def _initial_static_history(sim, *, include_thermal_history=False):
     return history
 
 
-def _static_reference_time_seconds(sim, reference_time):
+def _static_reference_time_seconds(sim: Any, reference_time: Any) -> Any:
     if reference_time is None:
         return None
     return time_seconds(
@@ -94,7 +100,14 @@ def _static_reference_time_seconds(sim, reference_time):
     )
 
 
-def _static_step_limit_seconds(sim, time_s, final_time_s, dtmax_s, reference_time_s, history):
+def _static_step_limit_seconds(
+    sim: Any,
+    time_s: float,
+    final_time_s: float,
+    dtmax_s: float,
+    reference_time_s: Any,
+    history: dict[str, Any],
+) -> tuple[float, float]:
     remaining_s = final_time_s - time_s
     dtmax_step_s = min(dtmax_s, remaining_s)
     if (
@@ -106,8 +119,8 @@ def _static_step_limit_seconds(sim, time_s, final_time_s, dtmax_s, reference_tim
     return remaining_s, dtmax_step_s
 
 
-def _static_recombination_rate(sim, state):
-    alpha = state.get("alpha_B_cgs_cm3_s", None)
+def _static_recombination_rate(sim: Any, state: dict[str, Any]) -> Any:
+    alpha = state.get("alpha_B_cgs_cm3_s")
     if alpha is None:
         alpha = getattr(sim.par, "hydrogen_alpha_B", None)
     if alpha is None:
@@ -122,7 +135,13 @@ def _static_recombination_rate(sim, state):
     )
 
 
-def _apply_static_thermal_update(sim, state, ngamma_cgs_cm3, thermal_rate, dt_s):
+def _apply_static_thermal_update(
+    sim: Any,
+    state: dict[str, Any],
+    ngamma_cgs_cm3: Any,
+    thermal_rate: Any,
+    dt_s: float,
+) -> None:
     if not getattr(sim.par, "hydrogen_thermal_coupling", True):
         return
     if thermal_rate is None:
@@ -142,7 +161,13 @@ def _apply_static_thermal_update(sim, state, ngamma_cgs_cm3, thermal_rate, dt_s)
     rtc.update_temperature_from_energy(state)
 
 
-def _advance_source_thermochemistry_state(sim, state, ngamma_cgs_cm3, dt_s, thermal_rate):
+def _advance_source_thermochemistry_state(
+    sim: Any,
+    state: dict[str, Any],
+    ngamma_cgs_cm3: Any,
+    dt_s: float,
+    thermal_rate: Any,
+) -> Any:
     recombination_rate_start = sim.static_recombination_rate(state)
     if getattr(sim.par, "thermochemistry_network", "hydrogen") == "hydrogen_helium":
         rtc.coupled_implicit_update(state, ngamma_cgs_cm3, dt_s, sim.par)
@@ -155,7 +180,13 @@ def _advance_source_thermochemistry_state(sim, state, ngamma_cgs_cm3, dt_s, ther
     return 0.5 * (recombination_rate_start + recombination_rate_end) * dt_s
 
 
-def _refresh_static_photon_density(sim, state, step, time_s, final_time_s):
+def _refresh_static_photon_density(
+    sim: Any,
+    state: dict[str, Any],
+    step: int,
+    time_s: float,
+    final_time_s: float,
+) -> tuple[Any, int]:
     # The static thermo-chemistry path still needs the radiation field to
     # follow the evolving neutral fraction. Refresh every source step so
     # the next implicit update sees the current opacity.
@@ -163,7 +194,13 @@ def _refresh_static_photon_density(sim, state, step, time_s, final_time_s):
     return ngamma_cgs_cm3, 1
 
 
-def _store_static_reference_snapshot(sim, history, state, time_s, reference_time_s):
+def _store_static_reference_snapshot(
+    sim: Any,
+    history: dict[str, Any],
+    state: dict[str, Any],
+    time_s: float,
+    reference_time_s: Any,
+) -> None:
     if (
         reference_time_s is not None
         and "reference_snapshot" not in history
@@ -172,7 +209,9 @@ def _store_static_reference_snapshot(sim, history, state, time_s, reference_time
         history["reference_snapshot"] = sim.snapshot_static_state(state, time_s)
 
 
-def _finish_static_thermochemistry(sim, state, time_s):
+def _finish_static_thermochemistry(
+    sim: Any, state: dict[str, Any], time_s: float,
+) -> None:
     if getattr(sim.par, "radiative_transfer_temporal_scheme", "c2ray") == "c2ray":
         from radhydropy.thermo_networks import c2ray  # noqa: PLC0415
 
@@ -192,13 +231,13 @@ def _finish_static_thermochemistry(sim, state, time_s):
 
 
 def EvolveStaticThermochemistry(  # noqa: N802
-    sim,
-    final_time,
-    source_timestep,
+    sim: Any,
+    final_time: Any,
+    source_timestep: Any,
     *,
-    include_thermal_history=False,
-    reference_time=None,
-):
+    include_thermal_history: bool = False,
+    reference_time: Any = None,
+) -> dict[str, Any]:
     """Evolve fixed-density thermo-chemistry/radiation source terms."""
     state = rtc.source_state(sim.mesh, sim.fluid, sim.par)
     code_units = getattr(sim.par, "CodeUnits", None)
@@ -219,7 +258,7 @@ def EvolveStaticThermochemistry(  # noqa: N802
             state,
             state.get("time_s", final_time_s),
         )
-        return history
+        return cast("dict[str, Any]", history)
     ngamma_cgs_cm3 = rrt.trace_photon_density(state, sim.par)
     recombined_photons = 0.0
     time_s = 0.0
@@ -291,4 +330,4 @@ def EvolveStaticThermochemistry(  # noqa: N802
     history["chemistry_steps"] = step
     history["evolution_steps"] = step
     history["radiative_transfer_updates"] = rt_updates
-    return history
+    return cast("dict[str, Any]", history)

@@ -10,6 +10,7 @@ import copy
 import logging
 from functools import partial
 from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 import unyt
@@ -43,13 +44,13 @@ from radhydropy.units import (
 )
 
 
-def _require_numeric_array(value, label):
+def _require_numeric_array(value: Any, label: str) -> Any:
     if hasattr(value, "to_value"):
         raise TypeError(f"{label} must be a plain numeric array, not a unyt quantity")
     return np.asarray(value, dtype=float)
 
 
-def _canonical_fluid_primitive_arrays(fluid, par):
+def _canonical_fluid_primitive_arrays(fluid: Any, par: Any) -> Any:
     """Return primitive arrays through an explicit representation branch."""
     state = getattr(fluid, "runtime_state", None)
     if getattr(par, "supercomoving_coordinates", False):
@@ -85,7 +86,7 @@ def _canonical_fluid_primitive_arrays(fluid, par):
     )
 
 
-def _canonical_mesh_geometry_arrays(mesh, par):
+def _canonical_mesh_geometry_arrays(mesh: Any, par: Any) -> Any:
     """Return mesh arrays through an explicit frame branch."""
     geometry = mesh.geometry_state
     if getattr(par, "supercomoving_coordinates", False):
@@ -105,7 +106,7 @@ def _canonical_mesh_geometry_arrays(mesh, par):
     )
 
 
-def _optional_numeric_value(value, unit, default=None):
+def _optional_numeric_value(value: Any, unit: Any, default: Any = None) -> Any:
     if value is None:
         if default is None:
             return None
@@ -113,7 +114,7 @@ def _optional_numeric_value(value, unit, default=None):
     return to_unit_value(value, unit)
 
 
-def _parameter_value(par, name, default=None):
+def _parameter_value(par: Any, name: str, default: Any = None) -> Any:
     """Read a parameter from the flat store or nested parameter group."""
     value = getattr(par, name, None)
     if value is not None:
@@ -122,7 +123,7 @@ def _parameter_value(par, name, default=None):
     return parameter(name, default) if parameter is not None else default
 
 
-def _cgs_alpha_B(temperature_cgs_K):  # noqa: N802, N803
+def _cgs_alpha_B(temperature_cgs_K: Any) -> Any:  # noqa: N802, N803
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
@@ -132,12 +133,12 @@ def _cgs_alpha_B(temperature_cgs_K):  # noqa: N802, N803
     return result
 
 
-def cgs_alpha_B(temperature_cgs_K):  # noqa: N802, N803
+def cgs_alpha_B(temperature_cgs_K: Any) -> Any:  # noqa: N802, N803
     """Return the case-B recombination coefficient in cgs units."""
     return _cgs_alpha_B(temperature_cgs_K)
 
 
-def _cgs_alpha_A(temperature_cgs_K):  # noqa: N802, N803
+def _cgs_alpha_A(temperature_cgs_K: Any) -> Any:  # noqa: N802, N803
     """H II case-A recombination coefficient (Hui & Gnedin 1997)."""
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     result = np.zeros_like(temperature_cgs_K, dtype=float)
@@ -148,7 +149,7 @@ def _cgs_alpha_A(temperature_cgs_K):  # noqa: N802, N803
     return result
 
 
-def _cgs_beta(temperature_cgs_K):  # noqa: N803
+def _cgs_beta(temperature_cgs_K: Any) -> Any:  # noqa: N803
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
@@ -159,7 +160,7 @@ def _cgs_beta(temperature_cgs_K):  # noqa: N803
     return result
 
 
-def collisional_equilibrium_neutral_fraction(temperature_cgs_K):  # noqa: N803
+def collisional_equilibrium_neutral_fraction(temperature_cgs_K: Any) -> Any:  # noqa: N803
     """Return the H I fraction in collisional ionization equilibrium."""
     alpha = _cgs_alpha_B(temperature_cgs_K)
     beta = _cgs_beta(temperature_cgs_K)
@@ -167,7 +168,7 @@ def collisional_equilibrium_neutral_fraction(temperature_cgs_K):  # noqa: N803
     return np.divide(alpha, total, out=np.ones_like(alpha), where=total > 0.0)
 
 
-def _cgs_gamma_line_eHI(temperature_cgs_K):  # noqa: N802, N803
+def _cgs_gamma_line_eHI(temperature_cgs_K: Any) -> Any:  # noqa: N802, N803
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
@@ -178,7 +179,7 @@ def _cgs_gamma_line_eHI(temperature_cgs_K):  # noqa: N802, N803
     return result
 
 
-def _cgs_gamma_ion_eHI(temperature_cgs_K):  # noqa: N802, N803
+def _cgs_gamma_ion_eHI(temperature_cgs_K: Any) -> Any:  # noqa: N802, N803
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
@@ -189,7 +190,7 @@ def _cgs_gamma_ion_eHI(temperature_cgs_K):  # noqa: N802, N803
     return result
 
 
-def _cgs_gamma_ff_eHII(temperature_cgs_K):  # noqa: N802, N803
+def _cgs_gamma_ff_eHII(temperature_cgs_K: Any) -> Any:  # noqa: N802, N803
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
@@ -201,7 +202,7 @@ def _cgs_gamma_ff_eHII(temperature_cgs_K):  # noqa: N802, N803
     return result
 
 
-def _cgs_gamma_B_eHII(temperature_cgs_K):  # noqa: N802, N803
+def _cgs_gamma_B_eHII(temperature_cgs_K: Any) -> Any:  # noqa: N802, N803
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     result = np.zeros_like(temperature_cgs_K, dtype=float)
     valid = temperature_cgs_K > 0.0
@@ -212,7 +213,7 @@ def _cgs_gamma_B_eHII(temperature_cgs_K):  # noqa: N802, N803
     return result
 
 
-def _cgs_gamma_A_eHII(temperature_cgs_K):  # noqa: N802, N803
+def _cgs_gamma_A_eHII(temperature_cgs_K: Any) -> Any:  # noqa: N802, N803
     """H II case-A recombination cooling coefficient."""
     temperature_cgs_K = np.asarray(temperature_cgs_K, dtype=float)
     result = np.zeros_like(temperature_cgs_K, dtype=float)
@@ -224,17 +225,26 @@ def _cgs_gamma_A_eHII(temperature_cgs_K):  # noqa: N802, N803
     return result
 
 
-def cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction=1.0):
+def cgs_hydrogen_number_density(
+    rho_cgs_g_cm3: Any,
+    hydrogen_mass_fraction: Any = 1.0,
+) -> Any:
     """Return hydrogen number density in cgs units."""
     return hydrogen_mass_fraction * np.asarray(rho_cgs_g_cm3, dtype=float) / PROTON_MASS_CGS
 
 
-def _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction=1.0):
+def _cgs_hydrogen_number_density(
+    rho_cgs_g_cm3: Any,
+    hydrogen_mass_fraction: Any = 1.0,
+) -> Any:
     """Backward-compatible private alias for the public conversion function."""
     return cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
 
 
-def _cgs_photoionization_frequency(ngamma_cgs_cm3, sigma_gamma_cgs_cm2):
+def _cgs_photoionization_frequency(
+    ngamma_cgs_cm3: Any,
+    sigma_gamma_cgs_cm2: Any,
+) -> Any:
     ngamma_cgs_cm3 = np.asarray(ngamma_cgs_cm3, dtype=float)
     sigma_gamma_cgs_cm2 = np.asarray(sigma_gamma_cgs_cm2, dtype=float)
     if ngamma_cgs_cm3.ndim > 1 and sigma_gamma_cgs_cm2.ndim == 1:
@@ -243,27 +253,30 @@ def _cgs_photoionization_frequency(ngamma_cgs_cm3, sigma_gamma_cgs_cm2):
     return np.sum(rate_cgs_s, axis=0) if np.ndim(rate_cgs_s) > 1 else rate_cgs_s
 
 
-def cgs_photoionization_frequency(ngamma_cgs_cm3, sigma_gamma_cgs_cm2):
+def cgs_photoionization_frequency(
+    ngamma_cgs_cm3: Any,
+    sigma_gamma_cgs_cm2: Any,
+) -> Any:
     """Return the photoionization frequency in cgs units."""
     return _cgs_photoionization_frequency(ngamma_cgs_cm3, sigma_gamma_cgs_cm2)
 
 
 def _cgs_source_thermal_rate(
-    rho_cgs_g_cm3,
-    temperature_cgs_K,  # noqa: N803
-    xHI,  # noqa: N803
-    hydrogen_mass_fraction=1.0,
+    rho_cgs_g_cm3: Any,
+    temperature_cgs_K: Any,  # noqa: N803
+    xHI: Any,  # noqa: N803
+    hydrogen_mass_fraction: Any = 1.0,
     *,
-    recombination=True,
-    collisional_ionization=True,
-    atomic_cooling=True,
-    ngamma_cgs_cm3=None,
-    sigma_gamma_cgs_cm2=1.0,
-    epsilon_gamma_cgs_erg=0.0,
-    compton_cmb_enabled=False,
-    compton_cmb_redshift=0.0,
-    cmb_temperature_0_cgs_K=2.7255,  # noqa: N803
-):
+    recombination: Any = True,
+    collisional_ionization: Any = True,
+    atomic_cooling: Any = True,
+    ngamma_cgs_cm3: Any = None,
+    sigma_gamma_cgs_cm2: Any = 1.0,
+    epsilon_gamma_cgs_erg: Any = 0.0,
+    compton_cmb_enabled: Any = False,
+    compton_cmb_redshift: Any = 0.0,
+    cmb_temperature_0_cgs_K: Any = 2.7255,  # noqa: N803
+) -> Any:
     xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
     ionized = 1.0 - xHI
     nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
@@ -310,18 +323,18 @@ def _cgs_source_thermal_rate(
 
 
 def _cgs_static_neutral_fraction_rate(
-    rho_cgs_g_cm3,
-    temperature_cgs_K,  # noqa: N803
-    xHI,  # noqa: N803
-    hydrogen_mass_fraction=1.0,
+    rho_cgs_g_cm3: Any,
+    temperature_cgs_K: Any,  # noqa: N803
+    xHI: Any,  # noqa: N803
+    hydrogen_mass_fraction: Any = 1.0,
     *,
-    recombination=True,
-    collisional_ionization=True,
-    ngamma_cgs_cm3=None,
-    sigma_gamma_cgs_cm2=1.0,
-    recombination_coefficient_cgs_cm3_s=None,
-    ionization_coefficient_cgs_cm3_s=None,
-):
+    recombination: Any = True,
+    collisional_ionization: Any = True,
+    ngamma_cgs_cm3: Any = None,
+    sigma_gamma_cgs_cm2: Any = 1.0,
+    recombination_coefficient_cgs_cm3_s: Any = None,
+    ionization_coefficient_cgs_cm3_s: Any = None,
+) -> Any:
     xHI = np.clip(np.asarray(xHI, dtype=float), 0.0, 1.0)
     ionized = 1.0 - xHI
     nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
@@ -364,19 +377,19 @@ def _cgs_static_neutral_fraction_rate(
 
 
 def _cgs_static_neutral_fraction_implicit_update(
-    rho_cgs_g_cm3,
-    temperature_cgs_K,  # noqa: N803
-    xHI,  # noqa: N803
-    dt_s,
-    hydrogen_mass_fraction=1.0,
+    rho_cgs_g_cm3: Any,
+    temperature_cgs_K: Any,  # noqa: N803
+    xHI: Any,  # noqa: N803
+    dt_s: Any,
+    hydrogen_mass_fraction: Any = 1.0,
     *,
-    recombination=True,
-    collisional_ionization=True,
-    ngamma_cgs_cm3=None,
-    sigma_gamma_cgs_cm2=1.0,
-    recombination_coefficient_cgs_cm3_s=None,
-    ionization_coefficient_cgs_cm3_s=None,
-):
+    recombination: Any = True,
+    collisional_ionization: Any = True,
+    ngamma_cgs_cm3: Any = None,
+    sigma_gamma_cgs_cm2: Any = 1.0,
+    recombination_coefficient_cgs_cm3_s: Any = None,
+    ionization_coefficient_cgs_cm3_s: Any = None,
+) -> Any:
     xHI = np.clip(np.asarray(xHI, dtype=float), 1.0e-12, 1.0 - 1.0e-12)
     nH = _cgs_hydrogen_number_density(rho_cgs_g_cm3, hydrogen_mass_fraction)
     if recombination:
@@ -453,17 +466,17 @@ def _cgs_static_neutral_fraction_implicit_update(
     return np.clip(updated, 1.0e-12, 1.0 - 1.0e-12)
 
 
-def interior_slice(par):
+def interior_slice(par: Any) -> Any:
     first = int(par.mesh.ghost_cells)
     grid_cells = int(par.mesh.grid_cells)
     return slice(first, first + grid_cells)
 
 
-def thermochemistry_enabled(fluid, par):
+def thermochemistry_enabled(fluid: Any, par: Any) -> Any:
     return getattr(par, "hydrogen_chemistry", False) and hasattr(fluid, "xHI")
 
 
-def thermochemistry_radiation_enabled(fluid, par):
+def thermochemistry_radiation_enabled(fluid: Any, par: Any) -> Any:
     return (
         thermochemistry_enabled(fluid, par)
         and (
@@ -474,7 +487,7 @@ def thermochemistry_radiation_enabled(fluid, par):
     )
 
 
-def thermochemistry_radiation_evolution_enabled(fluid, par):
+def thermochemistry_radiation_evolution_enabled(fluid: Any, par: Any) -> Any:
     return (
         thermochemistry_radiation_enabled(fluid, par)
         and getattr(par, "hydrogen_radiation_evolution", True)
@@ -482,7 +495,14 @@ def thermochemistry_radiation_evolution_enabled(fluid, par):
     )
 
 
-def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
+def advect_ionization_fraction(
+    dt: Any,
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    old_mass: Any,
+    mass_flux: Any,
+) -> Any:
     """Advect the chemistry fraction consistently with the mass flux."""
     if not hasattr(fluid, "xHI"):
         return
@@ -498,7 +518,7 @@ def advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux):
     fluid.xHI = rh.clip_neutral_fraction(np.asarray(xHI, dtype=float))
 
 
-def source_state(mesh, fluid, par):
+def source_state(mesh: Any, fluid: Any, par: Any) -> Any:
     """Return the hydrogen source state through the typed cgs boundary."""
     from radhydropy.thermo_networks.hydrogen_source_state import build_source_state  # noqa: PLC0415
 
@@ -517,7 +537,13 @@ def source_state(mesh, fluid, par):
     )
 
 
-def trace_spherical_tau(mesh, rho, xHI, hydrogen_mass_fraction, sigma_gamma):  # noqa: N803
+def trace_spherical_tau(
+    mesh: Any,
+    rho: Any,
+    xHI: Any,
+    hydrogen_mass_fraction: Any,
+    sigma_gamma: Any,
+) -> Any:  # noqa: N803
     """Return the hydrogen optical depth per cell.
 
     This helper now requires ``mesh.code_units`` so the cgs conversion is
@@ -540,7 +566,7 @@ def trace_spherical_tau(mesh, rho, xHI, hydrogen_mass_fraction, sigma_gamma):  #
     return as_named_array(np.maximum(tau, 0.0))
 
 
-def ionization_fraction_rate(state, ngamma_cgs_cm3):
+def ionization_fraction_rate(state: Any, ngamma_cgs_cm3: Any) -> Any:
     """Return the chemistry fraction rate for a float source state."""
     hydrogen_mass_fraction = state["hydrogen_mass_fraction"]
     recombination = state["recombination"]
@@ -562,7 +588,7 @@ def ionization_fraction_rate(state, ngamma_cgs_cm3):
     )
 
 
-def thermal_rate(state, ngamma_cgs_cm3):
+def thermal_rate(state: Any, ngamma_cgs_cm3: Any) -> Any:
     """Return thermal source rate for a float source state."""
     hydrogen_mass_fraction = state["hydrogen_mass_fraction"]
     recombination = state["recombination"]
@@ -586,7 +612,14 @@ def thermal_rate(state, ngamma_cgs_cm3):
     )
 
 
-def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, *, verbose=False):
+def get_timestep(
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    remaining_s: Any,
+    dtmax_s: Any,
+    *,
+    verbose: Any = False,
+) -> Any:
     """Return a source substep for a float thermo-chemistry state."""
     source_CFL = state["source_CFL"]
     dtmin_s = state["dtmin_s"]
@@ -630,7 +663,12 @@ def get_timestep(state, ngamma_cgs_cm3, remaining_s, dtmax_s, *, verbose=False):
     return dt, source_thermal_rate
 
 
-def _ionization_timestep(state, ngamma_cgs_cm3, source_CFL, verbose):
+def _ionization_timestep(
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    source_CFL: Any,
+    verbose: Any,
+) -> Any:
     enabled = (
         state["recombination"] or state["collisional_ionization"] or ngamma_cgs_cm3 is not None
     )
@@ -661,7 +699,12 @@ def _ionization_timestep(state, ngamma_cgs_cm3, source_CFL, verbose):
     return neutral_dt, detail
 
 
-def _thermal_timestep(state, source_thermal_rate, source_CFL, verbose):
+def _thermal_timestep(
+    state: Any,
+    source_thermal_rate: Any,
+    source_CFL: Any,
+    verbose: Any,
+) -> Any:
     active = np.asarray(
         state.get("active", np.asarray(state["rho_cgs_g_cm3"]) > 0.0),
         dtype=bool,
@@ -693,7 +736,7 @@ def _thermal_timestep(state, source_thermal_rate, source_CFL, verbose):
     return thermal_dt, detail
 
 
-def update_temperature_from_energy(state):
+def update_temperature_from_energy(state: Any) -> Any:
     """Update temperature in a float state from specific energy."""
     mu = 1.0 / (2.0 - np.clip(state["xHI"], 1.0e-12, 1.0))
     state["temperature_cgs_K"] = (
@@ -706,7 +749,11 @@ def update_temperature_from_energy(state):
     state["temperature_cgs_K"] = np.maximum(state["temperature_cgs_K"], 1.0)
 
 
-def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s):
+def ionization_fraction_implicit_update(
+    state: Any,
+    ngamma_cgs_cm3: Any,
+    dt_s: Any,
+) -> Any:
     """Implicitly update the chemistry fraction for a float state."""
     xHI = np.clip(np.asarray(state["xHI"], dtype=float), 1.0e-12, 1.0 - 1.0e-12)
     hydrogen_mass_fraction = state["hydrogen_mass_fraction"]
@@ -729,7 +776,7 @@ def ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s):
     state["xHI"] = np.clip(updated, 1.0e-12, 1.0 - 1.0e-12)
 
 
-def apply_state(state, fluid, par):
+def apply_state(state: Any, fluid: Any, par: Any) -> Any:
     """Copy a float thermo-chemistry state back to a fluid object."""
     interior = state["interior"]
     fluid.xHI[interior] = state["xHI"]
@@ -765,7 +812,12 @@ def apply_state(state, fluid, par):
     )
 
 
-def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
+def get_thermochemistry_source_timestep_fast(
+    mesh: Any,
+    fluid: Any,
+    par: Any,
+    remaining: Any,
+) -> Any:
     """Return a source substep for RT-coupled heating/chemistry."""
     state = _fast_source_state(mesh, fluid, par)
     code = _code_units(par)
@@ -788,7 +840,7 @@ def get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining):
     ), thermal_rate
 
 
-def _fast_source_scaling(fluid, par, gamma):
+def _fast_source_scaling(fluid: Any, par: Any, gamma: Any) -> Any:
     """Return conversions from supercomoving state values to physical values."""
     identity = {
         "scale_factor": 1.0,
@@ -818,7 +870,7 @@ def _fast_source_scaling(fluid, par, gamma):
     }
 
 
-def _rotational_specific_energy_code(mesh, fluid, par):
+def _rotational_specific_energy_code(mesh: Any, fluid: Any, par: Any) -> Any:
     """Return rotational specific energy in the conserved code units."""
     if not getattr(par, "gas_rotational_energy", False):
         return np.zeros(
@@ -845,7 +897,7 @@ def _rotational_specific_energy_code(mesh, fluid, par):
     return result
 
 
-def _fast_source_state(mesh, fluid, par):
+def _fast_source_state(mesh: Any, fluid: Any, par: Any) -> Any:
     """Return a cgs float snapshot for the fast thermo-chemistry path."""
     code = _code_units(par)
     if code is None:
@@ -1102,7 +1154,7 @@ def _fast_source_state(mesh, fluid, par):
     return state
 
 
-def _fast_update_temperature_from_energy(state):
+def _fast_update_temperature_from_energy(state: Any) -> Any:
     """Update float temperature from total specific energy and mean molecular weight."""
     internal_specific = np.maximum(
         state["specific_total_energy_cgs_erg_g"] - state["specific_kinetic_energy_cgs_erg_g"],
@@ -1151,7 +1203,7 @@ def _fast_update_temperature_from_energy(state):
     )
 
 
-def _fast_apply_thermal_source(state, thermal_rate_cgs_erg_cm3_s, dt_s):
+def _fast_apply_thermal_source(state: Any, thermal_rate_cgs_erg_cm3_s: Any, dt_s: Any) -> Any:
     """Apply thermal source terms in float cgs units."""
     active = np.asarray(
         state.get("active", np.asarray(state["rho_cgs_g_cm3"]) > 0.0),
@@ -1168,7 +1220,7 @@ def _fast_apply_thermal_source(state, thermal_rate_cgs_erg_cm3_s, dt_s):
     _fast_update_temperature_from_energy(state)
 
 
-def _apply_compton_only_source(state, dt_s):
+def _apply_compton_only_source(state: Any, dt_s: Any) -> Any:
     """Advance the fixed-composition Compton relaxation exactly."""
     temperature = np.asarray(state["temperature_cgs_K"], dtype=float)
     old_temperature = temperature.copy()
@@ -1213,21 +1265,21 @@ def _apply_compton_only_source(state, dt_s):
 
 
 def _record_coupled_implicit_failure(
-    reason,
-    determinant,
-    residual_energy,
-    residual_x,
-    state,
-    active_cells,
-    tolerance,
-    residual,
-    log_energy,
-    logit_x,
-    ngamma_cgs_cm3,
-    energy_old,
-    x_old,
-    dt_value,
-):
+    reason: Any,
+    determinant: Any,
+    residual_energy: Any,
+    residual_x: Any,
+    state: Any,
+    active_cells: Any,
+    tolerance: Any,
+    residual: Any,
+    log_energy: Any,
+    logit_x: Any,
+    ngamma_cgs_cm3: Any,
+    energy_old: Any,
+    x_old: Any,
+    dt_value: Any,
+) -> Any:
     active = active_cells & np.isfinite(residual_energy) & np.isfinite(residual_x)
     residual_norm = np.maximum(
         np.abs(residual_energy),
@@ -1272,7 +1324,7 @@ def _record_coupled_implicit_failure(
         cmb_temperature_0_cgs_K=failure_trial["cmb_temperature_0_cgs_K"],
     )
     photoheating_rate = np.asarray(heating_rate) - np.asarray(compton_rate)
-    failed_cells = []
+    failed_cells: list[Any] = []
     if determinant is not None:
         singular = active & (np.abs(determinant) <= 1.0e-30)  # noqa: PLR2004
         failed_cells.extend(
@@ -1337,18 +1389,18 @@ def _record_coupled_implicit_failure(
 
 
 def _coupled_newton_line_search(
-    delta_energy,
-    delta_x,
-    finite_delta,
-    current_norm,
-    floor_constrained,
-    log_energy,
-    logit_x,
-    residual,
-    residual_energy,
-    residual_x,
-    trust_region,
-):
+    delta_energy: Any,
+    delta_x: Any,
+    finite_delta: Any,
+    current_norm: Any,
+    floor_constrained: Any,
+    log_energy: Any,
+    logit_x: Any,
+    residual: Any,
+    residual_energy: Any,
+    residual_x: Any,
+    trust_region: Any,
+) -> Any:
     accepted = np.zeros_like(finite_delta, dtype=bool)
     for damping in (1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125):
         trial_log_energy = log_energy + damping * delta_energy
@@ -1378,24 +1430,24 @@ def _coupled_newton_line_search(
 
 
 def _run_coupled_newton_iterations(
-    max_iterations,
-    log_energy,
-    logit_x,
-    residual_energy,
-    residual_x,
-    converged,
-    active_cells,
-    residual,
-    floor_constraint,
-    record_failure,
-    energy_residual_acceptance,
-    xhi_residual_tolerance,
-    physical_energy_floor,
-    finite_difference_step,
-    trust_region,
-    trust_radius,
-    trust_radius_min,
-):
+    max_iterations: Any,
+    log_energy: Any,
+    logit_x: Any,
+    residual_energy: Any,
+    residual_x: Any,
+    converged: Any,
+    active_cells: Any,
+    residual: Any,
+    floor_constraint: Any,
+    record_failure: Any,
+    energy_residual_acceptance: Any,
+    xhi_residual_tolerance: Any,
+    physical_energy_floor: Any,
+    finite_difference_step: Any,
+    trust_region: Any,
+    trust_radius: Any,
+    trust_radius_min: Any,
+) -> Any:
     for _ in range(int(max_iterations)):
         _, _, _, _, current_trial = residual(log_energy, logit_x)
         floor_constrained = floor_constraint(current_trial)
@@ -1545,18 +1597,18 @@ def _run_coupled_newton_iterations(
 
 
 def _coupled_source_residual(
-    log_energy,
-    logit_x,
-    state,
-    kinetic,
-    energy_floor,
-    ngamma_cgs_cm3,
-    energy_old,
-    x_old,
-    dt_value,
-    rho_for_update,
-    energy_residual_scale,
-):
+    log_energy: Any,
+    logit_x: Any,
+    state: Any,
+    kinetic: Any,
+    energy_floor: Any,
+    ngamma_cgs_cm3: Any,
+    energy_old: Any,
+    x_old: Any,
+    dt_value: Any,
+    rho_for_update: Any,
+    energy_residual_scale: Any,
+) -> Any:
     energy = np.exp(np.clip(log_energy, np.log(energy_floor), 700.0))
     xhi = 1.0 / (1.0 + np.exp(-np.clip(logit_x, -700.0, 700.0)))
     trial = dict(state)
@@ -1583,7 +1635,13 @@ def _coupled_source_residual(
     return energy_residual, chemistry_residual, energy, xhi, trial
 
 
-def _coupled_source_floor_constraint(trial, temperature_floor, active_cells, state, ngamma_cgs_cm3):
+def _coupled_source_floor_constraint(
+    trial: Any,
+    temperature_floor: Any,
+    active_cells: Any,
+    state: Any,
+    ngamma_cgs_cm3: Any,
+) -> Any:
     if temperature_floor <= 0.0:
         return np.zeros_like(active_cells, dtype=bool)
     thermal = np.asarray(thermal_rate(trial, ngamma_cgs_cm3), dtype=float)
@@ -1597,7 +1655,7 @@ def _coupled_source_floor_constraint(trial, temperature_floor, active_cells, sta
     )
 
 
-def _prepare_coupled_source_inputs(state, dt_s):
+def _prepare_coupled_source_inputs(state: Any, dt_s: Any) -> Any:
     if not state.get("thermal_coupling", False):
         return None
     rho = np.asarray(state["rho_cgs_g_cm3"], dtype=float)
@@ -1619,16 +1677,16 @@ def _prepare_coupled_source_inputs(state, dt_s):
 
 
 def _coupled_implicit_source_update(
-    state,
-    dt_s,
-    ngamma_cgs_cm3=None,
-    tolerance=1.0e-6,
-    max_iterations=32,
+    state: Any,
+    dt_s: Any,
+    ngamma_cgs_cm3: Any = None,
+    tolerance: Any = 1.0e-6,
+    max_iterations: Any = 32,
     *,
-    trust_region=False,
-    absolute_temperature_tolerance=0.0,
-    absolute_xhi_tolerance=0.0,
-):
+    trust_region: Any = False,
+    absolute_temperature_tolerance: Any = 0.0,
+    absolute_xhi_tolerance: Any = 0.0,
+) -> Any:
     """Advance hydrogen energy and ``xHI`` with a coupled backward-Euler solve.
 
     The solve is performed in ``(log e, logit xHI)`` coordinates.  This keeps
@@ -1860,12 +1918,12 @@ def _coupled_implicit_source_update(
     return True
 
 
-def _copy_fast_source_state(state):
+def _copy_fast_source_state(state: Any) -> Any:
     """Copy a numeric source state for a trial implicit update."""
     return copy.deepcopy(state)
 
 
-def _source_array_scale(state, name, active_indices):
+def _source_array_scale(state: Any, name: str, active_indices: Any) -> Any:
     """Return a compact scale summary for an explicit-source diagnostic."""
     values = state.get(name)
     if values is None:
@@ -1888,11 +1946,11 @@ def _source_array_scale(state, name, active_indices):
 
 
 def _raise_invalid_source_timestep(
-    state,
-    candidate_dt_s,
-    remaining_s,
-    thermal_rate,
-):
+    state: Any,
+    candidate_dt_s: Any,
+    remaining_s: Any,
+    thermal_rate: Any,
+) -> Any:
     """Raise a diagnostic error when an explicit source step cannot progress."""
     active = np.asarray(
         state.get("active", np.asarray(state["rho_cgs_g_cm3"]) > 0.0),
@@ -1924,7 +1982,7 @@ def _raise_invalid_source_timestep(
     )
 
 
-def _explicit_source_state_update(state, remaining_s, par):
+def _explicit_source_state_update(state: Any, remaining_s: Any, par: Any) -> Any:
     """Advance a local source state with the existing explicit subcycler."""
     source_steps = 0
     while remaining_s > 0.0:
@@ -1988,7 +2046,7 @@ def _explicit_source_state_update(state, remaining_s, par):
     return source_steps
 
 
-def _split_implicit_source_state_update(state, dt_s, par):
+def _split_implicit_source_state_update(state: Any, dt_s: Any, par: Any) -> Any:
     """Advance sources with explicit energy and implicit chemistry.
 
     The radiation field, when supplied by the outer source driver, is held
@@ -2054,7 +2112,7 @@ def _split_implicit_source_state_update(state, dt_s, par):
     return source_steps
 
 
-def _split_implicit_trial(state, candidate_dt_s, active):
+def _split_implicit_trial(state: Any, candidate_dt_s: Any, active: Any) -> Any:
     while True:
         before = _copy_fast_source_state(state)
         if before["hydrogen_update_mu"]:
@@ -2111,7 +2169,7 @@ def _split_implicit_trial(state, candidate_dt_s, active):
             )
 
 
-def _split_energy_baseline(trial, old_energy):
+def _split_energy_baseline(trial: Any, old_energy: Any) -> Any:
     temperature_floor = float(trial.get("temperature_floor_cgs_K", 0.0) or 0.0)
     if not trial["thermal_coupling"] or temperature_floor <= 0.0:
         return old_energy.copy()
@@ -2123,13 +2181,13 @@ def _split_energy_baseline(trial, old_energy):
     return np.maximum(old_energy, floor_energy)
 
 
-def _source_relative_change(before, after):
+def _source_relative_change(before: Any, after: Any) -> Any:
     """Return the largest relative source-state change over active cells."""
     active = np.asarray(
         before.get("active", np.asarray(before["rho_cgs_g_cm3"]) > 0.0),
         dtype=bool,
     )
-    changes = []
+    changes: list[Any] = []
     for key, floor in (
         ("temperature_cgs_K", 1.0),
         ("specific_energy_cgs_erg_g", 1.0e-30),
@@ -2145,9 +2203,9 @@ def _source_relative_change(before, after):
     return float(max(changes, default=0.0))
 
 
-def _implicit_state_difference(coarse, fine):
+def _implicit_state_difference(coarse: Any, fine: Any) -> Any:
     """Return the normalized difference between two implicit source states."""
-    differences = []
+    differences: list[Any] = []
     for key, floor in (
         ("specific_energy_cgs_erg_g", 1.0e-30),
         ("temperature_cgs_K", 1.0),
@@ -2163,24 +2221,24 @@ def _implicit_state_difference(coarse, fine):
     return float(result) if np.isfinite(result) else np.inf
 
 
-def _set_fast_source_state(target, source):
+def _set_fast_source_state(target: Any, source: Any) -> None:
     """Replace a source state with a converged trial state."""
     target.clear()
     target.update(copy.deepcopy(source))
 
 
 def _adaptive_trial(
-    state,
-    candidate_dt_s,
-    ngamma_cgs_cm3,
-    tolerance,
-    convergence_tolerance,
-    max_iterations,
-    max_refinements,
-    trust_region,
-    absolute_temperature_tolerance,
-    absolute_xhi_tolerance,
-):
+    state: Any,
+    candidate_dt_s: Any,
+    ngamma_cgs_cm3: Any,
+    tolerance: Any,
+    convergence_tolerance: Any,
+    max_iterations: Any,
+    max_refinements: Any,
+    trust_region: Any,
+    absolute_temperature_tolerance: Any,
+    absolute_xhi_tolerance: Any,
+) -> Any:
     last_failure = None
     for _refinement in range(int(max_refinements) + 1):
         coarse = _copy_fast_source_state(state)
@@ -2230,18 +2288,18 @@ def _adaptive_trial(
 
 
 def _adaptive_coupled_implicit_source_update_group(
-    state,
-    dt_s,
-    ngamma_cgs_cm3=None,
-    tolerance=1.0e-6,
-    convergence_tolerance=None,
-    max_iterations=32,
-    max_refinements=4,
+    state: Any,
+    dt_s: Any,
+    ngamma_cgs_cm3: Any = None,
+    tolerance: Any = 1e-06,
+    convergence_tolerance: Any = None,
+    max_iterations: Any = 32,
+    max_refinements: Any = 4,
     *,
-    trust_region=False,
-    absolute_temperature_tolerance=0.0,
-    absolute_xhi_tolerance=0.0,
-):
+    trust_region: Any = False,
+    absolute_temperature_tolerance: Any = 0.0,
+    absolute_xhi_tolerance: Any = 0.0,
+) -> Any:
     """Advance coupled sources with factor-of-two timestep convergence.
 
     Each accepted interval compares one backward-Euler step with two
@@ -2286,7 +2344,7 @@ def _adaptive_coupled_implicit_source_update_group(
     return True, total_source_steps
 
 
-def _source_stiffness_groups(state, dt_s, ngamma_cgs_cm3=None):
+def _source_stiffness_groups(state: Any, dt_s: Any, ngamma_cgs_cm3: Any = None) -> Any:
     """Group active cells by their predicted local source change.
 
     Thermochemistry is cell-local.  Grouping cells with comparable source
@@ -2325,7 +2383,7 @@ def _source_stiffness_groups(state, dt_s, ngamma_cgs_cm3=None):
     return [indices[bins[indices] == value] for value in np.unique(bins[indices])]
 
 
-def _slice_source_cells(state, indices):
+def _slice_source_cells(state: Any, indices: Any) -> Any:
     """Return a source state containing only ``indices`` cell arrays."""
     count = len(np.asarray(state["rho_cgs_g_cm3"]))
     subset = copy.deepcopy(state)
@@ -2339,7 +2397,7 @@ def _slice_source_cells(state, indices):
     return subset
 
 
-def _slice_source_photons(ngamma_cgs_cm3, indices, count):
+def _slice_source_photons(ngamma_cgs_cm3: Any, indices: Any, count: Any) -> Any:
     if ngamma_cgs_cm3 is None:
         return None
     photons = np.asarray(ngamma_cgs_cm3)
@@ -2348,7 +2406,7 @@ def _slice_source_photons(ngamma_cgs_cm3, indices, count):
     return copy.deepcopy(ngamma_cgs_cm3)
 
 
-def _merge_source_cells(state, subset, indices):
+def _merge_source_cells(state: Any, subset: Any, indices: Any) -> Any:
     for key in (
         "specific_energy_cgs_erg_g",
         "specific_total_energy_cgs_erg_g",
@@ -2364,18 +2422,18 @@ def _merge_source_cells(state, subset, indices):
 
 
 def _adaptive_coupled_implicit_source_update(
-    state,
-    dt_s,
-    ngamma_cgs_cm3=None,
-    tolerance=1.0e-6,
-    convergence_tolerance=None,
-    max_iterations=32,
-    max_refinements=4,
+    state: Any,
+    dt_s: Any,
+    ngamma_cgs_cm3: Any = None,
+    tolerance: Any = 1e-06,
+    convergence_tolerance: Any = None,
+    max_iterations: Any = 32,
+    max_refinements: Any = 4,
     *,
-    trust_region=False,
-    absolute_temperature_tolerance=0.0,
-    absolute_xhi_tolerance=0.0,
-):
+    trust_region: Any = False,
+    absolute_temperature_tolerance: Any = 0.0,
+    absolute_xhi_tolerance: Any = 0.0,
+) -> Any:
     """Advance independent stiffness groups without global subcycling."""
     cell_count = len(np.asarray(state["rho_cgs_g_cm3"]))
     total_source_steps = 0
@@ -2410,7 +2468,7 @@ def _adaptive_coupled_implicit_source_update(
     return True, total_source_steps
 
 
-def _fast_sync_state_to_fluid(state, fluid, par):
+def _fast_sync_state_to_fluid(state: Any, fluid: Any, par: Any) -> Any:
     """Copy a float thermo-chemistry state back to the fluid container."""
     if state.get("thermal_coupling", False):
         _fast_update_temperature_from_energy(state)
@@ -2469,7 +2527,9 @@ def _fast_sync_state_to_fluid(state, fluid, par):
             fluid.SetPressure()
 
 
-def _fast_sync_thermal_state(state, fluid, par, code, interior, active):
+def _fast_sync_thermal_state(
+    state: Any, fluid: Any, par: Any, code: Any, interior: Any, active: Any,
+) -> Any:
     # The source state stores specific energies in physical cgs units (erg/g),
     # while Fluid pressure and Energy use the code velocity unit.
     specific_energy_code_factor = float(code.unit_conversion["velocity_cgs_cm_s"]) ** 2
@@ -2513,17 +2573,19 @@ def _fast_sync_thermal_state(state, fluid, par, code, interior, active):
     fluid.Energy_code[interior] = conserved_energy
 
 
-def c2ray_source_state(mesh, fluid, par):
+def c2ray_source_state(mesh: Any, fluid: Any, par: Any) -> Any:
     """Return the numeric source state used by the C²-Ray integrator."""
     return _fast_source_state(mesh, fluid, par)
 
 
-def sync_c2ray_state(state, fluid, par):
+def sync_c2ray_state(state: Any, fluid: Any, par: Any) -> Any:
     """Copy a C²-Ray numeric source state back to the runtime fluid."""
     return _fast_sync_state_to_fluid(state, fluid, par)
 
 
-def _try_compton_only_source(state, par, code, source_solver, remaining_s):
+def _try_compton_only_source(
+    state: Any, par: Any, code: Any, source_solver: Any, remaining_s: Any,
+) -> Any:
     """Handle the closed-form Compton-only source path."""
     enabled = all(
         (
@@ -2559,7 +2621,9 @@ def _try_compton_only_source(state, par, code, source_solver, remaining_s):
     }
 
 
-def _fast_solver_result(par, code, source_steps, source_solver, relative_change):
+def _fast_solver_result(
+    par: Any, code: Any, source_steps: Any, source_solver: Any, relative_change: Any,
+) -> Any:
     photon_energy = _optional_numeric_value(
         getattr(
             par,
@@ -2579,7 +2643,9 @@ def _fast_solver_result(par, code, source_steps, source_solver, relative_change)
     }
 
 
-def _adaptive_coupled_source_steps(state, remaining_s, par, source_solver):
+def _adaptive_coupled_source_steps(
+    state: Any, remaining_s: Any, par: Any, source_solver: Any,
+) -> Any:
     if getattr(par, "radiative_transfer", False):
         return None
     solved, source_steps = _adaptive_coupled_implicit_source_update(
@@ -2603,7 +2669,9 @@ def _adaptive_coupled_source_steps(state, remaining_s, par, source_solver):
     return source_steps if solved else None
 
 
-def _try_split_implicit_source(state, initial_state, remaining_s, par, code, source_solver):
+def _try_split_implicit_source(
+    state: Any, initial_state: Any, remaining_s: Any, par: Any, code: Any, source_solver: Any,
+) -> Any:
     if source_solver != "split_implicit" or remaining_s <= 0.0:
         return None
     source_steps = _split_implicit_source_state_update(state, remaining_s, par)
@@ -2611,7 +2679,9 @@ def _try_split_implicit_source(state, initial_state, remaining_s, par, code, sou
     return _fast_solver_result(par, code, source_steps, source_solver, change)
 
 
-def _try_hybrid_explicit_probe(state, remaining_s, par, code, source_solver):
+def _try_hybrid_explicit_probe(
+    state: Any, remaining_s: Any, par: Any, code: Any, source_solver: Any,
+) -> Any:
     if not (
         source_solver == "hybrid"
         and getattr(par, "hydrogen_hybrid_explicit_probe", False)
@@ -2650,13 +2720,8 @@ def _try_hybrid_explicit_probe(state, remaining_s, par, code, source_solver):
 
 
 def _try_coupled_source(
-    state,
-    initial_state,
-    remaining_s,
-    par,
-    code,
-    source_solver,
-):
+    state: Any, initial_state: Any, remaining_s: Any, par: Any, code: Any, source_solver: Any,
+) -> Any:
     if source_solver not in ("hybrid", "coupled_implicit", "trust_region") or remaining_s <= 0.0:
         return None
     implicit_steps = _adaptive_coupled_source_steps(state, remaining_s, par, source_solver)
@@ -2683,15 +2748,15 @@ def _try_coupled_source(
 
 
 def _finish_fast_source_update(
-    state,
-    par,
-    code,
-    remaining_s,
-    total_dt_s,
-    source_steps,
-    absorbed_integral,
-    transport_result,
-):
+    state: Any,
+    par: Any,
+    code: Any,
+    remaining_s: Any,
+    total_dt_s: Any,
+    source_steps: Any,
+    absorbed_integral: Any,
+    transport_result: Any,
+) -> Any:
     remaining_s, source_steps, absorbed_integral = _run_fast_source_loop(
         state,
         par,
@@ -2709,7 +2774,7 @@ def _finish_fast_source_update(
             if total_dt_s == 0.0
             else absorbed_integral / total_dt_s
         )
-    energy = getattr(par, "ionizing_photon_energy_cgs_erg", None)
+    energy: Any = getattr(par, "ionizing_photon_energy_cgs_erg", None)
     if energy is None:
         energy = getattr(par, "hydrogen_photon_energy", 0.0)
     if hasattr(energy, "to_value"):
@@ -2717,7 +2782,9 @@ def _finish_fast_source_update(
     return source_steps, absorbed_rate, np.atleast_1d(energy)
 
 
-def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
+def apply_thermochemistry_fast(
+    dt: Any, mesh: Any, fluid: Any, par: Any, transport_result: Any = None,
+) -> Any:
     """Fast source update for RT-coupled thermo-chemistry tests."""
     if not thermochemistry_enabled(fluid, par):
         return 0
@@ -2808,15 +2875,15 @@ def apply_thermochemistry_fast(dt, mesh, fluid, par, transport_result=None):
 
 
 def _run_fast_source_loop(
-    state,
-    par,
-    code,
-    remaining_s,
-    zero_time_s,
-    transport_result,
-    source_steps,
-    absorbed_integral,
-):
+    state: Any,
+    par: Any,
+    code: Any,
+    remaining_s: Any,
+    zero_time_s: Any,
+    transport_result: Any,
+    source_steps: Any,
+    absorbed_integral: Any,
+) -> Any:
     """Advance the RT-coupled source state through adaptive substeps."""
     while remaining_s > zero_time_s:
         remaining_s, transport_result, source_steps, absorbed_integral = _fast_source_iteration(
@@ -2832,7 +2899,9 @@ def _run_fast_source_loop(
     return remaining_s, source_steps, absorbed_integral
 
 
-def _fast_transport_step(state, par, code, transport_result, absorbed_integral):
+def _fast_transport_step(
+    state: Any, par: Any, code: Any, transport_result: Any, absorbed_integral: Any,
+) -> Any:
     """Update photon density and absorption for one source step."""
     absorbed = None
     # first update the photon density if RT is enabled and we are on the right step
@@ -2892,7 +2961,7 @@ def _fast_transport_step(state, par, code, transport_result, absorbed_integral):
     return transport_result, absorbed, absorbed_integral
 
 
-def _fast_prepare_substep(state):
+def _fast_prepare_substep(state: Any) -> Any:
     """Normalize the source state before choosing its adaptive step."""
     if state["hydrogen_update_mu"]:
         state["mu"] = rh.mean_molecular_weight_mu(
@@ -2904,7 +2973,7 @@ def _fast_prepare_substep(state):
     return np.asarray(state["temperature_cgs_K"], dtype=float).copy()
 
 
-def _fast_choose_substep(state, par, remaining_s, zero_time_s):
+def _fast_choose_substep(state: Any, par: Any, remaining_s: Any, zero_time_s: Any) -> Any:
     """Choose and validate one adaptive source timestep."""
     sub_dt_s, thermal_rate = get_timestep(
         state,
@@ -2918,7 +2987,7 @@ def _fast_choose_substep(state, par, remaining_s, zero_time_s):
     return min(sub_dt_s, remaining_s), thermal_rate
 
 
-def _fast_apply_chemistry_step(state, par, thermal_rate, sub_dt_s):
+def _fast_apply_chemistry_step(state: Any, par: Any, thermal_rate: Any, sub_dt_s: Any) -> Any:
     """Apply thermal and ionization source updates for one substep."""
     if state["thermal_coupling"]:
         _fast_apply_thermal_source(state, thermal_rate, sub_dt_s)
@@ -2943,15 +3012,15 @@ def _fast_apply_chemistry_step(state, par, thermal_rate, sub_dt_s):
 
 
 def _fast_source_iteration(
-    state,
-    par,
-    code,
-    remaining_s,
-    zero_time_s,
-    transport_result,
-    source_steps,
-    absorbed_integral,
-):
+    state: Any,
+    par: Any,
+    code: Any,
+    remaining_s: Any,
+    zero_time_s: Any,
+    transport_result: Any,
+    source_steps: Any,
+    absorbed_integral: Any,
+) -> Any:
     """Advance one adaptive thermo-chemistry source substep."""
     transport_result, absorbed, absorbed_integral = _fast_transport_step(
         state,
@@ -2991,28 +3060,32 @@ class HydrogenNetwork(ThermochemistryNetwork):
     name = "hydrogen"
     scalar_fields = ("xHI",)
 
-    def enabled(self, fluid, par):
+    def enabled(self: Any, fluid: Any, par: Any) -> Any:
         return thermochemistry_enabled(fluid, par)
 
-    def radiation_enabled(self, fluid, par):
+    def radiation_enabled(self: Any, fluid: Any, par: Any) -> Any:
         return thermochemistry_radiation_enabled(fluid, par)
 
-    def radiation_evolution_enabled(self, fluid, par):
+    def radiation_evolution_enabled(self: Any, fluid: Any, par: Any) -> Any:
         return thermochemistry_radiation_evolution_enabled(fluid, par)
 
-    def advect_ionization_fraction(self, dt, mesh, fluid, par, old_mass, mass_flux):
+    def advect_ionization_fraction(
+        self: Any, dt: Any, mesh: Any, fluid: Any, par: Any, old_mass: Any, mass_flux: Any,
+    ) -> Any:
         return advect_ionization_fraction(dt, mesh, fluid, par, old_mass, mass_flux)
 
-    def source_state(self, mesh, fluid, par):
+    def source_state(self: Any, mesh: Any, fluid: Any, par: Any) -> Any:
         return source_state(mesh, fluid, par)
 
-    def ionization_fraction_rate(self, state, ngamma_cgs_cm3):
+    def ionization_fraction_rate(self: Any, state: Any, ngamma_cgs_cm3: Any) -> Any:
         return ionization_fraction_rate(state, ngamma_cgs_cm3)
 
-    def thermal_rate(self, state, ngamma_cgs_cm3):
+    def thermal_rate(self: Any, state: Any, ngamma_cgs_cm3: Any) -> Any:
         return thermal_rate(state, ngamma_cgs_cm3)
 
-    def get_timestep(self, state, ngamma_cgs_cm3, remaining_s, dtmax_s):
+    def get_timestep(
+        self: Any, state: Any, ngamma_cgs_cm3: Any, remaining_s: Any, dtmax_s: Any,
+    ) -> Any:
         return get_timestep(
             state,
             ngamma_cgs_cm3,
@@ -3020,19 +3093,23 @@ class HydrogenNetwork(ThermochemistryNetwork):
             dtmax_s,
         )
 
-    def update_temperature_from_energy(self, state):
+    def update_temperature_from_energy(self: Any, state: Any) -> Any:
         return update_temperature_from_energy(state)
 
-    def ionization_fraction_implicit_update(self, state, ngamma_cgs_cm3, dt_s):
+    def ionization_fraction_implicit_update(
+        self: Any, state: Any, ngamma_cgs_cm3: Any, dt_s: Any,
+    ) -> Any:
         return ionization_fraction_implicit_update(state, ngamma_cgs_cm3, dt_s)
 
-    def apply_state(self, state, fluid, par):
+    def apply_state(self: Any, state: Any, fluid: Any, par: Any) -> Any:
         return apply_state(state, fluid, par)
 
-    def get_source_timestep_fast(self, mesh, fluid, par, remaining):
+    def get_source_timestep_fast(self: Any, mesh: Any, fluid: Any, par: Any, remaining: Any) -> Any:
         return get_thermochemistry_source_timestep_fast(mesh, fluid, par, remaining)
 
-    def apply_fast(self, dt, mesh, fluid, par, transport_result=None):
+    def apply_fast(
+        self: Any, dt: Any, mesh: Any, fluid: Any, par: Any, transport_result: Any = None,
+    ) -> Any:
         return apply_thermochemistry_fast(
             dt,
             mesh,

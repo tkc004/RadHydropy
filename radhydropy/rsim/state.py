@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: AGPL-3.0
 """Rsim execution subsystem helpers."""
 
+from typing import Any
+
 import numpy as np
 
 
-def _initialize_runtime_state(sim):
+def _initialize_runtime_state(sim: Any) -> None:
     """Initialize counters and per-cell diagnostic state for this run."""
     sim.energy_diagnostics_enabled = bool(
         getattr(sim.par, "energy_diagnostics", False),

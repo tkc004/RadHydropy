@@ -8,8 +8,8 @@ from typing import Any
 class ThermochemistryNetwork:
     """Interface implemented by concrete thermo-chemistry networks."""
 
-    name = "base"
-    scalar_fields = ()
+    name: str = "base"
+    scalar_fields: tuple[str, ...] = ()
 
     def enabled(self, fluid: Any, par: Any) -> Any:
         raise NotImplementedError

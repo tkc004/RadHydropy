@@ -3,6 +3,7 @@
 """Representation-aware numerical arrays for RadHydropy."""
 
 import operator
+from typing import Any
 
 import numpy as np
 import unyt
@@ -35,7 +36,7 @@ _QUANTITY_UNIT_PROPERTIES = {
 }
 
 
-def _code_unit_for_spec(code_units, spec):
+def _code_unit_for_spec(code_units: Any, spec: Any) -> Any:
     if spec.quantity == "angular_momentum":
         return code_units.mass_unit * code_units.length_unit * code_units.velocity_unit
     if spec.quantity == "specific_angular_momentum":
@@ -46,7 +47,7 @@ def _code_unit_for_spec(code_units, spec):
         return _unit_for_dimensions(code_units, spec.dimensions)
 
 
-def _unit_for_dimensions(code_units, dimensions):
+def _unit_for_dimensions(code_units: Any, dimensions: Any) -> Any:
     mass, length, velocity, current, temperature = dimensions
     return (
         code_units.mass_unit**mass
@@ -58,13 +59,13 @@ def _unit_for_dimensions(code_units, dimensions):
 
 
 def _convert_to_proper_values(
-    source,
-    cosmology,
-    code_units,
-    values,
-    x_comoving_code,
-    proper_name,
-):
+    source: Any,
+    cosmology: Any,
+    code_units: Any,
+    values: Any,
+    x_comoving_code: Any,
+    proper_name: str,
+) -> tuple[Any, str]:
     scale_factor = cosmology.scale_factor
     quantity = source.quantity
     if quantity == "radius":
@@ -100,13 +101,13 @@ def _convert_to_proper_values(
 
 
 def _convert_to_comoving_values(
-    source,
-    cosmology,
-    code_units,
-    values,
-    x_comoving_code,
-    comoving_name,
-):
+    source: Any,
+    cosmology: Any,
+    code_units: Any,
+    values: Any,
+    x_comoving_code: Any,
+    comoving_name: str,
+) -> tuple[Any, str]:
     scale_factor = cosmology.scale_factor
     quantity = source.quantity
     if quantity == "radius":
@@ -141,18 +142,23 @@ def _convert_to_comoving_values(
     return converted, target_name
 
 
-class RadArray(unyt.unyt_array):
+class RadArray(unyt.unyt_array):  # type: ignore[misc]
     """A code-unit ``unyt_array`` carrying field and cosmology metadata."""
+
+    code_units: Any
+    field_spec: Any
+    cosmology: Any
+    field_name: Any
 
     def __new__(
         cls,
-        values,
+        values: Any,
         *,
-        code_units,
-        field_spec,
-        cosmology,
-        field_name=None,
-    ):
+        code_units: Any,
+        field_spec: Any,
+        cosmology: Any,
+        field_name: Any = None,
+    ) -> Any:
         if not isinstance(field_spec, FieldSpec):
             raise TypeError("field_spec must be a FieldSpec")
         if not isinstance(cosmology, CosmologyContext):
@@ -165,7 +171,7 @@ class RadArray(unyt.unyt_array):
         obj.field_name = field_name
         return obj
 
-    def __array_finalize__(self, obj):
+    def __array_finalize__(self, obj: Any) -> None:
         super().__array_finalize__(obj)
         if obj is None:
             return
@@ -175,10 +181,10 @@ class RadArray(unyt.unyt_array):
         self.field_name = getattr(obj, "field_name", None)
 
     @property
-    def representation(self):
+    def representation(self) -> Any:
         return self.field_spec.representation
 
-    def _target(self, values, field_name):
+    def _target(self, values: Any, field_name: str) -> Any:
         hubble = (
             self.cosmology.hubble_parameter_km_s_Mpc
             if field_name == "vel_supercomoving_code"
@@ -199,7 +205,7 @@ class RadArray(unyt.unyt_array):
             field_name=field_name,
         )
 
-    def _representation_field_name(self, proper_name, comoving_name):
+    def _representation_field_name(self, proper_name: str, comoving_name: str) -> tuple[str, str]:
         if self.field_name in {"radius_proper_code", "radius_comoving_code"}:
             return proper_name.replace("boundary_", "radius_"), comoving_name.replace(
                 "boundary_",
@@ -207,7 +213,7 @@ class RadArray(unyt.unyt_array):
             )
         return proper_name, comoving_name
 
-    def to_proper(self, *, x_comoving_code=None):
+    def to_proper(self, *, x_comoving_code: Any = None) -> Any:
         """Return a new array converted to the proper-code representation."""
         source = self.field_spec
         if source.representation == "proper":
@@ -227,7 +233,7 @@ class RadArray(unyt.unyt_array):
         )
         return self._target(converted, target_name)
 
-    def to_comoving(self, *, x_comoving_code=None):
+    def to_comoving(self, *, x_comoving_code: Any = None) -> Any:
         """Return a new array converted to the comoving representation."""
         source = self.field_spec
         if source.representation in {"comoving", "supercomoving"}:
@@ -247,13 +253,13 @@ class RadArray(unyt.unyt_array):
         )
         return self._target(converted, target_name)
 
-    def to_cgs(self):
+    def to_cgs(self) -> Any:
         """Return the current representation as a cgs ``unyt_array``."""
         # Construct an ordinary unyt array so unyt's conversion helpers do not
         # attempt to call RadArray's metadata-requiring constructor.
         return unyt.unyt_array(self.value, self.units).in_cgs()
 
-    def to_value(self, units=None, equivalence=None):
+    def to_value(self, units: Any = None, equivalence: Any = None) -> Any:
         """Return numerical values after an explicit unit conversion.
 
         ``unyt_array.to_value`` internally reconstructs ``type(self)`` with
@@ -264,7 +270,7 @@ class RadArray(unyt.unyt_array):
         ordinary_array = unyt.unyt_array(np.asarray(self, dtype=float), self.units)
         return ordinary_array.to_value(units, equivalence=equivalence)
 
-    def to(self, units, equivalence=None):
+    def to(self, units: Any, equivalence: Any = None) -> Any:
         """Return an ordinary unit-bearing array in ``units``.
 
         Delegate through ``unyt_array`` because unyt's default implementation
@@ -274,7 +280,9 @@ class RadArray(unyt.unyt_array):
         ordinary_array = unyt.unyt_array(np.asarray(self, dtype=float), self.units)
         return ordinary_array.to(units, equivalence=equivalence)
 
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+    def __array_ufunc__(
+        self, ufunc: Any, method: Any, *inputs: Any, **kwargs: Any,
+    ) -> Any:
         rad_inputs = [value for value in inputs if isinstance(value, RadArray)]
         _validate_radarray_operands(rad_inputs)
 
@@ -307,7 +315,7 @@ class RadArray(unyt.unyt_array):
         return wrapped
 
 
-def _validate_radarray_operands(rad_inputs):
+def _validate_radarray_operands(rad_inputs: list[Any]) -> None:
     if len(rad_inputs) <= 1:
         return
     first = rad_inputs[0]
@@ -320,7 +328,7 @@ def _validate_radarray_operands(rad_inputs):
             raise ValueError("RadArray arithmetic requires matching cosmology contexts")
 
 
-def _result_field_spec(ufunc, rad_inputs, result_units):
+def _result_field_spec(ufunc: Any, rad_inputs: list[Any], result_units: Any) -> Any:
     first = rad_inputs[0]
     if len(rad_inputs) == 1 or ufunc in (np.add, np.subtract):
         return first.field_spec
@@ -351,7 +359,7 @@ def _result_field_spec(ufunc, rad_inputs, result_units):
     )
 
 
-def _fast_radarray_operation(ufunc, inputs, rad_inputs):
+def _fast_radarray_operation(ufunc: Any, inputs: Any, rad_inputs: list[Any]) -> Any:
     if ufunc in (np.add, np.subtract) and len(rad_inputs) == 2:  # noqa: PLR2004
         left, right = inputs
         return RadArray(
@@ -389,18 +397,23 @@ def _fast_radarray_operation(ufunc, inputs, rad_inputs):
     return result
 
 
-class RadQuantity(unyt.unyt_quantity):
+class RadQuantity(unyt.unyt_quantity):  # type: ignore[misc]
     """Scalar counterpart to :class:`RadArray`."""
+
+    code_units: Any
+    field_spec: Any
+    cosmology: Any
+    field_name: Any
 
     def __new__(
         cls,
-        value,
+        value: Any,
         *,
-        code_units,
-        field_spec,
-        cosmology,
-        field_name=None,
-    ):
+        code_units: Any,
+        field_spec: Any,
+        cosmology: Any,
+        field_name: Any = None,
+    ) -> Any:
         if not isinstance(field_spec, FieldSpec):
             raise TypeError("field_spec must be a FieldSpec")
         if not isinstance(cosmology, CosmologyContext):
@@ -413,7 +426,7 @@ class RadQuantity(unyt.unyt_quantity):
         obj.field_name = field_name
         return obj
 
-    def __array_finalize__(self, obj):
+    def __array_finalize__(self, obj: Any) -> None:
         super().__array_finalize__(obj)
         if obj is None:
             return
@@ -423,10 +436,10 @@ class RadQuantity(unyt.unyt_quantity):
         self.field_name = getattr(obj, "field_name", None)
 
     @property
-    def representation(self):
+    def representation(self) -> Any:
         return self.field_spec.representation
 
-    def _target(self, value, field_name):
+    def _target(self, value: Any, field_name: str) -> Any:
         hubble = (
             self.cosmology.hubble_parameter_km_s_Mpc
             if field_name == "vel_supercomoving_code"
@@ -447,7 +460,7 @@ class RadQuantity(unyt.unyt_quantity):
             field_name=field_name,
         )
 
-    def _representation_field_name(self, proper_name, comoving_name):
+    def _representation_field_name(self, proper_name: str, comoving_name: str) -> tuple[str, str]:
         if self.field_name in {"radius_proper_code", "radius_comoving_code"}:
             return proper_name.replace("boundary_", "radius_"), comoving_name.replace(
                 "boundary_",
@@ -455,7 +468,7 @@ class RadQuantity(unyt.unyt_quantity):
             )
         return proper_name, comoving_name
 
-    def to_proper(self, *, x_comoving_code=None):
+    def to_proper(self, *, x_comoving_code: Any = None) -> Any:
         """Return a new scalar converted to the proper-code representation."""
         source = self.field_spec
         if source.representation == "proper":
@@ -475,7 +488,7 @@ class RadQuantity(unyt.unyt_quantity):
         )
         return self._target(converted, target_name)
 
-    def to_comoving(self, *, x_comoving_code=None):
+    def to_comoving(self, *, x_comoving_code: Any = None) -> Any:
         """Return a new scalar converted to comoving or supercomoving form."""
         source = self.field_spec
         if source.representation in {"comoving", "supercomoving"}:
@@ -495,21 +508,23 @@ class RadQuantity(unyt.unyt_quantity):
         )
         return self._target(converted, target_name)
 
-    def to_cgs(self):
+    def to_cgs(self) -> Any:
         """Return the current scalar as an ordinary cgs ``unyt_quantity``."""
         return unyt.unyt_quantity(self.value, self.units).in_cgs()
 
-    def to_value(self, units=None, equivalence=None):
+    def to_value(self, units: Any = None, equivalence: Any = None) -> Any:
         """Return the scalar value after an explicit unit conversion."""
         ordinary_quantity = unyt.unyt_quantity(float(self.value), self.units)
         return ordinary_quantity.to_value(units, equivalence=equivalence)
 
-    def to(self, units, equivalence=None):
+    def to(self, units: Any, equivalence: Any = None) -> Any:
         """Return an ordinary unit-bearing scalar in ``units``."""
         ordinary_quantity = unyt.unyt_quantity(float(self.value), self.units)
         return ordinary_quantity.to(units, equivalence=equivalence)
 
-    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+    def __array_ufunc__(
+        self, ufunc: Any, method: Any, *inputs: Any, **kwargs: Any,
+    ) -> Any:
         rad_inputs = [value for value in inputs if isinstance(value, (RadArray, RadQuantity))]
         if len(rad_inputs) > 1:
             first = rad_inputs[0]
