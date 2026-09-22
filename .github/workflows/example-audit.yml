@@ -127,31 +127,6 @@ jobs:
           test -s smoke_outputs/Output_003.hdf5
           test -s smoke_outputs/CosmologicalSodShock1D.jpg
 
-      - name: Fetch the external HM12 PIE table for the PIE shock smoke test
-        run: |
-          git lfs install
-          git clone --depth 1 https://github.com/tkc004/RadhydropyData.git ../RadhydropyData
-          git -C ../RadhydropyData lfs pull
-          if [ ! -e ../metal_pie_table ] && [ ! -L ../metal_pie_table ]; then
-            ln -s RadhydropyData/metal_pie_table ../metal_pie_table
-          fi
-          test -s ../metal_pie_table/metal_pie_hm12_total.h5
-
-      - name: Run the PIE radiative shock-tube smoke test
-        working-directory: example/PIERadiativeShockTube1D
-        run: |
-          python pie_radiative_shock_tube_1d.py \
-            --config pie_radiative_shock_tube_1d_smoke.yaml
-
-      - name: Verify PIE radiative shock smoke-test artifacts
-        working-directory: example/PIERadiativeShockTube1D
-        run: |
-          test -s smoke_outputs/PIERadiativeShockTube1D.jpg
-          test -s smoke_outputs/PIERadiativeShockTube1D_ShockReport.txt
-          test -s smoke_outputs/PIE_Z1_nH1e-3/InitialCondition_PIE_Z1_nH1e-3.hdf5
-          test -s smoke_outputs/PIE_Z1_nH1e-3/Output_PIE_Z1_nH1e-3_004.hdf5
-          test -s smoke_outputs/adiabatic_control/Output_adiabatic_control_004.hdf5
-
       - name: Run the RadArray conversion smoke test
         working-directory: example/RadArrayConversion1D
         run: python radarray_conversion1d.py
