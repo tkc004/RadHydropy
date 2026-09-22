@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "radhydropy"
-version = "0.0.1a1"
+version = "0.1.0a1"
 description = "Python code to simulate 1D hydrodynamics."
 readme = "README.md"
 requires-python = ">=3.10"
