@@ -1,0 +1,3 @@
+case metallicity shock_position_kpc upstream_velocity_km_s compression expected_compression post_temperature_cgs_K expected_post_temperature_cgs_K cooling_length_kpc measured_hot_layer_kpc upstream_source
+PIE_Z1_nH1e-3 1 0.890625 100 0.5261198 4 27015.811 140834.1 0.32031722 1.875 initial_condition_fallback
+adiabatic_control 0 0.890625 100 0.51808324 4 30552.976 140834.1 nan 1.875 initial_condition_fallback

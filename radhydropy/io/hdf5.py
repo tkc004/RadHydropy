@@ -263,6 +263,38 @@ def _write_primary_fluid_snapshot_data(
             output_time,
         ),
     )
+    pressure_name = "pre_supercomoving_code" if cosmological_schema else "pre_proper_code"
+    pressure_runtime_code = getattr(
+        ric.fluid.runtime_state,
+        pressure_name,
+        None,
+    )
+    if pressure_runtime_code is None:
+        raise ValueError(
+            f"runtime state is missing required snapshot field {pressure_name!r}",
+        )
+    _write_quantity(
+        gdata,
+        pressure_name,
+        pressure_runtime_code,
+        code_units=code_units,
+        scale_key="pressure_cgs_erg_cm3",
+        default_unit=unyt.erg / unyt.cm**3,
+        metadata={
+            "quantity": "pressure",
+            "representation": "supercomoving" if cosmological_schema else representation,
+            "scale_factor_power": 3.0 * ric.par.hydrodynamics.gamma if scale_factor else 0.0,
+            "physical_relation": (
+                "physical = stored / a**(3*gamma)" if scale_factor else "physical = stored"
+            ),
+        },
+        field_spec_obj=_runtime_field_spec(
+            pressure_name,
+            ric.par,
+            code_units,
+            output_time,
+        ),
+    )
 
 
 def _write_optional_conserved_fluid_data(gdata: Any, ric: Any, code_units: Any) -> None:
@@ -333,6 +365,7 @@ def _mark_physical_fluid_datasets(gdata: Any) -> None:
         "boundary_comoving_code",
         "rho_comoving_code",
         "vel_supercomoving_code",
+        "pre_supercomoving_code",
         "temp_supercomoving_code",
     }
     for dataset_name, dataset in gdata.items():

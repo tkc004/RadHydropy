@@ -137,8 +137,12 @@ def _shock_diagnostics(result, table, config):
         post_slice = (centers_proper_cgs_cm > center_proper_cgs_cm) & (
             centers_proper_cgs_cm < centers_proper_cgs_cm[shock_index]
         )
-    upstream_density = float(np.median(rho_proper_cgs_g_cm3[upstream_slice]))
-    upstream_velocity = float(np.median(np.abs(vel_proper_cgs_cm_s[upstream_slice])))
+    upstream_density, upstream_velocity, upstream_source = _select_upstream_properties(
+        result,
+        rho_proper_cgs_g_cm3,
+        vel_proper_cgs_cm_s,
+        upstream_slice,
+    )
     immediate_start = max(0, shock_index - 3)
     immediate_stop = shock_index
     immediate_slice = np.zeros_like(right, dtype=bool)
@@ -188,6 +192,7 @@ def _shock_diagnostics(result, table, config):
             - 0.5 * np.max(boundary_proper_cgs_cm),
             "upstream_density_cgs_g_cm3": upstream_density,
             "upstream_velocity_cgs_cm_s": upstream_velocity,
+            "upstream_source": upstream_source,
             "post_density_cgs_g_cm3": post_density,
             "post_temperature_cgs_K": post_temperature,
             "compression": compression,
@@ -198,6 +203,32 @@ def _shock_diagnostics(result, table, config):
         },
     )
     return result
+
+
+def _select_upstream_properties(
+    result,
+    density_proper_cgs_g_cm3,
+    velocity_proper_cgs_cm_s,
+    upstream_slice,
+):
+    """Select snapshot upstream data or an explicit IC fallback."""
+    if np.any(upstream_slice):
+        return (
+            float(np.median(density_proper_cgs_g_cm3[upstream_slice])),
+            float(np.median(np.abs(velocity_proper_cgs_cm_s[upstream_slice]))),
+            "snapshot",
+        )
+    # A short smoke run can move the detected shock close enough to the right
+    # boundary that no upstream cells remain.  Use the recorded IC values
+    # rather than taking statistics over an empty slice.
+    initial_velocity = result["upstream_velocity_cgs_cm_s"]
+    if hasattr(initial_velocity, "to_value"):
+        initial_velocity = initial_velocity.to_value(unyt.cm / unyt.s)
+    return (
+        float(result["rho_proper_cgs_g_cm3"]),
+        float(np.abs(initial_velocity)),
+        "initial_condition_fallback",
+    )
 
 
 def _plot(results, filename):
@@ -316,11 +347,11 @@ def main(config_filename=DEFAULT_CONFIG):
             "case metallicity shock_position_kpc upstream_velocity_km_s "
             "compression expected_compression post_temperature_cgs_K "
             "expected_post_temperature_cgs_K cooling_length_kpc "
-            "measured_hot_layer_kpc\n",
+            "measured_hot_layer_kpc upstream_source\n",
         )
         for result in results:
             handle.write(
-                "{} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g}\n".format(
+                "{} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {:.8g} {}\n".format(
                     result["label"],
                     result["metallicity"],
                     result["shock_radius_cgs_cm"] / KPC_CM,
@@ -331,6 +362,7 @@ def main(config_filename=DEFAULT_CONFIG):
                     result["expected_post_temperature_cgs_K"],
                     result["cooling_length_expected_cm"] / KPC_CM,
                     result["cooling_length_measured_cm"] / KPC_CM,
+                    result["upstream_source"],
                 ),
             )
     _plot(results, output_root / "PIERadiativeShockTube1D.jpg")

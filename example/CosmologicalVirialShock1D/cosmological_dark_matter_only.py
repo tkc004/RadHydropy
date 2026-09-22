@@ -24,6 +24,7 @@ import virial_shock_tools as et
 from example.example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter
 from radhydropy.units import CodeUnits, _gravitational_constant_code, quantity_to_value
+from tools.lcdm_correlation import load_lcdm_correlation_table
 
 
 def _background_enclosed_mass(radius_comoving_code, density_comoving_code):
@@ -46,7 +47,7 @@ def load_correlation_table(config_filename, config):
     filename = Path(filename)
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
-    return et.load_lcdm_correlation_table(filename)
+    return load_lcdm_correlation_table(filename)
 
 
 def run_lagrangian_top_hat(config):

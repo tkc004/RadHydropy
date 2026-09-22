@@ -229,6 +229,7 @@ class Testing(unittest.TestCase):
             with h5py.File(output.name, "r") as handle:
                 self.assertEqual(handle["Data"]["rho_proper_code"].shape, (4,))
                 self.assertEqual(handle["Data"]["boundary_proper_code"].shape, (5,))
+                self.assertEqual(handle["Data"]["pre_proper_code"].shape, (4,))
             rio.readhdf5(loaded_par, loaded_mesh, loaded_fluid, output.name)
 
         self.assertEqual(loaded_fluid.rho_proper_code.shape, (4,))
@@ -236,6 +237,10 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(
             loaded_fluid.rho_proper_code,
             fluid.runtime_state.rho_proper_code,
+        )
+        np.testing.assert_allclose(
+            loaded_fluid.pre_proper_code,
+            fluid.runtime_state.pre_proper_code,
         )
 
     def test_hdf5_uses_canonical_code_state_dataset_names(self):

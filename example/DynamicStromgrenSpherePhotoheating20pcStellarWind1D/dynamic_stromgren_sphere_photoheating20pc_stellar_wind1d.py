@@ -68,9 +68,12 @@ def _pressure_diagnostic(snapshot, config):
             mdot * wind_velocity_proper_cgs_cm_s / (4.0 * np.pi * radius_shell_proper_cgs_cm**2)
         )
 
-    CodeUnits.from_mapping(par.units.CodeUnits)
+    code_units = CodeUnits.from_mapping(par.units.CodeUnits)
     volume_cgs_cm3 = np.asarray(
-        mesh.volume_radarray[interior].to_value(unyt.cm**3),
+        (
+            np.asarray(mesh.geometry_state.volume_proper_code[interior], dtype=float)
+            * code_units.volume_unit
+        ).to_value(unyt.cm**3),
         dtype=float,
     )
     # The photoheated ambient gas lies between the wind cavity and the shell.

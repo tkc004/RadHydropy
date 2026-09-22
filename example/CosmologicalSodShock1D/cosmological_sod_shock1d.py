@@ -22,7 +22,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "example" / "SodShock1D"))
 
 import radhydropy.io as rio
 from example import example_utils as eu
-from example.CosmologicalSodShock1D.tools import shocktubeanalyticgraph, shocktubecal
+from example.SodShock1D.tools import shocktubeanalyticgraph, shocktubecal
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.initial_condition_writer import InitialConditionWriter
 from radhydropy.units import CodeUnits, quantity_to_value

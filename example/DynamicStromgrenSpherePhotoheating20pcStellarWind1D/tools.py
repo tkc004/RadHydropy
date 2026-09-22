@@ -7,12 +7,20 @@ from pathlib import Path
 import numpy as np
 import unyt
 from DynamicStromgrenSpherePhotoheating20pc1D import tools as base_tools
-from DynamicStromgrenSpherePhotoheating20pc1D.tools import (
-    _attach_proper_runtime_states,
-)
 
 from radhydropy import io as rio
 from radhydropy.units import quantity_to_value
+
+interior_slice = base_tools.interior_slice
+load_history_from_outputs = base_tools.load_history_from_outputs
+load_output_state = base_tools.load_output_state
+output_files = base_tools.output_files
+pressure_from_radarrays = base_tools.pressure_from_radarrays
+save_front_plot = base_tools.save_front_plot
+save_plot = base_tools.save_plot
+to_kpc = base_tools.to_kpc
+to_myr = base_tools.to_myr
+to_number_density = base_tools.to_number_density
 
 
 def _wind_density(config):
@@ -97,7 +105,6 @@ def build_static_problem(config):
         fluid.mu[active_slice] = example["wind_mu"]
     fluid.SetUpFluid(par, mesh)
     solver.SetConserved(mesh, fluid, verbose=0)
-    _attach_proper_runtime_states(config, mesh, fluid)
     return sim
 
 

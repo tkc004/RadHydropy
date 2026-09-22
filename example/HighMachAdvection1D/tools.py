@@ -129,9 +129,17 @@ def entropy_profile(state):
     rho_proper_code = np.asarray(state.fluid.rho_proper_code)
     temp_proper_code = np.asarray(state.fluid.temp_proper_code)
     gamma = float(state.par.hydrodynamics.gamma)
-    return x_proper_code[first:last], temp_proper_code[first:last] / rho_proper_code[
-        first:last
-    ] ** (gamma - 1)
+    rho_active = rho_proper_code[first:last]
+    temp_active = temp_proper_code[first:last]
+    entropy_active = np.full_like(temp_active, np.nan, dtype=float)
+    positive_density = rho_active > 0.0
+    np.divide(
+        temp_active,
+        rho_active ** (gamma - 1),
+        out=entropy_active,
+        where=positive_density,
+    )
+    return x_proper_code[first:last], entropy_active
 
 
 def primitive_profiles(state):

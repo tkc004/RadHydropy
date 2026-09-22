@@ -44,6 +44,16 @@ writes the initial condition, reloads it through ``Rsim``, initializes the
 mesh and fluid, evolves the static thermochemistry, and saves an HDF5 output
 for every case.
 
+Smoke-test warning policy
+-------------------------
+
+The reduced smoke configuration explicitly sets
+``radiative_transfer_c2ray_nonconvergence: warn``. With the current 64-cell
+mesh and 20-step C²-Ray comparison, the expected non-convergence diagnostics
+are eight warnings for cells 9--16. These warnings are part of the deliberately
+coarse comparison and do not indicate a failed smoke run; changing the policy
+to ``raise`` is appropriate for a stricter production run.
+
 Ionization-front comparison
 ---------------------------
 
