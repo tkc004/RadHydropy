@@ -20,6 +20,128 @@ The plots use comoving radius.  The outer one or two numerical cells are
 excluded from the radial plots because the open/inflow outer boundary can
 produce a nonphysical temperature and entropy response.
 
+Initial-condition generation
+-----------------------------
+
+The correlation-function workflows use a generated linear-correlation HDF5
+table before constructing the simulation initial condition. From the
+repository root, generate the table if it is absent:
+
+.. code-block:: python
+
+   from tools.lcdm_correlation import generate_lcdm_correlation_table
+
+   generate_lcdm_correlation_table(
+       "example/CosmologicalVirialShock1D/outputs_correlation/"
+       "lcdm_linear_correlation.h5"
+   )
+
+Then change into the example directory. The dark-matter-only generator writes
+the correlation-shaped initial condition without evolving it:
+
+.. code-block:: bash
+
+   cd example/CosmologicalVirialShock1D
+   python generate_cosmological_correlation_ic.py \
+       --config cosmological_dark_matter_correlation_z100.yaml
+
+This writes the configured ``InitialCondition.hdf5`` and
+``CosmologicalCorrelationInitialCondition.jpg``. For the Lambda-CDM variant,
+use ``generate_cosmological_correlation_ic_lambda_cdm.py`` with
+``cosmological_dark_matter_correlation_z100_lambda_cdm.yaml``.
+
+The gas-correlation runner constructs and writes its own gas-plus-dark-matter
+initial condition before calling ``Rsim.RunAll()``. For example:
+
+.. code-block:: bash
+
+   python cosmological_gas_correlation_z100.py \
+       --config cosmological_gas_correlation_z100.yaml
+
+Do not run the gas runner until the configured correlation table exists. The
+smoke and production gas configurations may also require the HM12 metal PIE
+table referenced by ``par.thermochemistry.metal_pie_table_filename``.
+
+Configuration index
+--------------------
+
+The directory contains several related YAML configurations. Use this table to
+select the workflow rather than editing a production file in place. Commands
+are shown from ``example/CosmologicalVirialShock1D``.
+
+.. list-table:: CosmologicalVirialShock1D YAML configurations
+   :header-rows: 1
+   :widths: 34 27 26 24
+
+   * - Configuration
+     - Purpose
+     - Runner
+     - Main prerequisite/output
+   * - ``cosmological_virial_shock1d_smoke.yaml``
+     - Short end-to-end gas, dark-matter, and PIE smoke run.
+     - ``cosmological_virial_shock1d.py``
+     - Correlation table and HM12 metal PIE table; writes ``outputs_virial_shock_smoke``.
+   * - ``cosmological_dark_matter_correlation_z100.yaml``
+     - EdS dark-matter correlation control at ``z=100``.
+     - ``generate_cosmological_correlation_ic.py`` or ``cosmological_dark_matter_only.py``
+     - Correlation table; writes under ``outputs_correlation``.
+   * - ``cosmological_dark_matter_correlation_z100_lambda_cdm.yaml``
+     - Lambda-CDM dark-matter correlation control.
+     - ``generate_cosmological_correlation_ic_lambda_cdm.py`` or the Lambda-CDM DM runner.
+     - LCDM correlation table; writes under ``outputs_correlation_lcdm``.
+   * - ``cosmological_gas_correlation_z100.yaml``
+     - Baseline EdS gas plus live dark matter with hydrogen sources.
+     - ``cosmological_gas_correlation_z100.py``
+     - Correlation table; writes under ``outputs_correlation_gas``.
+   * - ``cosmological_gas_correlation_z100_adiabatic_256.yaml``
+     - 256-cell adiabatic control for resolution comparison.
+     - ``cosmological_gas_correlation_z100.py``
+     - Correlation table; writes under ``outputs_correlation_gas_adiabatic_256``.
+   * - ``cosmological_gas_correlation_z100_compton_atomic.yaml``
+     - Hydrogen chemistry with atomic cooling and Compton coupling.
+     - ``cosmological_gas_correlation_z100.py``
+     - Correlation table; writes under ``outputs_correlation_gas_compton_atomic``.
+   * - ``cosmological_gas_correlation_z100_atomic_only.yaml``
+     - Atomic-cooling control without the combined Compton comparison.
+     - ``cosmological_gas_correlation_z100.py``
+     - Correlation table; writes under ``outputs_correlation_gas_compton_atomic_atomic_only``.
+   * - ``cosmological_gas_correlation_z100_chemistry_no_thermal_coupling.yaml``
+     - Chemistry control with thermal coupling disabled.
+     - ``cosmological_gas_correlation_z100.py``
+     - Correlation table; writes under ``outputs_correlation_gas_chemistry_no_thermal_coupling``.
+   * - ``cosmological_gas_correlation_z100_compton_atomic_lambda_cdm.yaml``
+     - Lambda-CDM Compton plus atomic comparison.
+     - ``cosmological_gas_correlation_z100_lambda_cdm.py``
+     - LCDM correlation table; writes under ``outputs_correlation_gas_compton_atomic_lcdm``.
+   * - ``cosmological_gas_correlation_z100_lambda_cdm.yaml``
+     - Lambda-CDM baseline gas-correlation run.
+     - ``cosmological_gas_correlation_z100_lambda_cdm.py``
+     - LCDM correlation table; writes under ``outputs_correlation_gas_lcdm``.
+   * - ``cosmological_gas_correlation_z100_compton_atomic_m1e11.yaml``
+     - Compton plus atomic run for the lower-mass halo control.
+     - ``cosmological_gas_correlation_z100.py``
+     - Correlation table; writes under ``outputs_correlation_gas_compton_atomic_m1e11``.
+   * - ``cosmological_gas_correlation_z100_pie_z10_z01.yaml``
+     - HM12 PIE cooling after the ``z=10`` UV-background transition.
+     - ``cosmological_gas_correlation_z100.py``
+     - Correlation and HM12 metal PIE tables; writes under ``outputs_correlation_gas_pie_z10_z01``.
+   * - ``cosmological_gas_correlation_z100_pie_z10_m1e11_z0_z03.yaml``
+     - Lower-mass HM12 PIE run with ``Z=0.03``.
+     - ``cosmological_gas_correlation_z100.py``
+     - Correlation and HM12 metal PIE tables; writes under ``outputs_correlation_gas_pie_z10_m1e11_z0_z03``.
+   * - ``cosmological_gas_correlation_tvir1e3_z15.yaml``
+     - Production ``T_vir=10^3 K``, ``z=15`` gas-correlation run.
+     - ``cosmological_gas_correlation_z100.py``
+     - Finite-box correlation table; writes under ``outputs_correlation_gas_tvir1e3_z15_gas1024``.
+   * - ``cosmological_gas_dm_linear_growth.yaml``
+     - Short EdS gas/dark-matter linear-growth diagnostic.
+     - ``cosmological_gas_dm_linear_growth.py``
+     - Correlation table; writes under ``outputs_linear_growth``.
+
+The gas runner accepts any compatible gas YAML through ``--config``. Existing
+output directories are configuration-specific so that adiabatic, cooling,
+mass-control, and cosmology variants do not overwrite one another.
+
 Adiabatic setup
 ---------------
 

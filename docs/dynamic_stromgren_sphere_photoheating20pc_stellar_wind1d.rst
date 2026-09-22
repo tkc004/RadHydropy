@@ -30,10 +30,36 @@ curve uses the ionized-gas sound speed at ``10^4 K`` (about 16.6 km s^-1 for
 ``gamma = 5/3`` and ``mu = 0.5``). The central wind changes the gas dynamics
 while the photon source controls the ionization front.
 
-The standard non-C²-Ray figures are generated in the example directory when
-the run completes. The repository retains the C²-Ray comparison figures and
-the pressure-ratio and total-energy diagnostics; regenerate the full profile
-figures locally when those outputs are needed.
+The repository includes the C²-Ray comparison figures and two stellar-wind
+diagnostics. The standard non-C²-Ray ionization-front and profile figures are
+not currently committed; the runner currently requires a helper symbol that
+is absent from the sibling 20 pc base example, so regenerate those figures
+only after that example dependency is repaired.
+
+.. figure:: ../example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_C2Ray_IFront.jpg
+   :width: 100%
+   :alt: Stellar-wind photoheated Stromgren sphere C2-Ray ionization-front evolution
+
+   C²-Ray ionization-front evolution for the photoheated Stromgren sphere with
+   a central stellar wind.
+
+.. figure:: ../example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_C2Ray.jpg
+   :width: 100%
+   :alt: Stellar-wind photoheated Stromgren sphere C2-Ray radial profiles
+
+   C²-Ray final radial profiles for the stellar-wind calculation.
+
+.. figure:: ../example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_PressureRatio.jpg
+   :width: 100%
+   :alt: Stellar-wind and photoheated-gas pressure comparison
+
+   Wind ram pressure, photoheated-gas thermal pressure, and their ratio.
+
+.. figure:: ../example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/DynamicStromgrenSpherePhotoheating20pcStellarWind1D_TotalGasEnergy.jpg
+   :width: 100%
+   :alt: Stellar-wind total gas-energy comparison
+
+   Total-gas-energy comparison for the stellar-wind and no-wind calculations.
 
 Run the example from its directory:
 
