@@ -178,7 +178,7 @@ jobs:
       - name: Verify radiation-pressure smoke-test artifacts
         working-directory: example/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D
         run: |
-          test -s smoke_outputs/InitialCondition_RadiationPressure.hdf5
+          test -s smoke_outputs/InitialCondition.hdf5
           test -s smoke_outputs/Output_RadiationPressure_000.hdf5
           test "$(find smoke_outputs -maxdepth 1 -name 'Output_RadiationPressure_*.hdf5' -type f | wc -l)" -ge 3
           test -s smoke_outputs/DynamicStromgrenSpherePhotoheating20pcRadiationPressure1D.jpg
