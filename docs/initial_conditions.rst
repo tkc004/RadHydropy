@@ -106,9 +106,6 @@ follows this pattern:
 .. code-block:: python
 
    config = example_utils.load_nested_example_config(config_filename)
-   config["_code_units"] = CodeUnits.from_mapping(
-       config["par"]["units"]["CodeUnits"]
-   )
    writer = build_initial_condition(config)
    writer.write(
        config["par"]["simulation"]["initial_condition_filename"],

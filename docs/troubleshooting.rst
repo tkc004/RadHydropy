@@ -36,9 +36,6 @@ copying datasets:
 .. code-block:: python
 
    config = load_nested_example_config("sodshock1d.yaml")
-   config["_code_units"] = CodeUnits.from_mapping(
-       config["par"]["units"]["CodeUnits"]
-   )
    writer = build_initial_condition(config)
    writer.write("InitialCondition.hdf5", validate=True)
 

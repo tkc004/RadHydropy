@@ -158,12 +158,8 @@ snippet is intentionally minimal and illustrative.
    import tools as example_tools
    from example_utils import load_nested_example_config
    from radhydropy.rsim import Rsim
-   from radhydropy.units import CodeUnits
 
    config = load_nested_example_config(Path("sodshock1d.yaml"))
-   config["_code_units"] = CodeUnits.from_mapping(
-       config["par"]["units"]["CodeUnits"]
-   )
 
    writer = example_tools.build_initial_condition(config)
    writer.write(

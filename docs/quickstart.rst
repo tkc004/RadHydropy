@@ -73,14 +73,10 @@ from ``example/SodShock1D``:
    import radhydropy.io as rio
    from example_utils import load_nested_example_config
    from radhydropy.rsim import Rsim
-   from radhydropy.units import CodeUnits
    import tools as et
 
    config = Path("sodshock1d.yaml")
    config_data = load_nested_example_config(config)
-   config_data["_code_units"] = CodeUnits.from_mapping(
-       config_data["par"]["units"]["CodeUnits"]
-   )
 
    writer = et.build_initial_condition(config_data)
    writer.write(

@@ -10,12 +10,12 @@ import numpy as np
 
 import radhydropy.io as rio
 from radhydropy.initial_condition_writer import InitialConditionWriter
-from radhydropy.units import quantity_to_value
+from radhydropy.units import CodeUnits, quantity_to_value
 
 
 def build_initial_condition(config):
     initial = config["initial_condition"]
-    code_units = config["_code_units"]
+    code_units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     grid_cells = int(initial["grid_cells"])
     box_size_proper_unyt = initial["box_size_proper"]
     boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * box_size_proper_unyt
@@ -46,7 +46,7 @@ def build_initial_condition(config):
 def plot_snapshot(outfilename, config, **kwargs):
     initial = config["initial_condition"]
     rout = rio.loadhdf5(config, outfilename)
-    code_units_obj = config["_code_units"]
+    code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     first = int(rout.par.mesh.ghost_cells)
     last = first + int(rout.par.mesh.grid_cells)
     x_proper_code = 0.5 * (

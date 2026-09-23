@@ -12,6 +12,7 @@ from scipy.optimize import fsolve
 
 import radhydropy.io as rio
 from radhydropy.initial_condition_writer import InitialConditionWriter
+from radhydropy.units import CodeUnits
 
 
 def shocktubecal(gamma, rho1, rho5, p1, p5):
@@ -98,7 +99,7 @@ def shocktubeanalyticgraph(
 
 def build_initial_condition(config):
     ic = config["initial_condition"]
-    units = config["_code_units"]
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     grid_cells = int(ic["grid_cells"])
     size_proper_unyt = ic["box_size_proper"]
     boundary_proper_unyt = np.linspace(0.0, 1.0, grid_cells + 1) * size_proper_unyt
@@ -136,7 +137,7 @@ def build_initial_condition(config):
 
 def analytic_density_profile(config, state):
     ic = config["initial_condition"]
-    units = config["_code_units"]
+    units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
     rho_high_proper_cgs_g_cm3 = float(
         ic["rho_proper"].to_value(unyt.g / unyt.cm**3),
     )

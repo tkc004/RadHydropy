@@ -15,7 +15,6 @@ if str(EXAMPLE_ROOT) not in sys.path:
 
 
 from radhydropy.rsim import Rsim
-from radhydropy.units import CodeUnits
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
@@ -42,9 +41,6 @@ def main(config_filename=DEFAULT_CONFIG, riemann_solver=None):
     output = config["par"]["output"]
     Path(output["directory"]).mkdir(parents=True, exist_ok=True)
     eu.clean_previous_outputs(config)
-    code_units_obj = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
-
-    config["_code_units"] = code_units_obj
     writer = et.build_initial_condition(config)
     writer.write(config["par"]["simulation"]["initial_condition_filename"])
     mainrun = Rsim(config["par"])
