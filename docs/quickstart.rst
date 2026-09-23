@@ -87,6 +87,9 @@ from ``example/SodShock1D``:
    sim = Rsim(config_data["par"])
    sim.RunAll()
 
+See :doc:`initial_conditions` for the ``build_initial_condition(config)``
+implementation and the code-unit conversion performed at that boundary.
+
 The builder receives the complete nested configuration and normally returns an
 ``InitialConditionWriter``. Physical values remain unit-bearing until they are
 assigned to the writer. The writer validates the active mesh and fluid state

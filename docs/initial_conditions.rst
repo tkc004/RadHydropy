@@ -103,6 +103,52 @@ complete configuration mapping, including ``par``, ``initial_condition``, and
 ``example`` and selects the appropriate sections internally. A typical runner
 follows this pattern:
 
+For example, a Sod-shock builder derives the code-unit object locally from the
+configuration rather than requiring the runner to inject a private
+``config["_code_units"]`` entry:
+
+.. code-block:: python
+
+   import numpy as np
+
+   from radhydropy.initial_condition_writer import InitialConditionWriter
+   from radhydropy.units import CodeUnits
+
+   def build_initial_condition(config):
+       initial = config["initial_condition"]
+       units = CodeUnits.from_mapping(config["par"]["units"]["CodeUnits"])
+       grid_cells = int(initial["grid_cells"])
+       boundary = np.linspace(0.0, 1.0, grid_cells + 1) * initial["box_size_proper"]
+       centers = 0.5 * (boundary[:-1] + boundary[1:])
+       shocked = (centers > 0.25 * initial["box_size_proper"]) & (
+           centers < 0.75 * initial["box_size_proper"]
+       )
+       writer = InitialConditionWriter(
+           ic_config=initial,
+           par_config=config["par"],
+           code_units=units,
+       )
+       writer.box_size = writer.radquantity(initial["box_size_proper"])
+       writer.mesh.boundary_radarray = writer.radarray(boundary)
+       writer.fluid.rho_radarray = writer.radarray(
+           np.ones(grid_cells)
+           * initial["rho_proper"]
+           * np.where(shocked, initial["density_ratio"], 1.0),
+       )
+       writer.fluid.vel_radarray = writer.radarray(
+           np.ones(grid_cells) * initial["vel_proper"],
+       )
+       writer.fluid.temp_radarray = writer.radarray(
+           np.ones(grid_cells)
+           * initial["temperature_proper"]
+           * np.where(shocked, initial["temperature_ratio"], 1.0),
+       )
+       writer.fluid.mu = np.full(
+           grid_cells,
+           float(initial["mean_molecular_weight"]),
+       )
+       return writer
+
 .. code-block:: python
 
    config = example_utils.load_nested_example_config(config_filename)
