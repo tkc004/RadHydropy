@@ -101,14 +101,14 @@
       hovertemplate: "x=%{x:.2f} pc<br>y=%{y:.2f} pc<br>log value=%{surfacecolor:.3g}<extra></extra>",
     }, {
       type: "scatter3d", mode: "lines+markers", x: quiverX, y: quiverY, z: quiverZ,
-      line: { color: "#000000", width: 14 }, marker: { color: "#000000", size: 3.5 },
+      line: { color: "#000000", width: 5 }, marker: { color: "#000000", size: 2.5 },
       opacity: 1, name: "velocity quiver", hoverinfo: "skip",
     }], {
       margin: { l: 0, r: 0, t: 10, b: 0 },
       scene: {
         aspectmode: "cube", xaxis: { title: "x (pc)" }, yaxis: { title: "y (pc)" },
         zaxis: { title: "normalized gravitational potential" },
-        camera: { eye: { x: 0, y: 1.8, z: 1.55 }, center: { x: 0, y: 0, z: -0.15 } },
+        camera: { eye: { x: 1.7, y: -1.7, z: 1.35 }, center: { x: 0, y: 0, z: -0.15 } },
       }, showlegend: false,
     }, { responsive: true, displaylogo: false });
   }

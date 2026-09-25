@@ -152,7 +152,7 @@
       contours: { z: { show: false } }, hovertemplate: "x=%{x:.2f} kpc<br>y=%{y:.2f} kpc<br>value=%{surfacecolor:.3g}<extra></extra>",
     }, {
       type: "scatter3d", mode: "lines+markers", x: quiverX, y: quiverY, z: quiverZ,
-      line: { color: "#000000", width: 14 }, marker: { color: "#000000", size: 3.5 },
+      line: { color: "#000000", width: 5 }, marker: { color: "#000000", size: 2.5 },
       opacity: 1, name: "velocity quiver", hoverinfo: "skip",
     }, {
       type: "scatter3d", mode: "lines", x: virialX, y: virialY, z: virialZ,
@@ -163,7 +163,7 @@
       scene: {
         aspectmode: "cube", xaxis: { title: "x (comoving kpc)" },
         yaxis: { title: "y (comoving kpc)" }, zaxis: { title: "normalized gravitational potential" },
-        camera: { eye: { x: 0, y: 1.8, z: 1.55 }, center: { x: 0, y: 0, z: -0.15 } },
+        camera: { eye: { x: 1.7, y: -1.7, z: 1.35 }, center: { x: 0, y: 0, z: -0.15 } },
       }, showlegend: false,
     }, { responsive: true, displaylogo: false });
   }
