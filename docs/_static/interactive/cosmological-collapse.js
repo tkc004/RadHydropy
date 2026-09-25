@@ -68,25 +68,24 @@
       const outer = index === radius.length - 1 ? radius[index] : (radius[index] + radius[index + 1]) / 2;
       gasMass.push(density[index] * (4 * Math.PI / 3) * (Math.pow(outer, 3) - Math.pow(inner, 3)) * gasMassScale);
     }
-    const cumulativeGas = [];
-    gasMass.reduce((sum, value, index) => cumulativeGas[index] = sum + value, 0);
     const darkMatter = darkMatterRadius.map((value, index) => ({ radius: value, mass: darkMatterMass[index] || 0 }))
       .sort((first, second) => first.radius - second.radius);
-    const cumulativeDarkMatter = [];
-    darkMatter.reduce((sum, shell, index) => cumulativeDarkMatter[index] = sum + shell.mass, 0);
-    const enclosedMass = point => {
-      let gasIndex = 0;
-      while (gasIndex + 1 < radius.length && radius[gasIndex + 1] <= point) gasIndex += 1;
-      let darkMatterIndex = -1;
-      while (darkMatterIndex + 1 < darkMatter.length && darkMatter[darkMatterIndex + 1].radius <= point) darkMatterIndex += 1;
-      return (cumulativeGas[gasIndex] || 0) + (darkMatterIndex >= 0 ? cumulativeDarkMatter[darkMatterIndex] : 0);
-    };
     const outerRadius = radius[radius.length - 1];
-    const reference = Math.max(enclosedMass(outerRadius) / outerRadius, 1e-12);
+    const potentialMagnitude = point => {
+      const gasPotential = gasMass.reduce(
+        (sum, mass, index) => sum + mass / Math.max(point, radius[index]),
+        0,
+      );
+      const darkMatterPotential = darkMatter.reduce(
+        (sum, shell) => sum + shell.mass / Math.max(point, shell.radius),
+        0,
+      );
+      return gasPotential + darkMatterPotential;
+    };
+    const centralPotential = Math.max(potentialMagnitude(0), 1e-12);
     return point => {
-      const safePoint = Math.max(point, radius[0]);
-      const potentialRatio = enclosedMass(safePoint) / safePoint / reference;
-      return -0.42 * outerRadius * Math.log1p(10 * potentialRatio) / Math.log(11);
+      const wellDepth = potentialMagnitude(Math.max(point, 0)) / centralPotential;
+      return -0.42 * outerRadius * wellDepth;
     };
   }
 
@@ -101,6 +100,15 @@
     const axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
     const gravityHeight = gravityModel(frame);
     const surface = [], colors = [], quiverX = [], quiverY = [], quiverZ = [];
+    const virialX = [], virialY = [], virialZ = [];
+    const virialRadius = frame.rvir_comoving_kpc;
+    if (Number.isFinite(virialRadius) && virialRadius > 0) {
+      for (let index = 0; index <= 72; index += 1) {
+        const angle = 2 * Math.PI * index / 72;
+        const x = virialRadius * Math.cos(angle), y = virialRadius * Math.sin(angle);
+        virialX.push(x); virialY.push(y); virialZ.push(gravityHeight(virialRadius));
+      }
+    }
     const maxVelocity = Math.max(...velocities.map(value => Math.abs(value)), 1e-12);
     for (let row = 0; row < count; row += 1) {
       const surfaceRow = [], colorRow = [];
@@ -142,6 +150,9 @@
     }, {
       type: "scatter3d", mode: "lines", x: quiverX, y: quiverY, z: quiverZ,
       line: { color: "#102a43", width: 3 }, name: "velocity quiver", hoverinfo: "skip",
+    }, {
+      type: "scatter3d", mode: "lines", x: virialX, y: virialY, z: virialZ,
+      line: { color: "#805ad5", width: 6 }, name: "r₂₀₀", hoverinfo: "skip",
     }];
     window.Plotly.react(target, traces, {
       margin: { l: 0, r: 0, t: 10, b: 0 },
@@ -196,12 +207,20 @@
       panels.forEach(([name, label, unit, logY, yKey]) => {
         svgPlot(root.querySelector("[data-plot=\"" + name + "\"]"), selected.map(item => ({
           x: item.frame.radius_comoving_kpc, y: item.frame[yKey], color: item.color,
-          markers: name === "density" ? [{ x: item.frame.shock_comoving_kpc, label: "shock" }, { x: item.frame.rvir_comoving_kpc, label: "r₂₀₀", color: "#805ad5" }] : [],
+          markers: [
+            ...(name === "density" ? [{ x: item.frame.shock_comoving_kpc, label: "shock" }] : []),
+            { x: item.frame.rvir_comoving_kpc, label: "r₂₀₀", color: "#805ad5" },
+          ],
         })), { label: label, logX: true, logY: logY, xLabel: "comoving radius (kpc, log scale)", yLabel: label + " (" + unit + ")" });
       });
       svgPlot(root.querySelector("[data-plot=\"dark-matter\"]"), selected.map(item => {
         const shells = item.frame.dark_matter_radius_proper_kpc || [];
-        return { x: shells, y: shells.map((_, index) => index / Math.max(shells.length - 1, 1)), color: item.color };
+        return {
+          x: shells,
+          y: shells.map((_, index) => index / Math.max(shells.length - 1, 1)),
+          color: item.color,
+          markers: [{ x: item.frame.rvir_proper_kpc, label: "r₂₀₀", color: "#805ad5" }],
+        };
       }), { label: "Dark-matter shell positions", logX: true, logY: false, xLabel: "proper radius (kpc, log scale)", yLabel: "shell order" });
       renderSlice(root.querySelector("[data-plot3d=\"density\"]"), frame, "density_g_cm3", "Viridis");
       renderSlice(root.querySelector("[data-plot3d=\"temperature\"]"), frame, "temperature_k", "Inferno");

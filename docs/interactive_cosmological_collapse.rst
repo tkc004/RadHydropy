@@ -11,8 +11,10 @@ also use logarithmic vertical scales so the wide dynamic range remains visible
 throughout the collapse.
 
 The 3D slice height is a normalized spherical gravitational-potential well
-computed from the enclosed gas and dark-matter mass. Velocity arrows are
-drawn on that curved surface.
+computed from the gas and dark-matter shell mass: the deepest potential is
+drawn at the center and the surface rises outward. Velocity arrows are drawn
+on that curved surface. The evolving virial radius, :math:`r_{200}`, is shown
+in every profile and as a reference circle on both 3D slices.
 
 .. raw:: html
 

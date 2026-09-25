@@ -36,8 +36,8 @@ photoheated gas, dense shell, and ionization front evolve together.
        <article class="plot-card"><h3>Radial velocity</h3><div data-plot="velocity"></div></article>
      </div>
      <div class="plot-grid plot-grid-3d">
-       <article class="plot-card"><h3>3D density slice and velocity quiver</h3><p>Central planar slice reconstructed from the spherical profile. Surface height follows the normalized enclosed-gas gravitational potential; color is log₁₀ density.</p><div data-plot3d="density"></div></article>
-       <article class="plot-card"><h3>3D temperature slice and velocity quiver</h3><p>The same slice colored by log₁₀ temperature, with the radial velocity field shown as arrows.</p><div data-plot3d="temperature"></div></article>
+       <article class="plot-card"><h3>3D density slice and velocity quiver</h3><p>Central planar slice reconstructed from the spherical profile. Surface height is a normalized gravitational well, deepest at the center; color is log₁₀ density. Arrow lengths use log-scaled velocity.</p><div data-plot3d="density"></div></article>
+       <article class="plot-card"><h3>3D temperature slice and velocity quiver</h3><p>The same slice colored by log₁₀ temperature, with the radial velocity field shown as arrows on the central gravitational well. Arrow lengths use log-scaled velocity.</p><div data-plot3d="temperature"></div></article>
      </div>
      <section class="story" aria-label="Narrative walkthrough">
        <div class="story-copy"><h2>Read the interaction</h2><p>Scroll through the milestones; the radial profiles follow the selected snapshot.</p></div>
