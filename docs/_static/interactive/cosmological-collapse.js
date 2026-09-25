@@ -56,6 +56,40 @@
     return first * (1 - weight) + second * weight;
   }
 
+  function gravityModel(frame) {
+    const radius = frame.radius_comoving_kpc;
+    const density = frame.density_g_cm3;
+    const darkMatterRadius = frame.dark_matter_radius_proper_kpc || [];
+    const darkMatterMass = frame.dark_matter_mass_msun || [];
+    const gasMass = [];
+    const gasMassScale = Math.pow(3.085677581e21, 3) / 1.98847e33;
+    for (let index = 0; index < radius.length; index += 1) {
+      const inner = index === 0 ? 0 : (radius[index - 1] + radius[index]) / 2;
+      const outer = index === radius.length - 1 ? radius[index] : (radius[index] + radius[index + 1]) / 2;
+      gasMass.push(density[index] * (4 * Math.PI / 3) * (Math.pow(outer, 3) - Math.pow(inner, 3)) * gasMassScale);
+    }
+    const cumulativeGas = [];
+    gasMass.reduce((sum, value, index) => cumulativeGas[index] = sum + value, 0);
+    const darkMatter = darkMatterRadius.map((value, index) => ({ radius: value, mass: darkMatterMass[index] || 0 }))
+      .sort((first, second) => first.radius - second.radius);
+    const cumulativeDarkMatter = [];
+    darkMatter.reduce((sum, shell, index) => cumulativeDarkMatter[index] = sum + shell.mass, 0);
+    const enclosedMass = point => {
+      let gasIndex = 0;
+      while (gasIndex + 1 < radius.length && radius[gasIndex + 1] <= point) gasIndex += 1;
+      let darkMatterIndex = -1;
+      while (darkMatterIndex + 1 < darkMatter.length && darkMatter[darkMatterIndex + 1].radius <= point) darkMatterIndex += 1;
+      return (cumulativeGas[gasIndex] || 0) + (darkMatterIndex >= 0 ? cumulativeDarkMatter[darkMatterIndex] : 0);
+    };
+    const outerRadius = radius[radius.length - 1];
+    const reference = Math.max(enclosedMass(outerRadius) / outerRadius, 1e-12);
+    return point => {
+      const safePoint = Math.max(point, radius[0]);
+      const potentialRatio = enclosedMass(safePoint) / safePoint / reference;
+      return -0.42 * outerRadius * Math.log1p(10 * potentialRatio) / Math.log(11);
+    };
+  }
+
   function renderSlice(target, frame, field, colorscale) {
     if (!window.Plotly) {
       target.textContent = "The 3D slice requires Plotly.js to be loaded.";
@@ -63,7 +97,9 @@
     }
     const radius = frame.radius_comoving_kpc, values = frame[field];
     const velocities = frame.velocity_km_s, count = 39;
-    const extent = radius[radius.length - 1], axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
+    const extent = Math.min(20, radius[radius.length - 1]);
+    const axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
+    const gravityHeight = gravityModel(frame);
     const surface = [], colors = [], quiverX = [], quiverY = [], quiverZ = [];
     const maxVelocity = Math.max(...velocities.map(value => Math.abs(value)), 1e-12);
     for (let row = 0; row < count; row += 1) {
@@ -72,8 +108,10 @@
         const x = axis[column], y = axis[row], distance = Math.sqrt(x * x + y * y);
         const value = interpolate(radius, values, Math.max(distance, radius[0]));
         const velocity = interpolate(radius, velocities, Math.max(distance, radius[0]));
+        const height = gravityHeight(distance);
         surfaceRow.push(0);
-        colorRow.push(value);
+        surfaceRow[surfaceRow.length - 1] = height;
+        colorRow.push(value > 0 ? Math.log10(value) : null);
         if (row % 4 === 0 && column % 4 === 0 && distance > radius[0]) {
           const scale = 0.22 * extent / Math.max(maxVelocity, 1e-12);
           const endX = x + velocity * x / distance * scale;
@@ -85,13 +123,13 @@
           const perpendicularY = deltaX / Math.max(length, 1e-12) * head * 0.6;
           quiverX.push(x, endX, null);
           quiverY.push(y, endY, null);
-          quiverZ.push(0, 0, null);
+          quiverZ.push(height, gravityHeight(Math.hypot(endX, endY)), null);
           quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, null);
           quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY, null);
-          quiverZ.push(0, 0, null);
+          quiverZ.push(gravityHeight(Math.hypot(endX, endY)), gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY)), null);
           quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, null);
           quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY, null);
-          quiverZ.push(0, 0, null);
+          quiverZ.push(gravityHeight(Math.hypot(endX, endY)), gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY)), null);
         }
       }
       surface.push(surfaceRow);
@@ -99,7 +137,7 @@
     }
     const traces = [{
       type: "surface", x: axis, y: axis, z: surface, surfacecolor: colors,
-      colorscale: colorscale, colorbar: { title: field === "density_g_cm3" ? "g/cm³" : "K" },
+      colorscale: colorscale, colorbar: { title: field === "density_g_cm3" ? "log10(g/cm³)" : "log10(K)" },
       contours: { z: { show: false } }, hovertemplate: "x=%{x:.2f} kpc<br>y=%{y:.2f} kpc<br>value=%{surfacecolor:.3g}<extra></extra>",
     }, {
       type: "scatter3d", mode: "lines", x: quiverX, y: quiverY, z: quiverZ,
@@ -109,7 +147,7 @@
       margin: { l: 0, r: 0, t: 10, b: 0 },
       scene: {
         aspectmode: "cube", xaxis: { title: "x (comoving kpc)" },
-        yaxis: { title: "y (comoving kpc)" }, zaxis: { title: "slice plane" },
+        yaxis: { title: "y (comoving kpc)" }, zaxis: { title: "normalized gravitational potential" },
         camera: { eye: { x: 1.45, y: 1.45, z: 1.15 } },
       }, showlegend: false,
     }, { responsive: true, displaylogo: false });

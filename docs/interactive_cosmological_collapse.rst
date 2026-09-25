@@ -10,6 +10,10 @@ The interaction plots use logarithmic radius. Gas density and gas temperature
 also use logarithmic vertical scales so the wide dynamic range remains visible
 throughout the collapse.
 
+The 3D slice height is a normalized spherical gravitational-potential well
+computed from the enclosed gas and dark-matter mass. Velocity arrows are
+drawn on that curved surface.
+
 .. raw:: html
 
    <link rel="stylesheet" href="_static/interactive/cosmological-collapse.css">
