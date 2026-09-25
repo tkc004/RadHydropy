@@ -23,6 +23,7 @@ import virial_shock_tools as et
 from example.example_utils import load_nested_example_config
 from radhydropy.cosmology import EinsteinDeSitter, LambdaCDM
 from radhydropy.units import CodeUnits, quantity_to_value
+from tools.lcdm_correlation import load_lcdm_correlation_table
 
 DEFAULT_CONFIG = Path(__file__).with_name(
     "cosmological_dark_matter_correlation_z100.yaml",
@@ -56,7 +57,7 @@ def main(config_filename=DEFAULT_CONFIG):
     table_filename = Path(example["linear_correlation_table_filename"])
     if not table_filename.is_absolute():
         table_filename = config_filename.parent / table_filename
-    correlation_table = et.load_lcdm_correlation_table(table_filename)
+    correlation_table = load_lcdm_correlation_table(table_filename)
     config["_code_unit_system"] = units
     config["_cosmology"] = cosmology
     config["_correlation_table"] = correlation_table

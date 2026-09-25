@@ -512,7 +512,7 @@ def make_dark_matter(config):
     return shells
 
 
-def _find_virial_shock_radius(
+def _find_virial_shock(
     proper,
     rho_comoving_code,
     entropy_proxy,
@@ -522,12 +522,15 @@ def _find_virial_shock_radius(
     rtarget,
 ):
     if np.count_nonzero(finite_entropy) < 7:  # noqa: PLR2004
-        return np.nan
+        return np.nan, "none"
     lower_radius = proper[0]
     if np.isfinite(rvir) and rvir > proper[0]:
-        lower_radius = max(lower_radius, 0.5 * rvir)
+        # A shock can be substantially inside r200 in a low-mass, cold-flow
+        # halo.  Keep a small virial-scaled exclusion zone for the inner wall
+        # without hard-coding the older 0.5*r200 search limit.
+        lower_radius = max(lower_radius, 0.1 * rvir)
     elif np.isfinite(rtarget):
-        lower_radius = max(lower_radius, 0.3 * rtarget)
+        lower_radius = max(lower_radius, 0.1 * rtarget)
     upper_index = max(3, proper.size - 8)
     upper_radius = proper[upper_index]
     if np.isfinite(rvir) and rvir > proper[0]:
@@ -535,14 +538,20 @@ def _find_virial_shock_radius(
     candidates = np.flatnonzero((proper > lower_radius) & (proper < upper_radius))
     resolved = []
     entropy_jumps = []
+    orientations = []
     for local in candidates:
         inner = max(0, int(local) - 2)
         outer = min(proper.size - 1, int(local) + 2)
         compression = rho_comoving_code[inner] / max(rho_comoving_code[outer], 1.0e-300)
         entropy_jump = entropy_proxy[inner] - entropy_proxy[outer]
-        decelerated = (
+        inward_deceleration = (
             velocity_phys[outer] < 0.0
             and velocity_phys[inner] > velocity_phys[outer]
+            and abs(velocity_phys[inner]) < abs(velocity_phys[outer])
+        )
+        outward_deceleration = (
+            velocity_phys[outer] > 0.0
+            and velocity_phys[inner] < velocity_phys[outer]
             and abs(velocity_phys[inner]) < abs(velocity_phys[outer])
         )
         if (
@@ -551,13 +560,37 @@ def _find_virial_shock_radius(
             and np.isfinite(entropy_jump)
             and compression >= 1.2  # noqa: PLR2004
             and entropy_jump > 0.0
-            and decelerated
+            and (inward_deceleration or outward_deceleration)
         ):
             resolved.append(int(local))
             entropy_jumps.append(float(entropy_jump))
+            orientations.append("inward" if inward_deceleration else "outward")
     if not resolved:
-        return np.nan
-    return float(proper[resolved[int(np.argmax(entropy_jumps))]])
+        return np.nan, "none"
+    selected = int(np.argmax(entropy_jumps))
+    return float(proper[resolved[selected]]), orientations[selected]
+
+
+def _find_virial_shock_radius(
+    proper,
+    rho_comoving_code,
+    entropy_proxy,
+    velocity_phys,
+    finite_entropy,
+    rvir,
+    rtarget,
+):
+    """Return the detected front radius, preserving the legacy scalar API."""
+    radius, _ = _find_virial_shock(
+        proper,
+        rho_comoving_code,
+        entropy_proxy,
+        velocity_phys,
+        finite_entropy,
+        rvir,
+        rtarget,
+    )
+    return radius
 
 
 def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
@@ -663,7 +696,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
         & np.isfinite(rho_comoving_code)
         & (rho_comoving_code > 0.0)
     )
-    rshock = _find_virial_shock_radius(
+    rshock, shock_orientation = _find_virial_shock(
         proper,
         rho_comoving_code,
         entropy_proxy,
@@ -715,6 +748,7 @@ def profiles(sim, dark_matter, time_cosmic_code, config, density_bin_count=128):
         "rho_crit_code": rho_crit,
         "max_delta200": float(np.nanmax(overdensity)),
         "rshock_kpc": rshock,
+        "shock_orientation": shock_orientation,
         "shock_cell_index": shock_cell_index,
         "rsplashback_kpc": rsplashback,
         "rdisc_kpc": rdisc,

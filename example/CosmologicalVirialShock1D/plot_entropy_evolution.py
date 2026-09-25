@@ -46,6 +46,11 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, exclude_outer_cells=2):
     scale = np.asarray(data["scale_factor"], dtype=float)
     rvir = np.asarray(data["rvir_proper_kpc"], dtype=float)
     rshock = np.asarray(data["rshock_kpc"], dtype=float)
+    shock_orientation = np.asarray(
+        data["shock_orientation"]
+        if "shock_orientation" in data
+        else np.full(rshock.shape, "inward"),
+    )
     entropy = temperature_proper_cgs_K / np.maximum(rho_comoving_code, 1.0e-300) ** (
         float(gamma) - 1.0
     )
@@ -84,9 +89,10 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, exclude_outer_cells=2):
                 alpha=0.65,
             )
         if np.isfinite(rshock[index]) and rshock[index] > 0.0:
+            shock_color = "tab:red" if shock_orientation[index] == "inward" else "tab:cyan"
             axes[0].axvline(
                 rshock[index] / scale[index],
-                color=color,
+                color=shock_color,
                 ls="-.",
                 lw=0.9,
                 alpha=0.8,
@@ -111,12 +117,22 @@ def main(output=OUTPUT, prefix=PREFIX, gamma=5.0 / 3.0, exclude_outer_cells=2):
             label=r"$r_{200}$ (comoving)",
         )
     if np.any(finite_shock):
-        axes[1].plot(
-            times[finite_shock],
-            rshock[finite_shock] / scale[finite_shock],
-            "r.-",
-            label=r"$r_{\rm shock}$ (comoving)",
-        )
+        inward = finite_shock & (shock_orientation == "inward")
+        outward = finite_shock & (shock_orientation == "outward")
+        if np.any(inward):
+            axes[1].plot(
+                times[inward],
+                rshock[inward] / scale[inward],
+                "r.-",
+                label=r"$r_{\rm shock}$ inward",
+            )
+        if np.any(outward):
+            axes[1].plot(
+                times[outward],
+                rshock[outward] / scale[outward],
+                "c.-",
+                label=r"$r_{\rm shock}$ outward",
+            )
     if np.any(finite) or np.any(finite_shock):
         axes[1].legend(fontsize=8)
     else:
