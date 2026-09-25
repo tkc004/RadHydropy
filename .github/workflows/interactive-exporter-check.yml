@@ -1,0 +1,82 @@
+name: Interactive exporter check
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/interactive-exporter-check.yml"
+      - "example/CosmologicalSodShock1D/**"
+      - "example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/**"
+      - "radhydropy/**"
+      - "tools/export_interactive_cosmology.py"
+      - "tools/export_stellar_wind_interactive.py"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  exporters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package and exporter dependencies
+        run: python -m pip install -e ".[test,docs]"
+
+      - name: Generate cosmological representative snapshots
+        working-directory: example/CosmologicalSodShock1D
+        run: |
+          python cosmological_sod_shock1d.py \
+            --config cosmological_sod_shock1d_smoke.yaml
+          test "$(find smoke_outputs -maxdepth 1 -name 'Output_*.hdf5' -type f | wc -l)" -ge 1
+
+      - name: Export cosmological representative data
+        run: |
+          python tools/export_interactive_cosmology.py \
+            --config example/CosmologicalSodShock1D/cosmological_sod_shock1d_smoke.yaml \
+            --output /tmp/cosmological-collapse-data.json
+
+      - name: Generate stellar-wind representative snapshots
+        working-directory: example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D
+        run: |
+          python dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.py \
+            --config dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d_smoke.yaml
+          test "$(find smoke_outputs -maxdepth 1 -name 'Output_*.hdf5' -type f | wc -l)" -ge 1
+
+      - name: Export stellar-wind representative data
+        run: |
+          python tools/export_stellar_wind_interactive.py \
+            --config example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d_smoke.yaml \
+            --output /tmp/stellar-wind-data.json
+
+      - name: Verify exported fixture payloads
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          cosmology = json.loads(Path("/tmp/cosmological-collapse-data.json").read_text())
+          runs = cosmology["runs"]
+          assert runs, "cosmology export contains no runs"
+          assert all(run["frames"] for run in runs.values())
+          for frame in next(iter(runs.values()))["frames"]:
+              for field in ("radius_comoving_kpc", "density_g_cm3", "temperature_k", "velocity_km_s"):
+                  assert frame[field], f"missing cosmology field: {field}"
+
+          stellar = json.loads(Path("/tmp/stellar-wind-data.json").read_text())
+          frames = stellar["run"]["frames"]
+          assert frames, "stellar-wind export contains no frames"
+          for frame in frames:
+              for field in ("radius_pc", "density_cm3", "temperature_k", "velocity_km_s"):
+                  assert frame[field], f"missing stellar-wind field: {field}"
+          PY

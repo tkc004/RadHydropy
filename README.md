@@ -54,6 +54,12 @@ The full [documentation](https://tkc004.github.io/RadHydropy/) includes the
 
 [![3D stellar wind](docs/_static/images/stellar-wind-3d.gif)](https://tkc004.github.io/RadHydropy/interactive_stellar_wind.html)
 
+The [`cosmological_collapse`](https://tkc004.github.io/RadHydropy/interactive_cosmological_collapse.html)
+interactive example shows the three-dimensional density slice and velocity field.
+
+The [`stellar_wind`](https://tkc004.github.io/RadHydropy/interactive_stellar_wind.html)
+interactive example shows the corresponding evolution for the photoheated stellar-wind bubble.
+
 Static previews are also available as
 [PNG images](docs/_static/images/cosmological-collapse-3d.png) and
 [stellar-wind PNG images](docs/_static/images/stellar-wind-3d.png).
