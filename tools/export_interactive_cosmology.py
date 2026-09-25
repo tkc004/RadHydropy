@@ -96,7 +96,22 @@ def _profile_npz(config: dict[str, Any], snapshots: list[Path]) -> dict[str, np.
         return {key: np.asarray(data[key]) for key in data.files}
 
 
-def _active_fields(snapshot: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _dark_matter_profile_npz(
+    config: dict[str, Any],
+    snapshots: list[Path],
+) -> dict[str, np.ndarray]:
+    prefix = str(config["example"].get("figure_prefix", "CosmologicalGasCorrelationZ100"))
+    profile = snapshots[0].parent / f"{prefix}_DarkMatterDensities.npz"
+    if not profile.exists():
+        return {}
+    with np.load(profile, allow_pickle=False) as data:
+        return {key: np.asarray(data[key]) for key in data.files}
+
+
+def _active_fields(
+    snapshot: Any,
+    temperature_proper_cgs: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     first = int(snapshot.par.mesh.ghost_cells)
     count = int(snapshot.par.mesh.grid_cells)
     last = first + count
@@ -106,7 +121,15 @@ def _active_fields(snapshot: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray, n
     )[first : last + 1]
     radius = 0.5 * (boundary[:-1] + boundary[1:])
     density = np.asarray(snapshot.fluid.rho_radarray.to_value("g/cm**3"), dtype=float)[first:last]
-    temperature = np.asarray(snapshot.fluid.temp_radarray.to_value("K"), dtype=float)[first:last]
+    if temperature_proper_cgs is not None:
+        temperature_array = np.asarray(temperature_proper_cgs, dtype=float)
+        temperature = (
+            temperature_array if temperature_array.size == count else temperature_array[first:last]
+        )
+    else:
+        temperature = np.asarray(snapshot.fluid.temp_radarray.to_value("K"), dtype=float)[
+            first:last
+        ]
     velocity = np.asarray(snapshot.fluid.vel_radarray.to_value("km/s"), dtype=float)[first:last]
     return radius, density, temperature, velocity
 
@@ -124,11 +147,18 @@ def _export_run(name: str, config_path: Path) -> dict[str, Any]:
     config = load_example_config(config_path)
     snapshots = _find_snapshots(config, config_path)
     profile = _profile_npz(config, snapshots)
+    dark_matter_profile = _dark_matter_profile_npz(config, snapshots)
     frames: list[dict[str, Any]] = []
     source_files: list[dict[str, Any]] = []
     for index, filename in enumerate(snapshots):
         snapshot = rio.loadhdf5(config, str(filename))
-        radius, density, temperature, velocity = _active_fields(snapshot)
+        temperature_profile = profile.get("temperature_proper_cgs_K")
+        temperature_values = (
+            temperature_profile[index]
+            if temperature_profile is not None and index < temperature_profile.shape[0]
+            else None
+        )
+        radius, density, temperature, velocity = _active_fields(snapshot, temperature_values)
         frame: dict[str, Any] = {
             "snapshot": filename.name,
             "radius_comoving_kpc": radius,
@@ -148,10 +178,17 @@ def _export_run(name: str, config_path: Path) -> dict[str, Any]:
             frame["redshift"] = 1.0 / frame["scale_factor"] - 1.0
         dark_matter = getattr(snapshot, "dark_matter", None)
         if dark_matter is not None:
-            frame["dark_matter_radius_proper_kpc"] = np.asarray(
-                dark_matter.radius_radarray.to_value("kpc"),
-                dtype=float,
-            )
+            dark_matter_radius = dark_matter_profile.get("radius_proper_kpc")
+            if dark_matter_radius is not None and index < dark_matter_radius.shape[0]:
+                frame["dark_matter_radius_proper_kpc"] = np.asarray(
+                    dark_matter_radius[index],
+                    dtype=float,
+                )
+            else:
+                frame["dark_matter_radius_proper_kpc"] = np.asarray(
+                    dark_matter.radius_radarray.to_value("kpc"),
+                    dtype=float,
+                )
             frame["dark_matter_mass_msun"] = np.asarray(
                 dark_matter.dark_matter_mass_radarray.to_value("Msun"),
                 dtype=float,
