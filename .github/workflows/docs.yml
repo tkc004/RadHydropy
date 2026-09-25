@@ -30,6 +30,12 @@ jobs:
             --config example/CosmologicalVirialShock1D/cosmological_gas_correlation_tvir1e3_z15.yaml
           python tools/export_interactive_cosmology.py
 
+      - name: Generate interactive stellar-wind data
+        run: |
+          python example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.py \
+            --config example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml
+          python tools/export_stellar_wind_interactive.py
+
       - name: Build documentation with warnings treated as errors
         run: python -m sphinx -W --keep-going -b html docs docs/_build/html
 
