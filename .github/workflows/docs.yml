@@ -3,7 +3,18 @@ name: Documentation build
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - ".github/workflows/interactive-data.yml"
+      - "example/CosmologicalVirialShock1D/**"
+      - "example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/**"
+      - "tools/export_interactive_cosmology.py"
+      - "tools/export_stellar_wind_interactive.py"
+      - "tools/lcdm_correlation.py"
+      - "pyproject.toml"
   pull_request:
+  workflow_run:
+    workflows: ["Refresh interactive data"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -11,10 +22,16 @@ permissions:
 
 jobs:
   sphinx:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,8 +48,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          run_id="$(gh run list --workflow interactive-data.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
-          head_sha="$(gh run list --workflow interactive-data.yml --branch main --status success --limit 1 --json headSha --jq '.[0].headSha')"
+          run="$(gh run list --workflow interactive-data.yml --branch main --status success --limit 1 --json databaseId,headSha --jq '.[0]')"
+          run_id="$(jq -r '.databaseId // empty' <<< "$run")"
+          head_sha="$(jq -r '.headSha // empty' <<< "$run")"
           if [ -z "$run_id" ] || [ -z "$head_sha" ]; then
             echo "No successful interactive-data workflow run was found." >&2
             exit 1

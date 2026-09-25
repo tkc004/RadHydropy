@@ -4,6 +4,16 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 3 * * 0"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/interactive-data.yml"
+      - "example/CosmologicalVirialShock1D/**"
+      - "example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/**"
+      - "tools/export_interactive_cosmology.py"
+      - "tools/export_stellar_wind_interactive.py"
+      - "tools/lcdm_correlation.py"
+      - "pyproject.toml"
 
 permissions:
   contents: read
