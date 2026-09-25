@@ -27,6 +27,7 @@ The package is organized around a small simulation workflow:
    examples
    example_catalog
    reproducibility
+   interactive_cosmological_collapse
    troubleshooting
 
 .. toctree::

@@ -27,6 +27,8 @@ extensions = [
     "sphinx.ext.viewcode",
 ]
 
+html_static_path = ["_static"]
+
 autodoc_default_options = {
     "members": True,
     "member-order": "bysource",

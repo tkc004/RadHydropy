@@ -1,0 +1,46 @@
+.radhydropy-explorer {
+  --ink: #102a43;
+  --muted: #627d98;
+  --line: #d9e2ec;
+  --panel: #f0f4f8;
+  --accent: #d64545;
+  color: var(--ink);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 2rem 0 4rem;
+}
+.radhydropy-explorer .hero {
+  background: radial-gradient(circle at 80% 10%, #486581, #102a43 58%, #071a2b);
+  border-radius: 1rem;
+  color: white;
+  padding: clamp(2rem, 7vw, 6rem) clamp(1.25rem, 6vw, 5rem);
+}
+.radhydropy-explorer .hero h2 { color: white; font-size: clamp(2rem, 5vw, 4rem); margin-top: 0; }
+.radhydropy-explorer .hero p { color: #d9e2ec; max-width: 48rem; }
+.radhydropy-explorer .controls,
+.radhydropy-explorer .provenance {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: .75rem;
+  margin: 1.25rem 0;
+  padding: 1rem;
+}
+.radhydropy-explorer .control-row { align-items: center; display: flex; flex-wrap: wrap; gap: 1rem; }
+.radhydropy-explorer label { font-weight: 650; }
+.radhydropy-explorer select,
+.radhydropy-explorer input[type="range"] { max-width: 100%; }
+.radhydropy-explorer input[type="range"] { flex: 1 1 18rem; }
+.radhydropy-explorer output { font-variant-numeric: tabular-nums; min-width: 15rem; }
+.radhydropy-explorer .plot-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.radhydropy-explorer .plot-card { border: 1px solid var(--line); border-radius: .75rem; padding: .5rem; }
+.radhydropy-explorer .plot-card h3 { font-size: 1rem; margin: .5rem .75rem 0; }
+.radhydropy-explorer svg { display: block; height: auto; width: 100%; }
+.radhydropy-explorer .story { display: grid; gap: 1rem; grid-template-columns: minmax(13rem, .7fr) minmax(20rem, 1.3fr); margin: 3rem 0; }
+.radhydropy-explorer .story-copy { align-self: start; position: sticky; top: 1rem; }
+.radhydropy-explorer .story-step { border-left: 3px solid var(--line); margin: 0 0 8rem; padding: 0 1rem; }
+.radhydropy-explorer .story-step.is-active { border-color: var(--accent); }
+.radhydropy-explorer .provenance pre { overflow-x: auto; white-space: pre-wrap; }
+.radhydropy-explorer .warning { color: #9b2c2c; }
+@media (max-width: 700px) {
+  .radhydropy-explorer .story { display: block; }
+  .radhydropy-explorer .story-copy { position: static; }
+}
