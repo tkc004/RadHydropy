@@ -16,13 +16,16 @@
     const values = series.flatMap(item => item.y).filter(Number.isFinite);
     const xValues = series.flatMap(item => item.x).filter(Number.isFinite);
     if (!values.length || !xValues.length) { target.textContent = "No finite data"; return; }
-    const xMin = Math.min(...xValues), xMax = Math.max(...xValues);
+    const xMin = options.logX ? Math.min(...xValues.filter(finite)) : Math.min(...xValues);
+    const xMax = Math.max(...xValues);
     let yMin = options.logY ? Math.min(...values.filter(finite)) : Math.min(...values);
     let yMax = Math.max(...values);
     if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) { target.textContent = "No finite data"; return; }
     if (options.logY) yMin = Math.max(yMin, yMax * 1e-8);
     if (yMin === yMax) { yMin -= 1; yMax += 1; }
-    const sx = x => left + (x - xMin) / (xMax - xMin || 1) * plotWidth;
+    const sx = x => options.logX
+      ? left + (Math.log(x) - Math.log(xMin)) / (Math.log(xMax) - Math.log(xMin) || 1) * plotWidth
+      : left + (x - xMin) / (xMax - xMin || 1) * plotWidth;
     const sy = y => options.logY
       ? top + (Math.log(yMax) - Math.log(Math.max(y, yMin))) / (Math.log(yMax) - Math.log(yMin) || 1) * plotHeight
       : top + (yMax - y) / (yMax - yMin) * plotHeight;
@@ -39,6 +42,77 @@
       + "<text x=\"14\" y=\"" + (top + plotHeight / 2) + "\" transform=\"rotate(-90 14 " + (top + plotHeight / 2) + ")\" text-anchor=\"middle\" fill=\"#486581\" font-size=\"12\">" + options.yLabel + "</text>"
       + "<text x=\"" + left + "\" y=\"" + (height - 8) + "\" fill=\"#486581\" font-size=\"10\">" + fmt(xMin, 2) + "</text>"
       + "<text x=\"" + (left + plotWidth) + "\" y=\"" + (height - 8) + "\" text-anchor=\"end\" fill=\"#486581\" font-size=\"10\">" + fmt(xMax, 2) + "</text></svg>";
+  }
+
+  function interpolate(radius, values, point) {
+    if (point <= radius[0]) return values[0];
+    if (point >= radius[radius.length - 1]) return values[values.length - 1];
+    let upper = 1;
+    while (upper < radius.length && radius[upper] < point) upper += 1;
+    const lower = upper - 1;
+    const weight = (Math.log(point) - Math.log(radius[lower])) / (Math.log(radius[upper]) - Math.log(radius[lower]));
+    const first = values[lower], second = values[upper];
+    if (first > 0 && second > 0) return Math.exp(Math.log(first) * (1 - weight) + Math.log(second) * weight);
+    return first * (1 - weight) + second * weight;
+  }
+
+  function renderSlice(target, frame, field, colorscale) {
+    if (!window.Plotly) {
+      target.textContent = "The 3D slice requires Plotly.js to be loaded.";
+      return;
+    }
+    const radius = frame.radius_comoving_kpc, values = frame[field];
+    const velocities = frame.velocity_km_s, count = 39;
+    const extent = radius[radius.length - 1], axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
+    const surface = [], colors = [], quiverX = [], quiverY = [], quiverZ = [];
+    const maxVelocity = Math.max(...velocities.map(value => Math.abs(value)), 1e-12);
+    for (let row = 0; row < count; row += 1) {
+      const surfaceRow = [], colorRow = [];
+      for (let column = 0; column < count; column += 1) {
+        const x = axis[column], y = axis[row], distance = Math.sqrt(x * x + y * y);
+        const value = interpolate(radius, values, Math.max(distance, radius[0]));
+        const velocity = interpolate(radius, velocities, Math.max(distance, radius[0]));
+        surfaceRow.push(0);
+        colorRow.push(value);
+        if (row % 4 === 0 && column % 4 === 0 && distance > radius[0]) {
+          const scale = 0.22 * extent / Math.max(maxVelocity, 1e-12);
+          const endX = x + velocity * x / distance * scale;
+          const endY = y + velocity * y / distance * scale;
+          const deltaX = endX - x, deltaY = endY - y;
+          const length = Math.hypot(deltaX, deltaY);
+          const head = 0.16 * length;
+          const perpendicularX = -deltaY / Math.max(length, 1e-12) * head * 0.6;
+          const perpendicularY = deltaX / Math.max(length, 1e-12) * head * 0.6;
+          quiverX.push(x, endX, null);
+          quiverY.push(y, endY, null);
+          quiverZ.push(0, 0, null);
+          quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, null);
+          quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY, null);
+          quiverZ.push(0, 0, null);
+          quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, null);
+          quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY, null);
+          quiverZ.push(0, 0, null);
+        }
+      }
+      surface.push(surfaceRow);
+      colors.push(colorRow);
+    }
+    const traces = [{
+      type: "surface", x: axis, y: axis, z: surface, surfacecolor: colors,
+      colorscale: colorscale, colorbar: { title: field === "density_g_cm3" ? "g/cm³" : "K" },
+      contours: { z: { show: false } }, hovertemplate: "x=%{x:.2f} kpc<br>y=%{y:.2f} kpc<br>value=%{surfacecolor:.3g}<extra></extra>",
+    }, {
+      type: "scatter3d", mode: "lines", x: quiverX, y: quiverY, z: quiverZ,
+      line: { color: "#102a43", width: 3 }, name: "velocity quiver", hoverinfo: "skip",
+    }];
+    window.Plotly.react(target, traces, {
+      margin: { l: 0, r: 0, t: 10, b: 0 },
+      scene: {
+        aspectmode: "cube", xaxis: { title: "x (comoving kpc)" },
+        yaxis: { title: "y (comoving kpc)" }, zaxis: { title: "slice plane" },
+        camera: { eye: { x: 1.45, y: 1.45, z: 1.15 } },
+      }, showlegend: false,
+    }, { responsive: true, displaylogo: false });
   }
 
   function init(payload) {
@@ -85,12 +159,14 @@
         svgPlot(root.querySelector("[data-plot=\"" + name + "\"]"), selected.map(item => ({
           x: item.frame.radius_comoving_kpc, y: item.frame[yKey], color: item.color,
           markers: name === "density" ? [{ x: item.frame.shock_comoving_kpc, label: "shock" }, { x: item.frame.rvir_comoving_kpc, label: "r₂₀₀", color: "#805ad5" }] : [],
-        })), { label: label, logY: logY, xLabel: "comoving radius (kpc)", yLabel: label + " (" + unit + ")" });
+        })), { label: label, logX: true, logY: logY, xLabel: "comoving radius (kpc, log scale)", yLabel: label + " (" + unit + ")" });
       });
       svgPlot(root.querySelector("[data-plot=\"dark-matter\"]"), selected.map(item => {
         const shells = item.frame.dark_matter_radius_proper_kpc || [];
         return { x: shells, y: shells.map((_, index) => index / Math.max(shells.length - 1, 1)), color: item.color };
-      }), { label: "Dark-matter shell positions", logY: false, xLabel: "proper radius (kpc)", yLabel: "shell order" });
+      }), { label: "Dark-matter shell positions", logX: true, logY: false, xLabel: "proper radius (kpc, log scale)", yLabel: "shell order" });
+      renderSlice(root.querySelector("[data-plot3d=\"density\"]"), frame, "density_g_cm3", "Viridis");
+      renderSlice(root.querySelector("[data-plot3d=\"temperature\"]"), frame, "temperature_k", "Inferno");
       root.querySelector("[data-dm-count]").textContent = (frame.dark_matter_radius_proper_kpc || []).length.toLocaleString() + " dark-matter shells";
       root.querySelector("[data-provenance]").textContent = JSON.stringify({ source: run.config_filename, config_sha256: run.config_sha256, snapshots: run.snapshot_count, git_commit: payload.git_commit, git_dirty: payload.git_dirty }, null, 2);
       root.querySelectorAll("[data-story-frame]").forEach(step => step.classList.toggle("is-active", Number(step.dataset.storyFrame) === state.frame));

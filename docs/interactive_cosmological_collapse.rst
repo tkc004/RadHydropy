@@ -6,9 +6,14 @@ z = 15 cosmological gas--dark-matter calculation. The browser does not
 run a simulation: the page reads a compact data export generated from the
 authoritative HDF5 snapshots.
 
+The interaction plots use logarithmic radius. Gas density and gas temperature
+also use logarithmic vertical scales so the wide dynamic range remains visible
+throughout the collapse.
+
 .. raw:: html
 
    <link rel="stylesheet" href="_static/interactive/cosmological-collapse.css">
+   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
    <script src="_static/interactive/cosmological-collapse.js" defer></script>
    <div class="radhydropy-explorer" data-radhydropy-explorer data-data-url="_static/interactive/cosmological-collapse-data.json">
      <section class="hero">
@@ -35,6 +40,10 @@ authoritative HDF5 snapshots.
        <article class="plot-card"><h3>Gas temperature</h3><div data-plot="temperature"></div></article>
        <article class="plot-card"><h3>Radial velocity</h3><div data-plot="velocity"></div></article>
        <article class="plot-card"><h3>Dark-matter shell positions</h3><div data-plot="dark-matter"></div></article>
+     </div>
+     <div class="plot-grid plot-grid-3d">
+       <article class="plot-card"><h3>3D density slice and velocity quiver</h3><div data-plot3d="density"></div></article>
+       <article class="plot-card"><h3>3D temperature slice and velocity quiver</h3><div data-plot3d="temperature"></div></article>
      </div>
      <section class="story" aria-label="Narrative walkthrough">
        <div class="story-copy"><h2>Read the collapse</h2><p>Scroll through the milestones; the plots follow the selected snapshot.</p><p data-dm-count></p></div>
