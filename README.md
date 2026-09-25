@@ -11,6 +11,7 @@ RadHydropy supports Python 3.10 and newer. The standard workflow is:
 nested YAML → initial condition → Rsim → HDF5 snapshots → typed RadArray views
 ```
 
+
 ## Get started
 
 Follow the [Getting Started guide](docs/getting_started.rst) for installation,
