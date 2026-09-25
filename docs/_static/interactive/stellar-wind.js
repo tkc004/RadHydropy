@@ -35,9 +35,11 @@
       (sum, mass, index) => sum + mass / Math.max(point, radius[index]),
       0,
     );
-    const centralPotential = Math.max(potentialMagnitude(0), 1e-30);
+    const centralPotential = potentialMagnitude(0);
+    const edgePotential = potentialMagnitude(outerRadius);
+    const potentialRange = Math.max(centralPotential - edgePotential, 1e-30);
     return point => {
-      const wellDepth = potentialMagnitude(Math.max(point, 0)) / centralPotential;
+      const wellDepth = Math.max(0, Math.min(1, (potentialMagnitude(Math.max(point, 0)) - edgePotential) / potentialRange));
       return -0.42 * outerRadius * wellDepth;
     };
   }
@@ -63,13 +65,14 @@
       const surfaceRow = [], colorRow = [];
       for (let column = 0; column < count; column += 1) {
         const x = axis[column], y = axis[row], distance = Math.hypot(x, y);
+        const cutaway = x > 0 && y < 0;
         const safeDistance = Math.max(distance, radius[0]);
         const value = interpolate(radius, values, safeDistance);
         const velocity = interpolate(radius, velocities, safeDistance);
         const height = gravityHeight(distance);
-        surfaceRow.push(height);
-        colorRow.push(value > 0 ? Math.log10(value) : null);
-        if (row % 4 === 0 && column % 4 === 0 && distance > radius[0]) {
+        surfaceRow.push(cutaway ? null : height);
+        colorRow.push(cutaway || value <= 0 ? null : Math.log10(value));
+        if (!cutaway && row % 4 === 0 && column % 4 === 0 && distance > radius[0]) {
           const visualVelocity = logVelocity(velocity);
           const endX = x + visualVelocity * x / distance * arrowScale;
           const endY = y + visualVelocity * y / distance * arrowScale;
@@ -93,18 +96,19 @@
       colors.push(colorRow);
     }
     window.Plotly.react(target, [{
-      type: "surface", x: axis, y: axis, z: surface, surfacecolor: colors,
+      type: "surface", x: axis, y: axis, z: surface, surfacecolor: colors, opacity: 0.82,
       colorscale: colorscale, colorbar: { title: field === "density_cm3" ? "log10(cm⁻³)" : "log10(K)" },
       hovertemplate: "x=%{x:.2f} pc<br>y=%{y:.2f} pc<br>log value=%{surfacecolor:.3g}<extra></extra>",
     }, {
-      type: "scatter3d", mode: "lines", x: quiverX, y: quiverY, z: quiverZ,
-      line: { color: "#102a43", width: 6 }, name: "velocity quiver", hoverinfo: "skip",
+      type: "scatter3d", mode: "lines+markers", x: quiverX, y: quiverY, z: quiverZ,
+      line: { color: "#000000", width: 14 }, marker: { color: "#000000", size: 3.5 },
+      opacity: 1, name: "velocity quiver", hoverinfo: "skip",
     }], {
       margin: { l: 0, r: 0, t: 10, b: 0 },
       scene: {
         aspectmode: "cube", xaxis: { title: "x (pc)" }, yaxis: { title: "y (pc)" },
         zaxis: { title: "normalized gravitational potential" },
-        camera: { eye: { x: 1.45, y: 1.45, z: 1.15 } },
+        camera: { eye: { x: 0, y: 1.8, z: 1.55 }, center: { x: 0, y: 0, z: -0.15 } },
       }, showlegend: false,
     }, { responsive: true, displaylogo: false });
   }

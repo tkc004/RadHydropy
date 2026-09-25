@@ -1,6 +1,8 @@
 *.pyc
 *.so
 *.png
+!docs/_static/images/*.png
+!docs/_static/images/*.gif
 *.eps
 *.egg-info
 *.json

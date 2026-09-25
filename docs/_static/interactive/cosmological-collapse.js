@@ -56,7 +56,7 @@
     return first * (1 - weight) + second * weight;
   }
 
-  function gravityModel(frame) {
+  function gravityModel(frame, wellScale) {
     const radius = frame.radius_comoving_kpc;
     const density = frame.density_g_cm3;
     const darkMatterRadius = frame.dark_matter_radius_proper_kpc || [];
@@ -82,10 +82,12 @@
       );
       return gasPotential + darkMatterPotential;
     };
-    const centralPotential = Math.max(potentialMagnitude(0), 1e-12);
+    const centralPotential = potentialMagnitude(0);
+    const edgePotential = potentialMagnitude(wellScale);
+    const potentialRange = Math.max(centralPotential - edgePotential, 1e-12);
     return point => {
-      const wellDepth = potentialMagnitude(Math.max(point, 0)) / centralPotential;
-      return -0.42 * outerRadius * wellDepth;
+      const wellDepth = Math.max(0, Math.min(1, (potentialMagnitude(Math.max(point, 0)) - edgePotential) / potentialRange));
+      return -0.42 * wellScale * wellDepth;
     };
   }
 
@@ -98,8 +100,9 @@
     const velocities = frame.velocity_km_s, count = 39;
     const extent = Math.min(20, radius[radius.length - 1]);
     const axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
-    const gravityHeight = gravityModel(frame);
+    const gravityHeight = gravityModel(frame, extent);
     const surface = [], colors = [], quiverX = [], quiverY = [], quiverZ = [];
+    const quiverLift = 0.04 * extent;
     const virialX = [], virialY = [], virialZ = [];
     const virialRadius = frame.rvir_comoving_kpc;
     if (Number.isFinite(virialRadius) && virialRadius > 0) {
@@ -114,13 +117,13 @@
       const surfaceRow = [], colorRow = [];
       for (let column = 0; column < count; column += 1) {
         const x = axis[column], y = axis[row], distance = Math.sqrt(x * x + y * y);
+        const cutaway = x > 0 && y < 0;
         const value = interpolate(radius, values, Math.max(distance, radius[0]));
         const velocity = interpolate(radius, velocities, Math.max(distance, radius[0]));
         const height = gravityHeight(distance);
-        surfaceRow.push(0);
-        surfaceRow[surfaceRow.length - 1] = height;
-        colorRow.push(value > 0 ? Math.log10(value) : null);
-        if (row % 4 === 0 && column % 4 === 0 && distance > radius[0]) {
+        surfaceRow.push(cutaway ? null : height);
+        colorRow.push(cutaway || value <= 0 ? null : Math.log10(value));
+        if (!cutaway && row % 4 === 0 && column % 4 === 0 && distance > radius[0]) {
           const scale = 0.22 * extent / Math.max(maxVelocity, 1e-12);
           const endX = x + velocity * x / distance * scale;
           const endY = y + velocity * y / distance * scale;
@@ -131,25 +134,26 @@
           const perpendicularY = deltaX / Math.max(length, 1e-12) * head * 0.6;
           quiverX.push(x, endX, null);
           quiverY.push(y, endY, null);
-          quiverZ.push(height, gravityHeight(Math.hypot(endX, endY)), null);
+          quiverZ.push(height + quiverLift, gravityHeight(Math.hypot(endX, endY)) + quiverLift, null);
           quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, null);
           quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY, null);
-          quiverZ.push(gravityHeight(Math.hypot(endX, endY)), gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY)), null);
+          quiverZ.push(gravityHeight(Math.hypot(endX, endY)) + quiverLift, gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY)) + quiverLift, null);
           quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, null);
           quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY, null);
-          quiverZ.push(gravityHeight(Math.hypot(endX, endY)), gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY)), null);
+          quiverZ.push(gravityHeight(Math.hypot(endX, endY)) + quiverLift, gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY)) + quiverLift, null);
         }
       }
       surface.push(surfaceRow);
       colors.push(colorRow);
     }
     const traces = [{
-      type: "surface", x: axis, y: axis, z: surface, surfacecolor: colors,
+      type: "surface", x: axis, y: axis, z: surface, surfacecolor: colors, opacity: 0.82,
       colorscale: colorscale, colorbar: { title: field === "density_g_cm3" ? "log10(g/cm³)" : "log10(K)" },
       contours: { z: { show: false } }, hovertemplate: "x=%{x:.2f} kpc<br>y=%{y:.2f} kpc<br>value=%{surfacecolor:.3g}<extra></extra>",
     }, {
-      type: "scatter3d", mode: "lines", x: quiverX, y: quiverY, z: quiverZ,
-      line: { color: "#102a43", width: 3 }, name: "velocity quiver", hoverinfo: "skip",
+      type: "scatter3d", mode: "lines+markers", x: quiverX, y: quiverY, z: quiverZ,
+      line: { color: "#000000", width: 14 }, marker: { color: "#000000", size: 3.5 },
+      opacity: 1, name: "velocity quiver", hoverinfo: "skip",
     }, {
       type: "scatter3d", mode: "lines", x: virialX, y: virialY, z: virialZ,
       line: { color: "#805ad5", width: 6 }, name: "r₂₀₀", hoverinfo: "skip",
@@ -159,7 +163,7 @@
       scene: {
         aspectmode: "cube", xaxis: { title: "x (comoving kpc)" },
         yaxis: { title: "y (comoving kpc)" }, zaxis: { title: "normalized gravitational potential" },
-        camera: { eye: { x: 1.45, y: 1.45, z: 1.15 } },
+        camera: { eye: { x: 0, y: 1.8, z: 1.55 }, center: { x: 0, y: 0, z: -0.15 } },
       }, showlegend: false,
     }, { responsive: true, displaylogo: false });
   }

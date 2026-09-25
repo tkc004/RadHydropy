@@ -15,6 +15,8 @@ computed from the gas and dark-matter shell mass: the deepest potential is
 drawn at the center and the surface rises outward. Velocity arrows are drawn
 on that curved surface. The evolving virial radius, :math:`r_{200}`, is shown
 in every profile and as a reference circle on both 3D slices.
+The 3D surfaces use a cutaway in the :math:`x>0, y<0` quadrant to expose the
+interior of the density and temperature wells.
 
 .. raw:: html
 
