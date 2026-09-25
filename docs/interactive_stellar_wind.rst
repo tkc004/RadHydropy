@@ -8,6 +8,7 @@ photoheated gas, dense shell, and ionization front evolve together.
 .. raw:: html
 
    <link rel="stylesheet" href="_static/interactive/cosmological-collapse.css">
+   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
    <script src="_static/interactive/stellar-wind.js" defer></script>
    <div class="radhydropy-explorer" data-stellar-wind-explorer data-data-url="_static/interactive/stellar-wind-data.json">
      <section class="hero">
@@ -33,6 +34,10 @@ photoheated gas, dense shell, and ionization front evolve together.
        <article class="plot-card"><h3>Temperature</h3><div data-plot="temperature"></div></article>
        <article class="plot-card"><h3>Neutral fraction</h3><div data-plot="neutral"></div></article>
        <article class="plot-card"><h3>Radial velocity</h3><div data-plot="velocity"></div></article>
+     </div>
+     <div class="plot-grid plot-grid-3d">
+       <article class="plot-card"><h3>3D density slice and velocity quiver</h3><p>Central planar slice reconstructed from the spherical profile. Surface height follows the normalized enclosed-gas gravitational potential; color is log₁₀ density.</p><div data-plot3d="density"></div></article>
+       <article class="plot-card"><h3>3D temperature slice and velocity quiver</h3><p>The same slice colored by log₁₀ temperature, with the radial velocity field shown as arrows.</p><div data-plot3d="temperature"></div></article>
      </div>
      <section class="story" aria-label="Narrative walkthrough">
        <div class="story-copy"><h2>Read the interaction</h2><p>Scroll through the milestones; the radial profiles follow the selected snapshot.</p></div>

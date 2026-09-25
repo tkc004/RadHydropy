@@ -7,6 +7,109 @@
   const state = { frame: 0 };
   const fmt = (value, digits) => value == null || !Number.isFinite(value) ? "—" : Number(value).toPrecision(digits || 3);
 
+  function interpolate(radius, values, point) {
+    if (point <= radius[0]) return values[0];
+    if (point >= radius[radius.length - 1]) return values[values.length - 1];
+    let upper = 1;
+    while (upper < radius.length && radius[upper] < point) upper += 1;
+    const lower = upper - 1;
+    const weight = (Math.log(point) - Math.log(radius[lower])) / (Math.log(radius[upper]) - Math.log(radius[lower]));
+    const first = values[lower], second = values[upper];
+    if (first > 0 && second > 0) return Math.exp(Math.log(first) * (1 - weight) + Math.log(second) * weight);
+    return first * (1 - weight) + second * weight;
+  }
+
+  function gravityModel(frame) {
+    const radius = frame.radius_pc;
+    const density = frame.density_cm3;
+    const protonMass = 1.67262192369e-24;
+    const parsec = 3.085677581e18;
+    const shellMass = [];
+    for (let index = 0; index < radius.length; index += 1) {
+      const inner = index === 0 ? 0 : (radius[index - 1] + radius[index]) / 2;
+      const outer = index === radius.length - 1 ? radius[index] : (radius[index] + radius[index + 1]) / 2;
+      shellMass.push(density[index] * protonMass * (4 * Math.PI / 3) * (Math.pow(outer * parsec, 3) - Math.pow(inner * parsec, 3)));
+    }
+    const cumulativeMass = [];
+    shellMass.reduce((sum, value, index) => cumulativeMass[index] = sum + value, 0);
+    const enclosedMass = point => {
+      let index = 0;
+      while (index + 1 < radius.length && radius[index + 1] <= point) index += 1;
+      return cumulativeMass[index] || 0;
+    };
+    const outerRadius = radius[radius.length - 1];
+    const reference = Math.max(enclosedMass(outerRadius) / outerRadius, 1e-30);
+    return point => {
+      const safePoint = Math.max(point, radius[0]);
+      const potentialRatio = enclosedMass(safePoint) / safePoint / reference;
+      return -0.42 * outerRadius * Math.log1p(10 * potentialRatio) / Math.log(11);
+    };
+  }
+
+  function renderSlice(target, frame, field, colorscale) {
+    if (!window.Plotly) {
+      target.textContent = "The 3D slice requires Plotly.js to be loaded.";
+      return;
+    }
+    const radius = frame.radius_pc;
+    const values = frame[field];
+    const velocities = frame.velocity_km_s;
+    const count = 39;
+    const extent = Math.min(20, radius[radius.length - 1]);
+    const axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
+    const gravityHeight = gravityModel(frame);
+    const surface = [], colors = [], quiverX = [], quiverY = [], quiverZ = [];
+    const maxVelocity = Math.max(...velocities.map(value => Math.abs(value)), 1e-12);
+    for (let row = 0; row < count; row += 1) {
+      const surfaceRow = [], colorRow = [];
+      for (let column = 0; column < count; column += 1) {
+        const x = axis[column], y = axis[row], distance = Math.hypot(x, y);
+        const safeDistance = Math.max(distance, radius[0]);
+        const value = interpolate(radius, values, safeDistance);
+        const velocity = interpolate(radius, velocities, safeDistance);
+        const height = gravityHeight(distance);
+        surfaceRow.push(height);
+        colorRow.push(value > 0 ? Math.log10(value) : null);
+        if (row % 4 === 0 && column % 4 === 0 && distance > radius[0]) {
+          const scale = 0.22 * extent / maxVelocity;
+          const endX = x + velocity * x / distance * scale;
+          const endY = y + velocity * y / distance * scale;
+          const deltaX = endX - x, deltaY = endY - y;
+          const length = Math.hypot(deltaX, deltaY);
+          const head = 0.16 * length;
+          const perpendicularX = -deltaY / Math.max(length, 1e-12) * head * 0.6;
+          const perpendicularY = deltaX / Math.max(length, 1e-12) * head * 0.6;
+          quiverX.push(x, endX, null);
+          quiverY.push(y, endY, null);
+          quiverZ.push(height, gravityHeight(Math.hypot(endX, endY)), null);
+          quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, null);
+          quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY, null);
+          quiverZ.push(gravityHeight(Math.hypot(endX, endY)), gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY)), null);
+          quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, null);
+          quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY, null);
+          quiverZ.push(gravityHeight(Math.hypot(endX, endY)), gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY)), null);
+        }
+      }
+      surface.push(surfaceRow);
+      colors.push(colorRow);
+    }
+    window.Plotly.react(target, [{
+      type: "surface", x: axis, y: axis, z: surface, surfacecolor: colors,
+      colorscale: colorscale, colorbar: { title: field === "density_cm3" ? "log10(cm⁻³)" : "log10(K)" },
+      hovertemplate: "x=%{x:.2f} pc<br>y=%{y:.2f} pc<br>log value=%{surfacecolor:.3g}<extra></extra>",
+    }, {
+      type: "scatter3d", mode: "lines", x: quiverX, y: quiverY, z: quiverZ,
+      line: { color: "#102a43", width: 3 }, name: "velocity quiver", hoverinfo: "skip",
+    }], {
+      margin: { l: 0, r: 0, t: 10, b: 0 },
+      scene: {
+        aspectmode: "cube", xaxis: { title: "x (pc)" }, yaxis: { title: "y (pc)" },
+        zaxis: { title: "normalized gravitational potential" },
+        camera: { eye: { x: 1.45, y: 1.45, z: 1.15 } },
+      }, showlegend: false,
+    }, { responsive: true, displaylogo: false });
+  }
+
   function plot(target, frame, key, label, unit, options) {
     const width = 620, height = 300, left = 62, right = 16, top = 16, bottom = 42;
     const plotWidth = width - left - right, plotHeight = height - top - bottom;
@@ -55,6 +158,8 @@
       plot(root.querySelector("[data-plot=\"temperature\"]"), frame, "temperature_k", "temperature", "K", { logX: true, logY: true });
       plot(root.querySelector("[data-plot=\"neutral\"]"), frame, "neutral_fraction", "neutral fraction", "xHI", { logX: true, logY: false });
       plot(root.querySelector("[data-plot=\"velocity\"]"), frame, "velocity_km_s", "radial velocity", "km/s", { logX: true, logY: false });
+      renderSlice(root.querySelector("[data-plot3d=\"density\"]"), frame, "density_cm3", "Viridis");
+      renderSlice(root.querySelector("[data-plot3d=\"temperature\"]"), frame, "temperature_k", "Inferno");
       root.querySelector("[data-front]").textContent = fmt(frame.ionization_front_pc) + " pc";
       root.querySelector("[data-shell]").textContent = fmt(frame.wind_shell_pc) + " pc";
       root.querySelector("[data-pressure-ratio]").textContent = fmt(frame.pressure_ratio);
