@@ -24,6 +24,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(EXAMPLE_ROOT))
 
 import virial_shock_tools as et
+from tools.lcdm_correlation import load_lcdm_correlation_table
 
 import radhydropy.io as rio
 from example.example_utils import load_nested_example_config
@@ -40,7 +41,7 @@ def load_correlation_table(config_filename, config):
     filename = Path(config["example"]["linear_correlation_table_filename"])
     if not filename.is_absolute():
         filename = Path(config_filename).resolve().parent / filename
-    return et.load_lcdm_correlation_table(filename)
+    return load_lcdm_correlation_table(filename)
 
 
 def _snapshot(sim, dark_matter, time_cosmic_code, config):
