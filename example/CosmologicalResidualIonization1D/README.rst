@@ -17,3 +17,17 @@ after ``z=100`` because this example intentionally omits reionization.
 Run with::
 
    python cosmological_residual_ionization1d.py
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/CosmologicalResidualIonization1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

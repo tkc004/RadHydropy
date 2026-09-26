@@ -43,3 +43,17 @@ resolutions for this setup. Since the initial Mach number is only about nine,
 it is a spherical-geometry and pressure-work comparison rather than a severe
 dual-energy cancellation stress test; use the HighMachAdvection1D examples
 for that purpose.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/NohSphericalImplosion1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

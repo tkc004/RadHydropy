@@ -31,9 +31,17 @@ cooling.
 
 The HM12 table is stored with Git LFS in
 `tkc004/RadhydropyData <https://github.com/tkc004/RadhydropyData>`_. Install
-Git LFS and fetch it if the sibling ``metal_pie_table/`` directory is missing::
+Git LFS and fetch it before running this example if the sibling
+``metal_pie_table/`` directory is missing. From the RadHydropy project root::
 
+   cd ..
    git lfs install
    git clone https://github.com/tkc004/RadhydropyData.git
    cd RadhydropyData
    git lfs pull
+   cp -R metal_pie_table ../metal_pie_table
+   cd ../RadHydropy
+
+Verify the required table exists::
+
+   test -s ../metal_pie_table/metal_pie_hm12_total.h5

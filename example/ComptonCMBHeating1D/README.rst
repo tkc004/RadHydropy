@@ -40,3 +40,17 @@ cooling, recombination, and collisional ionization, run::
 This fixed-density test disables the analytic Compton-only comparison because
 the additional atomic and chemical source terms are active.  The output is
 written to ``outputs_split_implicit``.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/ComptonCMBHeating1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

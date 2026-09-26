@@ -19,3 +19,17 @@ Strömgren solution. The lower panel plots
 ``(R - R_100000) / R_100000`` for every numerical case, where ``R_100000`` is
 the instantaneous 100,000-step trajectory sampled at the same times. See
 ``../../docs/static_stromgren_c2ray_comparison.rst`` for the full description.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/StaticStromgrenC2RayComparison
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

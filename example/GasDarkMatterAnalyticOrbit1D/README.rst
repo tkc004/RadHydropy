@@ -22,3 +22,17 @@ Run with::
 
    python gas_dark_matter_analytic_orbit1d.py \
        --config gas_dark_matter_analytic_orbit1d.yaml
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/GasDarkMatterAnalyticOrbit1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

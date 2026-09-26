@@ -18,3 +18,17 @@ Run it from this directory with::
 
    python self_gravity_uniform_sphere1d.py \
        --config self_gravity_uniform_sphere1d.yaml
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/SelfGravityUniformSphere1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

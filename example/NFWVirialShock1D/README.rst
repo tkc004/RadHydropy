@@ -19,3 +19,17 @@ The runner also writes ``NFWVirialShock1D_RankineHugoniot.txt``. It detects the
 strongest temperature jump, estimates the shock speed from neighboring
 snapshots, measures the upstream Mach number, and compares the measured density
 and temperature jumps with the finite-Mach Rankine--Hugoniot relations.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/NFWVirialShock1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

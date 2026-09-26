@@ -11,3 +11,17 @@ Run it with::
 
 Temporary output files are created unless ``run()`` is called with an explicit
 ``output_directory``.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/HDF5UnitCosmologyRoundtrip1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

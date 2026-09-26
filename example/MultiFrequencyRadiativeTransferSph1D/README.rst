@@ -58,3 +58,17 @@ fraction, temperature, and photon number density for every group.
 
 The reference files use radius in units of ``r_s = 5.4 kpc`` and store
 ``log10(T/K)`` or ``log10(x_HI)`` in their second column.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/MultiFrequencyRadiativeTransferSph1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

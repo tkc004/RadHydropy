@@ -14,3 +14,19 @@ Run it from this directory with::
 
 The script writes case snapshots under ``outputs/`` and the comparison figure
 ``PIEUVBGCoolingUniformSph1D.jpg``.
+
+The HM12 table is stored with Git LFS in
+`tkc004/RadhydropyData <https://github.com/tkc004/RadhydropyData>`_. Download
+it before running this example. From the RadHydropy project root::
+
+   cd ..
+   git lfs install
+   git clone https://github.com/tkc004/RadhydropyData.git
+   cd RadhydropyData
+   git lfs pull
+   cp -R metal_pie_table ../metal_pie_table
+   cd ../RadHydropy
+
+Verify the required table exists::
+
+   test -s ../metal_pie_table/metal_pie_hm12_total.h5

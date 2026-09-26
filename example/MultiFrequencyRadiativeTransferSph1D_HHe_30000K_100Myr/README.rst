@@ -23,3 +23,17 @@ The C²-Ray variant can be run with::
       --config multifrequency_radiative_transfer_sph1d_hhe_30000k_100myr_c2ray.yaml
 
 Its figure is ``MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr_C2Ray_PIE.jpg``.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/MultiFrequencyRadiativeTransferSph1D_HHe_30000K_100Myr
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

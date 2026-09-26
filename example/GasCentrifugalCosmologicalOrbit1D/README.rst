@@ -41,3 +41,17 @@ heated by the limiter.
 Run with::
 
    python gas_centrifugal_cosmological_orbit1d.py
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/GasCentrifugalCosmologicalOrbit1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

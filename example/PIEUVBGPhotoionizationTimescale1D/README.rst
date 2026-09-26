@@ -21,3 +21,19 @@ The case snapshots are written below ``outputs/nH_*_T_*/`` and the combined
 temperature/error plots are written separately to
 ``outputs/PIEUVBGPhotoionizationTimescale1D_nH_*.jpg``. Their horizontal axes
 show physical time in years on a logarithmic scale.
+
+The HM12 table is stored with Git LFS in
+`tkc004/RadhydropyData <https://github.com/tkc004/RadhydropyData>`_. Download
+it before running this example. From the RadHydropy project root::
+
+   cd ..
+   git lfs install
+   git clone https://github.com/tkc004/RadhydropyData.git
+   cd RadhydropyData
+   git lfs pull
+   cp -R metal_pie_table ../metal_pie_table
+   cd ../RadHydropy
+
+Verify the required table exists::
+
+   test -s ../metal_pie_table/metal_pie_hm12_total.h5

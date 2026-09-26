@@ -20,3 +20,17 @@ wall mass/momentum/energy flux at every step.
 To repeat the test with the more diffusive Rusanov solver, use
 `python spherical_shell_reflecting_wall1d.py --riemann-solver Rusanov`; its
 diagnostics are written under `outputs_Rusanov/`.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/SphericalShellReflectingWall1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

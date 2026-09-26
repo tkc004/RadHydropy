@@ -70,3 +70,17 @@ only the thermal energy while preserving
 ``E_rot = J**2 / (2*M*r**2)``::
 
    python cosmological_rotating_collapse1d_hydrogen.py
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/CosmologicalRotatingCollapse1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

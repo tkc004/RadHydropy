@@ -105,3 +105,17 @@ python power_law_hii_region_radhydropy.py \
 It uses separate `w1p5_C2Ray` IC/snapshot files and writes
 `PowerLawHIIRegion1D_w1p5_C2Ray_RadHydroVsAnalytic.jpg` and
 `PowerLawHIIRegion1D_w1p5_C2Ray_Profiles.jpg`.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/PowerLawHIIRegion1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

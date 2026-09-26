@@ -36,3 +36,17 @@ An equivalent ``Tvir approximately 8000 K`` case is provided by
 
 The HM12 table is distributed with Git LFS through
 `tkc004/RadhydropyData <https://github.com/tkc004/RadhydropyData>`_.
+
+Download it before running this example. From the RadHydropy project root::
+
+   cd ..
+   git lfs install
+   git clone https://github.com/tkc004/RadhydropyData.git
+   cd RadhydropyData
+   git lfs pull
+   cp -R metal_pie_table ../metal_pie_table
+   cd ../RadHydropy
+
+Verify the required table exists::
+
+   test -s ../metal_pie_table/metal_pie_hm12_total.h5

@@ -14,6 +14,26 @@ growing-mode inward peculiar velocity. The disc radius is a
 diagnostic centrifugal radius, estimated from `r = j^2/(G M_target)`; it is not
 a resolved rotating disc in this 1-D spherical model.
 
+The radiative CIE stage requires the CHIANTI tables. Download the external
+data before running a radiative configuration. From the RadHydropy project
+root:
+
+```bash
+git lfs install
+git clone https://github.com/tkc004/RadhydropyData.git
+cd RadhydropyData
+git lfs pull
+cp -R CHIANTI_11.0.2_database ../CHIANTI_11.0.2_database
+cd ../RadHydropy
+test -s ../CHIANTI_11.0.2_database/cooling_tables/chianti_cie_ion_fractions.h5
+test -s ../CHIANTI_11.0.2_database/cooling_tables/chianti_cooling_table.h5
+```
+
+The cloned data repository must be beside the `RadHydropy` checkout. If it is
+already cloned, run `git lfs pull` from `../RadhydropyData` instead of cloning
+it again. PIE configurations additionally require the HM12 table described in
+the PIE example instructions.
+
 Run with:
 
 ```bash
@@ -34,10 +54,41 @@ This evolves the target (10^{12}M_\odot) Lagrangian top-hat boundary directly,
 and reports numerical versus analytic turnaround and virial scales. The
 resulting calibration figure is `outputs/CosmologicalTopHatDarkMatterOnly.jpg`.
 
-To generate the correlation-function initial condition from the (z=100)
-configuration without evolving the system, run:
+## Generate the correlation table and initial condition
+
+The initial-condition builders do not create the linear correlation table
+automatically. Generate the HDF5 table first, at the exact path named by
+`example.linear_correlation_table_filename` in the selected YAML. From the
+RadHydropy project root, run:
 
 ```bash
+python -m pip install -e ".[test,docs]"
+python -c 'from tools.lcdm_correlation import generate_lcdm_correlation_table; generate_lcdm_correlation_table("example/CosmologicalVirialShock1D/outputs_correlation/lcdm_linear_correlation.h5")'
+test -s example/CosmologicalVirialShock1D/outputs_correlation/lcdm_linear_correlation.h5
+```
+
+This uses the built-in sigma8-normalized Eisenstein--Hu no-wiggle LCDM
+spectrum and writes the `radius_mpc_h`, `correlation`, `k_hmpc`, and `power`
+datasets. Configurations using
+`outputs_correlation_inner_resolution/lcdm_linear_correlation_inner.h5` need a
+higher-resolution table; generate that path with:
+
+```bash
+python -c 'import numpy as np; from tools.lcdm_correlation import generate_lcdm_correlation_table; generate_lcdm_correlation_table("example/CosmologicalVirialShock1D/outputs_correlation_inner_resolution/lcdm_linear_correlation_inner.h5", radius_mpc_h=np.geomspace(1.0e-2, 3.0e3, 2048), k_hmpc=np.geomspace(1.0e-5, 1.0e3, 16384))'
+```
+
+The finite-box configuration uses the same generator with
+`k_min_hmpc=2*pi/L`; for its 1 Mpc/h box, run:
+
+```bash
+python -c 'from tools.lcdm_correlation import generate_lcdm_correlation_table; generate_lcdm_correlation_table("example/CosmologicalVirialShock1D/outputs_correlation/eds_finite_box_1Mpc_linear_correlation.h5", k_min_hmpc=6.283185307179586)'
+```
+
+After generating the table, change into the example directory. To construct
+the correlation-function initial condition without evolving the system, run:
+
+```bash
+cd example/CosmologicalVirialShock1D
 python generate_cosmological_correlation_ic.py
 ```
 
@@ -45,6 +96,23 @@ This writes `outputs_correlation/InitialCondition.hdf5` and a diagnostic plot
 of the correlation-shaped density contrast and quiet-Hubble/peculiar velocity
 components. The table radius is in Mpc/(h), while simulation coordinates are
 converted from the code length unit before interpolation.
+
+For a specific configuration, pass it explicitly, for example:
+
+```bash
+python generate_cosmological_correlation_ic.py \
+  --config cosmological_dark_matter_correlation_z100.yaml
+```
+
+The generated HDF5 initial condition is written to the path configured by
+`par.simulation.initial_condition_filename`. The gas correlation runner
+constructs its gas-plus-dark-matter initial condition itself, but still
+requires the table to exist first:
+
+```bash
+python cosmological_gas_correlation_z100.py \
+  --config cosmological_gas_correlation_z100.yaml
+```
 
 To re-read and verify the stored HDF5 fields, run:
 
@@ -90,12 +158,16 @@ heating, and radiative cooling are disabled in this control.
 
 The reusable linear-theory tools in `RadHydropy/tools/` can generate a
 sigma8-normalized LCDM power spectrum and its tabulated correlation function
-when called from the repository root:
+when called from the repository root. The complete command is covered above;
+the direct Python equivalent is:
 
 ```python
 from tools.lcdm_correlation import generate_lcdm_correlation_table
 
-generate_lcdm_correlation_table("outputs_correlation/lcdm_linear_correlation.h5")
+generate_lcdm_correlation_table(
+    "example/CosmologicalVirialShock1D/outputs_correlation/"
+    "lcdm_linear_correlation.h5"
+)
 ```
 
 `linear_correlation_from_power_spectrum` performs the exact Fourier-Bessel

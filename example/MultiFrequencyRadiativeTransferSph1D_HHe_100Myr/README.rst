@@ -42,3 +42,17 @@ snapshot with the same references using::
 
 The C²-Ray local solver uses all five spectral groups; the fourth and fifth
 groups provide the photons capable of ionizing He II and producing He III.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/MultiFrequencyRadiativeTransferSph1D_HHe_100Myr
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

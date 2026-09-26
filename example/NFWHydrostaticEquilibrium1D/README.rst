@@ -27,3 +27,17 @@ Run from this directory with::
 The output figure compares the evolved density and radial velocity with the
 analytic hydrostatic profile. The NFW halo is supplied as an external gravity
 potential; gas self-gravity is not included.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/NFWHydrostaticEquilibrium1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

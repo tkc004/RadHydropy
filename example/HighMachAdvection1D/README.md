@@ -30,3 +30,17 @@ test, the run reaches an extremely dilute cell where cancellation in `E-K`
 produces an enormous sound speed and collapses the timestep. This failure is
 the expected demonstration of why the independent thermal-energy pressure
 selection is needed near vacuum.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/HighMachAdvection1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

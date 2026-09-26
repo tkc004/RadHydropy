@@ -62,3 +62,19 @@ cells is under-resolved and can produce numerical suppression or spurious
 behavior. For a stronger overstability test, increase ``par.mesh.grid_cells``
 to 1024 or 2048 and run for 50--100 Myr while retaining the 0.5 Myr output
 cadence.
+
+The HM12 table is stored with Git LFS in
+`tkc004/RadhydropyData <https://github.com/tkc004/RadhydropyData>`_. Download
+it before running the PIE cases. From the RadHydropy project root::
+
+   cd ..
+   git lfs install
+   git clone https://github.com/tkc004/RadhydropyData.git
+   cd RadhydropyData
+   git lfs pull
+   cp -R metal_pie_table ../metal_pie_table
+   cd ../RadHydropy
+
+Verify the required table exists::
+
+   test -s ../metal_pie_table/metal_pie_hm12_total.h5

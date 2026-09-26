@@ -18,3 +18,17 @@ Run it with::
 The script writes ``EinsteinDeSitterTopHatGravity1D.jpg`` and fails if the
 numerical field differs from the analytic result by more than 0.5 percent
 (the origin cell is excluded by the spherical symmetry convention).
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/EinsteinDeSitterTopHatGravity1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.

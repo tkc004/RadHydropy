@@ -15,3 +15,17 @@ final ``2000 Myr`` output, plus ``NFWVirialShockAdiabatic1D.jpg`` and
 ``NFWVirialShockAdiabatic1D_RankineHugoniot.txt``. The report contains the
 shock radius in kpc and units of ``R200``, shock speed, Mach number, and the
 measured and finite-Mach Rankine--Hugoniot density and temperature ratios.
+Running from a clean checkout
+----------------------------
+
+From the repository root, install RadHydropy and the example dependencies::
+
+   cd RadHydropy
+   python -m pip install -e ".[test,docs]"
+
+Then change into this example directory before running the command shown above::
+
+   cd example/NFWVirialShockAdiabatic1D
+
+If a command above begins with ``python example/``, run that command from
+the repository root instead of changing into this directory.
