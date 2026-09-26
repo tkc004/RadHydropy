@@ -64,23 +64,19 @@ masses are accumulated into common logarithmic proper-radius bins before
 computing the density; raw binned profiles are saved in
 `CosmologicalDarkMatterOnlyDensityProfiles.npz`.
 
-To run the separate 1024-shell adiabatic gas experiment from the same z=100
-correlation-function IC, run:
+The adiabatic gas configurations use the standard cosmological gas driver,
+which writes numbered HDF5 snapshots and the usual diagnostics. For example:
 
 ```bash
-python cosmological_adiabatic_gas_correlation.py
+python cosmological_gas_correlation_z100.py \
+  --config cosmological_gas_correlation_z100_adiabatic_256_inner03.yaml
 ```
 
-It uses 128 Eulerian gas cells and assigns the gas `f_b rho_m` and the live
-dark matter `(1-f_b) rho_m`, so the homogeneous matter density is not counted
-twice. It saves the evolving physical gas-density profiles and the live-DM
-`r_200` diagnostic in
-`outputs_correlation_gas_adiabatic/AdiabaticGasDensityProfiles.npz`, together
-with `AdiabaticGasDensityProfiles.jpg`. The plot uses comoving radius on its
-x-axis and marks each profile's corresponding proper virial radius converted
-to comoving coordinates. Each diagnostic time also writes an HDF5 snapshot
-named `CosmologicalGasCorrelationZ100_Snapshot_###.hdf5`. These can be loaded
-with `radhydropy.io.loadhdf5()`; the restored shell data are available through
+The adiabatic control assigns the gas `f_b rho_m` and live dark matter
+`(1-f_b) rho_m`, so the homogeneous matter density is not counted twice. The
+standard driver writes `Output_###.hdf5` snapshots and diagnostic archives and
+plots in the configured output directory. These snapshots can be loaded with
+`radhydropy.io.loadhdf5()`; the restored shell data are available through
 `snapshot.dark_matter.radius_radarray`,
 `snapshot.dark_matter.radial_velocity_radarray`, and
 `snapshot.dark_matter.dark_matter_mass_radarray`. The dark-matter density plot
