@@ -1,8 +1,8 @@
 Interactive Cosmological Collapse
 =================================
 
-This page is a static replay of RadHydropy's validated T_vir = 1000 K,
-z = 15 cosmological gas--dark-matter calculation. The browser does not
+This page is a static replay of RadHydropy's validated 10^13 M_sun,
+z = 100 to z = 0 cosmological gas--dark-matter calculation. The browser does not
 run a simulation: the page reads a compact data export generated from the
 authoritative HDF5 snapshots.
 
@@ -57,9 +57,9 @@ interior of the density and temperature wells.
        <div class="story-copy"><h2>Read the collapse</h2><p>Scroll through the milestones; the plots follow the selected snapshot.</p><p data-dm-count></p></div>
        <div>
          <article class="story-step is-active" data-story-frame="0"><h3>Initial perturbation</h3><p>The gas follows the imposed growing-mode profile while the dark matter is represented by Lagrangian shells.</p></article>
-         <article class="story-step" data-story-frame="3"><h3>Infall</h3><p>The radial velocity becomes increasingly negative in the collapsing region and the density contrast grows.</p></article>
-         <article class="story-step" data-story-frame="6"><h3>Shock formation</h3><p>The shock marker tracks the entropy-producing transition identified by the saved diagnostic profile.</p></article>
-         <article class="story-step" data-story-frame="9"><h3>Virialized region</h3><p>The evolving r_200 marker gives a scale for comparing the hot gas and dark-matter structure.</p></article>
+         <article class="story-step" data-story-frame="15"><h3>Infall</h3><p>The radial velocity becomes increasingly negative in the collapsing region and the density contrast grows.</p></article>
+         <article class="story-step" data-story-frame="30"><h3>Shock formation</h3><p>The shock marker tracks the entropy-producing transition identified by the saved diagnostic profile.</p></article>
+         <article class="story-step" data-story-frame="40"><h3>Virialized region</h3><p>The evolving r_200 marker gives a scale for comparing the hot gas and dark-matter structure at z = 0.</p></article>
        </div>
      </section>
      <section class="provenance"><h2>Reproducibility</h2><pre data-provenance>loading...</pre></section>

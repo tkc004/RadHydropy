@@ -17,7 +17,8 @@ import radhydropy.io as rio
 from radhydropy.example_config import load_example_config
 
 DEFAULT_CONFIG = Path(
-    "example/CosmologicalVirialShock1D/cosmological_gas_correlation_tvir1e3_z15.yaml",
+    "example/CosmologicalVirialShock1D/"
+    "cosmological_gas_correlation_z100_adiabatic_256_m1e13_z0_inner06.yaml",
 )
 DEFAULT_OUTPUT = Path("docs/_static/interactive/cosmological-collapse-data.json")
 
@@ -142,6 +143,19 @@ def _marker(profile: dict[str, np.ndarray], key: str, index: int) -> float | Non
     return value if np.isfinite(value) else None
 
 
+def _comoving_marker(
+    profile: dict[str, np.ndarray],
+    key: str,
+    scale_factor: float | None,
+    index: int,
+) -> float | None:
+    """Convert a proper-radius diagnostic marker to comoving kpc."""
+    proper = _marker(profile, key, index)
+    if proper is None or scale_factor is None or scale_factor <= 0.0:
+        return None
+    return proper / scale_factor
+
+
 def _export_run(name: str, config_path: Path) -> dict[str, Any]:
     config_path = config_path.resolve()
     config = load_example_config(config_path)
@@ -159,6 +173,7 @@ def _export_run(name: str, config_path: Path) -> dict[str, Any]:
             else None
         )
         radius, density, temperature, velocity = _active_fields(snapshot, temperature_values)
+        scale_factor = _marker(profile, "scale_factor", index)
         frame: dict[str, Any] = {
             "snapshot": filename.name,
             "radius_comoving_kpc": radius,
@@ -166,12 +181,17 @@ def _export_run(name: str, config_path: Path) -> dict[str, Any]:
             "temperature_k": temperature,
             "velocity_km_s": velocity,
             "time_cosmic_gyr": _marker(profile, "time_cosmic_Gyr", index),
-            "scale_factor": _marker(profile, "scale_factor", index),
+            "scale_factor": scale_factor,
             "redshift": None,
-            "rvir_comoving_kpc": _marker(profile, "rvir_kpc", index),
+            "rvir_comoving_kpc": _comoving_marker(profile, "rvir_kpc", scale_factor, index),
             "rvir_proper_kpc": _marker(profile, "rvir_proper_kpc", index),
-            "shock_comoving_kpc": _marker(profile, "rshock_kpc", index),
-            "splashback_comoving_kpc": _marker(profile, "rsplashback_kpc", index),
+            "shock_comoving_kpc": _comoving_marker(profile, "rshock_kpc", scale_factor, index),
+            "splashback_comoving_kpc": _comoving_marker(
+                profile,
+                "rsplashback_kpc",
+                scale_factor,
+                index,
+            ),
             "shock_mach": _marker(profile, "shock_local_mach", index),
         }
         if frame["scale_factor"] is not None and frame["scale_factor"] > 0.0:
@@ -231,7 +251,7 @@ def main() -> None:
     parser.add_argument("--run", action="append", type=_run_argument, metavar="NAME=CONFIG")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
-    requested = args.run or [("tvir_1000_z15", args.config)]
+    requested = args.run or [("m1e13_z0_inner06", args.config)]
     runs = {name: _export_run(name, path) for name, path in requested}
     payload = {
         "schema_version": 1,

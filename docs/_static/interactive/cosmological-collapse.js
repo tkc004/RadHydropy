@@ -98,13 +98,14 @@
     }
     const radius = frame.radius_comoving_kpc, values = frame[field];
     const velocities = frame.velocity_km_s, count = 39;
-    const extent = Math.min(20, radius[radius.length - 1]);
+    const virialRadius = frame.rvir_comoving_kpc;
+    const haloExtent = Number.isFinite(virialRadius) && virialRadius > 0 ? 1.35 * virialRadius : 20;
+    const extent = Math.min(radius[radius.length - 1], Math.max(20, haloExtent));
     const axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
     const gravityHeight = gravityModel(frame, extent);
     const surface = [], colors = [], quiverX = [], quiverY = [], quiverZ = [];
     const quiverLift = 0.04 * extent;
     const virialX = [], virialY = [], virialZ = [];
-    const virialRadius = frame.rvir_comoving_kpc;
     if (Number.isFinite(virialRadius) && virialRadius > 0) {
       for (let index = 0; index <= 72; index += 1) {
         const angle = 2 * Math.PI * index / 72;
