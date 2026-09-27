@@ -1,10 +1,16 @@
 Interactive Cosmological Collapse
 =================================
 
-This page is a static replay of RadHydropy's validated 10^13 M_sun,
+This page is a static replay of RadHydropy's validated :math:`10^{13}\,M_\odot`,
 z = 100 to z = 0 cosmological gas--dark-matter calculation. The browser does not
 run a simulation: the page reads a compact data export generated from the
 authoritative HDF5 snapshots.
+
+The default replay uses
+``cosmological_gas_correlation_z100_adiabatic_256_m1e13_z0_inner06.yaml``
+and the scheduled snapshots in
+``outputs_correlation_gas_adiabatic_256_m1e13_z0_inner06_schedule40``.
+It contains 41 frames from z = 100 through z = 0.
 
 The interaction plots use logarithmic radius. Gas density and gas temperature
 also use logarithmic vertical scales so the wide dynamic range remains visible
@@ -16,7 +22,10 @@ drawn at the center and the surface rises outward. Velocity arrows are drawn
 on that curved surface. The evolving virial radius, :math:`r_{200}`, is shown
 in every profile and as a reference circle on both 3D slices.
 The 3D surfaces use a cutaway in the :math:`x>0, y<0` quadrant to expose the
-interior of the density and temperature wells.
+interior of the density and temperature wells. Profile radii are comoving;
+the saved proper-radius virial and shock diagnostics are converted to
+comoving radii for the markers. The 3D extent expands with the current
+:math:`r_{200}` so the z = 0 halo remains visible.
 
 .. raw:: html
 
@@ -70,4 +79,4 @@ through radhydropy.io.loadhdf5, uses typed RadArray views, excludes ghost
 cells, and records configuration and snapshot hashes.
 
 To include compatible comparison runs in the static payload, repeat the
-run option, for example ``--run tvir_1000_z15=... --run comparison=...``.
+run option, for example ``--run m1e13_z0_inner06=... --run comparison=...``.
