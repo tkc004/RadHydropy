@@ -36,21 +36,22 @@ photoheated gas, dense shell, and ionization front evolve together.
        <article class="plot-card"><h3>Radial velocity</h3><div data-plot="velocity"></div></article>
      </div>
      <div class="plot-grid plot-grid-3d">
-       <article class="plot-card"><h3>3D density slice and velocity quiver</h3><p>Central planar slice reconstructed from the spherical profile. Surface height is a normalized gravitational well, deepest at the center; color is log₁₀ density. Arrow lengths use log-scaled velocity.</p><div data-plot3d="density"></div></article>
-       <article class="plot-card"><h3>3D temperature slice and velocity quiver</h3><p>The same slice colored by log₁₀ temperature, with the radial velocity field shown as arrows on the central gravitational well. Arrow lengths use log-scaled velocity.</p><div data-plot3d="temperature"></div></article>
+       <article class="plot-card"><h3>3D temperature slice and velocity quiver</h3><p>The central planar slice is reconstructed from the spherical profile. Surface depth is log₁₀ density, while temperature is shown with the Inferno color scale. Arrow lengths use log-scaled velocity.</p><div data-plot3d="temperature"></div></article>
      </div>
      <section class="story" aria-label="Narrative walkthrough">
        <div class="story-copy"><h2>Read the interaction</h2><p>Scroll through the milestones; the radial profiles follow the selected snapshot.</p></div>
        <div>
          <article class="story-step is-active" data-story-frame="0"><h3>Wind injection</h3><p>The inner boundary supplies a 1000 km/s wind with the configured mass-loss rate.</p></article>
-         <article class="story-step" data-story-frame="1"><h3>Photoionization</h3><p>The central source creates an ionized region whose neutral-fraction transition defines the ionization front.</p></article>
-         <article class="story-step" data-story-frame="3"><h3>Shell formation</h3><p>Wind ram pressure compresses gas into a dense shell while the photoheated region remains near 10⁴ K or hotter.</p></article>
-         <article class="story-step" data-story-frame="5"><h3>Pressure competition</h3><p>The pressure ratio records whether wind ram pressure or photoheated-gas pressure dominates at the shell.</p></article>
+         <article class="story-step" data-story-frame="18"><h3>Photoionization</h3><p>The central source creates an ionized region whose neutral-fraction transition defines the ionization front.</p></article>
+         <article class="story-step" data-story-frame="36"><h3>Shell formation</h3><p>Wind ram pressure compresses gas into a dense shell while the photoheated region remains near 10⁴ K or hotter.</p></article>
+         <article class="story-step" data-story-frame="53"><h3>Pressure competition</h3><p>The pressure ratio records whether wind ram pressure or photoheated-gas pressure dominates at the shell.</p></article>
        </div>
      </section>
      <section class="provenance"><h2>Reproducibility</h2><pre data-provenance>loading...</pre></section>
    </div>
 
-The data exporter is tools/export_stellar_wind_interactive.py. It loads the
+The run writes 54 snapshots (including the initial state), three times the
+previous 18-frame sequence. The data exporter is
+tools/export_stellar_wind_interactive.py. It loads the
 HDF5 snapshots through radhydropy.io.loadhdf5 and uses physical active-cell
 fields, excluding ghost cells.

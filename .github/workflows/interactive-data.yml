@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  export:
+  cosmological:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -49,13 +49,66 @@ jobs:
           python tools/export_interactive_cosmology.py \
             --run m1e13_z0_inner06=example/CosmologicalVirialShock1D/cosmological_gas_correlation_z100_adiabatic_256_m1e13_z0_inner06.yaml
 
+      - name: Upload cosmological interactive data
+        uses: actions/upload-artifact@v4
+        with:
+          name: interactive-cosmological-${{ github.sha }}
+          path: docs/_static/interactive/cosmological-collapse-data.json
+          if-no-files-found: error
+          compression-level: 9
+          retention-days: 30
+
+  stellar-wind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install documentation dependencies
+        run: python -m pip install -e ".[docs]"
+
       - name: Generate stellar-wind interactive data
         run: |
           python example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.py \
             --config example/DynamicStromgrenSpherePhotoheating20pcStellarWind1D/dynamic_stromgren_sphere_photoheating20pc_stellar_wind1d.yaml
           python tools/export_stellar_wind_interactive.py
 
-      - name: Upload interactive data artifact
+      - name: Upload stellar-wind interactive data
+        uses: actions/upload-artifact@v4
+        with:
+          name: interactive-stellar-wind-${{ github.sha }}
+          path: docs/_static/interactive/stellar-wind-data.json
+          if-no-files-found: error
+          compression-level: 9
+          retention-days: 30
+
+  assemble:
+    needs: [cosmological, stellar-wind]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download cosmological interactive data
+        uses: actions/download-artifact@v4
+        with:
+          name: interactive-cosmological-${{ github.sha }}
+          path: docs/_static/interactive
+
+      - name: Download stellar-wind interactive data
+        uses: actions/download-artifact@v4
+        with:
+          name: interactive-stellar-wind-${{ github.sha }}
+          path: docs/_static/interactive
+
+      - name: Upload combined interactive data artifact
         uses: actions/upload-artifact@v4
         with:
           name: interactive-data-${{ github.sha }}

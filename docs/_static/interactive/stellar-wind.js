@@ -139,7 +139,6 @@
       plot(root.querySelector("[data-plot=\"temperature\"]"), frame, "temperature_k", "temperature", "K", { logX: true, logY: true });
       plot(root.querySelector("[data-plot=\"neutral\"]"), frame, "neutral_fraction", "neutral fraction", "xHI", { logX: true, logY: false });
       plot(root.querySelector("[data-plot=\"velocity\"]"), frame, "velocity_km_s", "radial velocity", "km/s", { logX: true, logY: false });
-      renderSlice(root.querySelector("[data-plot3d=\"density\"]"), frame);
       renderSlice(root.querySelector("[data-plot3d=\"temperature\"]"), frame);
       root.querySelector("[data-front]").textContent = fmt(frame.ionization_front_pc) + " pc";
       root.querySelector("[data-shell]").textContent = fmt(frame.wind_shell_pc) + " pc";

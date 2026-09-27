@@ -6,7 +6,7 @@
   if (!root) return;
   const dataUrl = root.dataset.dataUrl || "_static/interactive/cosmological-collapse-data.json";
   const colors = ["#d64545", "#147d92", "#805ad5", "#2f855a"];
-  const state = { run: null, frame: 0, compare: false };
+  const state = { run: null, frame: 0, compare: false, gravityRanges: [] };
   const fmt = (value, digits) => value == null || !Number.isFinite(value) ? "—" : Number(value).toPrecision(digits || 3);
   const finite = value => value != null && Number.isFinite(value) && value > 0;
 
@@ -56,10 +56,12 @@
     return first * (1 - weight) + second * weight;
   }
 
-  function gravityModel(frame, wellScale) {
+  function gravityModel(frame, boundaryRadius) {
     const radius = frame.radius_comoving_kpc;
     const density = frame.density_g_cm3;
-    const darkMatterRadius = frame.dark_matter_radius_proper_kpc || [];
+    const scaleFactor = Math.max(Number(frame.scale_factor) || 1, 1e-12);
+    const darkMatterRadius = (frame.dark_matter_radius_proper_kpc || [])
+      .map(value => value / scaleFactor);
     const darkMatterMass = frame.dark_matter_mass_msun || [];
     const gasMass = [];
     const gasMassScale = Math.pow(3.085677581e21, 3) / 1.98847e33;
@@ -82,13 +84,35 @@
       );
       return gasPotential + darkMatterPotential;
     };
-    const centralPotential = potentialMagnitude(0);
-    const edgePotential = potentialMagnitude(wellScale);
-    const potentialRange = Math.max(centralPotential - edgePotential, 1e-12);
-    return point => {
-      const wellDepth = Math.max(0, Math.min(1, (potentialMagnitude(Math.max(point, 0)) - edgePotential) / potentialRange));
-      return -0.42 * wellScale * wellDepth;
+    const boundaryPotential = potentialMagnitude(boundaryRadius);
+    // The profile radius and the dark-matter radii are both comoving here.
+    // Use the square-corner potential as a fixed reference: the boundary is
+    // always z=0 and the central well deepens as its log ratio decreases.
+    return {
+      height: point => Math.log10(Math.abs(boundaryPotential / Math.max(potentialMagnitude(Math.max(point, 0)), 1e-12))),
+      centralRatio: Math.log10(Math.abs(boundaryPotential / Math.max(potentialMagnitude(0), 1e-12))),
     };
+  }
+
+  function gravityRanges(frames) {
+    const firstRadius = frames[0].radius_comoving_kpc;
+    const firstExtent = Math.min(firstRadius[firstRadius.length - 1], 150);
+    const initialRatio = gravityModel(frames[0], Math.SQRT2 * firstExtent).centralRatio;
+    const initialMargin = Math.max(4 * Math.abs(initialRatio), 1e-4);
+    const initialLower = initialRatio - initialMargin;
+    let lowerBound = initialLower;
+    return frames.map((_, index) => {
+      const frame = frames[index];
+      const radius = frame.radius_comoving_kpc;
+      const extent = Math.min(radius[radius.length - 1], 150);
+      const centralRatio = gravityModel(frame, Math.SQRT2 * extent).centralRatio;
+      const depth = Math.max(-centralRatio, 0);
+      const target = centralRatio - Math.max(0.5 * depth, 1e-4);
+      // Follow the physical deepening smoothly, without ever moving the
+      // lower bound upward or making a single-frame jump dominate the GIF.
+      if (target < lowerBound) lowerBound += 0.35 * (target - lowerBound);
+      return [lowerBound, 0];
+    });
   }
 
   function renderSlice(target, frame, field, colorscale) {
@@ -98,21 +122,13 @@
     }
     const radius = frame.radius_comoving_kpc, values = frame[field];
     const velocities = frame.velocity_km_s, count = 39;
-    const virialRadius = frame.rvir_comoving_kpc;
-    const haloExtent = Number.isFinite(virialRadius) && virialRadius > 0 ? 1.35 * virialRadius : 20;
-    const extent = Math.min(radius[radius.length - 1], Math.max(20, haloExtent));
+    const extent = Math.min(radius[radius.length - 1], 150);
     const axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
-    const gravityHeight = gravityModel(frame, extent);
+    const gravity = gravityModel(frame, Math.SQRT2 * extent);
+    const gravityHeight = gravity.height;
     const surface = [], colors = [], quiverX = [], quiverY = [], quiverZ = [];
-    const quiverLift = 0.04 * extent;
-    const virialX = [], virialY = [], virialZ = [];
-    if (Number.isFinite(virialRadius) && virialRadius > 0) {
-      for (let index = 0; index <= 72; index += 1) {
-        const angle = 2 * Math.PI * index / 72;
-        const x = virialRadius * Math.cos(angle), y = virialRadius * Math.sin(angle);
-        virialX.push(x); virialY.push(y); virialZ.push(gravityHeight(virialRadius));
-      }
-    }
+    const zRange = state.gravityRanges[state.frame] || gravityRanges([frame])[0];
+    const quiverLift = 0.02 * Math.abs(zRange[1] - zRange[0]);
     const maxVelocity = Math.max(...velocities.map(value => Math.abs(value)), 1e-12);
     for (let row = 0; row < count; row += 1) {
       const surfaceRow = [], colorRow = [];
@@ -156,14 +172,15 @@
       line: { color: "#000000", width: 5 }, marker: { color: "#000000", size: 2.5 },
       opacity: 1, name: "velocity quiver", hoverinfo: "skip",
     }, {
-      type: "scatter3d", mode: "lines", x: virialX, y: virialY, z: virialZ,
-      line: { color: "#805ad5", width: 6 }, name: "r₂₀₀", hoverinfo: "skip",
+      type: "scatter3d", mode: "markers", x: [extent], y: [extent], z: [1],
+      marker: { color: "#ffffff", size: 5, line: { color: "#000000", width: 2 } },
+      name: "corner reference", hovertemplate: "corner (150, 150), z=0<extra></extra>",
     }];
     window.Plotly.react(target, traces, {
       margin: { l: 0, r: 0, t: 10, b: 0 },
       scene: {
         aspectmode: "cube", xaxis: { title: "x (comoving kpc)" },
-        yaxis: { title: "y (comoving kpc)" }, zaxis: { title: "normalized gravitational potential" },
+        yaxis: { title: "y (comoving kpc)" }, zaxis: { title: "corner potential / potential", range: zRange },
         camera: { eye: { x: 1.7, y: -1.7, z: 1.35 }, center: { x: 0, y: 0, z: -0.15 } },
       }, showlegend: false,
     }, { responsive: true, displaylogo: false });
@@ -174,6 +191,7 @@
     if (!runNames.length) throw new Error("interactive data contains no runs");
     state.run = "m1e13_z0_inner06";
     if (!runs[state.run]) throw new Error("interactive data is missing m1e13_z0_inner06");
+    state.gravityRanges = gravityRanges(runs[state.run].frames || []);
     const runSelect = root.querySelector("[data-run]");
     const compareSelect = root.querySelector("[data-compare]");
     runNames.forEach(name => {

@@ -16,16 +16,20 @@ The interaction plots use logarithmic radius. Gas density and gas temperature
 also use logarithmic vertical scales so the wide dynamic range remains visible
 throughout the collapse.
 
-The 3D slice height is a normalized spherical gravitational-potential well
-computed from the gas and dark-matter shell mass: the deepest potential is
-drawn at the center and the surface rises outward. Velocity arrows are drawn
-on that curved surface. The evolving virial radius, :math:`r_{200}`, is shown
-in every profile and as a reference circle on both 3D slices.
+The 3D slice height is
+:math:`\log_{10}|\Phi_{\rm corner}/\Phi(r)|`, where both potentials are from
+the same redshift frame. The corner is :math:`(x,y)=(150,150)` kpc and is
+fixed at :math:`z=0`; the central value becomes more negative as the halo
+deepens. The white corner marker identifies this normalization point. Velocity
+arrows are drawn on that curved surface.
+The evolving virial radius, :math:`r_{200}`, is shown
+in every profile.
 The 3D surfaces use a cutaway in the :math:`x>0, y<0` quadrant to expose the
 interior of the density and temperature wells. Profile radii are comoving;
 the saved proper-radius virial and shock diagnostics are converted to
-comoving radii for the markers. The 3D extent expands with the current
-:math:`r_{200}` so the z = 0 halo remains visible.
+comoving radii for the markers. The profiles expand with the current
+:math:`r_{200}`, while the 3D potential surface uses the fixed comoving range
+:math:`[-150,150]` kpc for a consistent evolution scale.
 
 .. raw:: html
 
