@@ -19,59 +19,37 @@
     return first * (1 - weight) + second * weight;
   }
 
-  function gravityModel(frame) {
-    const radius = frame.radius_pc;
-    const density = frame.density_cm3;
-    const protonMass = 1.67262192369e-24;
-    const parsec = 3.085677581e18;
-    const shellMass = [];
-    for (let index = 0; index < radius.length; index += 1) {
-      const inner = index === 0 ? 0 : (radius[index - 1] + radius[index]) / 2;
-      const outer = index === radius.length - 1 ? radius[index] : (radius[index] + radius[index + 1]) / 2;
-      shellMass.push(density[index] * protonMass * (4 * Math.PI / 3) * (Math.pow(outer * parsec, 3) - Math.pow(inner * parsec, 3)));
-    }
-    const outerRadius = radius[radius.length - 1];
-    const potentialMagnitude = point => shellMass.reduce(
-      (sum, mass, index) => sum + mass / Math.max(point, radius[index]),
-      0,
-    );
-    const centralPotential = potentialMagnitude(0);
-    const edgePotential = potentialMagnitude(outerRadius);
-    const potentialRange = Math.max(centralPotential - edgePotential, 1e-30);
-    return point => {
-      const wellDepth = Math.max(0, Math.min(1, (potentialMagnitude(Math.max(point, 0)) - edgePotential) / potentialRange));
-      return -0.42 * outerRadius * wellDepth;
-    };
-  }
-
-  function renderSlice(target, frame, field, colorscale) {
+  function renderSlice(target, frame) {
     if (!window.Plotly) {
       target.textContent = "The 3D slice requires Plotly.js to be loaded.";
       return;
     }
     const radius = frame.radius_pc;
-    const values = frame[field];
+    const density = frame.density_cm3;
+    const temperature = frame.temperature_k;
     const velocities = frame.velocity_km_s;
     const count = 39;
     const extent = Math.min(20, radius[radius.length - 1]);
     const axis = Array.from({ length: count }, (_, index) => -extent + 2 * extent * index / (count - 1));
-    const gravityHeight = gravityModel(frame);
     const surface = [], colors = [], quiverX = [], quiverY = [], quiverZ = [];
+    const densityDepth = point => Math.log10(Math.max(interpolate(radius, density, Math.max(point, radius[0])), 1e-30));
+    const densityDepthValues = density.filter(value => value > 0).map(value => Math.log10(value));
+    const densityDepthRange = Math.max(Math.max(...densityDepthValues) - Math.min(...densityDepthValues), 1e-12);
     const logVelocity = value => Math.sign(value) * Math.log1p(Math.abs(value));
     const maximumLogVelocity = Math.max(...velocities.map(logVelocity).map(value => Math.abs(value)), 1e-12);
     const arrowScale = 0.55 * extent / maximumLogVelocity;
-    const quiverLift = 0.025 * extent;
+    const quiverLift = 0.025 * densityDepthRange;
     for (let row = 0; row < count; row += 1) {
       const surfaceRow = [], colorRow = [];
       for (let column = 0; column < count; column += 1) {
         const x = axis[column], y = axis[row], distance = Math.hypot(x, y);
         const cutaway = x > 0 && y < 0;
         const safeDistance = Math.max(distance, radius[0]);
-        const value = interpolate(radius, values, safeDistance);
+        const colorValue = interpolate(radius, temperature, safeDistance);
         const velocity = interpolate(radius, velocities, safeDistance);
-        const height = gravityHeight(distance);
+        const height = densityDepth(distance);
         surfaceRow.push(cutaway ? null : height);
-        colorRow.push(cutaway || value <= 0 ? null : Math.log10(value));
+        colorRow.push(cutaway || colorValue <= 0 ? null : Math.log10(colorValue));
         if (!cutaway && row % 4 === 0 && column % 4 === 0 && distance > radius[0]) {
           const visualVelocity = logVelocity(velocity);
           const endX = x + visualVelocity * x / distance * arrowScale;
@@ -83,13 +61,13 @@
           const perpendicularY = deltaX / Math.max(length, 1e-12) * head * 0.6;
           quiverX.push(x, endX, null);
           quiverY.push(y, endY, null);
-          quiverZ.push(height + quiverLift, gravityHeight(Math.hypot(endX, endY)) + quiverLift, null);
+          quiverZ.push(height + quiverLift, densityDepth(Math.hypot(endX, endY)) + quiverLift, null);
           quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, null);
           quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY, null);
-          quiverZ.push(gravityHeight(Math.hypot(endX, endY)) + quiverLift, gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY)) + quiverLift, null);
+          quiverZ.push(densityDepth(Math.hypot(endX, endY)) + quiverLift, densityDepth(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head + perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head + perpendicularY)) + quiverLift, null);
           quiverX.push(endX, endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, null);
           quiverY.push(endY, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY, null);
-          quiverZ.push(gravityHeight(Math.hypot(endX, endY)) + quiverLift, gravityHeight(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY)) + quiverLift, null);
+          quiverZ.push(densityDepth(Math.hypot(endX, endY)) + quiverLift, densityDepth(Math.hypot(endX - deltaX / Math.max(length, 1e-12) * head - perpendicularX, endY - deltaY / Math.max(length, 1e-12) * head - perpendicularY)) + quiverLift, null);
         }
       }
       surface.push(surfaceRow);
@@ -97,8 +75,8 @@
     }
     window.Plotly.react(target, [{
       type: "surface", x: axis, y: axis, z: surface, surfacecolor: colors, opacity: 0.82,
-      colorscale: colorscale, colorbar: { title: field === "density_cm3" ? "log10(cm⁻³)" : "log10(K)" },
-      hovertemplate: "x=%{x:.2f} pc<br>y=%{y:.2f} pc<br>log value=%{surfacecolor:.3g}<extra></extra>",
+      colorscale: "Inferno", colorbar: { title: "log10(K)" },
+      hovertemplate: "x=%{x:.2f} pc<br>y=%{y:.2f} pc<br>log10 temperature=%{surfacecolor:.3g}<extra></extra>",
     }, {
       type: "scatter3d", mode: "lines+markers", x: quiverX, y: quiverY, z: quiverZ,
       line: { color: "#000000", width: 5 }, marker: { color: "#000000", size: 2.5 },
@@ -107,7 +85,7 @@
       margin: { l: 0, r: 0, t: 10, b: 0 },
       scene: {
         aspectmode: "cube", xaxis: { title: "x (pc)" }, yaxis: { title: "y (pc)" },
-        zaxis: { title: "normalized gravitational potential" },
+        zaxis: { title: "log10 density (cm⁻³)" },
         camera: { eye: { x: 1.7, y: -1.7, z: 1.35 }, center: { x: 0, y: 0, z: -0.15 } },
       }, showlegend: false,
     }, { responsive: true, displaylogo: false });
@@ -161,8 +139,8 @@
       plot(root.querySelector("[data-plot=\"temperature\"]"), frame, "temperature_k", "temperature", "K", { logX: true, logY: true });
       plot(root.querySelector("[data-plot=\"neutral\"]"), frame, "neutral_fraction", "neutral fraction", "xHI", { logX: true, logY: false });
       plot(root.querySelector("[data-plot=\"velocity\"]"), frame, "velocity_km_s", "radial velocity", "km/s", { logX: true, logY: false });
-      renderSlice(root.querySelector("[data-plot3d=\"density\"]"), frame, "density_cm3", "Viridis");
-      renderSlice(root.querySelector("[data-plot3d=\"temperature\"]"), frame, "temperature_k", "Inferno");
+      renderSlice(root.querySelector("[data-plot3d=\"density\"]"), frame);
+      renderSlice(root.querySelector("[data-plot3d=\"temperature\"]"), frame);
       root.querySelector("[data-front]").textContent = fmt(frame.ionization_front_pc) + " pc";
       root.querySelector("[data-shell]").textContent = fmt(frame.wind_shell_pc) + " pc";
       root.querySelector("[data-pressure-ratio]").textContent = fmt(frame.pressure_ratio);
