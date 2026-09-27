@@ -43,11 +43,11 @@ jobs:
 
       - name: Generate cosmological interactive data
         run: |
-          python -c "from tools.lcdm_correlation import generate_lcdm_correlation_table; generate_lcdm_correlation_table('example/CosmologicalVirialShock1D/outputs_correlation/eds_finite_box_1Mpc_linear_correlation.h5')"
+          python -c "from tools.lcdm_correlation import generate_lcdm_correlation_table; generate_lcdm_correlation_table('example/CosmologicalVirialShock1D/outputs_correlation_inner_resolution/lcdm_linear_correlation_inner.h5')"
           python example/CosmologicalVirialShock1D/cosmological_gas_correlation_z100.py \
-            --config example/CosmologicalVirialShock1D/cosmological_gas_correlation_tvir1e3_z15.yaml
+            --config example/CosmologicalVirialShock1D/cosmological_gas_correlation_z100_adiabatic_256_m1e13_z0_inner06.yaml
           python tools/export_interactive_cosmology.py \
-            --run tvir_1000_z15=example/CosmologicalVirialShock1D/cosmological_gas_correlation_tvir1e3_z15.yaml
+            --run m1e13_z0_inner06=example/CosmologicalVirialShock1D/cosmological_gas_correlation_z100_adiabatic_256_m1e13_z0_inner06.yaml
 
       - name: Generate stellar-wind interactive data
         run: |
