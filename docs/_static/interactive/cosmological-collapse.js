@@ -172,7 +172,12 @@
   function init(payload) {
     const runs = payload.runs || {}, runNames = Object.keys(runs);
     if (!runNames.length) throw new Error("interactive data contains no runs");
-    state.run = payload.default_run && runs[payload.default_run] ? payload.default_run : runNames[0];
+    const preferredRun = "m1e13_z0_inner06";
+    state.run = runs[preferredRun]
+      ? preferredRun
+      : payload.default_run && runs[payload.default_run]
+        ? payload.default_run
+        : runNames[0];
     const runSelect = root.querySelector("[data-run]");
     const compareSelect = root.querySelector("[data-compare]");
     runNames.forEach(name => {
