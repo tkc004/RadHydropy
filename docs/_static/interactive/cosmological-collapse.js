@@ -95,24 +95,7 @@
   }
 
   function gravityRanges(frames) {
-    const firstRadius = frames[0].radius_comoving_kpc;
-    const firstExtent = Math.min(firstRadius[firstRadius.length - 1], 150);
-    const initialRatio = gravityModel(frames[0], Math.SQRT2 * firstExtent).centralRatio;
-    const initialMargin = Math.max(4 * Math.abs(initialRatio), 1e-4);
-    const initialLower = initialRatio - initialMargin;
-    let lowerBound = initialLower;
-    return frames.map((_, index) => {
-      const frame = frames[index];
-      const radius = frame.radius_comoving_kpc;
-      const extent = Math.min(radius[radius.length - 1], 150);
-      const centralRatio = gravityModel(frame, Math.SQRT2 * extent).centralRatio;
-      const depth = Math.max(-centralRatio, 0);
-      const target = centralRatio - Math.max(0.5 * depth, 1e-4);
-      // Follow the physical deepening smoothly, without ever moving the
-      // lower bound upward or making a single-frame jump dominate the GIF.
-      if (target < lowerBound) lowerBound += 0.35 * (target - lowerBound);
-      return [lowerBound, 0];
-    });
+    return frames.map(() => [-0.05, 0]);
   }
 
   function renderSlice(target, frame, field, colorscale) {

@@ -17,11 +17,11 @@ also use logarithmic vertical scales so the wide dynamic range remains visible
 throughout the collapse.
 
 The 3D slice height is
-:math:`\log_{10}|\Phi_{\rm corner}/\Phi(r)|`, where both potentials are from
-the same redshift frame. The corner is :math:`(x,y)=(150,150)` kpc and is
-fixed at :math:`z=0`; the central value becomes more negative as the halo
-deepens. The white corner marker identifies this normalization point. Velocity
-arrows are drawn on that curved surface.
+:math:`z=\log_{10}|\Phi_{\rm corner}/\Phi(r)|`, where both potentials are
+from the same redshift frame. The corner is :math:`(x,y)=(150,150)` kpc and
+is fixed at :math:`z=0`; every frame uses :math:`z_{\min}=-0.05` as the z-axis
+lower bound. The white corner marker identifies this normalization point.
+Velocity arrows are drawn on that curved surface.
 The evolving virial radius, :math:`r_{200}`, is shown
 in every profile.
 The 3D surfaces use a cutaway in the :math:`x>0, y<0` quadrant to expose the
