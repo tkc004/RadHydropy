@@ -54,7 +54,9 @@ The full [documentation](https://tkc004.github.io/RadHydropy/) includes the
 The teaching notebooks run RadHydropy in a browser without a local Python
 installation. Open one of the links below, then select **Runtime → Run all**
 and allow the setup cell to clone the repository and install the pinned
-dependencies:
+dependencies. The first run restarts the Colab runtime once after installation
+so the pinned NumPy/SciPy binaries are loaded; after Colab reconnects, select
+**Runtime → Run all** again.
 
 | Notebook | Open in Colab |
 | --- | --- |
