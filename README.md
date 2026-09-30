@@ -64,6 +64,7 @@ so the pinned NumPy/SciPy binaries are loaded; after Colab reconnects, select
 | Advection and resolution | [02_advection_and_resolution.ipynb](https://colab.research.google.com/github/tkc004/RadHydropy/blob/main/notebooks/02_advection_and_resolution.ipynb) |
 | Spherical converging shock | [03_spherical_shock.ipynb](https://colab.research.google.com/github/tkc004/RadHydropy/blob/main/notebooks/03_spherical_shock.ipynb) |
 | Inspect an HDF5 snapshot | [04_inspect_hdf5_snapshot.ipynb](https://colab.research.google.com/github/tkc004/RadHydropy/blob/main/notebooks/04_inspect_hdf5_snapshot.ipynb) |
+| Strömgren sphere with stellar wind | [05_stromgren_sphere_with_stellar_wind.ipynb](https://colab.research.google.com/github/tkc004/RadHydropy/blob/main/notebooks/05_stromgren_sphere_with_stellar_wind.ipynb) |
 
 Run the cells from top to bottom. Simulation files are written to Colab's
 temporary `/content` directory. Each notebook includes an optional Google
