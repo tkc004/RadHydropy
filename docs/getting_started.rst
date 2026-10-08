@@ -19,6 +19,18 @@ editable mode:
    python -m pip install --upgrade pip
    python -m pip install -e .
 
+Alternatively, create a dedicated Conda environment with Python 3.10 and
+install RadHydropy there:
+
+.. code-block:: bash
+
+   git clone https://github.com/tkc004/RadHydropy.git
+   cd RadHydropy
+   conda create -n radhydropy-py310 python=3.10
+   conda activate radhydropy-py310
+   python -m pip install --upgrade pip
+   python -m pip install -e .
+
 Install the optional test and documentation dependencies when developing:
 
 .. code-block:: bash
