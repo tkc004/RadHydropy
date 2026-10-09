@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use RadHydropy in your research, please cite it using this file."
+title: RadHydropy
+type: software
+version: 0.1.0a1
+abstract: >-
+  A one-dimensional finite-volume hydrodynamics package for Cartesian and
+  spherical test problems, with support for gravity, thermo-chemistry,
+  radiative transfer, cosmological coordinates, and HDF5 snapshots.
+authors:
+  - family-names: Chan
+    given-names: Tsang Keung
+    email: chantsangkeung@gmail.com
+    orcid: "https://orcid.org/0000-0003-2544-054X"
+repository-code: https://github.com/tkc004/RadHydropy
+license: AGPL-3.0-or-later
