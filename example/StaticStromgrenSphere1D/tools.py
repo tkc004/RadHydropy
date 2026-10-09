@@ -331,6 +331,9 @@ def save_plot(mesh, fluid, config, figure_filename):
         color="tab:blue",
         lw=2.0,
         label=r"$x_{\rm HI}$ numerical",
+        marker="o",
+        mfc="none",
+        ls="None",
     )
     ax.plot(
         radius_proper_kpc,
@@ -338,6 +341,9 @@ def save_plot(mesh, fluid, config, figure_filename):
         color="tab:red",
         lw=2.0,
         label=r"$x_{\rm HII}$ numerical",
+        marker="o",
+        mfc="none",
+        ls="None",
     )
     ax.plot(
         radius_proper_kpc,
@@ -367,7 +373,7 @@ def save_plot(mesh, fluid, config, figure_filename):
     ax.set_yscale("log")
     ax.set_ylim(plot_floor, 1.2)
     ax.grid(visible=True, which="both", alpha=0.25)
-    ax.legend(frameon=False, loc="center right")
+    ax.legend(frameon=False, loc="lower center")
     fig.tight_layout()
     fig.savefig(figure_filename, dpi=200)
     plt.close(fig)
