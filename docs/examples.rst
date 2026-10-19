@@ -141,6 +141,9 @@ page.
    * - ``example/StaticStromgrenSphere1D``
      - Static spherical Stromgren benchmark with constant density, temperature,
        radiative transfer, and implicit hydrogen chemistry.
+   * - ``example/CosmologicalStromgrenSphere1D``
+     - Cosmological homogeneous Strömgren benchmark with C²-Ray chemistry,
+       an analytic expanding-universe front reference, and a 400 ckpc domain.
    * - ``example/StaticStromgrenSpherePhotoheating1D``
      - Static spherical Stromgren benchmark with photoheating. The directory
        also contains ``static_stromgren_sphere_photoheating1d_c2ray.yaml``

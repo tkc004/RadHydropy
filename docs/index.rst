@@ -26,6 +26,7 @@ The package is organized around a small simulation workflow:
    example_matrix
    examples
    example_catalog
+   cosmological_stromgren_sphere1d
    reproducibility
    interactive_cosmological_collapse
    interactive_stellar_wind

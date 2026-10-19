@@ -53,6 +53,9 @@ generated tables, external data, or a particular configuration variant.
    * - ``CosmologicalSodShock1D``
      - ``README.md``
      - Cosmological Sod shock variants.
+   * - ``CosmologicalStromgrenSphere1D``
+     - ``README.md``
+     - Cosmological Strömgren-sphere benchmark.
    * - ``CosmologicalTopHatEdSLambdaCDM1D``
      - —
      - Einstein–de Sitter and Lambda-CDM top-hat tests.
