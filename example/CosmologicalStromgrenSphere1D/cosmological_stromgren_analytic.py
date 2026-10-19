@@ -28,12 +28,12 @@ def front_radius_comoving(
     if np.any(scale_factor < initial_scale_factor):
         raise ValueError("scale_factor must not precede the source turn-on")
     x = (scale_factor / initial_scale_factor) ** 1.5
-    time_initial_s = initial_time.to_value(unyt.s)
+    time_initial_cgs_s = initial_time.to_value(unyt.s)
     density_initial = hydrogen_number_density_initial.to_value(1.0 / unyt.cm**3)
     alpha_value = alpha_b.to_value(unyt.cm**3 / unyt.s)
     source_rate = source_photon_rate.to_value(1.0 / unyt.s)
-    lambda_initial = alpha_value * density_initial * time_initial_s
-    radius_stromgren_initial_cm = (
+    lambda_initial = alpha_value * density_initial * time_initial_cgs_s
+    radius_stromgren_initial_cgs_cm = (
         3.0 * source_rate / (4.0 * np.pi * alpha_value * density_initial**2)
     ) ** (1.0 / 3.0)
 
@@ -52,7 +52,9 @@ def front_radius_comoving(
     if not solution.success:
         raise RuntimeError(f"cosmological Strömgren reference failed: {solution.message}")
     y = np.maximum(solution.y[0][inverse], 0.0)
-    radius_comoving_cm = radius_stromgren_initial_cm * y ** (1.0 / 3.0) / initial_scale_factor
+    radius_comoving_cm = (
+        radius_stromgren_initial_cgs_cm * y ** (1.0 / 3.0) / initial_scale_factor
+    )
     return radius_comoving_cm * unyt.cm
 
 
