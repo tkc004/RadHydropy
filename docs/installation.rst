@@ -10,6 +10,20 @@ Install RadHydropy in editable mode while developing:
 
    python -m pip install -e .
 
+Alternatively, use `uv <https://docs.astral.sh/uv/>`_ to create and manage the
+project environment. From the project root, install the optional test and
+documentation dependencies with:
+
+.. code-block:: bash
+
+   uv sync --group dev
+
+Run commands in the uv-managed environment with ``uv run``:
+
+.. code-block:: bash
+
+   uv run pytest
+
 The package requires ``h5py``, ``numpy``, and ``unyt``. Tests additionally use
 ``pytest``:
 

@@ -38,6 +38,19 @@ Install optional test and documentation dependencies with:
 python -m pip install -e ".[test,docs]"
 ```
 
+As an alternative, install the development environment with
+[uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync --group dev
+```
+
+Run commands in the uv-managed environment with `uv run`, for example:
+
+```bash
+uv run pytest
+```
+
 Run the test suite with:
 
 ```bash
