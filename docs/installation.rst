@@ -26,6 +26,39 @@ Run commands in the uv-managed environment with ``uv run``:
 
    uv run pytest
 
+Troubleshooting HPC Python installations
+------------------------------------------
+
+If ``uv run pytest`` fails during test collection with:
+
+.. code-block:: text
+
+   ModuleNotFoundError: No module named '_ctypes'
+
+this is not a RadHydropy or uv dependency error. The Python installation
+provided by the HPC system is missing Python's standard ``_ctypes`` extension.
+SciPy requires ``ctypes``, so test collection fails before RadHydropy tests
+run.
+
+Use a complete Python installation, preferably Python 3.11--3.13:
+
+.. code-block:: bash
+
+   uv python install 3.12
+   uv venv --python 3.12
+   uv sync --group dev
+   uv run pytest
+
+You can verify the Python installation directly with:
+
+.. code-block:: bash
+
+   uv run python -c "import ctypes; print(ctypes.__file__)"
+
+If this command produces the same ``_ctypes`` error, load an HPC-provided
+Python module with a complete standard library or install Python with ``libffi``
+support.
+
 The package requires ``h5py``, ``numpy``, and ``unyt``. Tests additionally use
 ``pytest``:
 

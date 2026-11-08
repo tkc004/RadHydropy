@@ -1,13 +1,17 @@
 # Copyright (C) 2026 Tsang Keung Chan
 # SPDX-License-Identifier: AGPL-3.0
+from __future__ import annotations
+
 """Cached CHIANTI CIE ion-fraction and cooling-table interpolation."""
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import h5py
 import numpy as np
-from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 ELEMENT_SYMBOLS = (
     "H",
