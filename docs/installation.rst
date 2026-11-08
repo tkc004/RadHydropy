@@ -11,11 +11,13 @@ Install RadHydropy in editable mode while developing:
    python -m pip install -e .
 
 Alternatively, use `uv <https://docs.astral.sh/uv/>`_ to create and manage the
-project environment. From the project root, install the optional test and
-documentation dependencies with:
+project environment. Clone the repository, change into the project directory,
+and install the optional test and documentation dependencies with:
 
 .. code-block:: bash
 
+   git clone https://github.com/tkc004/RadHydropy.git
+   cd RadHydropy
    uv sync --group dev
 
 Run commands in the uv-managed environment with ``uv run``:

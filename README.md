@@ -42,6 +42,8 @@ As an alternative, install the development environment with
 [uv](https://docs.astral.sh/uv/):
 
 ```bash
+git clone https://github.com/tkc004/RadHydropy.git
+cd RadHydropy
 uv sync --group dev
 ```
 

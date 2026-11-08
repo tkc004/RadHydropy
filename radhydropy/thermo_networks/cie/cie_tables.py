@@ -7,6 +7,7 @@ from typing import Any
 
 import h5py
 import numpy as np
+from numpy.typing import NDArray
 
 ELEMENT_SYMBOLS = (
     "H",
@@ -84,7 +85,7 @@ class CIETable:
             raise ValueError("CIE and abundance tables contain different elements.")
 
         self.abundance = abundance
-        self.ion_stage = np.arange(fractions.shape[1], dtype=float)
+        self.ion_stage: NDArray[np.float64] = np.arange(fractions.shape[1], dtype=float)
         mean_charge = np.sum(fractions * self.ion_stage[None, :, None], axis=1)
         self._mean_charge = mean_charge
         self._cooling = cooling
