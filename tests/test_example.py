@@ -10,6 +10,7 @@ from unittest import mock
 
 import h5py
 import numpy as np
+import pytest
 import unyt
 
 import radhydropy.io as rio
@@ -24,6 +25,12 @@ from radhydropy.runtime_fields import (
 from tests.parameter_fixtures import parameter_namespace
 
 EXAMPLE_ROOT = Path(__file__).resolve().parents[1] / "example"
+MULTIFREQUENCY_RADIATION_SPECTRUM = (
+    EXAMPLE_ROOT.parent
+    / "tools"
+    / "radiation_spectrum_generator"
+    / "radiation_spectrum_BB100000K_5groups_HHe.h5"
+)
 if str(EXAMPLE_ROOT) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_ROOT))
 import example_utils
@@ -366,6 +373,13 @@ class Testing(unittest.TestCase):
         )
         self.assertEqual(par_config["mesh"]["grid_cells"], 256)
 
+    @pytest.mark.skipif(
+        not MULTIFREQUENCY_RADIATION_SPECTRUM.is_file(),
+        reason=(
+            "optional multifrequency radiation spectrum not found: "
+            f"{MULTIFREQUENCY_RADIATION_SPECTRUM}"
+        ),
+    )
     def test_multifrequency_radiative_transfer_sph1d_uses_yaml_config(self):
         config_filename = (
             Path(__file__).resolve().parents[1]

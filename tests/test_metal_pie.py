@@ -17,6 +17,8 @@ TABLE_FILENAME = (
 HM12_TOTAL_FILENAME = (
     Path(__file__).resolve().parents[2] / "metal_pie_table" / "metal_pie_hm12_total.h5"
 )
+TABLE_FILENAME_AVAILABLE = TABLE_FILENAME.is_file()
+HM12_TOTAL_FILENAME_AVAILABLE = HM12_TOTAL_FILENAME.is_file()
 
 
 def _code_units_mapping():
@@ -95,6 +97,10 @@ def _state():
     return state
 
 
+@pytest.mark.skipif(
+    not TABLE_FILENAME_AVAILABLE,
+    reason=f"optional PIE table not found: {TABLE_FILENAME}",
+)
 def test_supplied_metal_pie_table_interpolates_finite_rates():
     table = MetalPIETable(TABLE_FILENAME)
     heating, cooling = table.rates(
@@ -236,6 +242,10 @@ def test_non_hm12_pie_keeps_heating_above_density_cutoff(tmp_path):
     )
 
 
+@pytest.mark.skipif(
+    not HM12_TOTAL_FILENAME_AVAILABLE,
+    reason=f"optional HM12 PIE table not found: {HM12_TOTAL_FILENAME}",
+)
 def test_hm12_pie_rejects_radiative_transfer():
     with pytest.raises(ValueError, match="radiative_transfer: false"):
         Par(
@@ -248,6 +258,10 @@ def test_hm12_pie_rejects_radiative_transfer():
         )
 
 
+@pytest.mark.skipif(
+    not HM12_TOTAL_FILENAME_AVAILABLE,
+    reason=f"optional HM12 PIE table not found: {HM12_TOTAL_FILENAME}",
+)
 def test_pie_uvbg_implicit_step_converges_against_half_steps():
     table = MetalPIETable(HM12_TOTAL_FILENAME)
     network = PIEUVBGCoolingNetwork()

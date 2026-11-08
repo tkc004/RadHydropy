@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from radhydropy.thermo_networks import c2ray
 from radhydropy.thermo_networks.pie import MetalPIETable
@@ -24,6 +25,7 @@ CODE_UNITS = CodeUnits.from_mapping(
 METAL_PIE_TABLE = (
     Path(__file__).resolve().parents[2] / "metal_pie_table" / "metal_pie_table_Z1_metals.h5"
 )
+METAL_PIE_TABLE_AVAILABLE = METAL_PIE_TABLE.is_file()
 
 
 def make_state(ncell=4):
@@ -161,6 +163,10 @@ def test_c2ray_hydrogen_helium_uses_coupled_local_solver():
     np.testing.assert_allclose(incoming_rate, absorbed_rate + outgoing_rate)
 
 
+@pytest.mark.skipif(
+    not METAL_PIE_TABLE_AVAILABLE,
+    reason=f"optional PIE table not found: {METAL_PIE_TABLE}",
+)
 def test_c2ray_hydrogen_helium_pie_enters_implicit_thermal_rate():
     table = MetalPIETable(METAL_PIE_TABLE)
     state = make_state(ncell=1)
